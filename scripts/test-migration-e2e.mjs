@@ -40,7 +40,10 @@ function command(id, payload = Buffer.alloc(0)) {
 const urls = ['https://migration-one.example/', 'https://migration-two.example/'];
 function sessionFixture() {
   const records = [Buffer.from('534e535303000000', 'hex'),
-    command(9, Buffer.concat([i32(1), i32(0)]))];
+    command(9, Buffer.concat([i32(1), i32(0)])),
+    // Edge adds metadata commands that Chromium's restore parser rejects.
+    command(132, Buffer.alloc(8)), command(40, Buffer.alloc(24)),
+    command(39, Buffer.alloc(24))];
   urls.forEach((url, index) => {
     const tab = index + 2;
     const navigation = Buffer.concat([i32(tab), i32(0), pickleString(url),
@@ -48,8 +51,22 @@ function sessionFixture() {
     records.push(command(0, Buffer.concat([i32(1), i32(tab)])),
       command(2, Buffer.concat([i32(tab), i32(index)])),
       command(6, Buffer.concat([i32(navigation.length), navigation])),
-      command(7, Buffer.concat([i32(tab), i32(0)])));
+      command(7, Buffer.concat([i32(tab), i32(0)])),
+      command(50, Buffer.alloc(12)));
   });
+  // Filtering metadata must retain tab-close commands, not resurrect tabs.
+  const closedNavigation = Buffer.concat([i32(99), i32(0),
+    pickleString('https://migration-closed.example/'),
+    pickleString('Closed tab', 'utf16le'), pickleString(''), i32(0)]);
+  records.push(command(0, Buffer.concat([i32(1), i32(99)])),
+    command(6, Buffer.concat([i32(closedNavigation.length), closedNavigation])),
+    command(16, Buffer.concat([i32(99), Buffer.alloc(12)])));
+  // A closed window must also stay closed even if its tabs have navigations.
+  closedNavigation.writeInt32LE(100);
+  records.push(command(9, Buffer.concat([i32(42), i32(0)])),
+    command(0, Buffer.concat([i32(42), i32(100)])),
+    command(6, Buffer.concat([i32(closedNavigation.length), closedNavigation])),
+    command(17, Buffer.concat([i32(42), Buffer.alloc(12)])));
   return Buffer.concat([...records, command(255)]);
 }
 let child, socket, lock;
@@ -194,7 +211,8 @@ try {
   assert.equal(category(first, 'tabs').errorCode, 'source_in_use');
   assert.match(await evaluate("document.querySelector('dao-import-app').shadowRoot.textContent"), /Completely quit the source browser/);
   await releaseLock();
-  assert.equal(await evaluate("import('./import_bridge.js').then(b => {const app=document.querySelector('dao-import-app'); return b.getImportItemCount(app.selectedSourceId_, 'tabs');})"), 2);
+  assert.equal(await evaluate("import('./import_bridge.js').then(b => {const app=document.querySelector('dao-import-app'); return b.getImportItemCount(app.selectedSourceId_, 'tabs');})"), 2,
+    'Edge metadata must not interrupt open-tab parsing or restore closed tabs');
   await evaluate("document.querySelector('dao-import-app').shadowRoot.querySelector('footer .primary').click()");
   const retried = await terminal();
   console.log('Retry finished');
@@ -242,7 +260,7 @@ try {
   const destDb = new DatabaseSync(path.join(destination, 'Default/History'), {readOnly: true});
   assert.equal(destDb.prepare('SELECT COUNT(*) AS n FROM visits JOIN urls ON visits.url=urls.id WHERE urls.url=? AND visit_time IN (?, ?)').get(urls[0], visitTime, visitTime + 1000).n, 2);
   destDb.close();
-  console.log('PASS: real WebUI -> native detection -> snapshots -> persisted bookmarks/history/tabs; protected extension deduplication and installer rejection/retry; locked-session hint/retry; corrupt-source failure/recovery; bookmark retry without duplication');
+  console.log('PASS: real WebUI -> native detection -> snapshots -> persisted bookmarks/history/tabs; Edge metadata with closed tabs/windows excluded; protected extension deduplication and installer rejection/retry; locked-session hint/retry; corrupt-source failure/recovery; bookmark retry without duplication');
   console.log(JSON.stringify(retried, null, 2));
 } finally {
   await releaseLock();
