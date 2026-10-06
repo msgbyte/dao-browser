@@ -37,6 +37,8 @@ class BrowserTabsController(
     },
 ) {
     private val sessionObservers = mutableMapOf<EngineSession, EngineSession.Observer>()
+    private val tabsThatHadSessions = mutableSetOf<String>()
+    private val tabsToReloadOnRecreate = mutableSetOf<String>()
     val state: StateFlow<BrowserState> = store.stateFlow
 
     init {
@@ -125,6 +127,12 @@ class BrowserTabsController(
     fun ensureSession(tabId: String) {
         val tab = state.value.tabs.firstOrNull { it.id == tabId } ?: return
         if (tab.engineState.engineSession != null || tab.engineState.initializing) return
+        // Android killed this tab's content process. Gecko can drop the saved state while the
+        // replacement process starts, leaving about:blank under the old URL, so the new session
+        // reloads the URL over whatever the restore produced (see syncSessionObservers).
+        // ponytail: also reloads after a restore that worked, losing scroll position, form input and
+        // POST results; reload only when the restored history comes back empty if that matters.
+        if (tabId in tabsThatHadSessions) tabsToReloadOnRecreate += tabId
         store.dispatch(EngineAction.CreateEngineSessionAction(tabId))
     }
 
@@ -189,8 +197,22 @@ class BrowserTabsController(
         sessionObservers.keys.filterNot(currentSessions::contains).forEach { session ->
             sessionObservers.remove(session)?.let(session::unregister)
         }
+        val tabIds = browserState.tabs.mapTo(mutableSetOf()) { it.id }
+        tabsThatHadSessions.retainAll(tabIds)
+        tabsToReloadOnRecreate.retainAll(tabIds)
         browserState.tabs.forEach { tab ->
             val session = tab.engineState.engineSession ?: return@forEach
+            tabsThatHadSessions += tab.id
+            if (tabsToReloadOnRecreate.remove(tab.id)) {
+                // Mozilla skips a same-URL load for a tab without a session, so wait for the new one.
+                store.dispatch(
+                    EngineAction.LoadUrlAction(
+                        tab.id,
+                        tab.content.url,
+                        EngineSession.LoadUrlFlags.select(EngineSession.LoadUrlFlags.LOAD_FLAGS_REPLACE_HISTORY),
+                    ),
+                )
+            }
             if (sessionObservers.containsKey(session)) return@forEach
             val observer = object : EngineSession.Observer {
                 override fun onExternalResource(

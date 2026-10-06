@@ -17,6 +17,7 @@ import kotlinx.coroutines.Dispatchers
 import mozilla.components.browser.session.storage.RecoverableBrowserState
 import mozilla.components.browser.state.engine.EngineMiddleware
 import mozilla.components.browser.state.action.ContentAction
+import mozilla.components.browser.state.action.EngineAction
 import mozilla.components.browser.state.action.TabListAction
 import mozilla.components.browser.state.state.ContentState
 import mozilla.components.browser.state.state.EngineState
@@ -280,6 +281,35 @@ class BrowserTabsControllerTest {
         assertEquals(session, controller.selectedSession())
         verify(exactly = 1) { engine.createSession(false, null) }
         verify(exactly = 1) { session.restoreState(savedState) }
+    }
+
+    @Test
+    fun `ensureSession reloads a killed tab's URL over a possibly lost restore`() {
+        val engine = mockk<Engine>(relaxed = true)
+        val session = mockk<EngineSession>(relaxed = true)
+        every { engine.createSession(any(), any()) } returns session
+        val scope = CoroutineScope(Dispatchers.Unconfined)
+        val store = BrowserStore(middleware = EngineMiddleware.create(engine = engine, scope = scope))
+        val controller = BrowserTabsController(store, defaultPrivateBrowsing = false, scope = scope)
+        val tabId = controller.createTab(private = false)
+        controller.ensureSession(tabId)
+        controller.navigate("https://killed.example")
+        store.dispatch(EngineAction.KillEngineSessionAction(tabId))
+        assertEquals(null, controller.selectedSession())
+
+        controller.ensureSession(tabId)
+
+        assertEquals(session, controller.selectedSession())
+        verify {
+            session.loadUrl(
+                "https://killed.example",
+                any(),
+                match { it.contains(EngineSession.LoadUrlFlags.LOAD_FLAGS_REPLACE_HISTORY) },
+                any(),
+                any(),
+                any(),
+            )
+        }
     }
 
     @Test
