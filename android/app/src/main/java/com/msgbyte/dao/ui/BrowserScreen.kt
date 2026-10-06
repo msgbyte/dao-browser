@@ -154,6 +154,7 @@ import com.msgbyte.dao.browser.AmoStoreViewModel
 import com.msgbyte.dao.browser.BrowserTabsController
 import com.msgbyte.dao.browser.BrowserLibraryRepository
 import com.msgbyte.dao.browser.BookmarkEntry
+import com.msgbyte.dao.browser.BookmarkKind
 import com.msgbyte.dao.browser.ExtensionInstallState
 import com.msgbyte.dao.browser.HistoryVisit
 import com.msgbyte.dao.browser.NavigationTargetResolver
@@ -1208,7 +1209,7 @@ private fun BrowsingScreen(
     val outerDirection = LocalLayoutDirection.current
     val content = tab?.content
     val bookmarks by library.bookmarks.collectAsStateWithLifecycle()
-    val isBookmarked = bookmarks.any { it.url == content?.url }
+    val isBookmarked = bookmarks.any { it.url == content?.url && it.kind == BookmarkKind.FAVORITE }
     var findOpen by remember { mutableStateOf(false) }
     var scannerOpen by remember { mutableStateOf(false) }
     var securitySheetOpen by remember { mutableStateOf(false) }

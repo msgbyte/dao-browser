@@ -3,6 +3,7 @@ package com.msgbyte.dao.browser
 import android.content.ContentValues
 import android.content.Context
 import android.database.Cursor
+import android.database.sqlite.SQLiteDatabase
 import java.net.URI
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -117,9 +118,12 @@ class BrowserLibraryRepository(
                 put("kind", kind.name)
                 put("updated_at", clock())
             }
-            check(database.writableDatabase.update("bookmarks", values, "id = ?", arrayOf(id.toString())) == 1) {
-                "Bookmark does not exist"
-            }
+            val db = database.writableDatabase
+            val args = arrayOf(id.toString())
+            val updated = db.updateWithOnConflict("bookmarks", values, "id = ?", args, SQLiteDatabase.CONFLICT_IGNORE)
+            // The target list already holds this URL (UNIQUE(url, kind)): keep that entry, with its
+            // own title and folder, and drop the moved duplicate. A vanished id deletes nothing.
+            if (updated == 0) db.delete("bookmarks", "id = ?", args)
             mutableBookmarks.value = readBookmarks()
         }
     }

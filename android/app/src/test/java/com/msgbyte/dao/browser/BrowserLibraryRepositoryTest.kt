@@ -42,6 +42,17 @@ class BrowserLibraryRepositoryTest {
     }
 
     @Test
+    fun movingABookmarkIntoAListThatHoldsItsUrlKeepsTheExistingEntry() = runBlocking {
+        val folder = repository.createFolder("Work")
+        val existing = repository.addBookmark("https://example.com", "Team docs", folder.id)
+        val readLater = repository.addBookmark("https://example.com", "Later", kind = BookmarkKind.READING_LIST)
+
+        repository.updateBookmark(readLater.id, readLater.title, null, BookmarkKind.FAVORITE)
+
+        assertEquals(listOf(existing), repository.bookmarks.value)
+    }
+
+    @Test
     fun togglingTheSameUrlAddsThenRemovesItsBookmark() = runBlocking {
         assertEquals(
             BookmarkToggleResult.ADDED,
