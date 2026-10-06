@@ -111,10 +111,12 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -731,7 +733,11 @@ private fun NewTabScreen(
     val focusRequester = remember { FocusRequester() }
     var searchExpanded by remember(startExpanded) { mutableStateOf(startExpanded) }
     var scannerOpen by remember { mutableStateOf(false) }
-    var query by remember(initialQuery) { mutableStateOf(initialQuery) }
+    // Start with the whole address selected so typing replaces it.
+    var queryValue by remember(initialQuery) {
+        mutableStateOf(TextFieldValue(initialQuery, TextRange(0, initialQuery.length)))
+    }
+    val query = queryValue.text
     val now = remember { LocalDateTime.now() }
     val datePattern = stringResource(R.string.new_tab_date_format)
     val topOffset by animateDpAsState(
@@ -752,7 +758,7 @@ private fun NewTabScreen(
             onExitExpanded()
         } else {
             searchExpanded = false
-            query = ""
+            queryValue = TextFieldValue()
         }
     }
 
@@ -823,16 +829,16 @@ private fun NewTabScreen(
         }
 
         SearchField(
-            value = query,
+            value = queryValue,
             expanded = searchExpanded,
-            onValueChange = { query = it },
+            onValueChange = { queryValue = it },
             onActivate = {
                 searchExpanded = true
             },
             onTrailingClick = {
                 if (searchExpanded) {
                     if (query.isNotBlank()) {
-                        query = ""
+                        queryValue = TextFieldValue()
                     } else if (onExitExpanded != null) {
                         onExitExpanded()
                     } else {
@@ -881,9 +887,9 @@ private fun NewTabScreen(
 
 @Composable
 private fun SearchField(
-    value: String,
+    value: TextFieldValue,
     expanded: Boolean,
-    onValueChange: (String) -> Unit,
+    onValueChange: (TextFieldValue) -> Unit,
     onActivate: () -> Unit,
     onTrailingClick: () -> Unit,
     onSubmit: () -> Unit,
@@ -929,7 +935,7 @@ private fun SearchField(
                         modifier = Modifier.fillMaxWidth(),
                         contentAlignment = Alignment.CenterStart,
                     ) {
-                        if (value.isEmpty()) {
+                        if (value.text.isEmpty()) {
                             Text(
                                 stringResource(R.string.address_hint),
                                 style = inputTextStyle.copy(color = colors.faint),

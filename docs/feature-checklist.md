@@ -184,7 +184,8 @@ iPhone Simulator/device. These boxes are acceptance steps, not completed results
   scroll position. Repeat with no matching suggestions and after scrolling to
   dismiss the keyboard. On a new tab, blank-space taps restore the collapsed
   search pill and discard unsubmitted input. Input taps, clear and suggestion
-  selection still work; reopening a page address shows its current URL.
+  selection still work; reopening a page address shows its current URL fully
+  selected, and typing replaces it.
 - [ ] Open the iOS browsing drawer: home, bookmark, read-later, share, page QR and
   find form exactly three columns and two rows with matching tile styling and
   readable localized labels. Verify sharing opens the native sheet; library and

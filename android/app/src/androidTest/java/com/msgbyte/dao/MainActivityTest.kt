@@ -39,6 +39,7 @@ import androidx.compose.ui.test.down
 import androidx.compose.ui.test.up
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.graphics.toPixelMap
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
@@ -1043,7 +1044,12 @@ class MainActivityTest {
         }
         composeRule.onNodeWithText(host, substring = true).performClick()
 
-        composeRule.onNode(hasSetTextAction()).assertTextEquals(url)
+        val editField = composeRule.onNode(hasSetTextAction())
+        editField.assertTextEquals(url)
+        assertEquals(
+            TextRange(0, url.length),
+            editField.fetchSemanticsNode().config[SemanticsProperties.TextSelectionRange],
+        )
     }
 
 }
