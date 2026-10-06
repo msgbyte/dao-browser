@@ -53,10 +53,12 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -1127,7 +1129,7 @@ private fun ScannerOverlay(
             Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .28f)))
         }
         Row(
-            modifier = Modifier.fillMaxWidth().padding(20.dp),
+            modifier = Modifier.fillMaxWidth().statusBarsPadding().padding(20.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(stringResource(R.string.scan_qr), color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
@@ -1170,7 +1172,7 @@ private fun ScannerOverlay(
         }
         Text(
             stringResource(R.string.scanner_hint),
-            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 56.dp),
+            modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 56.dp),
             color = Color.White.copy(alpha = .72f),
             fontSize = 13.5.sp,
         )
