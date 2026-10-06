@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -83,6 +84,21 @@ fun TabGridScreen(
     }
     BackHandler(onBack = onBack)
 
+    // New tabs are appended at the end, so open the grid on the selected tab
+    // and bring it back on screen whenever the selection or tab count changes.
+    val selectedIndex = tabs.indexOfFirst { it.id == selectedTabId }
+    val gridState = rememberLazyGridState(initialFirstVisibleItemIndex = selectedIndex.coerceAtLeast(0))
+    LaunchedEffect(selectedTabId, tabs.size) {
+        if (selectedIndex < 0) return@LaunchedEffect
+        val layout = gridState.layoutInfo
+        val fullyVisible = layout.visibleItemsInfo.any {
+            it.index == selectedIndex &&
+                it.offset.y >= layout.viewportStartOffset &&
+                it.offset.y + it.size.height <= layout.viewportEndOffset
+        }
+        if (!fullyVisible) gridState.animateScrollToItem(selectedIndex)
+    }
+
     Surface(
         modifier = Modifier.fillMaxSize().testTag(TAB_GRID_TEST_TAG),
         color = colors.background,
@@ -109,6 +125,7 @@ fun TabGridScreen(
             LazyVerticalGrid(
                 columns = GridCells.Fixed(2),
                 modifier = Modifier.fillMaxSize(),
+                state = gridState,
                 contentPadding = PaddingValues(start = 12.dp, end = 12.dp, bottom = 20.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
