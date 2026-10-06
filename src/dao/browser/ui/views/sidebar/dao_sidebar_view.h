@@ -5,6 +5,7 @@
 #ifndef DAO_BROWSER_UI_VIEWS_SIDEBAR_DAO_SIDEBAR_VIEW_H_
 #define DAO_BROWSER_UI_VIEWS_SIDEBAR_DAO_SIDEBAR_VIEW_H_
 
+#include <memory>
 #include <set>
 
 #include "base/files/file_path.h"
@@ -19,6 +20,7 @@
 #include "third_party/blink/public/common/page/drag_operation.h"
 #include "ui/base/clipboard/clipboard_format_type.h"
 #include "ui/compositor/layer_animation_observer.h"
+#include "ui/events/event_observer.h"
 #include "ui/gfx/animation/animation_delegate.h"
 #include "ui/gfx/animation/linear_animation.h"
 #include "ui/native_theme/native_theme.h"
@@ -32,6 +34,7 @@ class Browser;
 
 namespace views {
 class Button;
+class EventMonitor;
 class WebView;
 }
 
@@ -48,6 +51,7 @@ class DaoSidebarView : public views::View,
                        public views::ResizeAreaDelegate,
                        public ui::ImplicitAnimationObserver,
                        public ui::NativeThemeObserver,
+                       public ui::EventObserver,
                        public content::WebContentsDelegate {
   METADATA_HEADER(DaoSidebarView, views::View)
 
@@ -92,6 +96,10 @@ class DaoSidebarView : public views::View,
   // Tell the sidebar WebUI to clear pointer-driven hover/tooltip state.
   void NotifySidebarPointerExited();
 
+  // Edge hover driven by window-wide mouse moves, so it also works where the
+  // collapsed sidebar has no width (fullscreen) or RootView misses the exit.
+  void UpdateAutoExpandForScreenPoint(const gfx::Point& screen_point);
+
   gfx::Size CalculatePreferredSize(
       const views::SizeBounds& available_size) const override;
   void Layout(PassKey) override;
@@ -108,6 +116,10 @@ class DaoSidebarView : public views::View,
 
   // ui::NativeThemeObserver:
   void OnNativeThemeUpdated(ui::NativeTheme* observed_theme) override;
+
+  // ui::EventObserver:
+  using views::View::OnEvent;
+  void OnEvent(const ui::Event& event) override;
 
   // views::View:
   bool AcceleratorPressed(const ui::Accelerator& accelerator) override;
@@ -165,6 +177,8 @@ class DaoSidebarView : public views::View,
   raw_ptr<views::WebView> sidebar_web_view_ = nullptr;
 
   void AnimateLayerSlide(int old_width, int new_width);
+  void AutoExpand();
+  void AutoCollapse();
   void EnsureWebUILoaded();
   void DoStartFileDrag(const base::FilePath& path);
   void ApplyTheme();
@@ -184,6 +198,7 @@ class DaoSidebarView : public views::View,
   int target_width_ = kDefaultWidth;
   int resize_start_width_ = kDefaultWidth;
   gfx::LinearAnimation collapse_animation_;
+  std::unique_ptr<views::EventMonitor> event_monitor_;
 
   int drop_target_index_ = -1;   // Tab model index where file will be inserted
   int webui_drop_insert_index_ = -1;  // Drop index set by WebUI JS

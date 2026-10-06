@@ -1631,6 +1631,43 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest, SidebarToggleExpandRestore) {
   EXPECT_FALSE(sidebar->collapsed());
 }
 
+// Hover enter/exit must reach DaoSidebarView through RootView dispatch, where
+// the collapsed edge strip hit-tests to a child view rather than the sidebar.
+IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest, CollapsedEdgeHoverAutoExpands) {
+  BrowserView* browser_view = GetBrowserView(browser());
+  DaoSidebarView* sidebar = browser_view->dao_sidebar();
+  ASSERT_NE(nullptr, sidebar);
+  views::Widget* widget = sidebar->GetWidget();
+  ASSERT_NE(nullptr, widget);
+
+  auto settle = [&]() {
+    ASSERT_TRUE(base::test::RunUntil(
+        [&]() { return !sidebar->layer()->GetAnimator()->is_animating(); }));
+    widget->LayoutRootViewIfNecessary();
+  };
+  auto move_to = [&](views::View* target, const gfx::Point& point) {
+    gfx::Point p = point;
+    views::View::ConvertPointToWidget(target, &p);
+    ui::MouseEvent move(ui::EventType::kMouseMoved, p, p,
+                        ui::EventTimeForNow(), ui::EF_NONE, ui::EF_NONE);
+    widget->GetRootView()->OnMouseMoved(move);
+  };
+  views::View* contents = browser_view->contents_container();
+  ASSERT_NE(nullptr, contents);
+
+  sidebar->ToggleCollapsed();
+  ASSERT_TRUE(sidebar->collapsed());
+  settle();
+
+  move_to(contents, contents->GetLocalBounds().CenterPoint());
+  move_to(sidebar, gfx::Point(1, sidebar->height() / 2));
+  EXPECT_FALSE(sidebar->collapsed());
+
+  settle();
+  move_to(contents, contents->GetLocalBounds().CenterPoint());
+  EXPECT_TRUE(sidebar->collapsed());
+}
+
 IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest, WebUIStartsCloseToHeader) {
   DaoSidebarView* sidebar = GetBrowserView(browser())->dao_sidebar();
   ASSERT_NE(nullptr, sidebar);
@@ -1697,6 +1734,37 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarFullscreenBrowserTest,
   EXPECT_EQ(EXCLUSIVE_ACCESS_BUBBLE_TYPE_BROWSER_FULLSCREEN_EXIT_INSTRUCTION,
             manager->GetExclusiveAccessExitBubbleType());
   EXPECT_FALSE(manager->context()->IsExclusiveAccessBubbleDisplayed());
+
+  ui_test_utils::ToggleFullscreenModeAndWait(browser());
+}
+
+// In fullscreen the collapsed sidebar has zero width, so the left edge must
+// still reveal it, and leaving must collapse it even if the cursor never
+// entered the expanded sidebar.
+IN_PROC_BROWSER_TEST_F(DaoSidebarFullscreenBrowserTest,
+                       FullscreenEdgeHoverAutoExpands) {
+  BrowserView* browser_view = GetBrowserView(browser());
+  DaoSidebarView* sidebar = browser_view->dao_sidebar();
+  ASSERT_NE(nullptr, sidebar);
+
+  ui_test_utils::ToggleFullscreenModeAndWait(browser());
+  ASSERT_TRUE(browser_view->IsFullscreen());
+  sidebar->ToggleCollapsed();
+  ASSERT_TRUE(sidebar->collapsed());
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return !sidebar->layer()->GetAnimator()->is_animating(); }));
+  sidebar->GetWidget()->LayoutRootViewIfNecessary();
+  ASSERT_EQ(0, sidebar->width());
+  ASSERT_GT(sidebar->height(), 0);
+
+  const gfx::Rect sidebar_bounds = sidebar->GetBoundsInScreen();
+  sidebar->UpdateAutoExpandForScreenPoint(
+      gfx::Point(sidebar_bounds.x(), sidebar_bounds.CenterPoint().y()));
+  EXPECT_FALSE(sidebar->collapsed());
+
+  sidebar->UpdateAutoExpandForScreenPoint(
+      browser_view->GetBoundsInScreen().CenterPoint());
+  EXPECT_TRUE(sidebar->collapsed());
 
   ui_test_utils::ToggleFullscreenModeAndWait(browser());
 }
@@ -5962,7 +6030,7 @@ IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest, ForegroundAndBackgroundLinksOpenAtTop)
                                      : AddTabTypes::ADD_NONE,
                           params.group);
     EXPECT_EQ(1, model->GetIndexOfWebContents(added));
-    EXPECT_EQ(opener, model->GetOpenerOfWebContentsAt(1));
+    EXPECT_EQ(model->GetTabForWebContents(opener), model->GetOpenerOfTabAt(1));
     EXPECT_FALSE(model->GetTabGroupForTab(1).has_value());
     EXPECT_EQ(foreground ? added : opener, model->GetActiveWebContents());
   }
