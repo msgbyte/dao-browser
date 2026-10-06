@@ -10,6 +10,7 @@ import {
   error,
   warn,
   which,
+  run,
   runStreaming,
   resolveBuildTarget,
 } from "../utils.js";
@@ -18,8 +19,6 @@ const WINDOWS_CHECKOUT_MARKER = '# Dao: retain Windows dependencies for cross co
 
 async function syncChromium(args: string[], crossWindows: boolean): Promise<number> {
   if (crossWindows) {
-    const {getWindowsToolchainEnvironment} = await import('../windows-toolchain.js');
-    getWindowsToolchainEnvironment();
     const configured = await runStreaming('python3', [
       path.join(ROOT_DIR, 'scripts', 'configure-windows-checkout.py'),
       path.join(ENGINE_DIR, '.gclient'),
@@ -70,13 +69,34 @@ See: https://commondatastorage.googleapis.com/chrome-infra-docs/flat/depot_tools
       process.exit(1);
     }
 
+    if (crossWindows) {
+      // Reject a missing SDK configuration before downloading any source.
+      const {getWindowsToolchainEnvironment} = await import('../windows-toolchain.js');
+      getWindowsToolchainEnvironment();
+    }
+
     if (existsSync(gclientFile) && !opts.force) {
       warn("engine/ already exists. Use --force to re-download.");
       log("Running gclient sync to update...");
 
+      let revision = `refs/tags/${version}`;
+      if (shallow) {
+        // gclient only skips its full-history fetch of every branch when the
+        // revision is a SHA that already exists locally, so fetch it first.
+        const srcDir = path.join(ENGINE_DIR, "src");
+        const fetchCode = await runStreaming("git", [
+          "-C", srcDir, "fetch", "--depth=1", "--no-tags", "origin", `+${revision}:${revision}`,
+        ]);
+        if (fetchCode !== 0) {
+          error(`Failed to fetch ${revision}`);
+          process.exit(1);
+        }
+        revision = run(`git -C "${srcDir}" rev-parse "${revision}^{commit}"`, { silent: true });
+      }
+
       const syncArgs = [
         "sync",
-        "--revision", `src@refs/tags/${version}`,
+        "--revision", `src@${revision}`,
         ...(shallow ? ["--no-history", "--shallow"] : ["--with_branch_heads", "--with_tags"]),
       ];
       const syncCode = await syncChromium(syncArgs, crossWindows);

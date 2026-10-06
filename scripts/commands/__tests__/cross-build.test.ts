@@ -3,7 +3,7 @@ import path from 'node:path';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-  run: vi.fn(), prepare: vi.fn(), package: vi.fn(), write: vi.fn(),
+  run: vi.fn(), capture: vi.fn(), prepare: vi.fn(), package: vi.fn(), write: vi.fn(),
   environment: vi.fn(),
   gclient: 'solutions = []\ntarget_os = ["mac"]\ncustom_setting = True\n',
   env: {DEPOT_TOOLS_WIN_TOOLCHAIN: '1', CROSS_TOOLCHAIN: 'fixture'},
@@ -19,7 +19,7 @@ vi.mock('../../utils.js', async original => ({
   loadConfig: () => ({display_name: 'Dao', version: {display: '1.2.3', version: '149.0.0.0'},
     build: {target_os: 'mac', target_cpu: 'arm64'}}),
   which: (command: string) => command,
-  runStreaming: mocks.run, log: vi.fn(), success: vi.fn(), warn: vi.fn(),
+  runStreaming: mocks.run, run: mocks.capture, log: vi.fn(), success: vi.fn(), warn: vi.fn(),
 }));
 vi.mock('../../windows-toolchain.js', () => ({
   prepareWindowsCrossToolchain: mocks.prepare,
@@ -34,6 +34,7 @@ beforeEach(() => {
   vi.spyOn(process, 'arch', 'get').mockReturnValue('arm64');
   vi.stubEnv('DAO_BUILD_PLATFORM', undefined);
   mocks.run.mockResolvedValue(0);
+  mocks.capture.mockReturnValue('0123abcd');
   mocks.environment.mockReturnValue(mocks.env);
   mocks.gclient = 'solutions = []\ntarget_os = ["mac"]\ncustom_setting = True\n';
   mocks.prepare.mockResolvedValue({env: mocks.env});
@@ -73,24 +74,28 @@ describe('Windows cross-build CLI on Mac', () => {
   it('preserves gclient settings and runs hooks with the SDK after synchronization', async () => {
     const {downloadCommand} = await import('../download.js');
     await downloadCommand.parseAsync(['node', 'cli', '--platform', 'windows']);
-    expect(mocks.run).toHaveBeenNthCalledWith(1, 'python3', [
+    expect(mocks.run).toHaveBeenNthCalledWith(1, 'git', [
+      '-C', expect.stringContaining('src'), 'fetch', '--depth=1', '--no-tags', 'origin',
+      '+refs/tags/149.0.0.0:refs/tags/149.0.0.0',
+    ]);
+    expect(mocks.run).toHaveBeenNthCalledWith(2, 'python3', [
       expect.stringContaining('configure-windows-checkout.py'), expect.stringContaining('.gclient'),
     ]);
-    expect(mocks.run).toHaveBeenNthCalledWith(2, 'gclient',
-      ['sync', '--revision', 'src@refs/tags/149.0.0.0', '--no-history', '--shallow', '--nohooks'],
+    expect(mocks.run).toHaveBeenNthCalledWith(3, 'gclient',
+      ['sync', '--revision', 'src@0123abcd', '--no-history', '--shallow', '--nohooks'],
       expect.anything());
-    expect(mocks.run).toHaveBeenNthCalledWith(3, 'gclient', ['runhooks'],
+    expect(mocks.run).toHaveBeenNthCalledWith(4, 'gclient', ['runhooks'],
       expect.objectContaining({env: mocks.env}));
     expect(mocks.write).not.toHaveBeenCalled();
   });
 
   it('does not run hooks after a failed source sync', async () => {
-    mocks.run.mockResolvedValueOnce(0).mockResolvedValueOnce(1);
+    mocks.run.mockResolvedValueOnce(0).mockResolvedValueOnce(0).mockResolvedValueOnce(1);
     vi.spyOn(process, 'exit').mockImplementation(() => {throw new Error('exit');});
     const {downloadCommand} = await import('../download.js');
     await expect(downloadCommand.parseAsync(['node', 'cli', '--platform', 'windows']))
       .rejects.toThrow('exit');
-    expect(mocks.run).toHaveBeenCalledTimes(2);
+    expect(mocks.run).toHaveBeenCalledTimes(3);
   });
 
   it('keeps the SDK environment when a later native Mac sync retains Windows dependencies', async () => {
@@ -98,7 +103,7 @@ describe('Windows cross-build CLI on Mac', () => {
     mocks.gclient += '# Dao: retain Windows dependencies for cross compilation.\n';
     await downloadCommand.parseAsync(['node', 'cli', '--platform', 'mac']);
     expect(mocks.write).not.toHaveBeenCalled();
-    expect(mocks.run).toHaveBeenNthCalledWith(3, 'gclient', ['runhooks'],
+    expect(mocks.run).toHaveBeenNthCalledWith(4, 'gclient', ['runhooks'],
       expect.objectContaining({env: mocks.env}));
   });
 
