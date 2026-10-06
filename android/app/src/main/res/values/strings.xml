@@ -287,4 +287,15 @@
     <string name="update_last_checked" tools:ignore="MissingTranslation">Last successful check: %1$s</string>
     <string name="update_automatic" tools:ignore="MissingTranslation">Check automatically</string>
     <string name="update_automatic_summary" tools:ignore="MissingTranslation">Check at most once a day. Updates download only when you choose.</string>
+    <string name="image_download" tools:ignore="MissingTranslation">Download image</string>
+    <string name="image_copy" tools:ignore="MissingTranslation">Copy image</string>
+    <string name="image_preview" tools:ignore="MissingTranslation">Preview image</string>
+    <string name="image_open_in_new_tab" tools:ignore="MissingTranslation">Open image in new tab</string>
+    <string name="image_download_started" tools:ignore="MissingTranslation">Downloading image</string>
+    <string name="image_download_failed" tools:ignore="MissingTranslation">Unable to download this image.</string>
+    <string name="image_copied" tools:ignore="MissingTranslation">Image copied</string>
+    <string name="image_copy_failed" tools:ignore="MissingTranslation">Unable to copy this image.</string>
+    <string name="image_preview_failed" tools:ignore="MissingTranslation">Unable to preview this image.</string>
+    <string name="image_opened_in_new_tab" tools:ignore="MissingTranslation">Image opened in a new tab</string>
+    <string name="close_image_preview" tools:ignore="MissingTranslation">Close preview</string>
 </resources>

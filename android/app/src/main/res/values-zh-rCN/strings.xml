@@ -286,4 +286,15 @@
     <string name="update_last_checked">上次成功检查：%1$s</string>
     <string name="update_automatic">自动检查更新</string>
     <string name="update_automatic_summary">每天最多检查一次，由你决定是否下载更新。</string>
+    <string name="image_download">下载图片</string>
+    <string name="image_copy">复制图片</string>
+    <string name="image_preview">预览图片</string>
+    <string name="image_open_in_new_tab">在新标签页中打开图片</string>
+    <string name="image_download_started">正在下载图片</string>
+    <string name="image_download_failed">无法下载此图片。</string>
+    <string name="image_copied">已复制图片</string>
+    <string name="image_copy_failed">无法复制此图片。</string>
+    <string name="image_preview_failed">无法预览此图片。</string>
+    <string name="image_opened_in_new_tab">已在新标签页中打开图片</string>
+    <string name="close_image_preview">关闭预览</string>
 </resources>

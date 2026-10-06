@@ -140,6 +140,7 @@ class MainActivity : FragmentActivity() {
                     thumbnailRepository = browserSessionViewModel.thumbnailRepository,
                     library = application.browserLibrary,
                     downloads = application.downloadRepository,
+                    pageImages = application.pageImages,
                     updates = application.appUpdates,
                     extensions = application.extensionRepository,
                     amoStoreViewModel = amoStoreViewModel,

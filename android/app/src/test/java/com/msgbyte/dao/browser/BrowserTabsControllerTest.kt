@@ -55,6 +55,19 @@ class BrowserTabsControllerTest {
     }
 
     @Test
+    fun `createTab can open a url behind the selected tab`() {
+        val controller = createController()
+        val selectedId = controller.createTab(private = true)
+
+        val id = controller.createTab(url = "https://example.com/cat.png", select = false)
+
+        assertEquals(selectedId, controller.state.value.selectedTabId)
+        val tab = controller.state.value.tabs.single { it.id == id }
+        assertEquals("https://example.com/cat.png", tab.content.url)
+        assertTrue(tab.content.private)
+    }
+
+    @Test
     fun `selectTab changes the selected BrowserStore tab`() {
         val controller = createController()
         val firstId = controller.createTab(private = false)

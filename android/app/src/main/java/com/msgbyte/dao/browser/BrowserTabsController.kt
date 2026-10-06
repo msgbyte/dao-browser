@@ -84,14 +84,16 @@ class BrowserTabsController(
 
     fun createTab(
         private: Boolean = selectedTab()?.content?.private ?: defaultPrivateBrowsing,
+        url: String = AppConfiguration.INITIAL_URL,
+        select: Boolean = true,
     ): String {
         val tab = TabSessionState(
             content = ContentState(
-                url = AppConfiguration.INITIAL_URL,
+                url = url,
                 private = private,
             ),
         )
-        store.dispatch(TabListAction.AddTabAction(tab, select = true))
+        store.dispatch(TabListAction.AddTabAction(tab, select = select))
         return tab.id
     }
 
@@ -153,6 +155,10 @@ class BrowserTabsController(
     fun reload() {
         val tabId = state.value.selectedTabId ?: return
         store.dispatch(EngineAction.ReloadAction(tabId))
+    }
+
+    fun consumeHitResult(tabId: String) {
+        store.dispatch(ContentAction.ConsumeHitResultAction(tabId))
     }
 
     fun findAll(query: String) {

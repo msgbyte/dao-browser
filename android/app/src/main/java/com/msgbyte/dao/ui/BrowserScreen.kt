@@ -158,6 +158,7 @@ import com.msgbyte.dao.browser.BookmarkKind
 import com.msgbyte.dao.browser.ExtensionInstallState
 import com.msgbyte.dao.browser.HistoryVisit
 import com.msgbyte.dao.browser.NavigationTargetResolver
+import com.msgbyte.dao.browser.PageImageActions
 import com.msgbyte.dao.browser.SiteSecurityDetails
 import com.msgbyte.dao.browser.SiteSecurityState
 import com.msgbyte.dao.browser.SystemDownloadRepository
@@ -273,6 +274,7 @@ fun BrowserScreen(
     thumbnailRepository: TabThumbnailRepository,
     library: BrowserLibraryRepository,
     downloads: SystemDownloadRepository,
+    pageImages: PageImageActions,
     updates: com.msgbyte.dao.browser.AppUpdateManager,
     extensions: com.msgbyte.dao.browser.ExtensionRepository,
     amoStoreViewModel: AmoStoreViewModel,
@@ -533,6 +535,7 @@ fun BrowserScreen(
                         tabCount = browserState.tabs.size,
                         thumbnailCapture = thumbnailCapture,
                         library = library,
+                        pageImages = pageImages,
                         darkTheme = LocalDaoDarkTheme.current,
                         onDarkThemeChange = onDarkThemeChange,
                         onEditAddress = { url ->
@@ -1194,6 +1197,7 @@ private fun BrowsingScreen(
     tabCount: Int,
     thumbnailCapture: BrowserThumbnailCapture,
     library: BrowserLibraryRepository,
+    pageImages: PageImageActions,
     darkTheme: Boolean,
     onDarkThemeChange: (Boolean) -> Unit,
     onEditAddress: (String) -> Unit,
@@ -1392,6 +1396,7 @@ private fun BrowsingScreen(
             onDismiss = { securitySheetOpen = false },
         )
     }
+    PageImageContextMenu(tab = tab, controller = controller, pageImages = pageImages)
 }
 
 @Composable

@@ -12,6 +12,7 @@ import com.msgbyte.dao.browser.AppUpdateManager
 import com.msgbyte.dao.browser.AndroidDownloadSink
 import com.msgbyte.dao.browser.DownloadForegroundService
 import com.msgbyte.dao.browser.DownloadNotifications
+import com.msgbyte.dao.browser.PageImageActions
 import com.msgbyte.dao.browser.SharedPreferencesStreamedDownloadRecordStore
 import com.msgbyte.dao.browser.StreamedDownloadGateway
 import com.msgbyte.dao.browser.guessDownloadFileName
@@ -37,7 +38,6 @@ class DaoApplication : Application() {
 
     internal val streamedDownloads by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
         val notifications = DownloadNotifications(applicationContext)
-        val fetchClient by lazy { GeckoViewFetchClient(applicationContext, geckoRuntime) }
         StreamedDownloadGateway(
             sink = AndroidDownloadSink(applicationContext),
             recordStore = SharedPreferencesStreamedDownloadRecordStore(applicationContext),
@@ -60,6 +60,14 @@ class DaoApplication : Application() {
 
     val downloadRepository by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
         SystemDownloadRepository(applicationContext, streamedDownloads)
+    }
+
+    val pageImages by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+        PageImageActions(applicationContext, fetchClient::fetch, downloadRepository)
+    }
+
+    private val fetchClient by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+        GeckoViewFetchClient(applicationContext, geckoRuntime)
     }
 
     val browserPreferences by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
