@@ -51,7 +51,7 @@ class CompletedDownloadTest {
             }
         }
         every { manager.getUriForDownloadedFile(42L) } returns Uri.parse("content://downloads/all_downloads/42")
-        val repository = SystemDownloadRepository(context)
+        val repository = SystemDownloadRepository(context, NoStreamedDownloads)
         repository.enqueue(DownloadRequestData("https://example.com/dao.apk", "dao.apk"))
 
         repository.refresh()
@@ -94,7 +94,7 @@ class CompletedDownloadTest {
             application.getSharedPreferences(firstArg(), secondArg())
         }
         every { manager.enqueue(any()) } returns 42L
-        return SystemDownloadRepository(context)
+        return SystemDownloadRepository(context, NoStreamedDownloads)
     }
 
     @Test

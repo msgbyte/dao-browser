@@ -64,11 +64,6 @@ android {
             "!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~"
     }
 
-    lint {
-        // The transitive support-base artifact contains an unused notification helper.
-        disable += "NotificationPermission"
-    }
-
     testOptions {
         unitTests.isIncludeAndroidResources = true
     }
@@ -289,6 +284,7 @@ dependencies {
     implementation(libs.mozilla.browser.session.storage)
     implementation(libs.mozilla.feature.app.links)
     implementation(libs.mozilla.feature.session)
+    implementation(libs.mozilla.support.utils)
     implementation(libs.zxing.core)
 
     debugImplementation(libs.compose.ui.tooling)

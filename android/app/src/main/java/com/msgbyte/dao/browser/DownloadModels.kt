@@ -1,5 +1,7 @@
 package com.msgbyte.dao.browser
 
+import mozilla.components.concept.fetch.Response
+
 data class DownloadRequestData(
     val url: String,
     val fileName: String,
@@ -9,7 +11,13 @@ data class DownloadRequestData(
     val userAgent: String? = null,
     val updateVersion: String? = null,
     val updateSha256: String? = null,
-)
+    /** Private downloads are never written to Dao's persisted download list. */
+    val isPrivate: Boolean = false,
+) {
+    /** blob: and data: downloads only exist inside the page that produced them. */
+    val canRetry: Boolean
+        get() = isHttpUrl(url)
+}
 
 enum class DownloadStatus {
     PENDING,
@@ -55,7 +63,8 @@ internal data class DownloadGatewayRecord(
 )
 
 internal interface DownloadGateway {
-    fun enqueue(request: DownloadRequestData): Long
+    /** [response] is an already-open response to save instead of requesting [request] again. */
+    fun enqueue(request: DownloadRequestData, response: Response? = null): Long
     fun query(ids: Set<Long>): List<DownloadGatewayRecord>
     /** Removes the task and its file, reporting whether a file existed to delete. */
     fun remove(id: Long): Boolean

@@ -35,9 +35,10 @@ class BrowserSessionViewModel(application: Application) : AndroidViewModel(appli
                 daoApplication.browserLibrary.recordVisit(url, title)
             }
         },
-        onDownloadRequested = { request ->
+        onDownloadRequested = { request, response ->
             viewModelScope.launch {
-                runCatching { daoApplication.downloadRepository.enqueue(request) }
+                runCatching { daoApplication.downloadRepository.enqueue(request, response) }
+                    .onFailure { response?.close() }
             }
         },
     )

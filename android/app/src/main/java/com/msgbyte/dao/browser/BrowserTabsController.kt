@@ -15,6 +15,7 @@ import mozilla.components.browser.state.state.ContentState
 import mozilla.components.browser.state.state.TabSessionState
 import mozilla.components.browser.state.store.BrowserStore
 import mozilla.components.concept.engine.EngineSession
+import mozilla.components.concept.fetch.Response
 
 interface BrowserSessionSnapshotStorage {
     suspend fun restore(): RecoverableBrowserState?
@@ -30,7 +31,7 @@ class BrowserTabsController(
     private val snapshotStorage: BrowserSessionSnapshotStorage? = null,
     scope: CoroutineScope? = null,
     private val onVisitCompleted: (url: String, title: String) -> Unit = { _, _ -> },
-    private val onDownloadRequested: (DownloadRequestData) -> Unit = {},
+    private val onDownloadRequested: (DownloadRequestData, Response?) -> Unit = { _, response -> response?.close() },
     private val onSnapshotClearFailure: (Throwable) -> Unit = { error ->
         Log.e(TAG, "Unable to clear the invalid browser session snapshot", error)
     },
@@ -202,7 +203,7 @@ class BrowserTabsController(
                     isPrivate: Boolean,
                     skipConfirmation: Boolean,
                     openInApp: Boolean,
-                    response: mozilla.components.concept.fetch.Response?,
+                    response: Response?,
                 ) {
                     onDownloadRequested(
                         DownloadRequestData(
@@ -212,7 +213,9 @@ class BrowserTabsController(
                             contentType = contentType,
                             cookie = cookie,
                             userAgent = userAgent,
+                            isPrivate = isPrivate,
                         ),
+                        response,
                     )
                 }
             }

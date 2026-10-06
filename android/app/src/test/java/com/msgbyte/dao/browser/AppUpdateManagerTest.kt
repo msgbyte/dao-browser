@@ -17,6 +17,7 @@ import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import mozilla.components.concept.fetch.Response
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
@@ -26,11 +27,11 @@ class AppUpdateManagerTest {
     @Test
     fun systemDownloadMetadataRetainsUpdateIdentityAcrossRepositoryRecreation() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<Context>()
-        val repository = SystemDownloadRepository(context)
+        val repository = SystemDownloadRepository(context, NoStreamedDownloads)
         val request = DownloadRequestData("https://example.com/dao.apk", "dao.apk", 123,
             updateVersion = "0.2.0", updateSha256 = "ab".repeat(32))
         val id = repository.enqueue(request)
-        assertEquals(request, SystemDownloadRepository(context).find(id)?.request)
+        assertEquals(request, SystemDownloadRepository(context, NoStreamedDownloads).find(id)?.request)
     }
 
     @Test
@@ -107,12 +108,13 @@ class AppUpdateManagerTest {
     private fun downloads(): SystemDownloadRepository = SystemDownloadRepository(
         object : DownloadGateway {
             var nextId = 1L
-            override fun enqueue(request: DownloadRequestData) = nextId++
+            override fun enqueue(request: DownloadRequestData, response: Response?) = nextId++
             override fun query(ids: Set<Long>) = ids.map {
                 DownloadGatewayRecord(it, DownloadGatewayStatus.PENDING, 0, 123, null, 0, 0)
             }
             override fun remove(id: Long) = false
         },
+        NoStreamedDownloads,
         object : DownloadMetadataStore {
             override fun readAll() = emptyMap<Long, DownloadRequestData>()
             override fun writeAll(values: Map<Long, DownloadRequestData>) = Unit

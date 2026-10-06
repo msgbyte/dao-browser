@@ -17,6 +17,7 @@ import com.msgbyte.dao.R
 import com.msgbyte.dao.about.AboutAppInfo
 import com.msgbyte.dao.browser.*
 import com.msgbyte.dao.ui.theme.DaoTheme
+import mozilla.components.concept.fetch.Response
 import java.io.File
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicBoolean
@@ -68,7 +69,7 @@ class AppUpdateScreenTest {
     @Test
     fun manualCheckShowsFailureThenSuccessAndAutomaticTogglePersists() {
         val offline = AtomicBoolean(true)
-        val manager = AppUpdateManager(preferences, SystemDownloadRepository(context), "0.1.2",
+        val manager = AppUpdateManager(preferences, SystemDownloadRepository(context, NoStreamedDownloads), "0.1.2",
             listOf("arm64-v8a"), AppUpdateRepository {
                 if (offline.get()) throw IOException("Offline")
                 "[]"
@@ -105,11 +106,11 @@ class AppUpdateScreenTest {
         val request = DownloadRequestData(release.url, release.fileName, release.size,
             updateVersion = release.version, updateSha256 = release.sha256)
         val downloads = SystemDownloadRepository(object : DownloadGateway {
-            override fun enqueue(request: DownloadRequestData) = error("Must reuse the existing download")
+            override fun enqueue(request: DownloadRequestData, response: Response?) = error("Must reuse the existing download")
             override fun remove(id: Long) = false
             override fun query(ids: Set<Long>) = listOf(DownloadGatewayRecord(42,
                 DownloadGatewayStatus.SUCCESSFUL, 123, 123, "content://downloads/all_downloads/42", 0, 1))
-        }, object : DownloadMetadataStore {
+        }, NoStreamedDownloads, object : DownloadMetadataStore {
             override fun readAll() = mapOf(42L to request)
             override fun writeAll(values: Map<Long, DownloadRequestData>) = Unit
         })
@@ -135,4 +136,10 @@ class AppUpdateScreenTest {
         composeRule.onNodeWithTag("install-app-update").assertIsDisplayed().performClick()
         assertEquals(42L, opened)
     }
+}
+
+private object NoStreamedDownloads : DownloadGateway {
+    override fun enqueue(request: DownloadRequestData, response: Response?) = error("No streamed downloads")
+    override fun query(ids: Set<Long>) = emptyList<DownloadGatewayRecord>()
+    override fun remove(id: Long) = false
 }

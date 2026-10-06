@@ -98,6 +98,7 @@ import com.msgbyte.dao.browser.BookmarkKind
 import com.msgbyte.dao.browser.HistoryVisit
 import com.msgbyte.dao.browser.BrowserDownload
 import com.msgbyte.dao.browser.DownloadStatus
+import com.msgbyte.dao.browser.downloadViewIntent
 import com.msgbyte.dao.browser.BrowserFontScale
 import com.msgbyte.dao.browser.BrowserPreferenceState
 import com.msgbyte.dao.browser.BrowserSearchEngine
@@ -873,17 +874,8 @@ internal fun openCompletedDownload(context: Context, download: BrowserDownload) 
     }
     val uri = download.localUri?.let(Uri::parse)
     if (uri?.scheme == "content") {
-        val mimeType = if (download.request.fileName.endsWith(".apk", ignoreCase = true)) {
-            "application/vnd.android.package-archive"
-        } else {
-            download.request.contentType?.takeIf(String::isNotBlank) ?: "*/*"
-        }
-        val intent = Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(uri, mimeType)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        }
         try {
-            context.startActivity(intent)
+            context.startActivity(downloadViewIntent(uri, download.request.fileName, download.request.contentType))
             return
         } catch (_: ActivityNotFoundException) {
             // Fall through to the localized failure feedback.
@@ -905,7 +897,9 @@ private fun RealDownloadRow(
 ) {
     val action = when {
         editMode -> DownloadAction(Lucide.Trash2, stringResource(R.string.delete), onRemove)
-        download.status == DownloadStatus.FAILED -> DownloadAction(Lucide.RefreshCw, stringResource(R.string.retry), onRetry)
+        download.status == DownloadStatus.FAILED && download.request.canRetry ->
+            DownloadAction(Lucide.RefreshCw, stringResource(R.string.retry), onRetry)
+        download.status == DownloadStatus.FAILED -> DownloadAction(Lucide.Trash2, stringResource(R.string.delete), onRemove)
         download.status == DownloadStatus.SUCCESSFUL -> DownloadAction(Lucide.ChevronRight, stringResource(R.string.open), onOpen)
         else -> DownloadAction(Lucide.X, stringResource(R.string.cancel_download), onCancel)
     }

@@ -9,9 +9,10 @@
         android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission"
         tools:node="remove" />
-    <uses-permission
-        android:name="android.permission.POST_NOTIFICATIONS"
-        tools:node="remove" />
+    <!-- Browser downloads run in a dataSync foreground service that shows their progress. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
     <queries tools:node="replace">
         <intent>
@@ -42,6 +43,11 @@
             android:name="mozilla.components.support.utils.provider.FileProvider"
             tools:ignore="MissingClass"
             tools:node="remove" />
+
+        <service
+            android:name=".browser.DownloadForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
 
         <activity
             android:name=".MainActivity"

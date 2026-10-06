@@ -16,17 +16,21 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import mozilla.components.concept.fetch.Response
 import org.json.JSONArray
 import org.json.JSONObject
 
 class SystemDownloadRepository internal constructor(
     private val gateway: DownloadGateway,
+    /** Browser downloads streamed from Gecko; their ids are negative. */
+    private val streams: DownloadGateway,
     private val metadataStore: DownloadMetadataStore,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val elapsedRealtime: () -> Long = SystemClock::elapsedRealtime,
 ) {
-    constructor(context: Context) : this(
+    internal constructor(context: Context, streams: DownloadGateway) : this(
         gateway = AndroidDownloadGateway(context.applicationContext),
+        streams = streams,
         metadataStore = SharedPreferencesDownloadMetadataStore(context.applicationContext),
     )
 
@@ -40,14 +44,22 @@ class SystemDownloadRepository internal constructor(
 
     val downloads: StateFlow<List<BrowserDownload>> = mutableDownloads.asStateFlow()
 
-    suspend fun enqueue(request: DownloadRequestData): Long = mutex.withLock {
-        require(isHttpUrl(request.url)) { "Only HTTP and HTTPS resources can be downloaded" }
-        val normalized = request.copy(fileName = sanitizeFileName(request.fileName, request.url))
-        withContext(ioDispatcher) { enqueueLocked(normalized) }
+    /**
+     * Saves [response] when Gecko already opened it (browser downloads, including blob: and data:
+     * URLs); otherwise DownloadManager fetches the HTTP(S) [request] itself.
+     */
+    suspend fun enqueue(request: DownloadRequestData, response: Response? = null): Long = mutex.withLock {
+        if (response == null) require(isHttpUrl(request.url)) { "Only HTTP and HTTPS resources can be downloaded" }
+        val normalized = request.copy(
+            fileName = sanitizeFileName(request.fileName, request.url),
+            // A data: URL embeds the whole file; keeping only its header keeps the metadata small.
+            url = if (request.url.startsWith("data:", ignoreCase = true)) request.url.substringBefore(',') else request.url,
+        )
+        withContext(ioDispatcher) { enqueueLocked(normalized, response, streamed = response != null) }
     }
 
-    private fun enqueueLocked(request: DownloadRequestData): Long {
-        val id = gateway.enqueue(request)
+    private fun enqueueLocked(request: DownloadRequestData, response: Response?, streamed: Boolean): Long {
+        val id = if (streamed) streams.enqueue(request, response) else gateway.enqueue(request)
         metadata[id] = request
         persistMetadata()
         mutableDownloads.value = listOf(request.toPendingDownload(id)) + mutableDownloads.value
@@ -63,7 +75,8 @@ class SystemDownloadRepository internal constructor(
                 return@withContext
             }
             val records = try {
-                gateway.query(metadata.keys)
+                val (streamedIds, systemIds) = metadata.keys.partition(::isStreamed)
+                streams.query(streamedIds.toSet()) + gateway.query(systemIds.toSet())
             } catch (error: Exception) {
                 lastRefreshTime = null
                 lastProgressTimes.clear()
@@ -76,7 +89,8 @@ class SystemDownloadRepository internal constructor(
             val recordsById = records.associateBy { it.id }
             mutableDownloads.value = metadata.map { (id, request) ->
                 val download = recordsById[id]?.toBrowserDownload(request) ?: request.toPendingDownload(id).let {
-                    if (request.updateVersion != null) it.copy(status = DownloadStatus.FAILED) else it
+                    // Only DownloadManager tasks can still be pending without a record.
+                    if (request.updateVersion != null || isStreamed(id)) it.copy(status = DownloadStatus.FAILED) else it
                 }
                 val previous = previousDownloads[id]
                 val progressElapsed = lastProgressTimes[id]?.let { now - it }
@@ -120,7 +134,7 @@ class SystemDownloadRepository internal constructor(
     }
 
     private fun removeLocked(id: Long): Boolean {
-        val fileDeleted = gateway.remove(id)
+        val fileDeleted = (if (isStreamed(id)) streams else gateway).remove(id)
         metadata.remove(id)
         lastProgressTimes.remove(id)
         persistMetadata()
@@ -134,22 +148,26 @@ class SystemDownloadRepository internal constructor(
             val request = metadata[id] ?: return@withContext null
             // Remove first so the new task can reuse the file name instead of getting a "-1" suffix.
             removeLocked(id)
-            enqueueLocked(request)
+            // A streamed retry re-fetches through Gecko so the browser's cookies still apply.
+            enqueueLocked(request, response = null, streamed = isStreamed(id))
         }
     }
 
     fun find(id: Long): BrowserDownload? = downloads.value.firstOrNull { it.id == id }
 
     private fun persistMetadata() {
-        metadataStore.writeAll(metadata)
+        metadataStore.writeAll(metadata.filterValues { !it.isPrivate })
     }
+
+    private fun isStreamed(id: Long) = id < 0
 }
 
 private class AndroidDownloadGateway(context: Context) : DownloadGateway {
     private val appContext = context.applicationContext
     private val manager = appContext.getSystemService(DownloadManager::class.java)
 
-    override fun enqueue(request: DownloadRequestData): Long {
+    override fun enqueue(request: DownloadRequestData, response: Response?): Long {
+        response?.close()
         val systemRequest = DownloadManager.Request(Uri.parse(request.url)).apply {
             setTitle(request.fileName)
             setDescription(request.url)
@@ -298,7 +316,7 @@ private fun DownloadRequestData.toPendingDownload(id: Long) = BrowserDownload(
     lastModified = 0,
 )
 
-private fun isHttpUrl(url: String): Boolean =
+internal fun isHttpUrl(url: String): Boolean =
     runCatching { URI(url).scheme?.lowercase() in setOf("http", "https") }.getOrDefault(false)
 
 private fun sanitizeFileName(fileName: String, url: String): String {

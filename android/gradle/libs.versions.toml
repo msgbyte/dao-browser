@@ -45,6 +45,7 @@ mozilla-browser-state = { module = "org.mozilla.components:browser-state", versi
 mozilla-browser-session-storage = { module = "org.mozilla.components:browser-session-storage", version.ref = "mozilla-components" }
 mozilla-feature-app-links = { module = "org.mozilla.components:feature-app-links", version.ref = "mozilla-components" }
 mozilla-feature-session = { module = "org.mozilla.components:feature-session", version.ref = "mozilla-components" }
+mozilla-support-utils = { module = "org.mozilla.components:support-utils", version.ref = "mozilla-components" }
 lucide-icons = { module = "com.composables:icons-lucide", version.ref = "lucide-icons" }
 androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "androidx-datastore" }
 androidx-swiperefreshlayout = { module = "androidx.swiperefreshlayout:swiperefreshlayout", version.ref = "androidx-swiperefreshlayout" }

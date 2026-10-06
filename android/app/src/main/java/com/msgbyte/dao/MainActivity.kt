@@ -1,7 +1,11 @@
 package com.msgbyte.dao
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
@@ -14,9 +18,13 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.msgbyte.dao.browser.AmoStoreViewModel
@@ -25,6 +33,8 @@ import com.msgbyte.dao.browser.BrowserSessionViewModel
 import com.msgbyte.dao.browser.NavigationTargetResolver
 import com.msgbyte.dao.ui.BrowserScreen
 import com.msgbyte.dao.ui.theme.DaoTheme
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import mozilla.components.concept.engine.EngineSession
 import mozilla.components.concept.engine.mediaquery.PreferredColorScheme
@@ -47,6 +57,7 @@ class MainActivity : FragmentActivity() {
         }
     }
     private var darkThemeEnabled = false
+    private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
     private var externalNavigationUrl by mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -56,6 +67,27 @@ class MainActivity : FragmentActivity() {
         }
         enableEdgeToEdge()
         val application = application as DaoApplication
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            lifecycleScope.launch {
+                repeatOnLifecycle(Lifecycle.State.STARTED) {
+                    application.streamedDownloads.active
+                        .map { it.isNotEmpty() }
+                        .distinctUntilChanged()
+                        .collect { downloading ->
+                            // Download progress and completion only reach the shade with this permission.
+                            // Ask once per process so rotation or returning to Dao does not prompt again.
+                            if (downloading && !notificationPermissionRequested && ContextCompat.checkSelfPermission(
+                                    this@MainActivity,
+                                    Manifest.permission.POST_NOTIFICATIONS,
+                                ) != PackageManager.PERMISSION_GRANTED
+                            ) {
+                                notificationPermissionRequested = true
+                                notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            }
+                        }
+                }
+            }
+        }
         setContent {
             val preferences = application.browserPreferences
             val preferenceState by preferences.state.collectAsStateWithLifecycle(
@@ -169,5 +201,9 @@ class MainActivity : FragmentActivity() {
             isAppearanceLightStatusBars = !darkThemeEnabled
             isAppearanceLightNavigationBars = !darkThemeEnabled
         }
+    }
+
+    private companion object {
+        var notificationPermissionRequested = false
     }
 }

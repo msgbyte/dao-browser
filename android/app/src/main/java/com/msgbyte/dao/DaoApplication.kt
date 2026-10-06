@@ -9,8 +9,20 @@ import com.msgbyte.dao.browser.AmoCatalogRepository
 import com.msgbyte.dao.browser.ExtensionRepository
 import com.msgbyte.dao.browser.SystemDownloadRepository
 import com.msgbyte.dao.browser.AppUpdateManager
+import com.msgbyte.dao.browser.AndroidDownloadSink
+import com.msgbyte.dao.browser.DownloadForegroundService
+import com.msgbyte.dao.browser.DownloadNotifications
+import com.msgbyte.dao.browser.SharedPreferencesStreamedDownloadRecordStore
+import com.msgbyte.dao.browser.StreamedDownloadGateway
+import com.msgbyte.dao.browser.guessDownloadFileName
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import mozilla.components.browser.engine.gecko.fetch.GeckoViewFetchClient
+import mozilla.components.concept.fetch.Request
 import mozilla.components.browser.engine.gecko.GeckoEngine
 import mozilla.components.concept.engine.DefaultSettings
+import mozilla.components.concept.engine.DownloadDelegate
 import org.mozilla.geckoview.GeckoRuntime
 import org.mozilla.geckoview.GeckoRuntimeSettings
 
@@ -23,8 +35,31 @@ class DaoApplication : Application() {
         BrowserLibraryRepository(applicationContext)
     }
 
+    internal val streamedDownloads by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+        val notifications = DownloadNotifications(applicationContext)
+        val fetchClient by lazy { GeckoViewFetchClient(applicationContext, geckoRuntime) }
+        StreamedDownloadGateway(
+            sink = AndroidDownloadSink(applicationContext),
+            recordStore = SharedPreferencesStreamedDownloadRecordStore(applicationContext),
+            fetch = { request ->
+                fetchClient.fetch(
+                    Request(
+                        url = request.url,
+                        cookiePolicy = Request.CookiePolicy.INCLUDE,
+                        useCaches = false,
+                        private = request.isPrivate,
+                    ),
+                )
+            },
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
+            onStarted = { DownloadForegroundService.start(applicationContext) },
+            onFinished = notifications::showFinished,
+            onRemoved = notifications::cancelFinished,
+        )
+    }
+
     val downloadRepository by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
-        SystemDownloadRepository(applicationContext)
+        SystemDownloadRepository(applicationContext, streamedDownloads)
     }
 
     val browserPreferences by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
@@ -49,7 +84,14 @@ class DaoApplication : Application() {
         )
     }
 
-    val engineSettings = DefaultSettings(automaticFontSizeAdjustment = false)
+    val engineSettings = DefaultSettings(
+        automaticFontSizeAdjustment = false,
+        // Without a delegate Gecko reports no file name, so Content-Disposition names are lost.
+        downloadDelegate = object : DownloadDelegate {
+            override fun guessFileName(contentDisposition: String?, url: String?, mimeType: String?) =
+                guessDownloadFileName(contentDisposition, url, mimeType)
+        },
+    )
 
     val browserRuntime = BrowserRuntime(
         createEngine = {

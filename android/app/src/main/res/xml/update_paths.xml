@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
     <cache-path name="updates" path="updates/" />
+    <!-- Browser downloads before Android 10, which cannot write to MediaStore Downloads. -->
+    <external-files-path name="downloads" path="Download/" />
 </paths>

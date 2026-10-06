@@ -1,6 +1,9 @@
 package com.msgbyte.dao.browser
 
+import java.io.ByteArrayInputStream
 import kotlinx.coroutines.runBlocking
+import mozilla.components.concept.fetch.MutableHeaders
+import mozilla.components.concept.fetch.Response
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -11,7 +14,7 @@ class SystemDownloadRepositoryTest {
     private val gateway = FakeDownloadGateway()
     private val store = InMemoryDownloadMetadataStore()
     private var now = 1_000L
-    private val repository = SystemDownloadRepository(gateway, store, elapsedRealtime = { now })
+    private val repository = SystemDownloadRepository(gateway, NoStreamedDownloads, store, elapsedRealtime = { now })
 
     @Test
     fun speedUsesEachDownloadsByteDeltaAndActualElapsedTime() = runBlocking {
@@ -230,12 +233,49 @@ class SystemDownloadRepositoryTest {
         val request = DownloadRequestData("https://example.com/dao.apk", "dao.apk", 123,
             updateVersion = "0.2.0", updateSha256 = "ab".repeat(32))
         val id = repository.enqueue(request)
-        val restored = SystemDownloadRepository(gateway, store, elapsedRealtime = { now })
+        val restored = SystemDownloadRepository(gateway, NoStreamedDownloads, store, elapsedRealtime = { now })
         restored.refresh()
         assertEquals(DownloadStatus.FAILED, restored.find(id)?.status)
         val replacement = requireNotNull(restored.retry(id))
         assertEquals(request, restored.find(replacement)?.request)
         assertEquals(setOf(replacement), store.readAll().keys)
+    }
+
+    @Test
+    fun geckoResponsesAreStreamedAndTheirRetriesFetchAgainThroughTheStreams() = runBlocking {
+        val streams = FakeDownloadGateway(nextId = -1L, step = -1L)
+        val repository = SystemDownloadRepository(gateway, streams, store, elapsedRealtime = { now })
+        val response = Response("blob:https://example.com/1", 200, MutableHeaders(), Response.Body(ByteArrayInputStream(ByteArray(0))))
+
+        val id = repository.enqueue(DownloadRequestData("blob:https://example.com/1", "export.csv"), response)
+        streams.records[id] = DownloadGatewayRecord(id, DownloadGatewayStatus.FAILED, 0, -1, null, 0, 1)
+        repository.refresh()
+        val retried = repository.retry(id)
+
+        assertEquals(-1L, id)
+        assertEquals(listOf(response, null), streams.responses)
+        assertEquals(listOf(id), streams.removed)
+        assertEquals(setOf(retried), store.readAll().keys)
+        assertTrue(gateway.enqueued.isEmpty())
+    }
+
+    @Test
+    fun aDataUrlKeepsOnlyItsHeaderInTheMetadata() = runBlocking {
+        val streams = FakeDownloadGateway(nextId = -1L, step = -1L)
+        val repository = SystemDownloadRepository(gateway, streams, store, elapsedRealtime = { now })
+        val response = Response("data:", 200, MutableHeaders(), Response.Body(ByteArrayInputStream(ByteArray(0))))
+
+        repository.enqueue(DownloadRequestData("data:text/csv;base64,${"QQ".repeat(1_000)}", "export.csv"), response)
+
+        assertEquals("data:text/csv;base64", store.readAll().values.single().url)
+    }
+
+    @Test
+    fun privateDownloadsAreListedButNeverPersisted() = runBlocking {
+        repository.enqueue(DownloadRequestData("https://example.com/a", "a", isPrivate = true))
+
+        assertEquals(1, repository.downloads.value.size)
+        assertTrue(store.readAll().isEmpty())
     }
 
     @Test
@@ -261,16 +301,17 @@ private fun runningRecord(id: Long, bytes: Long) = DownloadGatewayRecord(
     lastModified = 50,
 )
 
-private class FakeDownloadGateway : DownloadGateway {
+private class FakeDownloadGateway(private var nextId: Long = 1L, private val step: Long = 1L) : DownloadGateway {
     val enqueued = mutableListOf<DownloadRequestData>()
+    val responses = mutableListOf<Response?>()
     val records = mutableMapOf<Long, DownloadGatewayRecord>()
     val removed = mutableListOf<Long>()
     var queryFailure: Exception? = null
-    private var nextId = 1L
 
-    override fun enqueue(request: DownloadRequestData): Long {
+    override fun enqueue(request: DownloadRequestData, response: Response?): Long {
         enqueued += request
-        return nextId++
+        responses += response
+        return nextId.also { nextId += step }
     }
 
     override fun query(ids: Set<Long>): List<DownloadGatewayRecord> {
@@ -282,6 +323,13 @@ private class FakeDownloadGateway : DownloadGateway {
         removed += id
         return records.remove(id) != null
     }
+}
+
+/** For repositories that only manage DownloadManager tasks. */
+internal object NoStreamedDownloads : DownloadGateway {
+    override fun enqueue(request: DownloadRequestData, response: Response?) = error("No streamed downloads")
+    override fun query(ids: Set<Long>) = emptyList<DownloadGatewayRecord>()
+    override fun remove(id: Long) = false
 }
 
 private class InMemoryDownloadMetadataStore : DownloadMetadataStore {
