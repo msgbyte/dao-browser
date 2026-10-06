@@ -52,6 +52,9 @@ class AndroidResourceQualifierTest(unittest.TestCase):
     def test_maps_language_region_and_script_tags_to_android_qualifiers(self) -> None:
         cases = {
             "ja": "ja",
+            "id": "in",
+            "no": "nb",
+            "iw": "iw",
             "zh-CN": "zh-rCN",
             "pt-BR": "pt-rBR",
             "en-GB": "en-rGB",

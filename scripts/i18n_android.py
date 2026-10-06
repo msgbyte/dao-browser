@@ -69,11 +69,16 @@ def extract_android_placeholders(value: str) -> tuple[str, ...]:
     return tuple(_ANDROID_PLACEHOLDER_RE.findall(value))
 
 
+# Chromium codes that Android resolves under a different language qualifier.
+_ANDROID_LANGUAGE_ALIASES = {"id": "in", "no": "nb"}
+
+
 def android_resource_qualifier(locale_code: str) -> str:
     normalized = locale_code.replace("_", "-")
     parts = normalized.split("-")
     if len(parts) == 1:
-        return parts[0].lower()
+        language = parts[0].lower()
+        return _ANDROID_LANGUAGE_ALIASES.get(language, language)
 
     language = parts[0].lower()
     if len(parts) == 2 and len(parts[1]) == 2 and parts[1].isalpha():
