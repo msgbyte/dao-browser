@@ -205,6 +205,16 @@ class SystemDownloadRepositoryTest {
     }
 
     @Test
+    fun retryingAnAlreadyRetriedDownloadIsANoOp() = runBlocking {
+        val failedId = repository.enqueue(DownloadRequestData("https://example.com/a.zip", "a.zip"))
+        val retriedId = repository.retry(failedId)
+
+        assertNull(repository.retry(failedId))
+        assertEquals(setOf(retriedId), store.readAll().keys)
+        assertEquals(2, gateway.enqueued.size)
+    }
+
+    @Test
     fun cancelRemovesTheSystemTaskAndOwnedMetadata() = runBlocking {
         val id = repository.enqueue(DownloadRequestData("https://example.com/file.pdf", "file.pdf"))
 
@@ -223,7 +233,7 @@ class SystemDownloadRepositoryTest {
         val restored = SystemDownloadRepository(gateway, store, elapsedRealtime = { now })
         restored.refresh()
         assertEquals(DownloadStatus.FAILED, restored.find(id)?.status)
-        val replacement = restored.retry(id)
+        val replacement = requireNotNull(restored.retry(id))
         assertEquals(request, restored.find(replacement)?.request)
         assertEquals(setOf(replacement), store.readAll().keys)
     }

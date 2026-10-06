@@ -827,7 +827,14 @@ fun DownloadsScreen(
                                 download = download,
                                 editMode = editMode,
                                 onCancel = { scope.launch { repository.cancel(download.id) } },
-                                onRetry = { scope.launch { repository.retry(download.id) } },
+                                onRetry = {
+                                    scope.launch {
+                                        // A failed re-enqueue drops the row; say so instead of crashing.
+                                        runCatching { repository.retry(download.id) }.onFailure {
+                                            Toast.makeText(context, R.string.download_failed, Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                },
                                 onRemove = { removeDownload(download.id) },
                                 onOpen = {},
                             )

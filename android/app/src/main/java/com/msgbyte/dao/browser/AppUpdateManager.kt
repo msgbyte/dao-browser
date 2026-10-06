@@ -90,7 +90,7 @@ class AppUpdateManager(
                 if (existing?.status == DownloadStatus.FAILED ||
                     (retryCompleted && existing?.status == DownloadStatus.SUCCESSFUL)) {
                     requireNotNull(existing)
-                    downloads.retry(existing.id)
+                    checkNotNull(downloads.retry(existing.id)) { "Update download disappeared" }
                 } else if (existing == null) {
                     downloads.enqueue(DownloadRequestData(
                         url = release.url,

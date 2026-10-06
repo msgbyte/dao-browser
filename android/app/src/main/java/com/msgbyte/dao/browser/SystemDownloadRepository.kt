@@ -128,9 +128,11 @@ class SystemDownloadRepository internal constructor(
         return fileDeleted
     }
 
-    suspend fun retry(id: Long): Long = mutex.withLock {
+    /** Returns null when [id] is already gone, e.g. a second tap on Retry. */
+    suspend fun retry(id: Long): Long? = mutex.withLock {
         withContext(ioDispatcher) {
-            val request = requireNotNull(metadata[id]) { "Download does not exist" }
+            val request = metadata[id] ?: return@withContext null
+            // Remove first so the new task can reuse the file name instead of getting a "-1" suffix.
             removeLocked(id)
             enqueueLocked(request)
         }
