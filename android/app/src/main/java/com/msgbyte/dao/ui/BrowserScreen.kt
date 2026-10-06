@@ -103,6 +103,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
@@ -731,6 +732,7 @@ private fun NewTabScreen(
 ) {
     val colors = LocalNovaColors.current
     val focusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
     var searchExpanded by remember(startExpanded) { mutableStateOf(startExpanded) }
     var scannerOpen by remember { mutableStateOf(false) }
     // Start with the whole address selected so typing replaces it.
@@ -833,7 +835,14 @@ private fun NewTabScreen(
             expanded = searchExpanded,
             onValueChange = { queryValue = it },
             onActivate = {
-                searchExpanded = true
+                if (searchExpanded) {
+                    // The input only covers part of the pill. Taps elsewhere on it must still
+                    // reopen a keyboard the user dismissed while the input kept focus.
+                    focusRequester.requestFocus()
+                    keyboardController?.show()
+                } else {
+                    searchExpanded = true
+                }
             },
             onTrailingClick = {
                 if (searchExpanded) {
