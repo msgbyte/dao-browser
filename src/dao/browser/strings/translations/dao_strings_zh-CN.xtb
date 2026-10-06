@@ -257,4 +257,7 @@
 <translation id="7969046989155602842">命令</translation>
 <translation id="9113438244316351002">重新打开关闭的标签页|重新打开标签页|恢复标签页|撤销关闭标签页</translation>
 <translation id="6318407754858604988">已开始下载</translation>
+<translation id="5292940529945963735">未能迁移你的数据</translation>
+<translation id="6892485888853878041">没有导入任何数据。请解决问题后重试。</translation>
+<translation id="7730621721268635191">请完全退出来源浏览器（包括后台进程），然后重试失败的项目。</translation>
 </translationbundle>

@@ -22,6 +22,7 @@ enum class CopyOutcome {
   kCopied,
   kMissing,
   kPermissionDenied,
+  kInUse,
   kChanging,
   kFailed,
   kCancelled,
@@ -53,8 +54,14 @@ CopyOutcome CopyStableFile(const base::FilePath& source,
       return CopyOutcome::kFailed;
     }
 
-    if (!base::CreateDirectory(destination.DirName()) ||
-        !base::CopyFile(source, destination)) {
+    if (!base::CreateDirectory(destination.DirName())) {
+      return CopyOutcome::kFailed;
+    }
+    if (!base::CopyFile(source, destination)) {
+      base::File readable(source, base::File::FLAG_OPEN | base::File::FLAG_READ);
+      if (readable.error_details() == base::File::FILE_ERROR_IN_USE) {
+        return CopyOutcome::kInUse;
+      }
       return CopyOutcome::kFailed;
     }
 
@@ -104,6 +111,8 @@ std::string ErrorCodeForOutcome(CopyOutcome outcome) {
       return "source_missing";
     case CopyOutcome::kPermissionDenied:
       return "permission_denied";
+    case CopyOutcome::kInUse:
+      return "source_in_use";
     case CopyOutcome::kChanging:
       return "source_changing";
     case CopyOutcome::kFailed:

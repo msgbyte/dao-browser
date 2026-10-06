@@ -12,6 +12,7 @@
 #include "base/run_loop.h"
 #include "base/test/task_environment.h"
 #include "base/threading/thread_restrictions.h"
+#include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace dao::import {
@@ -118,6 +119,30 @@ TEST_F(DaoProfileSnapshotTest, StopsBeforeCopyWhenCancelled) {
   EXPECT_EQ("cancelled", result.error_code);
   EXPECT_TRUE(result.path.empty());
 }
+
+#if BUILDFLAG(IS_WIN)
+TEST_F(DaoProfileSnapshotTest, ReportsExclusiveSessionLockAndRetriesAfterClose) {
+  base::ScopedTempDir source_dir;
+  ASSERT_TRUE(source_dir.CreateUniqueTempDir());
+  const auto sessions = source_dir.GetPath().AppendASCII("Sessions");
+  ASSERT_TRUE(base::CreateDirectory(sessions));
+  base::File locked(sessions.AppendASCII("Session_1"),
+                    base::File::FLAG_CREATE_ALWAYS | base::File::FLAG_WRITE |
+                        base::File::FLAG_WIN_EXCLUSIVE_READ |
+                        base::File::FLAG_WIN_EXCLUSIVE_WRITE);
+  ASSERT_TRUE(locked.IsValid());
+  SnapshotRequest request;
+  request.source_profile = source_dir.GetPath();
+  request.relative_paths = {base::FilePath(FILE_PATH_LITERAL("Sessions"))};
+  auto failed = DaoProfileSnapshot::CreateForTesting(request);
+  EXPECT_FALSE(failed.success);
+  EXPECT_EQ("source_in_use", failed.error_code);
+
+  locked.Close();
+  auto retried = DaoProfileSnapshot::CreateForTesting(request);
+  EXPECT_TRUE(retried.success);
+}
+#endif
 
 TEST_F(DaoProfileSnapshotTest, RemovesTemporaryDirectoryWithResultLifetime) {
   base::ScopedTempDir source_dir;

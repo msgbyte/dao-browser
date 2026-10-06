@@ -17,7 +17,7 @@
 #include "base/strings/cstring_view.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
-#include "base/task/sequenced_task_runner.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "base/values.h"
 #include "components/sessions/core/command_storage_backend.h"
@@ -68,9 +68,10 @@ void ReadBookmarkChildren(const base::ListValue *children, bool in_toolbar,
     entry.creation_time = ChromiumTimeFromString(node.FindString("date_added"));
     if (entry.is_folder) {
       entries->push_back(entry);
-      path.push_back(entry.title);
+      auto child_path = path;
+      child_path.push_back(entry.title);
       ReadBookmarkChildren(node.FindList("children"), in_toolbar,
-                           std::move(path), entries);
+                           std::move(child_path), entries);
       continue;
     }
 
@@ -143,7 +144,7 @@ ReadBatch<BookmarkEntry> DaoChromiumProfileAdapter::ReadBookmarks() {
 }
 
 ReadBatch<HistoryVisit> DaoChromiumProfileAdapter::ReadHistory() {
-  sql::Database database(kDatabaseTag);
+  sql::Database database(sql::DatabaseOptions().set_read_only(true), kDatabaseTag);
   if (!database.Open(profile_path_.AppendASCII("History"))) {
     return ReadFailure<HistoryVisit>("sqlite_open_failed");
   }
@@ -217,32 +218,48 @@ ReadBatch<PasswordEntry> DaoChromiumProfileAdapter::ReadPasswords() {
 }
 
 ReadBatch<TabEntry> DaoChromiumProfileAdapter::ReadTabs() {
-  if (!base::SequencedTaskRunner::HasCurrentDefault()) {
-    return ReadFailure<TabEntry>("session_reader_unavailable");
+  return RestoreTabs(ReadTabCommands());
+}
+
+DaoChromiumProfileAdapter::TabCommands
+DaoChromiumProfileAdapter::ReadTabCommands() {
+  if (!base::SingleThreadTaskRunner::HasCurrentDefault()) {
+    return ReadFailure<std::unique_ptr<sessions::SessionCommand>>(
+        "session_reader_unavailable");
   }
   const base::FilePath sessions_path = profile_path_.AppendASCII("Sessions");
   if (!base::DirectoryExists(sessions_path)) {
-    ReadBatch<TabEntry> empty;
+    TabCommands empty;
     empty.success = true;
     return empty;
   }
 
   auto backend = base::MakeRefCounted<sessions::CommandStorageBackend>(
-      base::SequencedTaskRunner::GetCurrentDefault(), sessions_path,
+      base::SingleThreadTaskRunner::GetCurrentDefault(), profile_path_,
       sessions::CommandStorageManager::SessionType::kSessionRestore,
       /*encryptor=*/nullptr);
-  backend->MoveCurrentSessionToLastSession();
   sessions::CommandStorageBackend::ReadCommandsResult commands =
       backend->ReadLastSessionCommands();
   if (commands.error_reading) {
-    return ReadFailure<TabEntry>("session_read_failed");
+    return ReadFailure<std::unique_ptr<sessions::SessionCommand>>(
+        "session_read_failed");
   }
+  TabCommands batch;
+  batch.success = true;
+  batch.records = std::move(commands.commands);
+  return batch;
+}
 
+// static
+ReadBatch<TabEntry> DaoChromiumProfileAdapter::RestoreTabs(TabCommands commands) {
+  if (!commands.success) {
+    return ReadFailure<TabEntry>(std::move(commands.error_code));
+  }
   std::vector<std::unique_ptr<sessions::SessionWindow>> windows;
   SessionID active_window = SessionID::InvalidValue();
   std::string platform_session_id;
   std::set<SessionID> discarded_windows;
-  sessions::RestoreSessionFromCommands(commands.commands, &windows,
+  sessions::RestoreSessionFromCommands(commands.records, &windows,
                                        &active_window, &platform_session_id,
                                        &discarded_windows);
 

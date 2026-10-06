@@ -13,6 +13,7 @@
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/uuid.h"
 #include "chrome/browser/bookmarks/bookmark_model_factory.h"
 #include "chrome/browser/extensions/webstore_install_with_prompt.h"
@@ -38,6 +39,7 @@
 #include "components/password_manager/core/common/password_manager_pref_names.h"
 #include "components/prefs/pref_service.h"
 #include "dao/browser/ui/views/dao_tab_identity.h"
+#include "dao/browser/ui/webui/dao_folder_storage.h"
 #include "dao/browser/ui/webui/dao_sidebar_ui.h"
 #include "extensions/browser/disable_reason.h"
 #include "extensions/browser/extension_registrar.h"
@@ -314,6 +316,28 @@ bool DaoChromiumMigrationTarget::IsTabOpen(const GURL& url) const {
   return found;
 }
 
+void DaoChromiumMigrationTarget::PrepareTabImport(ItemWriteCallback callback) {
+  if (profile_->IsOffTheRecord()) {
+    prepared_folder_json_ = DaoSidebarUIHandler::ReadFolderData(profile_);
+    std::move(callback).Run(prepared_folder_json_.has_value());
+    return;
+  }
+  GetFolderFileTaskRunner()->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(&ReadFolderFile,
+                     profile_->GetPath().AppendASCII("dao_folders.json")),
+      base::BindOnce(
+          [](base::WeakPtr<DaoChromiumMigrationTarget> target,
+             ItemWriteCallback callback, std::optional<std::string> contents) {
+            if (!target) {
+              return;
+            }
+            target->prepared_folder_json_ = std::move(contents);
+            std::move(callback).Run(target->prepared_folder_json_.has_value());
+          },
+          weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
+}
+
 std::string DaoChromiumMigrationTarget::EnsureImportedTabFolder(
     const std::u16string& folder_name) {
   if (!LoadFolderData()) {
@@ -392,6 +416,52 @@ bool DaoChromiumMigrationTarget::FinishImportedTabFolder(
     pending_folder_tab_ids_.clear();
   }
   return persisted;
+}
+
+void DaoChromiumMigrationTarget::FinishImportedTabFolderAsync(
+    const std::string& folder_id,
+    ItemWriteCallback callback) {
+  const std::string* pending_id =
+      pending_folder_ ? pending_folder_->FindString("id") : nullptr;
+  std::string json;
+  if (!pending_id || *pending_id != folder_id || !pending_folder_window_id_ ||
+      !FindBrowserBySessionId(profile_, *pending_folder_window_id_) ||
+      !base::JSONWriter::WriteWithOptions(
+          folder_data_, base::JSONWriter::OPTIONS_PRETTY_PRINT, &json)) {
+    AbortImportedTabFolder(folder_id);
+    std::move(callback).Run(false);
+    return;
+  }
+  if (profile_->IsOffTheRecord()) {
+    const bool success = FinishImportedTabFolder(folder_id);
+    if (!success) {
+      AbortImportedTabFolder(folder_id);
+    }
+    std::move(callback).Run(success);
+    return;
+  }
+  GetFolderFileTaskRunner()->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(&UpdateFolderFile,
+                     profile_->GetPath().AppendASCII("dao_folders.json"),
+                     folder_base_json_, std::move(json)),
+      base::BindOnce(
+          [](base::WeakPtr<DaoChromiumMigrationTarget> target,
+             std::string folder_id, ItemWriteCallback callback, bool success) {
+            if (!target) {
+              return;
+            }
+            if (success) {
+              target->pending_folder_ = nullptr;
+              target->pending_folder_window_id_.reset();
+              target->pending_folder_tab_ids_.clear();
+              DaoSidebarUIHandler::NotifyFolderDataChanged(target->profile_);
+            } else {
+              target->AbortImportedTabFolder(folder_id);
+            }
+            std::move(callback).Run(success);
+          },
+          weak_ptr_factory_.GetWeakPtr(), folder_id, std::move(callback)));
 }
 
 void DaoChromiumMigrationTarget::AbortImportedTabFolder(
@@ -587,7 +657,7 @@ bool DaoChromiumMigrationTarget::LoadFolderData() {
   }
   pending_folder_window_id_ =
       browser_window->GetBrowserForMigrationOnly()->session_id();
-  auto contents = DaoSidebarUIHandler::ReadFolderData(profile_);
+  const auto& contents = prepared_folder_json_;
   if (!contents) {
     return false;
   }

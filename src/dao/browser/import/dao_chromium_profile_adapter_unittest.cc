@@ -10,7 +10,14 @@
 
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
+#include "base/functional/callback_helpers.h"
 #include "base/strings/string_view_util.h"
+#include "base/task/single_thread_task_runner.h"
+#include "base/test/task_environment.h"
+#include "components/sessions/core/command_storage_backend.h"
+#include "components/sessions/core/serialized_navigation_entry.h"
+#include "components/sessions/core/session_service_commands.h"
+#include "components/sessions/core/session_types.h"
 #include "sql/database.h"
 #include "sql/statement.h"
 #include "sql/test/test_helpers.h"
@@ -77,6 +84,52 @@ TEST(DaoChromiumProfileAdapterTest, ReadsHistoryVisitsInStableOrder) {
   EXPECT_LT(batch.records[0].visit_time, batch.records[1].visit_time);
   EXPECT_EQ(u"Example", batch.records[0].title);
   EXPECT_EQ(2u, adapter.CountCandidates(DataCategory::kHistory));
+}
+
+TEST(DaoChromiumProfileAdapterTest, PreservesParentPathAfterNestedFolder) {
+  base::ScopedTempDir profile_dir;
+  ASSERT_TRUE(profile_dir.CreateUniqueTempDir());
+  ASSERT_TRUE(base::WriteFile(
+      profile_dir.GetPath().AppendASCII("Bookmarks"),
+      R"({"roots":{"bookmark_bar":{"children":[{"type":"folder","name":"Parent","children":[{"type":"folder","name":"Child","children":[]},{"type":"url","name":"Sibling","url":"https://example.com/"}]}]}}})"));
+  DaoChromiumProfileAdapter adapter(profile_dir.GetPath());
+  const auto batch = adapter.ReadBookmarks();
+  ASSERT_TRUE(batch.success);
+  ASSERT_EQ(3u, batch.records.size());
+  EXPECT_EQ(std::vector<std::u16string>({u"Parent"}), batch.records[2].path);
+}
+
+TEST(DaoChromiumProfileAdapterTest, ReadsSavedSessionWithoutRotatingItAway) {
+  base::test::TaskEnvironment task_environment;
+  base::ScopedTempDir profile_dir;
+  ASSERT_TRUE(profile_dir.CreateUniqueTempDir());
+  const auto window = SessionID::NewUnique();
+  const auto tab = SessionID::NewUnique();
+  sessions::SerializedNavigationEntry navigation;
+  navigation.set_index(0);
+  navigation.set_virtual_url(GURL("https://example.com/session"));
+  navigation.set_title(u"Saved tab");
+  std::vector<std::unique_ptr<sessions::SessionCommand>> commands;
+  commands.push_back(sessions::CreateSetWindowTypeCommand(
+      window, sessions::SessionWindow::TYPE_NORMAL));
+  commands.push_back(sessions::CreateSetTabWindowCommand(window, tab));
+  commands.push_back(sessions::CreateSetTabIndexInWindowCommand(tab, 0));
+  commands.push_back(sessions::CreateUpdateTabNavigationCommand(tab, navigation));
+  commands.push_back(sessions::CreateSetSelectedNavigationIndexCommand(tab, 0));
+  {
+    auto backend = base::MakeRefCounted<sessions::CommandStorageBackend>(
+        base::SingleThreadTaskRunner::GetCurrentDefault(), profile_dir.GetPath(),
+        sessions::CommandStorageManager::SessionType::kSessionRestore, nullptr);
+    backend->AppendCommands(std::move(commands), true, base::DoNothing());
+  }
+
+  DaoChromiumProfileAdapter adapter(profile_dir.GetPath());
+  const auto batch = adapter.ReadTabs();
+  ASSERT_TRUE(batch.success) << batch.error_code;
+  ASSERT_EQ(1u, batch.records.size());
+  EXPECT_EQ(navigation.virtual_url(), batch.records[0].url);
+  EXPECT_EQ(u"Saved tab", batch.records[0].title);
+  EXPECT_EQ(1u, adapter.CountCandidates(DataCategory::kTabs));
 }
 
 TEST(DaoChromiumProfileAdapterTest, ReadsExtensionEnabledState) {

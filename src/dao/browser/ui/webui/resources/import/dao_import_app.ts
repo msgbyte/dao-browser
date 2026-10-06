@@ -461,6 +461,17 @@ export class DaoImportApp extends CrLitElement {
         transform: rotate(45deg) translate(-4px, -4px);
         width: 13px;
       }
+      .done-ring.attention {
+        background: var(--danger-soft);
+        color: var(--danger);
+      }
+      .done-ring.attention::before {
+        border: 0;
+        content: '!';
+        height: auto;
+        transform: none;
+        width: auto;
+      }
       .failure-summary {
         align-items: flex-start;
         background: var(--danger-soft);
@@ -900,14 +911,19 @@ export class DaoImportApp extends CrLitElement {
     const cancelled = this.jobState_?.categories.some(
         item => item.phase === 'cancelled') || false;
     const totals = this.jobState_?.categories || [];
+    const allFailed = totals.length > 0 && failed.length === totals.length &&
+        totals.every(item => item.imported === 0);
     return html`
       <div class="completion">
-        <div class="done-ring" aria-hidden="true"></div>
+        <div class="done-ring ${failed.length || cancelled ? 'attention' : ''}"
+            aria-hidden="true"></div>
         <h1>${cancelled ? this.string_('daoImportCancelledTitle') :
+                         allFailed ? this.string_('daoImportFailedTitle') :
                          failed.length ? this.string_('daoImportPartialTitle') :
                                          this.string_('daoImportDoneTitle')}</h1>
         <p class="description">${cancelled ?
-            this.string_('daoImportCancelledDescription') : failed.length ?
+            this.string_('daoImportCancelledDescription') : allFailed ?
+            this.string_('daoImportFailedDescription') : failed.length ?
             this.string_('daoImportPartialDescription') :
             this.string_('daoImportDoneDescription')}</p>
         ${failed.length ? html`
@@ -920,6 +936,8 @@ export class DaoImportApp extends CrLitElement {
                   ${this.categoryLabel_(item.category)}
                 </span>`)}
             </div>
+            ${failed.some(item => item.errorCode === 'source_in_use') ? html`
+              <span>${this.string_('daoImportSourceInUse')}</span>` : nothing}
           </div>` : nothing}
         <div class="stats">
           ${totals.map(item => html`

@@ -10,6 +10,7 @@
 #include <optional>
 
 #include "base/files/file_path.h"
+#include "components/sessions/core/session_command.h"
 #include "dao/browser/import/dao_migration_types.h"
 #include "dao/browser/import/dao_source_adapter.h"
 
@@ -31,9 +32,17 @@ public:
   ReadBatch<TabEntry> ReadTabs() override;
   ReadBatch<ExtensionEntry> ReadExtensions() override;
 
+  // File I/O runs on a single-thread worker using a disposable snapshot.
+  using TabCommands = ReadBatch<std::unique_ptr<sessions::SessionCommand>>;
+  TabCommands ReadTabCommands();
+  // Session restoration allocates global SessionIDs and must run on the UI
+  // thread. ReadTabs() combines both steps for synchronous callers/tests.
+  static ReadBatch<TabEntry> RestoreTabs(TabCommands commands);
+
   // Returns the number of source candidates without decrypting passwords.
   // The caller must use a snapshot when counting tabs because the Chromium
-  // session reader may rotate session files.
+  // session reader may remove older session files. Tab restoration also needs
+  // the UI thread; asynchronous callers should split ReadTabCommands/RestoreTabs.
   std::optional<uint64_t> CountCandidates(DataCategory category);
 
 private:

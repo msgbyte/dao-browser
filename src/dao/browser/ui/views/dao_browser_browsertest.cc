@@ -6562,6 +6562,9 @@ IN_PROC_BROWSER_TEST_F(DaoFolderPersistenceBrowserTest,
   const int first_count = browser()->tab_strip_model()->count();
   const int second_count = second_browser->tab_strip_model()->count();
   dao::import::DaoChromiumMigrationTarget target(profile);
+  base::test::TestFuture<bool> prepared;
+  target.PrepareTabImport(prepared.GetCallback());
+  ASSERT_TRUE(prepared.Get());
   dao::import::DaoMigrationWriter writer(&target);
   dao::import::TabEntry tab;
   tab.url = GURL("https://multi-window-import.example/");
@@ -6575,7 +6578,13 @@ IN_PROC_BROWSER_TEST_F(DaoFolderPersistenceBrowserTest,
   // Changing the active window must not retarget the pending import.
   browser()->window()->Activate();
   base::RunLoop().RunUntilIdle();
-  ASSERT_TRUE(writer.FinishTabs(imported_folder_id));
+  base::test::TestFuture<bool> persisted;
+  {
+    base::ScopedDisallowBlocking disallow_blocking;
+    target.FinishImportedTabFolderAsync(imported_folder_id,
+                                       persisted.GetCallback());
+  }
+  ASSERT_TRUE(persisted.Get());
   EXPECT_EQ(first_count, browser()->tab_strip_model()->count());
   EXPECT_EQ(second_count + 1, second_browser->tab_strip_model()->count());
   auto json = DaoSidebarUIHandler::ReadFolderData(profile);
@@ -11281,6 +11290,9 @@ IN_PROC_BROWSER_TEST_F(DaoImportWebUIBrowserTest,
   ASSERT_TRUE(base::WriteFile(folder_path, R"({"version":1,"items":[]})"));
   const int original_tab_count = browser()->tab_strip_model()->count();
   dao::import::DaoChromiumMigrationTarget target(browser()->profile());
+  base::test::TestFuture<bool> prepared;
+  target.PrepareTabImport(prepared.GetCallback());
+  ASSERT_TRUE(prepared.Get());
   dao::import::DaoMigrationWriter writer(&target);
   dao::import::TabEntry tab;
   tab.url = GURL("https://import-rollback.example/");
@@ -11294,7 +11306,12 @@ IN_PROC_BROWSER_TEST_F(DaoImportWebUIBrowserTest,
   ASSERT_TRUE(base::DeleteFile(folder_path));
   ASSERT_TRUE(base::CreateDirectory(folder_path));
 
-  EXPECT_FALSE(writer.FinishTabs(folder_id));
+  base::test::TestFuture<bool> persisted;
+  {
+    base::ScopedDisallowBlocking disallow_blocking;
+    target.FinishImportedTabFolderAsync(folder_id, persisted.GetCallback());
+  }
+  EXPECT_FALSE(persisted.Get());
   EXPECT_EQ(original_tab_count, browser()->tab_strip_model()->count());
   EXPECT_TRUE(base::DeletePathRecursively(folder_path));
 }

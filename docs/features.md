@@ -984,8 +984,13 @@ macOS-style floating control center panel bundling extensions and utilities.
   use Chromium's platform importers and their reported category capabilities.
 - **Safe source reads** — Chromium-family stores are copied to a temporary
   profile snapshot with bounded metadata-stability retries. SQLite sidecars and
-  session directories are included, so source browsers can normally remain
-  open. Temporary snapshots are deleted with the category operation. Cleanup
+  session directories are included. The background reader owns its snapshot
+  until reading finishes, independently of callback argument evaluation order.
+  Session file reads use a single-thread worker and read the latest saved
+  session without rotating it away; session objects are restored on the UI
+  thread to preserve Chromium's global session-ID ownership. Windows session files locked by a running
+  source browser require fully quitting that browser; the completion page
+  explains this and offers a retry. Temporary snapshots are deleted with the category operation. Cleanup
   stays off the UI thread and blocks browser shutdown until copied history,
   password, and session data has been removed.
 - **Merge-only destination writes** — Bookmarks are placed under a localized
@@ -994,6 +999,9 @@ macOS-style floating control center panel bundling extensions and utilities.
   profile History service. History and password counts advance only after the
   destination services confirm the persisted records. No category replaces
   existing Dao data.
+- **Accurate failure summary** — If every selected category fails without
+  importing data, the completion page reports failure instead of partial
+  success. Failed or cancelled jobs use an attention indicator.
 - **Passwords and extensions** — Chromium-family password import is offered
   only on macOS, where its source capability enables the Keychain authorization
   notice. Windows does not offer it until a source password decryptor exists;
@@ -1006,7 +1014,9 @@ macOS-style floating control center panel bundling extensions and utilities.
   discarded tabs, and are collected in a collapsed sidebar folder. Tabs are
   created in cancellable batches; a failed folder write rolls back tabs from
   that import instead of leaving orphaned browser tabs. Successful folder
-  persistence invalidates every live same-profile sidebar cache.
+  persistence invalidates every live same-profile sidebar cache. Migration
+  reads and commits folder data through the shared background storage queue,
+  and reports completion only after the asynchronous write succeeds.
 - **Privacy boundary** — Migration records, snapshots, and progress stay local;
   only official extension reinstallation may use the network. Cookies are not
   imported because Chromium does not expose a safe cross-profile cookie import

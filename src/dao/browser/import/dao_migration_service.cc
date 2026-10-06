@@ -14,6 +14,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
@@ -95,9 +96,6 @@ void AddWriteResult(CategoryResult *totals, const WriteResult &result) {
 } // namespace
 
 DaoMigrationService::ReadResult::ReadResult() = default;
-DaoMigrationService::ReadResult::ReadResult(const ReadResult &) = default;
-DaoMigrationService::ReadResult &
-DaoMigrationService::ReadResult::operator=(const ReadResult &) = default;
 DaoMigrationService::ReadResult::ReadResult(ReadResult &&) = default;
 DaoMigrationService::ReadResult &
 DaoMigrationService::ReadResult::operator=(ReadResult &&) = default;
@@ -362,14 +360,14 @@ void DaoMigrationService::OnGetPasswordStoreResultsOrErrorFrom(
 // static
 DaoMigrationService::ReadResult
 DaoMigrationService::ReadSnapshot(DataCategory category, SourceKind source_kind,
-                                  base::FilePath snapshot_path) {
+                                  SnapshotResult snapshot) {
   std::unique_ptr<PasswordDecryptor> decryptor;
 #if BUILDFLAG(IS_MAC)
   if (category == DataCategory::kPasswords) {
     decryptor = std::make_unique<DaoChromiumPasswordDecryptorMac>(source_kind);
   }
 #endif
-  DaoChromiumProfileAdapter adapter(std::move(snapshot_path),
+  DaoChromiumProfileAdapter adapter(snapshot.path,
                                     std::move(decryptor));
   ReadResult result;
   auto copy_batch = [&result](auto batch) {
@@ -388,7 +386,9 @@ DaoMigrationService::ReadSnapshot(DataCategory category, SourceKind source_kind,
     copy_batch(adapter.ReadPasswords());
     break;
   case DataCategory::kTabs:
-    copy_batch(adapter.ReadTabs());
+    result.tab_commands = adapter.ReadTabCommands();
+    result.success = result.tab_commands.success;
+    result.error_code = result.tab_commands.error_code;
     break;
   case DataCategory::kExtensions:
     copy_batch(adapter.ReadExtensions());
@@ -403,16 +403,6 @@ DaoMigrationService::CountProfileCandidates(DataCategory category,
                                             base::FilePath profile_path) {
   DaoChromiumProfileAdapter adapter(std::move(profile_path));
   return adapter.CountCandidates(category);
-}
-
-// static
-std::optional<uint64_t>
-DaoMigrationService::CountSnapshotCandidates(DataCategory category,
-                                             SnapshotResult snapshot) {
-  if (!snapshot.success) {
-    return std::nullopt;
-  }
-  return CountProfileCandidates(category, std::move(snapshot.path));
 }
 
 SnapshotRequest
@@ -587,11 +577,30 @@ void DaoMigrationService::MaybeFinishSourceDetection() {
 void DaoMigrationService::OnCountSnapshotReady(DataCategory category,
                                                CountCallback callback,
                                                SnapshotResult snapshot) {
-  base::ThreadPool::PostTaskAndReplyWithResult(
-      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
-      base::BindOnce(&DaoMigrationService::CountSnapshotCandidates, category,
-                     std::move(snapshot)),
-      std::move(callback));
+  // CommandStorageBackend needs a current SingleThreadTaskRunner.
+  base::ThreadPool::CreateSingleThreadTaskRunner(
+      {base::MayBlock(), base::TaskPriority::USER_VISIBLE})
+      ->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(
+          [](SnapshotResult snapshot) {
+            if (!snapshot.success) {
+              DaoChromiumProfileAdapter::TabCommands failure;
+              failure.error_code = std::move(snapshot.error_code);
+              return failure;
+            }
+            return DaoChromiumProfileAdapter(snapshot.path).ReadTabCommands();
+          },
+          std::move(snapshot)),
+      base::BindOnce(
+          [](CountCallback callback,
+             DaoChromiumProfileAdapter::TabCommands commands) {
+            // Chromium's session objects allocate UI-thread SessionIDs.
+            auto tabs = DaoChromiumProfileAdapter::RestoreTabs(std::move(commands));
+            std::move(callback).Run(tabs.success
+                ? std::optional<uint64_t>(tabs.records.size()) : std::nullopt);
+          },
+          std::move(callback)));
 }
 
 void DaoMigrationService::OnSnapshotReady(DataCategory category,
@@ -617,18 +626,20 @@ void DaoMigrationService::OnSnapshotReady(DataCategory category,
     return;
   }
   NotifyObservers();
-  base::ThreadPool::PostTaskAndReplyWithResult(
-      FROM_HERE,
+  // Keep the snapshot alive in the reader itself. Binding its path and moving
+  // its owner in separate call arguments depends on argument evaluation order.
+  base::ThreadPool::CreateSingleThreadTaskRunner(
       {base::MayBlock(), base::TaskPriority::USER_VISIBLE,
-       base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN},
+       base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN})
+      ->PostTaskAndReplyWithResult(
+      FROM_HERE,
       base::BindOnce(&DaoMigrationService::ReadSnapshot, category,
-                     job_->source().kind, snapshot.path),
+                     job_->source().kind, std::move(snapshot)),
       base::BindOnce(&DaoMigrationService::OnReadComplete,
-                     weak_ptr_factory_.GetWeakPtr(), category,
-                     std::move(snapshot)));
+                     weak_ptr_factory_.GetWeakPtr(), category));
 }
 
-void DaoMigrationService::OnReadComplete(DataCategory category, SnapshotResult,
+void DaoMigrationService::OnReadComplete(DataCategory category,
                                          ReadResult result) {
   if (!job_ || job_->IsTerminal()) {
     return;
@@ -639,7 +650,28 @@ void DaoMigrationService::OnReadComplete(DataCategory category, SnapshotResult,
     ProcessNextCategory();
     return;
   }
+  if (category == DataCategory::kTabs) {
+    result.records = DaoChromiumProfileAdapter::RestoreTabs(
+                         std::move(result.tab_commands)).records;
+    target_->PrepareTabImport(
+        base::BindOnce(&DaoMigrationService::OnTabImportPrepared,
+                       weak_ptr_factory_.GetWeakPtr(), std::move(result)));
+    return;
+  }
   BeginWriting(category, std::move(result));
+}
+
+void DaoMigrationService::OnTabImportPrepared(ReadResult result, bool success) {
+  if (!job_ || job_->IsTerminal()) {
+    return;
+  }
+  if (!success) {
+    job_->FailCategory(DataCategory::kTabs, "destination_write_failed");
+    NotifyObservers();
+    ProcessNextCategory();
+    return;
+  }
+  BeginWriting(DataCategory::kTabs, std::move(result));
 }
 
 void DaoMigrationService::BeginWriting(DataCategory category,
@@ -665,8 +697,22 @@ void DaoMigrationService::WriteNextBatch() {
     return;
   }
   const DataCategory category = *active_write_category_;
+  const size_t total =
+      std::visit([](const auto &records) { return records.size(); },
+                 active_write_->records);
+  if (!active_tab_folder_id_.empty() &&
+      (job_->cancel_requested() || active_write_index_ >= total)) {
+    std::string folder_id = std::exchange(active_tab_folder_id_, std::string());
+    if (active_write_totals_.imported == 0) {
+      target_->AbortImportedTabFolder(folder_id);
+    } else {
+      target_->FinishImportedTabFolderAsync(
+          folder_id, base::BindOnce(&DaoMigrationService::OnTabFolderFinished,
+                                     weak_ptr_factory_.GetWeakPtr()));
+      return;
+    }
+  }
   if (job_->cancel_requested()) {
-    FinishActiveTabFolder();
     job_->CancelRunningCategoryAtBatchBoundary(active_write_totals_);
     active_write_.reset();
     active_write_category_.reset();
@@ -674,9 +720,6 @@ void DaoMigrationService::WriteNextBatch() {
     return;
   }
 
-  const size_t total =
-      std::visit([](const auto &records) { return records.size(); },
-                 active_write_->records);
   if (active_write_index_ >= total) {
     if (category == DataCategory::kExtensions) {
       if (!waiting_for_extension_installs_) {
@@ -687,7 +730,6 @@ void DaoMigrationService::WriteNextBatch() {
       }
       return;
     }
-    FinishActiveTabFolder();
     if (active_write_totals_.failed > 0) {
       job_->FailCategory(category, "destination_write_failed",
                          active_write_totals_);
@@ -761,18 +803,15 @@ void DaoMigrationService::OnWriteBatchFinished(size_t end,
                                 weak_ptr_factory_.GetWeakPtr()));
 }
 
-void DaoMigrationService::FinishActiveTabFolder() {
-  if (!target_ || active_tab_folder_id_.empty()) {
+void DaoMigrationService::OnTabFolderFinished(bool success) {
+  if (!job_ || job_->IsTerminal() || !active_write_) {
     return;
   }
-  DaoMigrationWriter writer(target_.get());
-  if (active_write_totals_.imported == 0) {
-    target_->AbortImportedTabFolder(active_tab_folder_id_);
-  } else if (!writer.FinishTabs(active_tab_folder_id_)) {
+  if (!success) {
     active_write_totals_.failed += active_write_totals_.imported;
     active_write_totals_.imported = 0;
   }
-  active_tab_folder_id_.clear();
+  WriteNextBatch();
 }
 
 void DaoMigrationService::OnExtensionInstallsFinished(uint64_t installed,

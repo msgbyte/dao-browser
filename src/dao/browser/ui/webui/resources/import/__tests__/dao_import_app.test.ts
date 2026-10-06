@@ -508,6 +508,32 @@ describe('dao-import-app', () => {
     expect(succeededStat!.classList.contains('failed')).toBe(false);
   });
 
+  it('shows total failure and explains a locked source before retry', async () => {
+    bridge.getBrowserMigrationState.mockResolvedValue({
+      sourceId: 'edge-default',
+      terminal: true,
+      cancelRequested: false,
+      categories: ['bookmarks', 'history', 'tabs', 'extensions'].map(
+          category => ({
+            category, phase: 'failed', imported: 0, skipped: 0,
+            conflicted: 0, failed: 0, completedItems: 0, totalItems: 0,
+            indeterminate: true,
+            errorCode: category === 'tabs' ? 'source_in_use' : 'source_missing',
+          })),
+    });
+
+    const app = await createApp();
+    expect(app.shadowRoot!.querySelector('h1')!.textContent)
+        .toContain('daoImportFailedTitle');
+    expect(app.shadowRoot!.textContent).not.toContain('daoImportPartialTitle');
+    expect(app.shadowRoot!.textContent).toContain('daoImportSourceInUse');
+    expect(app.shadowRoot!.querySelector('.done-ring.attention')).not.toBeNull();
+
+    app.shadowRoot!.querySelector<HTMLButtonElement>('footer .primary')!.click();
+    expect(bridge.retryBrowserMigrationCategories).toHaveBeenCalledWith(
+        ['bookmarks', 'history', 'tabs', 'extensions']);
+  });
+
   it('renders cancellation instead of successful completion', async () => {
     bridge.getBrowserMigrationState.mockResolvedValue({
       sourceId: 'chrome-default',

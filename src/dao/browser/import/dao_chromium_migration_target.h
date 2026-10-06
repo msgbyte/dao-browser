@@ -64,11 +64,14 @@ class DaoChromiumMigrationTarget
   void AddPassword(const PasswordEntry& entry,
                    ItemWriteCallback callback) override;
   bool IsTabOpen(const GURL& url) const override;
+  void PrepareTabImport(ItemWriteCallback callback);
   std::string EnsureImportedTabFolder(
       const std::u16string& folder_name) override;
   bool AddDormantTab(const TabEntry& entry,
                      const std::string& folder_id) override;
   bool FinishImportedTabFolder(const std::string& folder_id) override;
+  void FinishImportedTabFolderAsync(const std::string& folder_id,
+                                    ItemWriteCallback callback);
   void AbortImportedTabFolder(const std::string& folder_id) override;
   bool IsExtensionInstalled(const std::string& id) const override;
   bool QueueExtensionInstall(const ExtensionEntry& entry) override;
@@ -114,6 +117,7 @@ class DaoChromiumMigrationTarget
   std::map<std::string, raw_ptr<const bookmarks::BookmarkNode>>
       bookmark_folders_;
   base::DictValue folder_data_;
+  std::optional<std::string> prepared_folder_json_;
   std::string folder_base_json_;
   raw_ptr<base::ListValue> folder_items_ = nullptr;
   raw_ptr<base::DictValue> pending_folder_ = nullptr;

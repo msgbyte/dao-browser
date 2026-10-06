@@ -657,6 +657,9 @@
       <message name="IDS_DAO_IMPORT_PARTIAL_DESCRIPTION" desc="Explanation shown when some categories can be retried after partial migration.">Completed categories are ready to use. You can retry only the parts that need attention.</message>
       <message name="IDS_DAO_IMPORT_FAILED_SUMMARY_TITLE" desc="Heading above the browser data categories that need to be retried.">These items need to be retried</message>
       <message name="IDS_DAO_IMPORT_FAILED_STATUS" desc="Status shown on a browser data category that failed to migrate.">Migration failed</message>
+      <message name="IDS_DAO_IMPORT_FAILED_TITLE" desc="Completion heading when all selected categories failed without importing data.">Your data could not be migrated</message>
+      <message name="IDS_DAO_IMPORT_FAILED_DESCRIPTION" desc="Explanation when every selected migration category failed.">No data was imported. Resolve the issue and retry.</message>
+      <message name="IDS_DAO_IMPORT_SOURCE_IN_USE" desc="Recovery hint when another browser locks source data files.">Completely quit the source browser, including background processes, then retry the failed items.</message>
       <message name="IDS_DAO_IMPORT_DONE_TITLE" desc="Heading shown after all selected data categories were imported.">Your move is complete</message>
       <message name="IDS_DAO_IMPORT_DONE_DESCRIPTION" desc="Explanation shown after successful browser migration.">Your imported data is ready in Dao. Open tabs are kept unloaded in a collapsed folder until you need them.</message>
       <message name="IDS_DAO_IMPORT_CANCELLED_TITLE" desc="Completion heading shown after the user stops a browser migration.">Migration stopped</message>

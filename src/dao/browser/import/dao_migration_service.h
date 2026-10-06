@@ -21,6 +21,7 @@
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/password_manager/core/browser/password_store/password_store_consumer.h"
 #include "components/user_data_importer/common/importer_data_types.h"
+#include "dao/browser/import/dao_chromium_profile_adapter.h"
 #include "dao/browser/import/dao_migration_job.h"
 #include "dao/browser/import/dao_profile_snapshot.h"
 #include "dao/browser/import/dao_source_adapter.h"
@@ -80,8 +81,8 @@ private:
 
   struct ReadResult {
     ReadResult();
-    ReadResult(const ReadResult &);
-    ReadResult &operator=(const ReadResult &);
+    ReadResult(const ReadResult &) = delete;
+    ReadResult &operator=(const ReadResult &) = delete;
     ReadResult(ReadResult &&);
     ReadResult &operator=(ReadResult &&);
     ~ReadResult();
@@ -89,14 +90,13 @@ private:
     bool success = false;
     std::string error_code;
     Records records = std::vector<BookmarkEntry>();
+    DaoChromiumProfileAdapter::TabCommands tab_commands;
   };
 
   static ReadResult ReadSnapshot(DataCategory category, SourceKind source_kind,
-                                 base::FilePath snapshot_path);
+                                 SnapshotResult snapshot);
   static std::optional<uint64_t>
   CountProfileCandidates(DataCategory category, base::FilePath profile_path);
-  static std::optional<uint64_t>
-  CountSnapshotCandidates(DataCategory category, SnapshotResult snapshot);
   SnapshotRequest BuildSnapshotRequest(DataCategory category,
                                        const base::FilePath &source_path);
   void ProcessNextCategory();
@@ -108,12 +108,12 @@ private:
   void OnSnapshotReady(DataCategory category, SnapshotResult snapshot);
   void OnCountSnapshotReady(DataCategory category, CountCallback callback,
                             SnapshotResult snapshot);
-  void OnReadComplete(DataCategory category, SnapshotResult snapshot,
-                      ReadResult result);
+  void OnReadComplete(DataCategory category, ReadResult result);
+  void OnTabImportPrepared(ReadResult result, bool success);
   void BeginWriting(DataCategory category, ReadResult result);
   void WriteNextBatch();
   void OnWriteBatchFinished(size_t end, WriteResult result);
-  void FinishActiveTabFolder();
+  void OnTabFolderFinished(bool success);
   void OnLegacyWritesFinished();
   void OnExtensionInstallsFinished(uint64_t installed, uint64_t failed);
   void NotifyObservers();
