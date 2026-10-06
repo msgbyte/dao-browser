@@ -457,7 +457,13 @@ fun BrowserScreen(
         )
     }
 
-    BackHandler(enabled = destination == BrowserDestination.Settings) {
+    BackHandler(
+        enabled = destination == BrowserDestination.Settings ||
+            destination == BrowserDestination.History ||
+            destination == BrowserDestination.Bookmarks ||
+            destination == BrowserDestination.Downloads ||
+            destination == BrowserDestination.Extensions,
+    ) {
         closeUtility()
     }
 
@@ -1242,11 +1248,14 @@ private fun BrowsingScreen(
             drawerState = drawerState,
             gesturesEnabled = drawerState.isOpen,
             drawerContent = {
-                androidx.compose.runtime.CompositionLocalProvider(LocalLayoutDirection provides outerDirection) {
-                    ModalDrawerSheet(
-                        modifier = Modifier.fillMaxHeight().width(300.dp),
-                        drawerContainerColor = colors.surface,
-                    ) {
+                // The sheet stays in the RTL wrapper so predictive back and its insets match its
+                // right-side position; only the drawer content uses the app's layout direction.
+                ModalDrawerSheet(
+                    drawerState = drawerState,
+                    modifier = Modifier.fillMaxHeight().width(300.dp),
+                    drawerContainerColor = colors.surface,
+                ) {
+                    androidx.compose.runtime.CompositionLocalProvider(LocalLayoutDirection provides outerDirection) {
                         BrowserDrawer(
                             controller = controller,
                             canGoBack = content?.canGoBack == true,
