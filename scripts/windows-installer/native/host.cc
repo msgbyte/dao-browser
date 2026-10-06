@@ -19,6 +19,8 @@ namespace fs = std::filesystem;
 
 namespace {
 constexpr int kFallback = 77;
+// Ask the NSIS wrapper to launch the registered Chromium uninstaller.
+constexpr int kUninstall = 78;
 constexpr UINT_PTR kStartupTimer = 1;
 constexpr UINT_PTR kInstallTimer = 2;
 constexpr UINT kWebMessage = WM_APP + 1;
@@ -393,6 +395,8 @@ class Installer {
       return;
     if (message == L"cancel" || message == L"finish") {
       Close(completed_ ? 0 : 1);
+    } else if (message == L"uninstall" && locked_ && !completed_) {
+      Close(kUninstall);
     } else if (message.rfind(L"browse:", 0) == 0 && !locked_ && !completed_) {
       Browse(message.substr(7));
     } else if (message.rfind(L"install:", 0) == 0 && !completed_) {

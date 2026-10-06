@@ -175,6 +175,7 @@ button:disabled { cursor: default; }
 #installing-note { margin-top: 4px; }
 .win[data-state="error"]:not([data-installed="true"]) h1 { color: var(--error-text); }
 #error-detail-toggle { position: absolute; bottom: 8px; right: 16px; }
+#uninstall { position: absolute; bottom: 8px; left: 16px; min-height: 32px; padding: 0 8px; }
 dialog {
   width: min(440px, calc(100% - 48px)); padding: 24px;
   color: var(--fg); background: var(--bg); border: 1px solid var(--border);

@@ -50,6 +50,8 @@ export function mountInstaller(bridge, locales) {
     get('log-detail').hidden = !logPath;
     get('log-path').textContent = logPath;
     get('cancel').disabled = busy;
+    get('uninstall').hidden = !locked || installed || !['ready', 'error'].includes(state);
+    get('uninstall').disabled = get('uninstall').hidden;
     primary.disabled = busy;
     primary.hidden = state === 'installing';
     primary.textContent = installed ? (error ? strings.retryLaunch : strings.launch) :
@@ -137,6 +139,12 @@ export function mountInstaller(bridge, locales) {
     if (['ready', 'error'].includes(state) && !locked && !installed) bridge.postMessage('browse:' + directory.value);
   });
   get('cancel').addEventListener('click', close);
+  get('uninstall').addEventListener('click', () => {
+    if (!locked || installed || !['ready', 'error'].includes(state)) return;
+    state = 'closing';
+    render();
+    bridge.postMessage('uninstall');
+  });
   get('minimize').addEventListener('click', () => {
     if (state !== 'waiting' && state !== 'closing') bridge.postMessage('minimize');
   });

@@ -30,6 +30,10 @@ using System.IO;
 using Microsoft.Win32;
 public class InstallerFixture {
     public static int Main(string[] args) {
+        if (Array.IndexOf(args, "--uninstall") >= 0) {
+            File.WriteAllLines(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "uninstall-args.txt"), args);
+            return 0;
+        }
         string root = null;
         foreach (string arg in args) {
             if (arg.StartsWith("--dao-install-dir=")) root = arg.Substring(18);
@@ -45,12 +49,14 @@ public class InstallerFixture {
         using (RegistryKey hive = RegistryKey.OpenBaseKey(RegistryHive.CurrentUser, RegistryView.Registry32))
         using (RegistryKey key = hive.CreateSubKey("TEST_KEY")) {
             key.SetValue("InstallLocation", application);
+            key.SetValue("UninstallString", "\"" + Path.Combine("TEST_ROOT", "backend.exe") + "\" --uninstall --verbose-logging");
         }
         return 0;
     }
 }
 '@
     $backend = $backend.Replace('TEST_KEY', $testKey.Replace('\', '\\'))
+    $backend = $backend.Replace('TEST_ROOT', $testRoot.Replace('\', '\\'))
     $backendPath = Join-Path $testRoot 'backend.exe'
     Add-Type -TypeDefinition $backend -OutputAssembly $backendPath -OutputType ConsoleApplication
     $outputPath = Join-Path $testRoot 'wizard.exe'
@@ -92,6 +98,7 @@ public static class WizardWindow {
     [DllImport("user32.dll")] static extern bool EnumChildWindows(IntPtr parent, Visitor visitor, IntPtr parameter);
     [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr window, out uint pid);
     [DllImport("user32.dll")] static extern int GetDlgCtrlID(IntPtr window);
+    [DllImport("user32.dll")] static extern IntPtr GetWindow(IntPtr window, uint command);
     [DllImport("user32.dll")] public static extern bool IsWindowEnabled(IntPtr window);
     [DllImport("user32.dll", CharSet=CharSet.Unicode)] static extern IntPtr SendMessage(IntPtr window, uint message, IntPtr count, StringBuilder text);
     [DllImport("user32.dll", CharSet=CharSet.Unicode, EntryPoint="SendMessageW")] static extern IntPtr SetTextMessage(IntPtr window, uint message, IntPtr unused, string text);
@@ -128,6 +135,16 @@ public static class WizardWindow {
         }, IntPtr.Zero);
         return result;
     }
+    public static IntPtr OwnedDialog(IntPtr owner) {
+        IntPtr result = IntPtr.Zero;
+        EnumWindows((window, unused) => {
+            if (GetWindow(window, 4) == owner && Text(window).Length > 0) {
+                result = window; return false;
+            }
+            return true;
+        }, IntPtr.Zero);
+        return result;
+    }
     public static string Text(IntPtr window) {
         var text = new StringBuilder(1024); SendMessage(window, 0xD, (IntPtr)text.Capacity, text);
         return text.ToString();
@@ -160,6 +177,8 @@ public static class WizardWindow {
             if ($control -eq [IntPtr]::Zero) { throw 'Directory page is missing.' }
             if ([WizardWindow]::IsWindowEnabled($control) -ne $Editable) { throw "Unexpected directory edit state (expected editable: $Editable)." }
             if ([WizardWindow]::Text($control) -ne $Destination) { throw "Directory page shows the wrong path: $([WizardWindow]::Text($control))" }
+            $uninstall = [WizardWindow]::Control($window, 1032)
+            if (($uninstall -ne [IntPtr]::Zero) -eq $Editable) { throw 'Uninstall must only be offered for an existing installation.' }
             [WizardWindow]::CheckIcon($window)
             if ($CaptureDir) {
                 [IO.Directory]::CreateDirectory($CaptureDir) | Out-Null
@@ -182,6 +201,78 @@ public static class WizardWindow {
     $other = Join-Path $testRoot 'Other Dao'
     Run-Wizard $other 0
     if (Test-Path -LiteralPath "$other\Application") { throw 'Repair relocated the installation.' }
+
+    # Delegate to the registered fixture command, never the real Dao uninstaller.
+    $process = Start-Wizard ''
+    try {
+        if (-not $process.WaitForInputIdle(10000)) { throw 'Wizard did not become ready.' }
+        $window = [WizardWindow]::Find($process.Id)
+        $uninstall = [IntPtr]::Zero
+        for ($attempt = 0; $attempt -lt 50; $attempt++) {
+            $uninstall = [WizardWindow]::Control($window, 1032)
+            if ($uninstall -ne [IntPtr]::Zero) { break }
+            Start-Sleep -Milliseconds 100
+        }
+        if ($uninstall -eq [IntPtr]::Zero) { throw 'Uninstall action is missing.' }
+        $registeredCommand = (Get-ItemProperty -LiteralPath $testRegistryPath).UninstallString
+        $missingCommand = '"' + (Join-Path $testRoot 'missing-uninstaller.exe') + '" --uninstall'
+        foreach ($badCommand in @('', $missingCommand)) {
+            if ($badCommand) { Set-ItemProperty -LiteralPath $testRegistryPath -Name UninstallString -Value $badCommand }
+            else { Remove-ItemProperty -LiteralPath $testRegistryPath -Name UninstallString }
+            [WizardWindow]::PostMessage($uninstall, 0xF5, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
+            $dialog = [IntPtr]::Zero
+            for ($attempt = 0; $attempt -lt 50; $attempt++) {
+                $dialog = [WizardWindow]::OwnedDialog($window)
+                if ($dialog -ne [IntPtr]::Zero) { break }
+                Start-Sleep -Milliseconds 100
+            }
+            if ($dialog -eq [IntPtr]::Zero) { throw 'Missing uninstall failure feedback.' }
+            [WizardWindow]::PostMessage($dialog, 0x10, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
+            for ($attempt = 0; $attempt -lt 50 -and -not [WizardWindow]::IsWindowEnabled($window); $attempt++) {
+                Start-Sleep -Milliseconds 100
+            }
+            if ($process.HasExited -or -not [WizardWindow]::IsWindowEnabled($uninstall)) { throw 'Cannot retry uninstall after a launch failure.' }
+        }
+        Set-ItemProperty -LiteralPath $testRegistryPath -Name UninstallString -Value $registeredCommand
+        [WizardWindow]::PostMessage($uninstall, 0xF5, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
+        if (-not $process.WaitForExit(10000) -or $process.ExitCode -ne 0) {
+            if ($CaptureDir) { [WizardWindow]::Capture($window, (Join-Path $CaptureDir 'uninstall-failure.png')) }
+            throw "Uninstall handoff failed (exited: $($process.HasExited), exit: $($process.ExitCode), command: $((Get-ItemProperty -LiteralPath $testRegistryPath).UninstallString), invoked: $(Test-Path -LiteralPath (Join-Path $testRoot 'uninstall-args.txt')))."
+        }
+        $uninstallArgs = Join-Path $testRoot 'uninstall-args.txt'
+        for ($attempt = 0; $attempt -lt 50 -and -not (Test-Path -LiteralPath $uninstallArgs); $attempt++) {
+            Start-Sleep -Milliseconds 100
+        }
+        if ((Get-Content -LiteralPath $uninstallArgs) -join ' ' -ne '--uninstall --verbose-logging') {
+            throw 'The registered uninstall command was not preserved.'
+        }
+    } finally {
+        if (-not $process.HasExited) { Stop-Process -Id $process.Id -Force }
+    }
+
+    # Exercise the wrapper's WebView exit-code handoff without running WebView2.
+    Remove-Item -LiteralPath $uninstallArgs
+    $hostFixture = Join-Path $testRoot 'uninstall-ui.exe'
+    Add-Type -TypeDefinition 'public class UninstallUiFixture { public static int Main() { return 78; } }' -OutputAssembly $hostFixture -OutputType WindowsApplication
+    $htmlFixture = Join-Path $testRoot 'index.html'
+    [IO.File]::WriteAllText($htmlFixture, '<html></html>')
+    $nativeOutputPath = $outputPath
+    $outputPath = Join-Path $testRoot 'web-wizard.exe'
+    & $compiler /V2 /INPUTCHARSET UTF8 "/DPAYLOAD=$backendPath" "/DOUTPUT=$outputPath" /DVERSION=1.2.3 "/DICON=$projectRoot\branding\win\dao.ico" "/DWEBVIEW_HOST=$hostFixture" "/DWEBVIEW_HTML=$htmlFixture" "/DWEBVIEW_LICENSE=$htmlFixture" (Join-Path $testRoot 'installer.nsi')
+    if ($LASTEXITCODE -ne 0) { throw 'WebView wrapper compilation failed.' }
+    $process = Start-Wizard ''
+    try {
+        if (-not $process.WaitForExit(10000) -or $process.ExitCode -ne 0) { throw 'WebView uninstall handoff failed.' }
+        for ($attempt = 0; $attempt -lt 50 -and -not (Test-Path -LiteralPath $uninstallArgs); $attempt++) {
+            Start-Sleep -Milliseconds 100
+        }
+        if ((Get-Content -LiteralPath $uninstallArgs) -join ' ' -ne '--uninstall --verbose-logging') {
+            throw 'WebView did not preserve the registered uninstall command.'
+        }
+    } finally {
+        if (-not $process.HasExited) { Stop-Process -Id $process.Id -Force }
+        $outputPath = $nativeOutputPath
+    }
     Clear-FixtureRegistration
 
     # Exercise the visible page flow against the isolated backend, including edits.

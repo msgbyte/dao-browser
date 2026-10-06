@@ -96,7 +96,12 @@ These are acceptance checks, not a claim that the port has passed them.
   host. Verify WebView2 in both languages, a missing/broken runtime falling back
   to native NSIS, `/NATIVE`, and silent `/S` without recursive UI launch. Verify
   retry after backend errors, repair directory locking, duplicate-submit blocking,
-  external navigation rejection, and close/crash handling during installation
+  and the localized Uninstall Dao action for existing per-user installations in
+  both interfaces. Uninstall must open the registered Chromium confirmation flow,
+  preserve its browsing-data choice, and never start an install. Check cancellation
+  there, a missing/broken uninstall command, and double clicks. Fresh installs,
+  installation in progress, and completed installs must not expose this action.
+  Verify external navigation rejection and close/crash handling during installation
   without a second installation. Preserve keyboard, high contrast and reduced
   motion support, and check indeterminate progress without invented percentages.
   Packaging must reject a stale/missing host and retain previous artifacts on errors.

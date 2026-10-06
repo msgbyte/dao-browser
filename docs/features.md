@@ -71,7 +71,11 @@ the backend exits, and a WebView failure cannot start another installation.
 Fresh per-user installations can choose a writable directory on a local fixed
 drive; binaries go into its `Application` child while profiles stay under
 `%LOCALAPPDATA%\Dao\User Data`. Repair and upgrades retain the registered
-location. Moving requires uninstalling while preserving browsing data, then
+location. When a per-user installation is detected, both installer interfaces
+offer Uninstall Dao and hand off to the registered Chromium uninstaller, which
+owns confirmation and the browsing-data removal choice. Uninstall is unavailable
+during installation and after completion; launch failures show localized guidance.
+Moving requires uninstalling while preserving browsing data, then
 installing again. System folders, profile folders, and existing unowned
 `Application`/`Temp` contents are rejected. Native install and
 profile paths use `Dao`, with Dao AppUserModelID/ProgID prefixes and separate

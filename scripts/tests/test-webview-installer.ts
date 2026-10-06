@@ -175,6 +175,12 @@ if ($Minimized) {
     await waitFor(async () => await browser.evaluate(`document.getElementById('installer')?.dataset.state === 'ready'`) || undefined, 'ready page');
     assert.equal(await browser.evaluate('document.documentElement.lang'), language === 2052 ? 'zh-CN' : 'en');
     assert.equal(await browser.evaluate(`document.getElementById('directory').readOnly`), locked);
+    assert.equal(await browser.evaluate(`document.getElementById('uninstall').hidden`), !locked);
+    if (!locked) {
+      await browser.evaluate(`window.chrome.webview.postMessage('uninstall')`);
+      assert.equal(await browser.evaluate(`document.getElementById('installer').dataset.state`), 'ready');
+      assert.equal(child.exitCode, null, 'Fresh installation must reject uninstall messages');
+    }
     await browser.call('Page.navigate', {url: 'https://example.invalid/'});
     assert.equal(await browser.evaluate('location.href'), 'about:blank', 'External navigation must be blocked');
     assert.deepEqual(await browser.evaluate(`(() => {const r = document.querySelector('.brand-icon').getBoundingClientRect(); return [r.width, r.height];})()`), [96, 96]);
@@ -217,7 +223,7 @@ if ($Minimized) {
     }
     writeFileSync(path.join(root, 'fail'), 'failure');
     await browser.evaluate(`document.getElementById('install-form').requestSubmit()`);
-    await browser.evaluate(`window.chrome.webview.postMessage('install:ignored duplicate'); window.chrome.webview.postMessage('cancel')`);
+    await browser.evaluate(`window.chrome.webview.postMessage('install:ignored duplicate'); window.chrome.webview.postMessage('cancel'); window.chrome.webview.postMessage('uninstall')`);
     assert.equal(await browser.evaluate(`document.getElementById('cancel').disabled`), true);
     await screenshot('web-installing');
     await waitFor(async () => await browser.evaluate(`document.getElementById('installer').dataset.state === 'error'`) || undefined, 'installation error');
@@ -232,6 +238,9 @@ if ($Minimized) {
     await browser.evaluate(`document.getElementById('install-form').requestSubmit()`);
     await waitFor(async () => await browser.evaluate(`document.getElementById('installer').dataset.state === 'complete'`) || undefined, 'successful installation');
     assert.equal(existsSync(path.join(selected, 'Application')), true);
+    await browser.evaluate(`window.chrome.webview.postMessage('uninstall')`);
+    assert.equal(await browser.evaluate(`document.getElementById('uninstall').hidden`), true);
+    assert.equal(child.exitCode, null, 'Completed installation must reject uninstall messages');
     await screenshot('web-finish');
     await browser.evaluate(`document.getElementById('install-form').requestSubmit()`);
     await waitFor(async () => await browser.evaluate(`document.getElementById('installer').dataset.state === 'error'`) || undefined, 'launch failure');
@@ -244,7 +253,22 @@ if ($Minimized) {
     assert.deepEqual(calls.slice(-2), [selected, selected], 'Only one backend per attempt, preserving Unicode and repair path');
   }
   assert.equal(readFileSync(path.join(root, 'calls.txt'), 'utf8').trimEnd().split('\n').length, 4);
-  console.log('WebView2 host integration checks passed (isolated backend, runtime fallback, both locales, retry and repair).');
+  for (const language of [2052, 1033]) {
+    const fixture = session(`uninstall-${language}`, language, true);
+    const debugPort = await port();
+    const child = start(fixture.executable, {...process.env,
+      WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${debugPort}`});
+    const browser = await connect(debugPort, child);
+    await waitFor(async () => await browser.evaluate(`document.getElementById('installer')?.dataset.state === 'ready'`) || undefined, 'uninstall action');
+    assert.equal(await browser.evaluate(`document.getElementById('uninstall').hidden`), false);
+    await browser.evaluate(`document.getElementById('uninstall').click()`);
+    await waitFor(async () => child.exitCode === null ? undefined : child.exitCode, 'uninstaller handoff');
+    assert.equal(child.exitCode, 78, 'The wrapper must receive the uninstall request');
+    browser.close();
+  }
+  assert.equal(readFileSync(path.join(root, 'calls.txt'), 'utf8').trimEnd().split('\n').length, 4,
+    'Uninstall must never run the installation backend');
+  console.log('WebView2 host integration checks passed (isolated backend, runtime fallback, both locales, retry, repair and uninstall handoff).');
 } finally {
   for (const child of processes) if (child.exitCode === null) child.kill();
   // This is the unique temporary root created by this test, never an installation.

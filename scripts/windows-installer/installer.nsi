@@ -82,10 +82,35 @@ Function TryWebView
   IfErrors native_ui
   ; Only pre-installation WebView failure may fall back to the native wizard.
   IntCmp $0 77 native_ui
+  ; Exit 78 is an explicit uninstall request from the WebView host.
+  ${If} $0 == 78
+    Call LaunchUninstaller
+    Quit
+  ${EndIf}
   SetErrorLevel $0
   Quit
 native_ui:
 !endif
+FunctionEnd
+
+Function LaunchUninstaller
+  ; Use the same command as Windows Installed Apps, including its confirmation UI.
+  ReadRegStr $0 HKCU "${UNINSTALL_KEY}" "UninstallString"
+  ${If} $ExistingRoot != ""
+  ${AndIf} $0 != ""
+    ClearErrors
+    Exec '$0'
+    IfErrors uninstall_failed
+    SetErrorLevel 0
+    ; Unwind the welcome page's nsDialogs loop before quitting its callback.
+    ${If} $HWNDPARENT != 0
+      SendMessage $HWNDPARENT 0x408 -1 0 ; WM_NOTIFY_OUTER_NEXT
+    ${EndIf}
+    Quit
+  ${EndIf}
+uninstall_failed:
+  SetErrorLevel 10
+  MessageBox MB_OK|MB_ICONSTOP "$(UninstallFailed)" /SD IDOK
 FunctionEnd
 
 Function .onInit

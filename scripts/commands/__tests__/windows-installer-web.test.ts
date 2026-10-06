@@ -37,6 +37,38 @@ beforeEach(() => { vi.useFakeTimers(); document.body.replaceChildren(); });
 afterEach(() => { vi.clearAllTimers(); vi.useRealTimers(); });
 
 describe('Windows installer WebView UI', () => {
+  it.each(['en', 'zh-CN'])('hands an existing installation to the uninstaller once in %s', async language => {
+    const {messages, locales} = await mount(language, {locked: true});
+    expect(button('uninstall'), 'Existing installations expose an uninstall action').not.toBeNull();
+    expect(button('uninstall').hidden).toBe(false);
+    expect(button('uninstall').textContent).toBe(locales[language].uninstall);
+    button('uninstall').click();
+    button('uninstall').click();
+    button('primary').click();
+    button('cancel').click();
+    expect(messages).toEqual(['ready', 'uninstall']);
+  });
+
+  it('does not offer uninstall for a fresh installation', async () => {
+    const {messages} = await mount();
+    expect(button('uninstall'), 'The uninstall action exists but is unavailable').not.toBeNull();
+    expect(button('uninstall').hidden).toBe(true);
+    button('uninstall').click();
+    expect(messages).toEqual(['ready']);
+  });
+
+  it('blocks uninstall during repair and after completion', async () => {
+    const {messages, send} = await mount('en', {locked: true});
+    expect(button('uninstall')).not.toBeNull();
+    button('primary').click();
+    expect(button('uninstall').hidden).toBe(true);
+    button('uninstall').click();
+    send({type: 'state', state: 'complete'});
+    expect(button('uninstall').hidden).toBe(true);
+    button('uninstall').click();
+    expect(messages).toEqual(['ready', 'install:C:\\Users\\Alice\\Dao']);
+  });
+
   it('installs once, locks close while working, and closes without launching on completion', async () => {
     const {messages, send, locales} = await mount();
     input('directory').value = 'D:\\My Apps\\Dao';

@@ -94,9 +94,19 @@ Function WelcomeShow
   ${Else}
     EnableWindow $DirectoryInput 0
     EnableWindow $BrowseButton 0
-    !insertmacro Label 22u 154u 283u 32u "$(UpgradeHelp)" "556579" "FFFFFF" $ControlFont
+    !insertmacro Label 22u 154u 190u 32u "$(UpgradeHelp)" "556579" "FFFFFF" $ControlFont
+    ${NSD_CreateButton} 219u 157u 86u 20u "$(UninstallButton)"
+    Pop $0
+    System::Call 'user32::SetWindowLongW(p$0, i-12, i1032)'
+    SendMessage $0 ${WM_SETFONT} $ControlFont 0
+    ${NSD_OnClick} $0 UninstallClick
     SendMessage $mui.Button.Next ${WM_SETTEXT} 0 "STR:$(RepairButton)"
   ${EndIf}
+FunctionEnd
+
+Function UninstallClick
+  Pop $0
+  Call LaunchUninstaller
 FunctionEnd
 
 Function BrowseDirectory

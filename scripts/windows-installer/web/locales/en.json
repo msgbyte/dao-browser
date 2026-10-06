@@ -10,6 +10,7 @@
   "browse": "Browse…",
   "install": "Install",
   "repair": "Update or repair",
+  "uninstall": "Uninstall Dao",
   "minimize": "Minimize",
   "close": "Close",
   "installNote": "Only for this user. No administrator access needed.",
