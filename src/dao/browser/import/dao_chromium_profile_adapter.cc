@@ -4,6 +4,7 @@
 
 #include "dao/browser/import/dao_chromium_profile_adapter.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -11,6 +12,7 @@
 #include <string_view>
 #include <utility>
 
+#include "base/containers/fixed_flat_set.h"
 #include "base/files/file_util.h"
 #include "base/json/json_reader.h"
 #include "base/memory/ref_counted.h"
@@ -23,6 +25,7 @@
 #include "components/sessions/core/command_storage_backend.h"
 #include "components/sessions/core/command_storage_manager.h"
 #include "components/sessions/core/serialized_navigation_entry.h"
+#include "components/sessions/core/session_command.h"
 #include "components/sessions/core/session_service_commands.h"
 #include "components/sessions/core/session_types.h"
 #include "sql/database.h"
@@ -32,6 +35,24 @@ namespace dao::import {
 namespace {
 
 inline constexpr sql::Database::Tag kDatabaseTag{"DaoMigration"};
+
+// Persisted IDs from components/sessions/core/session_service_commands.cc.
+// Import only tab state: browser-specific metadata (for example Edge's command
+// 132) otherwise makes Chromium stop restoring before it reaches any tabs.
+constexpr auto kTabImportCommandIds =
+    base::MakeFixedFlatSet<sessions::SessionCommand::id_type>({
+        0,   // SetTabWindow
+        2,   // SetTabIndexInWindow
+        5,   // TabNavigationPathPrunedFromBack
+        6,   // UpdateTabNavigation
+        7,   // SetSelectedNavigationIndex
+        9,   // SetWindowType
+        11,  // TabNavigationPathPrunedFromFront
+        12,  // SetPinnedState
+        16,  // TabClosed
+        17,  // WindowClosed
+        24,  // TabNavigationPathPruned
+    });
 
 base::Time ChromiumTimeFromString(const std::string *value) {
   int64_t microseconds = 0;
@@ -255,6 +276,9 @@ ReadBatch<TabEntry> DaoChromiumProfileAdapter::RestoreTabs(TabCommands commands)
   if (!commands.success) {
     return ReadFailure<TabEntry>(std::move(commands.error_code));
   }
+  std::erase_if(commands.records, [](const auto& command) {
+    return !kTabImportCommandIds.contains(command->id());
+  });
   std::vector<std::unique_ptr<sessions::SessionWindow>> windows;
   SessionID active_window = SessionID::InvalidValue();
   std::string platform_session_id;

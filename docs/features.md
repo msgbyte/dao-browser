@@ -988,7 +988,11 @@ macOS-style floating control center panel bundling extensions and utilities.
   until reading finishes, independently of callback argument evaluation order.
   Session file reads use a single-thread worker and read the latest saved
   session without rotating it away; session objects are restored on the UI
-  thread to preserve Chromium's global session-ID ownership. Windows session files locked by a running
+  thread to preserve Chromium's global session-ID ownership. Tab import keeps
+  standard tab/window, navigation, pin, and closure commands while ignoring
+  unrelated metadata, including Edge-specific commands that would otherwise
+  stop Chromium's restore parser and incorrectly report zero tabs.
+  Windows session files locked by a running
   source browser require fully quitting that browser; the completion page
   explains this and offers a retry. Temporary snapshots are deleted with the category operation. Cleanup
   stays off the UI thread and blocks browser shutdown until copied history,
