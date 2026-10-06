@@ -1,9 +1,11 @@
 package com.msgbyte.dao.ui
 
+import android.util.Size
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
-import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
+import androidx.camera.core.resolutionselector.ResolutionSelector
+import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.runtime.Composable
@@ -42,11 +44,30 @@ fun QrCameraPreview(
                     val preview = Preview.Builder().build().also {
                         it.surfaceProvider = previewView.surfaceProvider
                     }
+                    // The default 640x480 stream leaves too few pixels per module inside the viewfinder.
                     val analysis = ImageAnalysis.Builder()
+                        .setResolutionSelector(
+                            ResolutionSelector.Builder()
+                                .setResolutionStrategy(
+                                    ResolutionStrategy(
+                                        Size(1280, 960),
+                                        ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER,
+                                    ),
+                                )
+                                .build(),
+                        )
                         .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                         .build()
+                    // Reused across frames; the analyzer runs on a single thread.
+                    var luminance = ByteArray(0)
                     analysis.setAnalyzer(analysisExecutor) { image ->
-                        analyze(image)?.let { content ->
+                        image.use {
+                            val plane = it.planes[0]
+                            val buffer = plane.buffer.apply { rewind() }
+                            if (luminance.size != buffer.remaining()) luminance = ByteArray(buffer.remaining())
+                            buffer.get(luminance)
+                            QrCodeDecoder.decode(luminance, it.width, it.height, plane.rowStride)
+                        }?.let { content ->
                             if (delivered.compareAndSet(false, true)) {
                                 ContextCompat.getMainExecutor(context).execute { onDecoded(content) }
                             }
@@ -68,28 +89,4 @@ fun QrCameraPreview(
             analysisExecutor.shutdown()
         }
     }
-}
-
-private fun analyze(image: ImageProxy): String? = try {
-    val plane = image.planes.firstOrNull() ?: return null
-    val buffer = plane.buffer
-    buffer.rewind()
-    val raw = ByteArray(buffer.remaining()).also(buffer::get)
-    val luminance = ByteArray(image.width * image.height)
-    for (row in 0 until image.height) {
-        for (column in 0 until image.width) {
-            val sourceIndex = row * plane.rowStride + column * plane.pixelStride
-            if (sourceIndex < raw.size) {
-                luminance[row * image.width + column] = raw[sourceIndex]
-            }
-        }
-    }
-    QrCodeDecoder.decode(
-        luminance,
-        image.width,
-        image.height,
-        image.imageInfo.rotationDegrees,
-    )
-} finally {
-    image.close()
 }
