@@ -42,7 +42,9 @@ release metadata, commit the archived files after a successful release. Dry runs
 notes. If manually bumping a version, archive its notes in the same change before
 using `--skip-bump`.
 
-Archive Android and iOS notes in the same change as a public version bump.
+`npm run release:android` includes archived Android notes in its version commit.
+Push failures preserve that local commit and tag for retry. iOS currently has no
+public-release CLI; archive its notes in the same change as a public version bump.
 TestFlight builds alone do not mark notes as publicly released.
 
 Generate other configured languages manually:

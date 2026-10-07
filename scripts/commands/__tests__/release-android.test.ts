@@ -85,6 +85,11 @@ describe('Android release Git transaction', () => {
     git(checkout, 'config', 'core.hooksPath', path.join(checkout, '.git/hooks'));
     mkdirSync(path.join(checkout, 'android/app'), {recursive: true});
     writeFileSync(path.join(checkout, gradlePath), original);
+    mkdirSync(path.join(checkout, 'docs/changelog'), {recursive: true});
+    for (const locale of ['en', 'zh-CN']) {
+      writeFileSync(path.join(checkout, `docs/changelog/${locale}.md`),
+        '# Changelog\n\n## [desktop] Desktop\n\n### [Unreleased] Unreleased\n\n- Desktop change.\n\n## [android] Android\n\n### [Unreleased] Unreleased\n\n- Android change.\n');
+    }
     writeFileSync(path.join(checkout, 'other.txt'), 'existing source\n');
     git(checkout, 'add', '.');
     git(checkout, 'commit', '-m', 'chore: initial source');
@@ -93,7 +98,7 @@ describe('Android release Git transaction', () => {
   });
   afterEach(() => rmSync(directory, {recursive: true, force: true}));
 
-  it('commits only the version file, then pushes main and its release tag at the new commit', async () => {
+  it('commits the version and changelogs, then pushes main and its release tag at the new commit', async () => {
     // A release can include already committed local work without a separate push.
     writeFileSync(path.join(checkout, 'other.txt'), 'committed feature\n');
     git(checkout, 'commit', '-am', 'feat(android): add feature');
@@ -102,7 +107,12 @@ describe('Android release Git transaction', () => {
     const head = git(checkout, 'rev-parse', 'HEAD');
     expect(head).not.toBe(before);
     expect(git(checkout, 'log', '-1', '--format=%s')).toBe('chore(android): release android v0.1.1');
-    expect(git(checkout, 'diff-tree', '--no-commit-id', '--name-only', '-r', 'HEAD')).toBe(gradlePath);
+    expect(git(checkout, 'diff-tree', '--no-commit-id', '--name-only', '-r', 'HEAD').split('\n'))
+      .toEqual([gradlePath, 'docs/changelog/en.md', 'docs/changelog/zh-CN.md']);
+    expect(readFileSync(path.join(checkout, 'docs/changelog/en.md'), 'utf8'))
+      .toContain('### [0.1.1]');
+    expect(readFileSync(path.join(checkout, 'docs/changelog/en.md'), 'utf8'))
+      .toContain('### [Unreleased] Unreleased\n\n- Desktop change.');
     expect(gradle()).toBe(original.replace('= 1', '= 2').replace('0.1.0', '0.1.1'));
     expect(git(checkout, 'status', '--porcelain')).toBe('');
     expect(git(checkout, 'rev-parse', 'android-v0.1.1^{commit}')).toBe(head);
@@ -117,6 +127,7 @@ describe('Android release Git transaction', () => {
     expect(gradle()).toBe(original);
     expect(git(checkout, 'rev-parse', 'HEAD')).toBe(before);
     expect(git(checkout, 'tag', '--list')).toBe('');
+    expect(git(checkout, 'status', '--porcelain')).toBe('');
   });
 
   it('does not push unrelated tags when push.followTags is enabled', async () => {

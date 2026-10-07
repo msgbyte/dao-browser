@@ -5,6 +5,7 @@ import {createInterface} from "node:readline/promises";
 import {promisify} from "node:util";
 import {Command} from "commander";
 import {ROOT_DIR, error, log, success} from "../utils.js";
+import {planChangelogRelease} from "../changelog.js";
 
 const exec = promisify(execFile);
 const VERSION_FILE = "android/app/build.gradle.kts";
@@ -81,10 +82,12 @@ export async function runAndroidRelease(options: ReleaseOptions, root = ROOT_DIR
     terminal?.close();
   }
   const tag = `android-v${next.version}`;
+  const changelog = planChangelogRelease(root, 'android', next.version, new Date());
   const message = `chore(android): release android v${next.version}`;
   const push = ["push", "--atomic", "--no-follow-tags", "origin", "refs/heads/main:refs/heads/main", `refs/tags/${tag}:refs/tags/${tag}`];
   const pushCommand = `git ${push.join(" ")}`;
   log(`${VERSION_FILE}: versionName: ${current.version} -> ${next.version}, versionCode: ${current.versionCode} -> ${next.versionCode}`);
+  log(`Archive Android Unreleased notes in ${changelog.length} changelog files.`);
   log(`Commit: ${message}`);
   log(`Tag: ${tag}`);
   log(pushCommand);
@@ -120,10 +123,12 @@ export async function runAndroidRelease(options: ReleaseOptions, root = ROOT_DIR
     .replace(VERSION_CODE, (_, prefix) => `${prefix}${next.versionCode}`);
   await writeFile(file, updated);
   try {
+    for (const {file, contents} of changelog) await writeFile(file, contents);
     // --only keeps unrelated staged files out of the release commit.
-    await git("commit", "--only", "-m", message, "--", VERSION_FILE);
+    await git("commit", "--only", "-m", message, "--", VERSION_FILE,
+      ...changelog.map(({file}) => path.relative(root, file)));
   } catch (cause) {
-    throw new Error(`${cause}\nVersion edits remain in ${VERSION_FILE}; finish or undo them before retrying.`);
+    throw new Error(`${cause}\nVersion/changelog edits remain in the checkout; finish or undo them before retrying.`);
   }
   try {
     await git("tag", tag, "HEAD");

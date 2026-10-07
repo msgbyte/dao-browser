@@ -543,6 +543,7 @@
 
 ### [Unreleased] Unreleased
 
+- Android releases archive pending notes alongside the version update in the same commit.
 - Reconstruct desktop and Android release notes from Git tags, checking each version, adding feature details, and rewriting the explanations.
 
 ### [0.1.9] - 2026-10-07

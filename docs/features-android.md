@@ -2,7 +2,8 @@
 
 Android [release notes](changelog/en.md) have an independent version history in
 English and Simplified Chinese, with generated translations for other locales.
-See [the changelog guide](changelog.md).
+`npm run release:android` archives Android `Unreleased` entries in the same commit
+as its version update; desktop and iOS notes remain pending. See [the changelog guide](changelog.md).
 
 > This document catalogs features owned by the standalone Android GeckoView
 > application under `android/`. Desktop Chromium features are documented in

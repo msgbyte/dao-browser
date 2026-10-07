@@ -14,9 +14,10 @@
 
 - [ ] Every change has matching English and Simplified Chinese entries under the
   affected platform's `Unreleased` heading; released notes retain their version.
-- [ ] Desktop release script tests confirm version/date archival, platform
-  separation, and rollback. Dry runs and `--skip-bump` leave pending entries
-  unchanged; archived notes still allow Windows to reuse the desktop tag.
+- [ ] Desktop and Android release script tests confirm version/date archival,
+  platform separation, desktop rollback, and inclusion in the Android release
+  commit. Dry runs and desktop `--skip-bump` leave pending entries unchanged;
+  archived notes still allow Windows to reuse the desktop tag.
 - [ ] Changelog translation tests confirm incremental updates after English edits,
   reuse after archival, structural Markdown preservation, source-language
   protection, and no file writes on dry-run or invalid API output.
