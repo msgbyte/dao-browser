@@ -1,5 +1,6 @@
 import {
   existsSync,
+  lstatSync,
   readlinkSync,
   mkdirSync,
   readFileSync,
@@ -286,6 +287,7 @@ describe('worktree engine helpers', () => {
     });
 
     expect(result.deleted.map((entry) => entry.id)).toEqual(['feature-stale']);
+    expect(result.deleted[0].engineMode).toBe('private');
     expect(existsSync(activeEngineRoot)).toBe(true);
     expect(existsSync(staleEngineRoot)).toBe(false);
   });
@@ -334,6 +336,7 @@ describe('worktree engine helpers', () => {
     expect(result.deleted.map((entry) => entry.id)).toEqual([
       'feature-stale-shared',
     ]);
+    expect(result.deleted[0].engineMode).toBe('shared');
     expect(existsSync(staleEngineRoot)).toBe(false);
   });
 
@@ -379,8 +382,134 @@ describe('worktree engine helpers', () => {
 
     expect(result.mode).toBe('current-worktree');
     expect(result.deleted.map((entry) => entry.id)).toEqual(['feature-current']);
+    expect(result.deleted[0].engineMode).toBe('private');
     expect(existsSync(engineRoot)).toBe(false);
     expect(existsSync(path.join(workerRoot, 'engine'))).toBe(false);
+  });
+
+  it.each([0, 1, 2])('archives a shared engine with %i matching manifests without touching the primary engine', (manifestCount) => {
+    const primaryRoot = makeProjectRoot();
+    const workerRoot = makeProjectRoot();
+    const peerRoot = makeProjectRoot();
+    const paths = getEngineStorePaths(primaryRoot);
+    const primaryEngine = path.join(primaryRoot, 'engine');
+    mkdirSync(primaryEngine, {recursive: true});
+    writeFileSync(path.join(primaryEngine, 'sentinel.txt'), 'primary engine\n');
+    const linkPath = attachEngineToWorktree({
+      worktreePath: workerRoot,
+      enginePath: primaryEngine,
+    });
+    const peerLink = attachEngineToWorktree({
+      worktreePath: peerRoot,
+      enginePath: primaryEngine,
+    });
+    const manifestRoots: string[] = [];
+    for (let index = 0; index < manifestCount; index++) {
+      const manifestRoot = path.join(paths.worktreeEnginesDir, `shared-${index}`);
+      mkdirSync(manifestRoot, {recursive: true});
+      writeFileSync(path.join(manifestRoot, 'manifest.json'), JSON.stringify({
+        id: `shared-${index}`,
+        worktreePath: `${workerRoot}/../${path.basename(workerRoot)}`,
+        enginePath: primaryEngine,
+        engineMode: 'shared',
+      }));
+      manifestRoots.push(manifestRoot);
+    }
+    const peerManifestRoot = path.join(paths.worktreeEnginesDir, 'peer');
+    mkdirSync(peerManifestRoot, {recursive: true});
+    const peerManifest = JSON.stringify({worktreePath: peerRoot});
+    writeFileSync(path.join(peerManifestRoot, 'manifest.json'), peerManifest);
+
+    const result = archiveDaoWorktreeEngines({
+      rootDir: workerRoot,
+      primaryRootDir: primaryRoot,
+      outputRunner: () => [primaryRoot, workerRoot, peerRoot]
+          .map((root) => `worktree ${root}\n`).join('\n'),
+    });
+
+    expect(result.mode).toBe('current-worktree');
+    expect(result.deleted).toHaveLength(manifestCount);
+    for (const entry of result.deleted) {
+      expect(entry.engineMode).toBe('shared');
+      expect(entry.reason).toBe('current shared-engine worktree requested cleanup');
+    }
+    expect(() => lstatSync(linkPath)).toThrow(/ENOENT/);
+    for (const manifestRoot of manifestRoots) {
+      expect(existsSync(manifestRoot)).toBe(false);
+    }
+    expect(readFileSync(path.join(primaryEngine, 'sentinel.txt'), 'utf-8'))
+        .toBe('primary engine\n');
+    expect(lstatSync(peerLink).isSymbolicLink()).toBe(true);
+    expect(readFileSync(path.join(peerManifestRoot, 'manifest.json'), 'utf-8'))
+        .toBe(peerManifest);
+  });
+
+  it('refuses shared cleanup when another worktree uses a matching manifest directory', () => {
+    const primaryRoot = makeProjectRoot();
+    const workerRoot = makeProjectRoot();
+    const peerRoot = makeProjectRoot();
+    const paths = getEngineStorePaths(primaryRoot);
+    const primaryEngine = path.join(primaryRoot, 'engine');
+    const unusedManifestRoot = path.join(paths.worktreeEnginesDir, 'a-unused');
+    const manifestRoot = path.join(paths.worktreeEnginesDir, 'shared-with-private-copy');
+    const privateEngine = path.join(manifestRoot, 'engine');
+    mkdirSync(primaryEngine, {recursive: true});
+    mkdirSync(unusedManifestRoot, {recursive: true});
+    writeFileSync(path.join(unusedManifestRoot, 'manifest.json'), JSON.stringify({
+      worktreePath: workerRoot,
+    }));
+    mkdirSync(privateEngine, {recursive: true});
+    writeFileSync(path.join(privateEngine, 'sentinel.txt'), 'active engine\n');
+    writeFileSync(path.join(manifestRoot, 'manifest.json'), JSON.stringify({
+      worktreePath: workerRoot,
+      enginePath: primaryEngine,
+      engineMode: 'shared',
+    }));
+    const linkPath = attachEngineToWorktree({
+      worktreePath: workerRoot,
+      enginePath: primaryEngine,
+    });
+    const peerLink = attachEngineToWorktree({
+      worktreePath: peerRoot,
+      enginePath: privateEngine,
+    });
+
+    expect(() => archiveDaoWorktreeEngines({
+      rootDir: workerRoot,
+      primaryRootDir: primaryRoot,
+      outputRunner: () => [primaryRoot, workerRoot, peerRoot]
+          .map((root) => `worktree ${root}\n`).join('\n'),
+    })).toThrow(/active worktree engine symlink/);
+
+    expect(lstatSync(linkPath).isSymbolicLink()).toBe(true);
+    expect(lstatSync(peerLink).isSymbolicLink()).toBe(true);
+    expect(existsSync(path.join(unusedManifestRoot, 'manifest.json'))).toBe(true);
+    expect(existsSync(path.join(manifestRoot, 'manifest.json'))).toBe(true);
+    expect(readFileSync(path.join(privateEngine, 'sentinel.txt'), 'utf-8'))
+        .toBe('active engine\n');
+    expect(existsSync(primaryEngine)).toBe(true);
+  });
+
+  it('refuses a current worktree whose engine link points to an unknown location', () => {
+    const primaryRoot = makeProjectRoot();
+    const workerRoot = makeProjectRoot();
+    const unrelatedRoot = makeProjectRoot();
+    const enginePath = path.join(unrelatedRoot, 'engine');
+    mkdirSync(enginePath);
+    writeFileSync(path.join(enginePath, 'sentinel.txt'), 'unrelated engine\n');
+    const linkPath = attachEngineToWorktree({
+      worktreePath: workerRoot,
+      enginePath,
+    });
+
+    expect(() => archiveDaoWorktreeEngines({
+      rootDir: workerRoot,
+      primaryRootDir: primaryRoot,
+    })).toThrow(/points outside/);
+
+    expect(lstatSync(linkPath).isSymbolicLink()).toBe(true);
+    expect(readFileSync(path.join(enginePath, 'sentinel.txt'), 'utf-8'))
+        .toBe('unrelated engine\n');
   });
 
   it('keeps primary checkout archive runs as dry runs by default', () => {

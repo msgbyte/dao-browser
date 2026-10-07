@@ -217,13 +217,19 @@ It does not delete the warm cache.
 
 ### `npm run archive:worktree`
 
-Archives private worktree engine copies. The default behavior depends on where
+Archives worktree engine attachments. The default behavior depends on where
 the command is run:
 
-- from a linked worktree, it deletes that worktree's private engine copy and
-  local `engine` symlink
+- from a linked worktree in private mode, it deletes that worktree's private
+  CoW engine copy, manifest directory, and local `engine` symlink
+- from a linked worktree in shared mode, it removes only the local `engine`
+  symlink and all matching manifest directories, never the primary `engine/`
 - from the primary checkout, it dry-runs stale `.dao/engine/worktrees/*`
   directories
+
+Shared cleanup still succeeds if no matching manifest exists, with a warning.
+It refuses cleanup if another active worktree uses a leftover private engine
+inside a matching manifest directory.
 
 The command compares:
 
@@ -238,7 +244,7 @@ npm run archive:worktree
 ```
 
 From the primary checkout, the same command is a dry run. After reviewing the
-output, pass `--delete` to remove the stale private engine directories:
+output, pass `--delete` to remove the stale worktree engine directories:
 
 ```bash
 npm run archive:worktree -- --delete
@@ -333,7 +339,7 @@ Remove the Git worktree first:
 git worktree remove ../dao-browser-feature-sidebar-cleanup
 ```
 
-Then list stale private engine copies:
+Then list stale worktree engine directories:
 
 ```bash
 npm run archive:worktree
@@ -346,7 +352,9 @@ npm run archive:worktree -- --delete
 ```
 
 If you are inside the linked worktree being retired, `npm run archive:worktree`
-deletes that worktree's private engine copy immediately.
+removes its local `engine` symlink and manifest directories immediately. In
+private mode it also deletes the private CoW engine copy; in shared mode it
+leaves the primary `engine/` untouched.
 
 Warm caches live under `.dao/engine/cache/warm/`. Remove old cache-key
 directories only when no active worker was cloned from them and you no longer

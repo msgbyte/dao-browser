@@ -118,6 +118,7 @@ export interface WorktreeEngineArchiveEntry {
   id: string;
   rootPath: string;
   enginePath: string;
+  engineMode: EngineMode;
   manifestPath: string;
   worktreePath?: string;
   reason: string;
@@ -278,7 +279,17 @@ export const worktreeCommand = new Command("worktree")
 
           if (result.mode === "current-worktree") {
             const entry = result.deleted[0];
-            success(`Deleted current worktree engine: ${entry.rootPath}`);
+            if (!entry || entry.engineMode === "shared") {
+              success(`Detached shared engine link: ${path.join(result.currentRootDir, "engine")}`);
+              for (const deleted of result.deleted) {
+                success(`Deleted worktree manifest: ${deleted.rootPath}`);
+              }
+              if (!entry) {
+                warn(`No worktree manifest found for: ${result.currentRootDir}`);
+              }
+            } else {
+              success(`Deleted current worktree engine: ${entry.rootPath}`);
+            }
             return;
           }
 
@@ -674,6 +685,7 @@ export function archiveDaoWorktreeEngines(
     const current = archiveCurrentDaoWorktreeEngine({
       currentRootDir,
       primaryRootDir,
+      outputRunner,
     });
     return {
       ...current,
@@ -739,6 +751,11 @@ export function archiveStaleDaoWorktreeEngines(
       id,
       rootPath,
       enginePath,
+      engineMode: manifest.engineMode === "shared" || manifest.engineMode === "private"
+        ? manifest.engineMode
+        : normalizePath(enginePath) === normalizePath(path.join(opts.rootDir, "engine"))
+          ? "shared"
+          : "private",
       manifestPath,
       worktreePath,
       reason: "",
@@ -788,6 +805,7 @@ export function archiveStaleDaoWorktreeEngines(
 function archiveCurrentDaoWorktreeEngine(opts: {
   currentRootDir: string;
   primaryRootDir: string;
+  outputRunner: CommandOutputRunner;
 }): ArchiveStaleDaoWorktreeEnginesResult {
   const linkPath = path.join(opts.currentRootDir, "engine");
   let enginePath: string;
@@ -804,6 +822,51 @@ function archiveCurrentDaoWorktreeEngine(opts: {
   }
 
   const paths = getEngineStorePaths(opts.primaryRootDir);
+  if (normalizePath(enginePath) === normalizePath(path.join(opts.primaryRootDir, "engine"))) {
+    const activeWorktreePaths = parseGitWorktreeList(
+      opts.outputRunner("git", ["worktree", "list", "--porcelain"], {
+        cwd: opts.primaryRootDir,
+      })
+    );
+    const activeEnginePaths = collectActiveEngineSymlinkTargets(activeWorktreePaths);
+    const deleted: WorktreeEngineArchiveEntry[] = [];
+    const entries = existsSync(paths.worktreeEnginesDir)
+      ? readdirSync(paths.worktreeEnginesDir, { withFileTypes: true })
+      : [];
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+
+      const rootPath = path.join(paths.worktreeEnginesDir, entry.name);
+      const manifestPath = path.join(rootPath, "manifest.json");
+      const manifest = readWorktreeEngineManifest(manifestPath);
+      if (typeof manifest.worktreePath !== "string" ||
+          normalizePath(manifest.worktreePath) !== normalizePath(opts.currentRootDir)) {
+        continue;
+      }
+      if (!isPathInside(rootPath, paths.worktreeEnginesDir)) {
+        throw new Error(`Cannot clean worktree manifest outside ${paths.worktreeEnginesDir}: ${rootPath}`);
+      }
+      if ([...activeEnginePaths].some((target) => isPathInside(target, rootPath))) {
+        throw new Error(`Cannot clean worktree manifest: active worktree engine symlink still points here: ${rootPath}`);
+      }
+      deleted.push({
+        id: typeof manifest.id === "string" && manifest.id ? manifest.id : entry.name,
+        rootPath,
+        enginePath,
+        engineMode: "shared",
+        manifestPath,
+        worktreePath: opts.currentRootDir,
+        reason: "current shared-engine worktree requested cleanup",
+      });
+    }
+
+    rmSync(linkPath, { force: true });
+    for (const entry of deleted) {
+      rmSync(entry.rootPath, { recursive: true, force: true });
+    }
+    return { activeWorktreePaths, kept: [], stale: deleted, deleted };
+  }
+
   if (path.basename(enginePath) !== "engine" ||
       !isPathInside(enginePath, paths.worktreeEnginesDir)) {
     throw new Error(
@@ -824,6 +887,7 @@ function archiveCurrentDaoWorktreeEngine(opts: {
     id,
     rootPath,
     enginePath,
+    engineMode: "private",
     manifestPath,
     worktreePath,
     reason: "current linked worktree requested cleanup",
