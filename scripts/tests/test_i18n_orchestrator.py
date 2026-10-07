@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[2]
 DESKTOP = str(ROOT / "scripts" / "i18n-translate.py")
 ANDROID = str(ROOT / "scripts" / "i18n_android.py")
 IOS = str(ROOT / "scripts" / "i18n_ios.py")
+CHANGELOG = str(ROOT / "scripts" / "i18n_changelog.py")
 
 
 def arguments(
@@ -32,6 +33,12 @@ def arguments(
 
 
 class I18nOrchestratorTest(unittest.TestCase):
+    def test_routes_changelog_only(self) -> None:
+        self.assertEqual(
+            [[sys.executable, CHANGELOG, "--jobs", "4"]],
+            build_commands(arguments(only="changelog"), python=sys.executable),
+        )
+
     def test_builds_independent_desktop_android_and_ios_commands(self) -> None:
         commands = build_commands(
             arguments(langs="zh-CN,ja", dry_run=True, jobs=1),
@@ -44,6 +51,7 @@ class I18nOrchestratorTest(unittest.TestCase):
                 [sys.executable, DESKTOP, *shared],
                 [sys.executable, ANDROID, *shared],
                 [sys.executable, IOS, *shared],
+                [sys.executable, CHANGELOG, *shared],
             ],
             commands,
         )

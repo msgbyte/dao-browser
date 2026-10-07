@@ -14,6 +14,9 @@
 
 - [ ] Every change has matching English and Simplified Chinese entries under the
   affected platform's `Unreleased` heading; released notes retain their version.
+- [ ] Changelog translation tests confirm incremental updates after English edits,
+  reuse after archival, structural Markdown preservation, source-language
+  protection, and no file writes on dry-run or invalid API output.
 
 ## Windows desktop development
 

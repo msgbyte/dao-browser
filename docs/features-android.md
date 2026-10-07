@@ -1,7 +1,7 @@
 # Dao Browser Android Feature Inventory
 
 Android [release notes](changelog/en.md) have an independent version history in
-English and Simplified Chinese.
+English and Simplified Chinese, with generated translations for other locales.
 See [the changelog guide](changelog.md).
 
 > This document catalogs features owned by the standalone Android GeckoView

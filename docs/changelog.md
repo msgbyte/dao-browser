@@ -38,3 +38,18 @@ with their original version; only correct factual mistakes in place.
 Archive notes manually in the same change as a public version bump. Standalone
 packaging, Windows attachments, and TestFlight builds do not independently mark
 notes as released.
+
+Generate other configured languages manually:
+
+```sh
+OPENAI_API_KEY=... sh ./i18n.sh --only changelog
+OPENAI_API_KEY=... sh ./i18n.sh --only changelog --langs ja,zh-TW
+```
+
+The root translation command also includes changelogs by default. English and
+Simplified Chinese are never overwritten, including with `--force`. Generated
+Markdown retains hidden source hashes so unchanged translations survive version
+archival, while edited English text gets translated again. Do not hand-edit those
+generated files or remove their hashes. `--dry-run` makes no API calls or writes.
+Translations use the existing OpenAI configuration and cost money; release commands
+never invoke translation. Refresh existing generated locales before releasing.

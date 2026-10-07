@@ -5,6 +5,7 @@
 ### [Unreleased] Unreleased
 
 - Keep readable release notes in English and Chinese for every change, with separate histories for desktop, Android, and iOS.
+- Translate release notes into other languages with the existing translation script, reusing unchanged text even after a release is archived.
 - Reconstruct desktop and Android release notes from Git tags, checking each version, adding feature details, and rewriting the explanations.
 
 ### [1.0.108] - 2026-09-22

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run Dao desktop, Android, and iOS translation workflows independently."""
+"""Run Dao desktop, Android, iOS, and changelog translation workflows independently."""
 
 from __future__ import annotations
 
@@ -13,6 +13,7 @@ ROOT = Path(__file__).resolve().parent.parent
 DESKTOP_TRANSLATOR = ROOT / "scripts" / "i18n-translate.py"
 ANDROID_TRANSLATOR = ROOT / "scripts" / "i18n_android.py"
 IOS_TRANSLATOR = ROOT / "scripts" / "i18n_ios.py"
+CHANGELOG_TRANSLATOR = ROOT / "scripts" / "i18n_changelog.py"
 
 
 def _shared_arguments(args: argparse.Namespace) -> list[str]:
@@ -45,13 +46,15 @@ def build_commands(
         commands.append([python, str(ANDROID_TRANSLATOR), *shared])
     if args.only in (None, "ios"):
         commands.append([python, str(IOS_TRANSLATOR), *shared])
+    if args.only in (None, "changelog"):
+        commands.append([python, str(CHANGELOG_TRANSLATOR), *shared])
     return commands
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Translate Dao desktop, Android, and iOS resources independently via OpenAI."
+            "Translate Dao desktop, Android, iOS, and changelogs independently via OpenAI."
         )
     )
     parser.add_argument("--langs", help="Comma-separated locale list. Default: all configured locales.")
@@ -61,8 +64,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--jobs", type=int, default=4, help="Locales translated in parallel. Default: 4.")
     parser.add_argument(
         "--only",
-        choices=["desktop", "android", "ios", "grd", "webui"],
-        help="Run one platform or one desktop resource format.",
+        choices=["desktop", "android", "ios", "changelog", "grd", "webui"],
+        help="Run one platform, the changelog, or one desktop resource format.",
     )
     return parser.parse_args(argv)
 

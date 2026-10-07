@@ -1,5 +1,5 @@
 #!/bin/sh
-# Repository-level entry point for independent desktop, Android, and iOS translators.
+# Repository-level entry point for desktop, Android, iOS, and changelog translators.
 # Reads OPENAI_API_KEY, falling back to OPENAPI_KEY when unset or empty.
 # Common invocations:
 #
@@ -8,6 +8,7 @@
 #   OPENAI_API_KEY=sk-... sh ./i18n.sh --langs zh-TW,ja
 #   OPENAI_API_KEY=sk-... sh ./i18n.sh --only android
 #   OPENAI_API_KEY=sk-... sh ./i18n.sh --only ios
+#   OPENAI_API_KEY=sk-... sh ./i18n.sh --only changelog
 #   OPENAI_API_KEY=sk-... sh ./i18n.sh --dry-run
 
 set -eu
