@@ -10,8 +10,11 @@
 #include "components/input/native_web_keyboard_event.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
+#include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
+#include "chrome/browser/ui/exclusive_access/fullscreen_controller.h"
 #include "chrome/browser/ui/navigator/browser_navigator.h"
 #include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
@@ -54,6 +57,7 @@
 #include "ui/views/background.h"
 #include "ui/views/controls/button/button.h"
 #include "ui/views/controls/webview/webview.h"
+#include "ui/views/event_monitor.h"
 #include "ui/views/layout/box_layout.h"
 #include "ui/views/layout/flex_layout.h"
 #include "ui/views/layout/flex_layout_types.h"
@@ -255,6 +259,9 @@ DaoSidebarView::DaoSidebarView(Browser* browser)
       collapse_animation_(base::Milliseconds(50), 60, this) {
   SetPaintToLayer();
   layer()->SetMasksToBounds(true);
+  // Children (inner container, WebUI) cover the whole sidebar, so hover
+  // enter/exit only reaches this view when forwarded from descendants.
+  SetNotifyEnterExitOnChild(true);
 
   // Inner container always keeps full width; outer view clips it
   inner_container_ = AddChildView(std::make_unique<views::View>());
@@ -833,6 +840,9 @@ void DaoSidebarView::AddedToWidget() {
     EnsureWebUILoaded();
   }
 
+  event_monitor_ = views::EventMonitor::CreateWindowMonitor(
+      this, GetWidget()->GetNativeWindow(), {ui::EventType::kMouseMoved});
+
   // Wire toggle callback to address bar (deferred to here because address
   // bar is created after sidebar during BrowserView construction).
   BrowserView* bv = BrowserView::GetBrowserViewForBrowser(browser_);
@@ -864,6 +874,7 @@ void DaoSidebarView::AddedToWidget() {
 }
 
 void DaoSidebarView::RemovedFromWidget() {
+  event_monitor_.reset();
   if (GetFocusManager()) {
 #if BUILDFLAG(IS_WIN)
     GetFocusManager()->UnregisterAccelerator(
@@ -919,31 +930,66 @@ bool DaoSidebarView::AcceleratorPressed(
 // --- Edge hover auto-expand ----------------------------------------------
 
 void DaoSidebarView::OnMouseEntered(const ui::MouseEvent& event) {
-  if (collapsed_ && !layer()->GetAnimator()->is_animating()) {
-    auto_expanded_ = true;
-    collapsed_ = false;
-    int old_width = current_width_;
-    current_width_ = user_width_;
-    target_width_ = user_width_;
-    collapse_animation_.Stop();
-    PreferredSizeChanged();
-    AnimateLayerSlide(old_width, user_width_);
-  }
+  AutoExpand();
 }
 
 void DaoSidebarView::OnMouseExited(const ui::MouseEvent& event) {
   NotifySidebarPointerExited();
+  AutoCollapse();
+}
 
-  if (auto_expanded_) {
-    auto_expanded_ = false;
-    collapsed_ = true;
-    int old_width = current_width_;
-    current_width_ = kCollapsedWidth;
-    target_width_ = kCollapsedWidth;
-    collapse_animation_.Stop();
-    PreferredSizeChanged();
-    AnimateLayerSlide(old_width, kCollapsedWidth);
+void DaoSidebarView::OnEvent(const ui::Event& event) {
+  UpdateAutoExpandForScreenPoint(event_monitor_->GetLastMouseLocation());
+}
+
+void DaoSidebarView::UpdateAutoExpandForScreenPoint(
+    const gfx::Point& screen_point) {
+  gfx::Point point = screen_point;
+  views::View::ConvertPointFromScreen(this, &point);
+  if (collapsed_) {
+    // Webpage fullscreen (e.g. video) must not reveal the sidebar.
+    const bool tab_fullscreen = browser_->GetFeatures()
+                                    .exclusive_access_manager()
+                                    ->fullscreen_controller()
+                                    ->IsTabFullscreen();
+    if (!tab_fullscreen &&
+        gfx::Rect(kCollapsedWidth, height()).Contains(point)) {
+      AutoExpand();
+    }
+  } else if (auto_expanded_ &&
+             !gfx::Rect(current_width_, height()).Contains(point)) {
+    // Covers exits RootView never reports, e.g. the cursor leaving before it
+    // ever hit-tested inside the freshly expanded sidebar.
+    AutoCollapse();
   }
+}
+
+void DaoSidebarView::AutoExpand() {
+  if (!collapsed_ || layer()->GetAnimator()->is_animating()) {
+    return;
+  }
+  auto_expanded_ = true;
+  collapsed_ = false;
+  int old_width = current_width_;
+  current_width_ = user_width_;
+  target_width_ = user_width_;
+  collapse_animation_.Stop();
+  PreferredSizeChanged();
+  AnimateLayerSlide(old_width, user_width_);
+}
+
+void DaoSidebarView::AutoCollapse() {
+  if (!auto_expanded_) {
+    return;
+  }
+  auto_expanded_ = false;
+  collapsed_ = true;
+  int old_width = current_width_;
+  current_width_ = kCollapsedWidth;
+  target_width_ = kCollapsedWidth;
+  collapse_animation_.Stop();
+  PreferredSizeChanged();
+  AnimateLayerSlide(old_width, kCollapsedWidth);
 }
 
 void DaoSidebarView::NotifySidebarPointerExited() {

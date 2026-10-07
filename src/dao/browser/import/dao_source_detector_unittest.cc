@@ -5,6 +5,7 @@
 #include "dao/browser/import/dao_source_detector.h"
 
 #include <algorithm>
+#include <array>
 #include <string>
 
 #include "base/base_paths.h"
@@ -24,14 +25,15 @@ TEST(DaoSourceDetectorTest, DetectsProfilesFromDefaultPlatformRoots) {
 #if BUILDFLAG(IS_WIN)
   base::ScopedPathOverride override_app_data(base::DIR_LOCAL_APP_DATA,
                                            app_data.GetPath());
-  const char* roots[] = {
+  const std::array<const char*, 3> roots = {
       "Google/Chrome/User Data",
       "Packages/TheBrowserCompany.Arc_test/LocalCache/Local/Arc/User Data",
       "Microsoft/Edge/User Data"};
 #else
   base::ScopedPathOverride override_app_data(base::DIR_APP_DATA,
                                            app_data.GetPath());
-  const char* roots[] = {"Google/Chrome", "Arc/User Data", "Microsoft Edge"};
+  const std::array<const char*, 3> roots = {"Google/Chrome", "Arc/User Data",
+                                            "Microsoft Edge"};
 #endif
   for (const char* relative : roots) {
     const base::FilePath root = app_data.GetPath().AppendASCII(relative);
