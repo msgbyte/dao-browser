@@ -10,6 +10,11 @@
 > rebase) and [`features.md`](features.md) (the prose feature tour). This file is the
 > *checkbox* view.
 
+## Release notes
+
+- [ ] Every change has matching English and Simplified Chinese entries under the
+  affected platform's `Unreleased` heading; released notes retain their version.
+
 ## Windows desktop development
 
 These are acceptance checks, not a claim that the port has passed them.

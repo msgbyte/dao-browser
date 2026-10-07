@@ -1,5 +1,9 @@
 # Dao Browser Android Feature Inventory
 
+Android [release notes](changelog/en.md) have an independent version history in
+English and Simplified Chinese.
+See [the changelog guide](changelog.md).
+
 > This document catalogs features owned by the standalone Android GeckoView
 > application under `android/`. Desktop Chromium features are documented in
 > [`features.md`](features.md).

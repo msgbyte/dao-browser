@@ -12,6 +12,10 @@ engine preferences, installed-extension state, and QR scanning.
 
 ## Desktop platform scope
 
+Human-readable [release notes](changelog/en.md) are maintained in English and
+Simplified Chinese.
+See [the changelog guide](changelog.md).
+
 The development CLI supports native macOS arm64 and an experimental Windows x64 target.
 Windows uses the existing setup/import/rebuild commands, a local `chrome.exe`,
 and separate Dao debug/release profiles. Normal Windows browser windows combine

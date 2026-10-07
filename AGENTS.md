@@ -24,6 +24,15 @@ feature that may overlap with existing work.
 - When adding or materially changing a feature on either platform, update `docs/feature-checklist.md` so upgrade and regression checks cover the behavior.
 - If a feature change does not require updates to its platform feature inventory or the shared checklist, explicitly mention why in the final response.
 
+## Changelog
+
+- Every change must update the human-readable changelog in the same change, including fixes, features, refactors, build tooling, and documentation.
+- Maintain `docs/changelog/en.md` as the English source and `docs/changelog/zh-CN.md` by hand, with matching entries in the same order. Describe outcomes and user or maintainer impact, not raw diffs or commit lists.
+- Use natural, concrete wording: say what users can do or what went wrong and is now fixed. Separate unrelated changes instead of compressing a release into a vague summary. Cover the supported changes without a fixed bullet limit; do not pad sparse releases or invent details. Historical backfills must be checked against same-platform tag diffs, not commit titles alone.
+- Add pending entries to the affected platform's `Unreleased` section. Desktop, Android, and iOS versions are independent; shared changes may need entries on multiple platforms. Website and repository-wide work defaults to desktop.
+- Keep one line per bullet and preserve bracketed platform/version identifiers. Archive pending entries under the released version and date when bumping that platform's version; retain an empty `Unreleased` section. Do not assign unreleased work to an old version or invent historical entries.
+- See `docs/changelog.md` for the format and archival process.
+
 ## Source Of Truth
 
 - `src/dao/` contains Dao-owned C++ / WebUI / assets copied into Chromium during import.
