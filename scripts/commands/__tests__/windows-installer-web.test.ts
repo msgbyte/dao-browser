@@ -37,7 +37,7 @@ beforeEach(() => { vi.useFakeTimers(); document.body.replaceChildren(); });
 afterEach(() => { vi.clearAllTimers(); vi.useRealTimers(); });
 
 describe('Windows installer WebView UI', () => {
-  it.each(['en', 'zh-CN'])('hands an existing installation to the uninstaller once in %s', async language => {
+  it.each(['en', 'zh-CN'] as const)('hands an existing installation to the uninstaller once in %s', async language => {
     const {messages, locales} = await mount(language, {locked: true});
     expect(button('uninstall'), 'Existing installations expose an uninstall action').not.toBeNull();
     expect(button('uninstall').hidden).toBe(false);
