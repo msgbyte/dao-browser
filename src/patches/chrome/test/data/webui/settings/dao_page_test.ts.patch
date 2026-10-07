@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/test/data/webui/settings/dao_page_test.ts
-@@ -0,0 +1,647 @@
+@@ -0,0 +1,663 @@
 +// Copyright 2026 Dao Browser Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -166,6 +166,11 @@ index 0000000000..0000000001
 +          type: chrome.settingsPrivate.PrefType.BOOLEAN,
 +          value: false,
 +        },
++        tab_hover_preview_enabled: {
++          key: 'dao.tab_hover_preview_enabled',
++          type: chrome.settingsPrivate.PrefType.BOOLEAN,
++          value: false,
++        },
 +        enhanced_pip_enabled: {
 +          key: 'dao.enhanced_pip_enabled',
 +          type: chrome.settingsPrivate.PrefType.BOOLEAN,
@@ -200,6 +205,17 @@ index 0000000000..0000000001
 +    webUIListenerCallback('dao-mcp-status-changed', status);
 +    flush();
 +  }
++
++  test('tabHoverPreviewDefaultsOffWithIllustration', function() {
++    const toggle =
++        page.shadowRoot!.querySelector<SettingsToggleButtonElement>(
++            '#tabHoverPreviewEnabled');
++    assertTrue(!!toggle);
++    assertEquals('dao.tab_hover_preview_enabled', toggle.pref!.key);
++    assertFalse(toggle.checked);
++    assertTrue(!!page.shadowRoot!.querySelector(
++        '#tabHoverPreviewIllustration'));
++  });
 +
 +  test('mcpMasterSwitchDefaultsOff', function() {
 +    const toggle = getMcpToggle();

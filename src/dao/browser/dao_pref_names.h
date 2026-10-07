@@ -65,6 +65,11 @@ inline constexpr char kDaoWelcomeShown[] = "dao.welcome_shown";
 inline constexpr char kDaoParallelDownloadingEnabled[] =
     "dao.parallel_downloading_enabled";
 
+// Profile-scoped sidebar tab hover preview switch. Off by default; when on,
+// the active tab is snapshotted in memory as the user switches away from it.
+inline constexpr char kDaoTabHoverPreviewEnabled[] =
+    "dao.tab_hover_preview_enabled";
+
 // Boolean pref that controls whether external links open in Little Dao.
 // When false, external links use the regular full browser window.
 inline constexpr char kDaoLittleDaoEnabled[] = "dao.little_dao_enabled";
@@ -121,6 +126,8 @@ inline constexpr char kDaoDreamExcludedDomains[] = "dao.dream_excluded_domains";
 }  // namespace dao::prefs
 
 namespace dao {
+
+bool IsTabHoverPreviewEnabled(Profile* profile);
 
 bool IsSystemDarkMode();
 bool IsForceDarkModeUserEnabled(Profile* profile);

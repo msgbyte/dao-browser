@@ -11450,6 +11450,45 @@ IN_PROC_BROWSER_TEST_F(DaoTabTooltipViewBrowserTest, ShowSetsAnchor) {
 }
 
 IN_PROC_BROWSER_TEST_F(DaoTabTooltipViewBrowserTest,
+                       PreviewAddsSnapshotAboveTitle) {
+  DaoTabTooltipView tooltip;
+  tooltip.ShowTooltip(u"Docs", gfx::Point(120, 30));
+  const gfx::Size title_only_size = tooltip.GetPreferredSize();
+
+  SkBitmap bitmap;
+  bitmap.allocN32Pixels(560, 350);
+  bitmap.eraseColor(SK_ColorBLUE);
+  tooltip.ShowTooltip(u"Docs", gfx::Point(120, 30),
+                      gfx::ImageSkia::CreateFrom1xBitmap(bitmap));
+
+  // A 16:10 snapshot is drawn 240 DIP wide, so it adds 150 DIP of height.
+  EXPECT_GE(tooltip.GetPreferredSize().width(), 240);
+  EXPECT_GE(tooltip.GetPreferredSize().height(),
+            title_only_size.height() + 150);
+
+  // Long titles wrap to at most two lines without widening the card.
+  const gfx::Size short_size = tooltip.GetPreferredSize();
+  tooltip.ShowTooltip(std::u16string(400, u'W'), gfx::Point(120, 30),
+                      gfx::ImageSkia::CreateFrom1xBitmap(bitmap));
+  const gfx::Size long_size = tooltip.GetPreferredSize();
+  EXPECT_EQ(short_size.width(), long_size.width());
+  EXPECT_GT(long_size.height(), short_size.height());
+  tooltip.ShowTooltip(std::u16string(800, u'W'), gfx::Point(120, 30),
+                      gfx::ImageSkia::CreateFrom1xBitmap(bitmap));
+  EXPECT_EQ(long_size, tooltip.GetPreferredSize());
+
+  // Pinned beside the sidebar, a preview near the bottom slides up to fit
+  // instead of flipping above its row.
+  tooltip.ShowTooltip(u"Docs", gfx::Point(120, 180),
+                      gfx::ImageSkia::CreateFrom1xBitmap(bitmap));
+  EXPECT_EQ(200, tooltip.GetBoundsWithin(gfx::Rect(0, 0, 800, 200)).bottom());
+
+  tooltip.HideTooltip();
+  tooltip.ShowTooltip(u"Docs", gfx::Point(120, 30));
+  EXPECT_EQ(title_only_size, tooltip.GetPreferredSize());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoTabTooltipViewBrowserTest,
                        DetailedModeShowsTwoDetailLines) {
   DaoTabTooltipView tooltip;
   tooltip.ShowTooltip(u"archive.zip", gfx::Point(120, 30));

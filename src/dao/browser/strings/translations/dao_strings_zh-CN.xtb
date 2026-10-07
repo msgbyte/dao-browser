@@ -127,6 +127,7 @@
 <translation id="5450299006531484229">关闭上方标签页</translation>
 <translation id="5538307496474303926">清除中...</translation>
 <translation id="5556459405103347317">重新加载</translation>
+<translation id="5584371240327380800">标签页悬停预览</translation>
 <translation id="5611474372949142946">关闭下方标签页</translation>
 <translation id="5649936378931470828">打开智能助手（<ph name="SHORTCUT" />）</translation>
 <translation id="5827266244928330802">Safari</translation>
@@ -163,6 +164,7 @@
 <translation id="6896758677409633944">复制</translation>
 <translation id="6940497786570685033">正在使用无痕模式。关闭所有无痕窗口后，Dao 不会保留浏览记录、Cookie 和网站数据；下载内容和书签仍会保留。</translation>
 <translation id="6963772203726867701">未检测到</translation>
+<translation id="6967328363995714511">在侧边栏中悬停标签页时显示页面快照。快照只在你从标签页切换离开时生成，并且只保存在内存中。</translation>
 <translation id="6971377058826420967">和 Dao 一起创建</translation>
 <translation id="7020790421915196218">已完成的内容现在可以使用。你可以只重试需要处理的部分。</translation>
 <translation id="7192023539406389284">并行下载</translation>

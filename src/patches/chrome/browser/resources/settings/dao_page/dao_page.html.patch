@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_page.html
-@@ -0,0 +1,708 @@
+@@ -0,0 +1,785 @@
 +<style include="settings-shared">
 +  .dao-mcp-settings {
 +    border: 1px solid var(--cr-separator-color);
@@ -457,6 +457,58 @@ index 0000000000..0000000001
 +    line-height: 18px;
 +    margin-top: 2px;
 +  }
++
++  .dao-tab-preview-illustration {
++    color: var(--cr-secondary-text-color);
++    display: block;
++    height: auto;
++    margin: 0 var(--cr-section-padding) 12px;
++    max-width: calc(100% - 2 * var(--cr-section-padding));
++    width: 280px;
++  }
++
++  .dao-tab-preview-illustration .frame {
++    fill: none;
++    stroke: var(--cr-separator-color);
++  }
++
++  .dao-tab-preview-illustration .sidebar,
++  .dao-tab-preview-illustration .page {
++    fill: currentColor;
++    fill-opacity: 0.06;
++  }
++
++  .dao-tab-preview-illustration .tab {
++    fill: currentColor;
++    fill-opacity: 0.16;
++  }
++
++  .dao-tab-preview-illustration .tab.hovered,
++  .dao-tab-preview-illustration .shot {
++    fill: var(--cr-checked-color);
++    fill-opacity: 0.22;
++  }
++
++  .dao-tab-preview-illustration .card {
++    fill: var(--cr-card-background-color);
++    stroke: var(--cr-separator-color);
++  }
++
++  .dao-tab-preview-illustration .shot-ink {
++    fill: var(--cr-checked-color);
++    fill-opacity: 0.5;
++  }
++
++  .dao-tab-preview-illustration .title {
++    fill: currentColor;
++    fill-opacity: 0.45;
++  }
++
++  .dao-tab-preview-illustration .cursor {
++    fill: var(--cr-primary-text-color);
++    stroke: var(--cr-card-background-color);
++    stroke-linejoin: round;
++  }
 +</style>
 +
 +<settings-section page-title="$i18n{daoPageTitle}"
@@ -510,6 +562,31 @@ index 0000000000..0000000001
 +      </span>
 +    </cr-input>
 +  </div>
++  <settings-toggle-button id="tabHoverPreviewEnabled"
++      pref="{{prefs.dao.tab_hover_preview_enabled}}"
++      label="$i18n{daoTabHoverPreview}"
++      sub-label="$i18n{daoTabHoverPreviewDescription}">
++  </settings-toggle-button>
++  <svg id="tabHoverPreviewIllustration" class="dao-tab-preview-illustration"
++      viewBox="0 0 280 120" aria-hidden="true" focusable="false">
++    <rect class="frame" x="0.5" y="0.5" width="279" height="119" rx="10"/>
++    <path class="sidebar" d="M10.5 0.5H72V119.5H10.5A10 10 0 0 1 0.5 109.5V10.5A10 10 0 0 1 10.5 0.5Z"/>
++    <rect class="page" x="80" y="8" width="192" height="104" rx="6"/>
++    <rect class="tab" x="8" y="14" width="56" height="12" rx="4"/>
++    <rect class="tab" x="8" y="32" width="56" height="12" rx="4"/>
++    <rect class="tab hovered" x="8" y="50" width="56" height="12" rx="4"/>
++    <rect class="tab" x="8" y="68" width="56" height="12" rx="4"/>
++    <rect class="card" x="62" y="58" width="124" height="56" rx="8"/>
++    <rect class="shot" x="68" y="64" width="112" height="34" rx="4"/>
++    <rect class="shot-ink" x="72" y="68" width="104" height="5" rx="2"/>
++    <rect class="shot-ink" x="72" y="77" width="30" height="17" rx="2"/>
++    <rect class="shot-ink" x="106" y="78" width="66" height="3" rx="1.5"/>
++    <rect class="shot-ink" x="106" y="84" width="54" height="3" rx="1.5"/>
++    <rect class="shot-ink" x="106" y="90" width="60" height="3" rx="1.5"/>
++    <rect class="title" x="68" y="103" width="72" height="5" rx="2.5"/>
++    <path class="cursor"
++        d="M54 52V64L57 61L59.5 66.5L61.5 65.5L59 60H63.5Z"/>
++  </svg>
 +  <settings-toggle-button id="parallelDownloadingEnabled"
 +      pref="{{prefs.dao.parallel_downloading_enabled}}"
 +      label="$i18n{daoParallelDownloading}"

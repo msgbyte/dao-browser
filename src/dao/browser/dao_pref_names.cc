@@ -35,6 +35,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterBooleanPref(kDaoWelcomeShown, false);
   registry->RegisterBooleanPref(kDaoLittleDaoEnabled, true);
   registry->RegisterBooleanPref(kDaoParallelDownloadingEnabled, false);
+  registry->RegisterBooleanPref(kDaoTabHoverPreviewEnabled, false);
   registry->RegisterBooleanPref(kDaoForceDarkModeEnabled, false);
   registry->RegisterBooleanPref(kDaoEnhancedCommandBarSuggestionsEnabled,
                                 false);
@@ -63,6 +64,11 @@ bool UsesSameStorageProfile(Profile* lhs, Profile* rhs) {
 }
 
 }  // namespace
+
+bool IsTabHoverPreviewEnabled(Profile* profile) {
+  return profile &&
+         profile->GetPrefs()->GetBoolean(prefs::kDaoTabHoverPreviewEnabled);
+}
 
 bool IsSystemDarkMode() {
   ui::NativeTheme* theme = ui::NativeTheme::GetInstanceForNativeUi();

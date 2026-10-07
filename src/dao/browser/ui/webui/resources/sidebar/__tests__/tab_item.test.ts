@@ -249,6 +249,30 @@ describe('dao-tab-item', () => {
         });
       });
 
+  it('requests a snapshot preview beside the sidebar on hover', async () => {
+    const send = vi.fn();
+    (globalThis as unknown as {chrome: {send: typeof send}}).chrome = {send};
+    const el = document.createElement('dao-tab-item') as TestTabItem;
+    el.tabData = tab({index: 3, title: 'Docs'});
+    document.body.appendChild(el);
+    await el.updateComplete;
+    el.getBoundingClientRect = () => new DOMRect(0, 12, 200, 32);
+
+    (el as unknown as {onShowTooltip_: (e: MouseEvent) => void})
+        .onShowTooltip_(new MouseEvent('mouseenter', {
+          screenX: 120,
+          screenY: 130,
+          clientX: 20,
+          clientY: 30,
+        }));
+
+    // Sidebar right edge + 8, row top; the cursor position does not matter.
+    expect(send).toHaveBeenCalledWith(
+        'showTabPreview', [100 + window.innerWidth + 8, 112, 'Docs', 3]);
+    expect(send).not.toHaveBeenCalledWith(
+        'showTabTooltip', expect.anything());
+  });
+
   it('does not show a scheduled hover tooltip after drag starts', async () => {
     vi.useFakeTimers();
     try {

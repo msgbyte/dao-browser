@@ -747,6 +747,10 @@
       <!-- Downloads settings -->
       <message name="IDS_DAO_PARALLEL_DOWNLOADING" desc="Label for the parallel downloading switch in You and Dao settings.">Parallel downloading</message>
       <message name="IDS_DAO_PARALLEL_DOWNLOADING_DESCRIPTION" desc="Description explaining parallel downloading and when changes take effect.">Use multiple connections to download supported files faster. Changes apply to new downloads immediately.</message>
+
+      <!-- Tab hover preview settings -->
+      <message name="IDS_DAO_TAB_HOVER_PREVIEW" desc="Label for the switch in You and Dao settings that shows page snapshots when hovering sidebar tabs.">Tab hover previews</message>
+      <message name="IDS_DAO_TAB_HOVER_PREVIEW_DESCRIPTION" desc="Description explaining when tab hover preview snapshots are taken and where they are stored.">Hover over a tab in the sidebar to see a snapshot of its page. Snapshots are taken only when you switch away from a tab and are kept in memory.</message>
     </messages>
   </release>
 </grit>

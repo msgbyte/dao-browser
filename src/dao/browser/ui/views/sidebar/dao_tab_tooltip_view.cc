@@ -29,6 +29,9 @@ constexpr int kLineGap = 4;
 constexpr int kAnchorGap = 8;
 constexpr int kMaxWidth = 320;
 constexpr float kCornerRadius = 8.0f;
+constexpr int kPreviewWidth = 240;
+constexpr int kPreviewMaxHeight = 160;
+constexpr float kPreviewCornerRadius = 6.0f;
 }  // namespace
 
 BEGIN_METADATA(DaoTabTooltipView)
@@ -89,17 +92,30 @@ void DaoTabTooltipView::OnNativeThemeUpdated(ui::NativeTheme* observed_theme) {
 }
 
 void DaoTabTooltipView::ShowTooltip(const std::u16string& title,
-                                    const gfx::Point& anchor) {
+                                    const gfx::Point& anchor,
+                                    const gfx::ImageSkia& preview) {
   ApplyTheme();
-  title_label_->SetMultiLine(false);
-  title_label_->SetAllowCharacterBreak(false);
-  title_label_->SetMaximumWidthSingleLine(kMaxWidth - 2 * kTooltipPaddingH);
+  preview_ = preview;
+  // A preview card stays as wide as its snapshot and wraps the title to two
+  // lines before eliding; plain tooltips keep a single elided line.
+  const bool has_preview = !preview_.isNull();
+  title_label_->SetMultiLine(has_preview);
+  title_label_->SetMaxLines(has_preview ? 2 : 0);
+  title_label_->SetAllowCharacterBreak(has_preview);
+  if (has_preview) {
+    title_label_->SetMaximumWidth(kPreviewWidth);
+  } else {
+    title_label_->SetMaximumWidthSingleLine(kMaxWidth - 2 * kTooltipPaddingH);
+  }
   title_label_->SetText(title);
   detail_label_1_->SetVisible(false);
   detail_label_2_->SetVisible(false);
   anchor_point_ = anchor;
 
   UpdatePreferredSize();
+  if (parent()) {
+    anchor_point_ = GetBoundsWithin(parent()->GetLocalBounds()).origin();
+  }
 
   SetVisible(true);
   if (parent()) {
@@ -112,7 +128,9 @@ void DaoTabTooltipView::ShowDetailedTooltip(
     const std::vector<std::u16string>& details,
     const gfx::Point& anchor) {
   ApplyTheme();
+  preview_ = gfx::ImageSkia();
   title_label_->SetMultiLine(true);
+  title_label_->SetMaxLines(0);
   title_label_->SetAllowCharacterBreak(true);
   title_label_->SetMaximumWidth(kMaxWidth - 2 * kTooltipPaddingH);
   title_label_->SetText(title);
@@ -141,7 +159,9 @@ void DaoTabTooltipView::ShowDetailedTooltip(
 gfx::Rect DaoTabTooltipView::GetBoundsWithin(
     const gfx::Rect& available_bounds) const {
   gfx::Rect bounds(anchor_point_, GetPreferredSize());
-  if (bounds.bottom() > available_bounds.bottom()) {
+  // A preview sits beside the sidebar rather than under the cursor, so it only
+  // slides back into view instead of flipping above its tab.
+  if (preview_.isNull() && bounds.bottom() > available_bounds.bottom()) {
     bounds.set_y(anchor_point_.y() - bounds.height() - kAnchorGap);
   }
   bounds.AdjustToFit(available_bounds);
@@ -165,6 +185,11 @@ void DaoTabTooltipView::UpdatePreferredSize() {
   if (visible_count > 1) {
     content_height += (visible_count - 1) * kLineGap;
   }
+  if (!preview_.isNull()) {
+    const gfx::Size preview_size = GetPreviewSize();
+    content_width = std::max(content_width, preview_size.width());
+    content_height += preview_size.height() + kLineGap;
+  }
 
   const int total_width =
       std::min(kMaxWidth, content_width + 2 * kTooltipPaddingH + 4);
@@ -172,8 +197,19 @@ void DaoTabTooltipView::UpdatePreferredSize() {
   SetPreferredSize(gfx::Size(total_width, total_height));
 }
 
+gfx::Size DaoTabTooltipView::GetPreviewSize() const {
+  if (preview_.isNull()) {
+    return gfx::Size();
+  }
+  return gfx::Size(kPreviewWidth,
+                   std::min(kPreviewMaxHeight,
+                            kPreviewWidth * preview_.height() /
+                                std::max(1, preview_.width())));
+}
+
 void DaoTabTooltipView::HideTooltip() {
   SetVisible(false);
+  preview_ = gfx::ImageSkia();
 }
 
 void DaoTabTooltipView::OnPaint(gfx::Canvas* canvas) {
@@ -215,7 +251,10 @@ void DaoTabTooltipView::OnPaint(gfx::Canvas* canvas) {
 
   // Draw background.
   cc::PaintFlags bg_flags;
-  bg_flags.setColor(background_color_);
+  // Preview cards sit over page content, so they stay fully opaque.
+  bg_flags.setColor(preview_.isNull()
+                        ? background_color_
+                        : SkColorSetA(background_color_, SK_AlphaOPAQUE));
   bg_flags.setAntiAlias(true);
   bg_flags.setStyle(cc::PaintFlags::kFill_Style);
   canvas->DrawPath(make_path(bounds, kCornerRadius), bg_flags);
@@ -225,6 +264,28 @@ void DaoTabTooltipView::OnPaint(gfx::Canvas* canvas) {
   const int label_max_w =
       static_cast<int>(bounds.width()) - 2 * kTooltipPaddingH;
   int y = static_cast<int>(bounds.y()) + kTooltipPaddingV;
+  if (!preview_.isNull()) {
+    const gfx::Rect preview_rect(gfx::Point(label_x, y), GetPreviewSize());
+    // Keep the top of the page; crop anything taller than the preview slot.
+    const int source_height =
+        std::min(preview_.height(), preview_.width() * preview_rect.height() /
+                                        preview_rect.width());
+    canvas->Save();
+    canvas->ClipPath(
+        SkPathBuilder()
+            .addRRect(SkRRect::MakeRectXY(
+                SkRect::MakeXYWH(preview_rect.x(), preview_rect.y(),
+                                 preview_rect.width(), preview_rect.height()),
+                kPreviewCornerRadius, kPreviewCornerRadius))
+            .detach(),
+        /*do_anti_alias=*/true);
+    canvas->DrawImageInt(preview_, 0, 0, preview_.width(), source_height,
+                         preview_rect.x(), preview_rect.y(),
+                         preview_rect.width(), preview_rect.height(),
+                         /*filter=*/true);
+    canvas->Restore();
+    y += preview_rect.height() + kLineGap;
+  }
   views::Label* labels[] = {title_label_, detail_label_1_, detail_label_2_};
   for (views::Label* label : labels) {
     if (!label->GetVisible()) {

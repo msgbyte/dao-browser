@@ -14,6 +14,7 @@
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/gfx/geometry/point.h"
 #include "ui/gfx/geometry/rect.h"
+#include "ui/gfx/image/image_skia.h"
 #include "ui/native_theme/native_theme.h"
 #include "ui/native_theme/native_theme_observer.h"
 #include "ui/views/view.h"
@@ -36,8 +37,11 @@ class DaoTabTooltipView : public views::View, public ui::NativeThemeObserver {
   ~DaoTabTooltipView() override;
 
   // Show the tooltip with the given title at the anchor point
-  // (in BrowserView coordinates).
-  void ShowTooltip(const std::u16string& title, const gfx::Point& anchor);
+  // (in BrowserView coordinates). A non-null |preview| is drawn above the
+  // title as a page snapshot.
+  void ShowTooltip(const std::u16string& title,
+                   const gfx::Point& anchor,
+                   const gfx::ImageSkia& preview = gfx::ImageSkia());
 
   // Show the tooltip with a title and up to two detail lines.
   void ShowDetailedTooltip(const std::u16string& title,
@@ -46,6 +50,9 @@ class DaoTabTooltipView : public views::View, public ui::NativeThemeObserver {
 
   // Hide the tooltip immediately.
   void HideTooltip();
+
+  // Whether the tooltip is showing a page snapshot.
+  bool has_preview() const { return !preview_.isNull(); }
 
   // The anchor point in parent (BrowserView) coordinates.
   const gfx::Point& anchor_point() const { return anchor_point_; }
@@ -63,10 +70,12 @@ class DaoTabTooltipView : public views::View, public ui::NativeThemeObserver {
  private:
   void ApplyTheme();
   void UpdatePreferredSize();
+  gfx::Size GetPreviewSize() const;
 
   raw_ptr<views::Label> title_label_ = nullptr;
   raw_ptr<views::Label> detail_label_1_ = nullptr;
   raw_ptr<views::Label> detail_label_2_ = nullptr;
+  gfx::ImageSkia preview_;
   gfx::Point anchor_point_;
   SkColor background_color_ = SK_ColorTRANSPARENT;
 

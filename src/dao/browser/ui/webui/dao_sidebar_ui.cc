@@ -51,6 +51,7 @@
 #include "chrome/browser/ui/recently_audible_helper.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/thumbnails/thumbnail_tab_helper.h"
 #include "chrome/browser/ui/views/download/download_started_animation_views.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/common/webui_url_constants.h"
@@ -63,6 +64,7 @@
 #include "components/sessions/content/session_tab_helper.h"
 #include "content/public/browser/download_item_utils.h"
 #include "content/public/browser/download_manager.h"
+#include "content/public/browser/visibility.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/browser/web_ui_data_source.h"
@@ -100,6 +102,7 @@
 #include "ui/base/page_transition_types.h"
 #include "ui/base/window_open_disposition.h"
 #include "ui/display/screen.h"
+#include "ui/gfx/codec/jpeg_codec.h"
 #include "ui/gfx/codec/png_codec.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/image/image.h"
@@ -510,6 +513,28 @@ PinnedTabsLoadResult ReadPinnedTabsOnThreadPool(base::FilePath file_path) {
   }
   result.success = base::ReadFileToString(file_path, &result.contents);
   return result;
+}
+
+// Returns the snapshot taken when the user last switched away from the tab.
+// Only stored data is read: subscribing to the ThumbnailImage would make
+// Chromium force-render the hidden tab.
+gfx::ImageSkia GetTabHoverPreview(TabStripModel* model, int index) {
+  if (!model->ContainsIndex(index)) {
+    return gfx::ImageSkia();
+  }
+  content::WebContents* contents = model->GetWebContentsAt(index);
+  auto* const helper = ThumbnailTabHelper::FromWebContents(contents);
+  if (!helper || contents->GetVisibility() == content::Visibility::VISIBLE) {
+    return gfx::ImageSkia();
+  }
+  const ThumbnailImage::CompressedThumbnailData data =
+      helper->thumbnail()->data();
+  if (!data) {
+    return gfx::ImageSkia();
+  }
+  // ponytail: synchronous decode of one small JPEG per hover; move it to the
+  // thread pool if it ever shows up in traces.
+  return gfx::ImageSkia::CreateFrom1xBitmap(gfx::JPEGCodec::Decode(data->data));
 }
 
 }  // namespace
@@ -966,6 +991,10 @@ void DaoSidebarUIHandler::RegisterMessages() {
   web_ui()->RegisterMessageCallback(
       "showTabTooltip",
       base::BindRepeating(&DaoSidebarUIHandler::HandleShowTabTooltip,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "showTabPreview",
+      base::BindRepeating(&DaoSidebarUIHandler::HandleShowTabPreview,
                           base::Unretained(this)));
   web_ui()->RegisterMessageCallback(
       "showDownloadTooltip",
@@ -3152,11 +3181,46 @@ void DaoSidebarUIHandler::HandleShowTabTooltip(const base::ListValue& args) {
     return;
   }
 
+  // The snapshot preview shown on hover already carries the title.
+  if (bv->dao_tab_tooltip()->has_preview()) {
+    return;
+  }
+
   // Convert screen coordinates to BrowserView coordinates.
   gfx::Point anchor(screen_x, screen_y);
   views::View::ConvertPointFromScreen(bv, &anchor);
 
   bv->dao_tab_tooltip()->ShowTooltip(base::UTF8ToUTF16(*title_str), anchor);
+  bv->InvalidateLayout();
+}
+
+void DaoSidebarUIHandler::HandleShowTabPreview(const base::ListValue& args) {
+  if (!browser_ || args.size() != 4 ||
+      !dao::IsTabHoverPreviewEnabled(browser_->profile())) {
+    return;
+  }
+  const std::optional<int> screen_x = args[0].GetIfInt();
+  const std::optional<int> screen_y = args[1].GetIfInt();
+  const std::string* title = args[2].GetIfString();
+  const std::optional<int> index = args[3].GetIfInt();
+  if (!screen_x || !screen_y || !title || !index) {
+    return;
+  }
+
+  BrowserView* bv = BrowserView::GetBrowserViewForBrowser(browser_);
+  if (!bv || !bv->dao_tab_tooltip()) {
+    return;
+  }
+  const gfx::ImageSkia preview =
+      GetTabHoverPreview(browser_->tab_strip_model(), *index);
+  if (preview.isNull()) {
+    return;
+  }
+
+  gfx::Point anchor(*screen_x, *screen_y);
+  views::View::ConvertPointFromScreen(bv, &anchor);
+  bv->dao_tab_tooltip()->ShowTooltip(base::UTF8ToUTF16(*title), anchor,
+                                     preview);
   bv->InvalidateLayout();
 }
 

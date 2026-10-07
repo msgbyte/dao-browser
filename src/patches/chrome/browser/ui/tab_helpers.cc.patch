@@ -12,7 +12,7 @@ index 6c3874b43f..bb7e63e93b 100644
  #include <optional>
  #include <utility>
  
-@@ -620,6 +623,9 @@ void TabHelpers::AttachTabHelpers(WebContents* web_contents) {
+@@ -641,6 +644,9 @@ void TabHelpers::AttachTabHelpers(WebContents* web_contents) {
    vr::VrTabHelper::CreateForWebContents(web_contents);
    OneTimePermissionsTrackerHelper::CreateForWebContents(web_contents);
  
@@ -22,3 +22,16 @@ index 6c3874b43f..bb7e63e93b 100644
    // NO! Do not just add your tab helper here. This is a large alphabetized
    // block; please insert your tab helper above in alphabetical order.
  
+@@ -716,9 +722,9 @@ void TabHelpers::AttachTabHelpers(WebContents* web_contents) {
+   }
+   SearchTabHelper::CreateForWebContents(web_contents);
+   TabDialogs::CreateForWebContents(web_contents);
+-  if (base::FeatureList::IsEnabled(features::kTabHoverCardImages)) {
+-    ThumbnailTabHelper::CreateForWebContents(web_contents);
+-  }
++  // Dao: attach on every platform so readiness is tracked from the first
++  // navigation; capture itself is gated by Dao's hover-preview pref.
++  ThumbnailTabHelper::CreateForWebContents(web_contents);
+   UMABrowsingActivityObserver::TabHelper::CreateForWebContents(web_contents);
+   web_modal::WebContentsModalDialogManager::CreateForWebContents(web_contents);
+   ZeroSuggestPrefetchTabHelper::CreateForWebContents(web_contents);

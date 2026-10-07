@@ -384,6 +384,7 @@ export class DaoTabItem extends CrLitElement {
   }
 
   private onActivate_() {
+    this.clearTooltip_(true);
     sendNative('activateTab', this.tabData.index);
   }
 
@@ -399,7 +400,7 @@ export class DaoTabItem extends CrLitElement {
 
   private onDragStart_(e: DragEvent) {
     if (!e.dataTransfer) return;
-    this.clearTooltip_(this.tooltipVisible_);
+    this.clearTooltip_(true);
     const payload =
         `${TAB_DRAG_PREFIX}${this.sessionId}:${this.tabData.index}:` +
         this.tabData.tabId;
@@ -434,6 +435,14 @@ export class DaoTabItem extends CrLitElement {
     this.lastMouseX_ = e.screenX;
     this.lastMouseY_ = e.screenY;
     this.clearTooltip_(false);
+    // Snapshot previews skip the settle delay and sit just right of the
+    // sidebar, level with this row. Native ignores this when previews are off
+    // or the tab has no snapshot; the delayed title tooltip then still shows.
+    sendNative('showTabPreview',
+        Math.round(e.screenX - e.clientX + window.innerWidth + 8),
+        Math.round(e.screenY - e.clientY + this.getBoundingClientRect().top),
+        this.tabData.title || this.tabData.url || 'New Tab',
+        this.tabData.index);
     this.tooltipScheduled_ = true;
     this.tooltipTimer_ = window.setTimeout(() => {
       this.tooltipTimer_ = 0;

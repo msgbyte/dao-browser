@@ -1,7 +1,15 @@
 diff --git a/chrome/browser/ui/tabs/tab_strip_model.cc b/chrome/browser/ui/tabs/tab_strip_model.cc
 --- a/chrome/browser/ui/tabs/tab_strip_model.cc
 +++ b/chrome/browser/ui/tabs/tab_strip_model.cc
-@@ -1738,16 +1738,15 @@
+@@ -109,6 +109,7 @@
+ #include "content/public/browser/render_widget_host_view.h"
+ #include "content/public/browser/web_contents.h"
+ #include "content/public/common/url_constants.h"
++#include "dao/browser/dao_pref_names.h"
+ #include "media/base/media_switches.h"
+ #include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
+ #include "third_party/perfetto/include/perfetto/tracing/traced_value.h"
+@@ -1738,16 +1739,15 @@ void TabStripModel::AddTab(std::unique_ptr<tabs::TabModel> tab,
      index = DetermineInsertionIndex(transition, add_types & ADD_ACTIVE);
      inherit_opener = true;
  
@@ -23,7 +31,16 @@ diff --git a/chrome/browser/ui/tabs/tab_strip_model.cc b/chrome/browser/ui/tabs/
      }
    }
  
-@@ -5310,43 +5309,9 @@
+@@ -5262,7 +5262,7 @@ void TabStripModel::OnActiveTabChanged(
+       // and modify the WebContents, so for now, do it here.
+       auto* const thumbnail_helper =
+           ThumbnailTabHelper::FromWebContents(old_tab->GetContents());
+-      if (thumbnail_helper) {
++      if (thumbnail_helper && dao::IsTabHoverPreviewEnabled(profile_)) {
+         thumbnail_helper->CaptureThumbnailOnTabBackgrounded();
+       }
+ 
+@@ -5310,43 +5310,9 @@ bool TabStripModel::PolicyAllowsTabClosing(
  
  int TabStripModel::DetermineInsertionIndex(ui::PageTransition transition,
                                             bool foreground) {

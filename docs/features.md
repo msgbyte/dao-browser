@@ -121,6 +121,25 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
   toast reports how many duplicate tabs actually closed. Pages retain their
   normal leave-confirmation flow; cancelled closures are excluded from the count.
 - **DaoTabTooltipView** (`sidebar/dao_tab_tooltip_view.{h,cc}`) — Hover contextual info next to the sidebar
+- **Tab hover previews** — Settings > You and Dao exposes the profile-scoped
+  `dao.tab_hover_preview_enabled` preference, **off by default**, with a
+  text-free, theme-aware illustration of the feature. Chromium's
+  `ThumbnailTabHelper` is attached on every platform (`tab_helpers.cc.patch`)
+  so page readiness is tracked from the first navigation, but its switch-away
+  capture in `tab_strip_model.cc.patch` only runs while the preference is on.
+  Only the tab the user is leaving is snapshotted, as a downscaled in-memory
+  JPEG; background tabs are never force-rendered because Dao reads the stored
+  data instead of subscribing to the thumbnail. Entering a sidebar tab row
+  immediately sends `showTabPreview`; for tabs that are not on screen,
+  `HandleShowTabPreview` draws that snapshot above the title in a card pinned
+  just right of the sidebar and level with the row, sliding up to stay inside
+  the window. The card is as wide as the 240 DIP snapshot and wraps the title
+  to two lines before eliding. The card takes no sidebar space, hides on leave, click, or drag,
+  and suppresses the delayed title tooltip; tabs without a snapshot keep the
+  settled title tooltip. Navigations clear stale snapshots, and tall
+  cursor-anchored tooltips flip to stay inside the window. Toggling applies
+  without restart; turning it off stops captures and hides previews, while
+  snapshots already in memory are released as their tabs navigate or close.
 
 ### 1.2 Sidebar WebUI (`dao://sidebar`)
 - **dao_sidebar_app.ts** + **sidebar.{html,css,ts}** — Lit application root

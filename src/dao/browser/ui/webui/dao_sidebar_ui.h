@@ -264,6 +264,7 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   void HandleShowFolderContextMenu(const base::ListValue& args);
   void HandleShowDeleteFolderDialog(const base::ListValue& args);
   void HandleShowTabTooltip(const base::ListValue& args);
+  void HandleShowTabPreview(const base::ListValue& args);
   void HandleShowDownloadTooltip(const base::ListValue& args);
   void HandleHideTabTooltip(const base::ListValue& args);
 
