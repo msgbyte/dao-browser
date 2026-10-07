@@ -150,10 +150,16 @@ describe('Windows desktop release', () => {
     const writeConfig = () => writeFileSync(path.join(root, 'dao.json'), JSON.stringify(config));
     const commit = () => {git('add', '.'); git('commit', '--quiet', '-m', 'test(release): fixture'); return git('rev-parse', 'HEAD');};
     writeConfig();
+    mkdirSync(path.join(root, 'docs/changelog'), {recursive: true});
+    const changelog = path.join(root, 'docs/changelog/en.md');
+    writeFileSync(changelog, '### [Unreleased]\n\n- Pending change.\n');
     const source = commit();
     expect(hasUnreleasedDesktopChanges(root)).toBe(false);
     config.version.display = '1.2.3';
     writeConfig();
+    writeFileSync(changelog, '### [Unreleased]\n\n### [1.2.3] - 2026-10-08\n\n- Pending change.\n');
+    expect(hasUnreleasedDesktopChanges(root)).toBe(false);
+    git('add', 'docs/changelog/en.md');
     expect(hasUnreleasedDesktopChanges(root)).toBe(false);
     expect(desktopReleaseSourcesMatch(root, source, commit())).toBe(true);
     config.version.version = '150.0.1.2';

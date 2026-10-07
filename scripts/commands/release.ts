@@ -10,6 +10,7 @@ import {
 import path from "node:path";
 import chalk from "chalk";
 import { windowsInstallerName } from "./package-windows.js";
+import { formatReleaseDate, planChangelogRelease } from "../changelog.js";
 import {
   ROOT_DIR,
   type DaoConfig,
@@ -396,10 +397,11 @@ function collectReleasePreflightProblems(
   return problems;
 }
 
-/** Mac releases commit their version/appcast after tagging the build's sources. */
+/** Mac releases commit their metadata and changelogs after tagging the build's sources. */
 export function desktopReleaseSourcesMatch(rootDir: string, tagCommit: string, head: string): boolean {
   const diff = spawnSync("git", ["diff", "--name-only", tagCommit, head, "--", ".",
-    ":(exclude)dao.json", ":(exclude)website/public/info.json", ":(exclude)website/public/appcast.xml"],
+    ":(exclude)dao.json", ":(exclude)website/public/info.json", ":(exclude)website/public/appcast.xml",
+    ":(exclude,glob)docs/changelog/*.md"],
     {cwd: rootDir, encoding: "utf8"});
   if (diff.status !== 0 || diff.stdout.trim()) return false;
   try {
@@ -419,7 +421,8 @@ export function desktopReleaseSourcesMatch(rootDir: string, tagCommit: string, h
 export function hasUnreleasedDesktopChanges(rootDir: string): boolean {
   const options = {cwd: rootDir, encoding: "utf8" as const};
   const diff = spawnSync("git", ["diff", "--name-only", "HEAD", "--", ".",
-    ":(exclude)dao.json", ":(exclude)website/public/info.json", ":(exclude)website/public/appcast.xml"], options);
+    ":(exclude)dao.json", ":(exclude)website/public/info.json", ":(exclude)website/public/appcast.xml",
+    ":(exclude,glob)docs/changelog/*.md"], options);
   const untracked = spawnSync("git", ["ls-files", "--others", "--exclude-standard"], options);
   if (diff.status !== 0 || untracked.status !== 0 || diff.stdout.trim() || untracked.stdout.trim()) return true;
   try {
@@ -669,8 +672,12 @@ export async function runRelease(
     "website/public/appcast.xml"
   );
   const infoPath = path.join(dependencies.rootDir, "website/public/info.json");
+  const changelogDirectory = path.join(dependencies.rootDir, "docs/changelog");
+  const changelogPaths = options.skipBump || !existsSync(changelogDirectory) ? [] :
+    readdirSync(changelogDirectory).filter((name) => name.endsWith(".md"))
+      .map((name) => path.join(changelogDirectory, name));
   const transaction = createReleaseTransaction(
-    [daoPath, publicAppcast, infoPath],
+    [daoPath, publicAppcast, infoPath, ...changelogPaths],
     dependencies
   );
   const config = readReleaseConfig(
@@ -701,6 +708,10 @@ export async function runRelease(
       log(`Reusing version from dao.json: ${newVersion} (--skip-bump)`);
     } else {
       log(`Bumping version: ${oldVersion} → ${newVersion}`);
+      const changelog = planChangelogRelease(
+        dependencies.rootDir, "desktop", newVersion, dependencies.now()
+      );
+      log(`Archive Desktop Unreleased notes in ${changelog.length} changelog files.`);
       if (!options.dryRun) {
         const originalDao = transaction.originalFileContents(daoPath);
         if (!originalDao) {
@@ -711,6 +722,7 @@ export async function runRelease(
           writeDaoVersionContents(originalDao, newVersion)
         );
         success(`dao.json version.display → ${newVersion}`);
+        for (const {file, contents} of changelog) transaction.writeFile(file, contents);
       }
     }
     const context = buildReleasePhaseContext(
@@ -1345,13 +1357,6 @@ function replaceField(raw: string, key: string, value: string): string {
 // and \-escaping) so the URL replacement matches the exact source bytes.
 function jsonStringLiteral(s: string): string {
   return JSON.stringify(s);
-}
-
-function formatReleaseDate(date: Date): string {
-  const yyyy = date.getFullYear();
-  const mm = String(date.getMonth() + 1).padStart(2, "0");
-  const dd = String(date.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
 }
 
 // ---------------------------------------------------------------------------

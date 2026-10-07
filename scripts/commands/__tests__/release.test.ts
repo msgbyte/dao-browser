@@ -1,4 +1,5 @@
 import {execFileSync, spawn} from 'node:child_process';
+import {createHash} from 'node:crypto';
 import {
   existsSync,
   mkdirSync,
@@ -65,6 +66,11 @@ function releaseFixture(): ReleaseFixture {
   mkdirSync(path.join(root, 'branding'), {recursive: true});
   mkdirSync(path.join(root, 'third_party/sparkle/bin'), {recursive: true});
   mkdirSync(path.join(root, 'dist'), {recursive: true});
+  mkdirSync(path.join(root, 'docs/changelog'), {recursive: true});
+  for (const locale of ['en', 'zh-CN']) {
+    writeFileSync(path.join(root, `docs/changelog/${locale}.md`),
+      '# Changelog\n\n## [desktop] Desktop\n\n### [Unreleased] Unreleased\n\n');
+  }
   const daoPath = path.join(root, 'dao.json');
   const appcastPath = path.join(root, 'website/public/appcast.xml');
   const infoPath = path.join(root, 'website/public/info.json');
@@ -187,6 +193,71 @@ async function waitForFile(filePath: string): Promise<void> {
   }
   throw new Error('Timed out waiting for ' + filePath);
 }
+
+describe('release changelog', () => {
+  it('archives only desktop notes with the version and rolls them back on failure', async () => {
+    for (const fail of [false, true]) {
+      const fixture = releaseFixture();
+      const directory = path.join(fixture.root, 'docs/changelog');
+      mkdirSync(directory, {recursive: true});
+      const source = '# Changelog\n\n## [desktop] Desktop\n\n### [Unreleased] Unreleased\n\n- Desktop change.\n- Preserve literal `$&` snippets.\n\n### [1.0.70] - 2026-07-01\n\n- Earlier change.\n\n## [android] Android\n\n### [Unreleased] Unreleased\n\n- Android change.\n';
+      for (const locale of ['en', 'zh-CN']) writeFileSync(path.join(directory, `${locale}.md`), source);
+      const generated = source.replace(/^- .+$/gm, (entry) =>
+        `${entry} <!-- source:${createHash('sha256').update(entry).digest('hex')} -->`);
+      writeFileSync(path.join(directory, 'ja.md'), generated);
+      const originalRunPhase = fixture.dependencies.runPhase;
+      fixture.dependencies.runPhase = async (phase, context) => {
+        const notes = readFileSync(path.join(directory, 'en.md'), 'utf8');
+        expect(notes).toContain('### [1.0.71] - 2026-07-12\n\n- Desktop change.');
+        expect(notes.match(/^### \[Unreleased\]/gm)).toHaveLength(2);
+        expect(notes).toContain('- Preserve literal `$&` snippets.');
+        expect(notes).toContain('### [1.0.70] - 2026-07-01\n\n- Earlier change.');
+        expect(notes).toContain('## [android] Android\n\n### [Unreleased] Unreleased\n\n- Android change.');
+        await originalRunPhase(phase, context);
+      };
+      if (fail) {
+        fixture.failPhase = 'package';
+        await expect(runRelease({}, fixture.dependencies)).rejects.toThrow('package failed');
+        expect(readFileSync(path.join(directory, 'en.md'), 'utf8')).toBe(source);
+        expect(readFileSync(path.join(directory, 'zh-CN.md'), 'utf8')).toBe(source);
+        expect(readFileSync(path.join(directory, 'ja.md'), 'utf8')).toBe(generated);
+      } else {
+        await runRelease({}, fixture.dependencies);
+        expect(readFileSync(path.join(directory, 'zh-CN.md'), 'utf8')).toContain('### [1.0.71]');
+        expect(readFileSync(path.join(directory, 'ja.md'), 'utf8')).toContain('### [1.0.71]');
+      }
+    }
+  });
+
+  it.each([{dryRun: true}, {skipBump: true}])('preserves pending notes with %o', async (options) => {
+    const fixture = releaseFixture();
+    const files = ['en', 'zh-CN'].map((locale) => path.join(fixture.root, `docs/changelog/${locale}.md`));
+    const source = readFileSync(files[0], 'utf8') + '- Pending change.\n';
+    for (const file of files) writeFileSync(file, source);
+    await runRelease(options, fixture.dependencies);
+    for (const file of files) expect(readFileSync(file, 'utf8')).toBe(source);
+  });
+
+  it.each(['missing Chinese', 'missing entry', 'stale translation', 'invalid format', 'duplicate version'])
+    ('rejects %s before changing version or notes', async (problem) => {
+      const fixture = releaseFixture();
+      const directory = path.join(fixture.root, 'docs/changelog');
+      const english = path.join(directory, 'en.md');
+      const chinese = path.join(directory, 'zh-CN.md');
+      let source = readFileSync(english, 'utf8') + '- Pending change.\n';
+      if (problem === 'invalid format') source += 'Accidental paragraph.\n';
+      if (problem === 'duplicate version') source += '\n### [1.0.71] - 2026-07-01\n';
+      writeFileSync(english, source);
+      writeFileSync(chinese, problem === 'missing entry' ? source.replace('- Pending change.\n', '') : source);
+      if (problem === 'missing Chinese') unlinkSync(chinese);
+      if (problem === 'stale translation') writeFileSync(path.join(directory, 'ja.md'), source);
+      const dao = readFileSync(fixture.daoPath);
+      await expect(runRelease({}, fixture.dependencies)).rejects.toThrow();
+      expect(readFileSync(fixture.daoPath)).toEqual(dao);
+      expect(readFileSync(english, 'utf8')).toBe(source);
+      expect(fixture.phases).toEqual([]);
+    });
+});
 
 describe('release helpers', () => {
   it('reports automatic GitHub archiving in the release handoff', () => {

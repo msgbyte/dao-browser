@@ -35,9 +35,15 @@ Version headings use `### [1.2.3] - YYYY-MM-DD` and newest releases come first.
 Leave an empty `Unreleased` section above released versions. Released entries stay
 with their original version; only correct factual mistakes in place.
 
-Archive notes manually in the same change as a public version bump. Standalone
-packaging, Windows attachments, and TestFlight builds do not independently mark
-notes as released.
+`npm run release` archives desktop notes when it bumps `dao.json`, before packaging.
+The existing transaction restores the notes on failure. As with the other desktop
+release metadata, commit the archived files after a successful release. Dry runs,
+`--skip-bump`, Windows attachments, and standalone package commands do not archive
+notes. If manually bumping a version, archive its notes in the same change before
+using `--skip-bump`.
+
+Archive Android and iOS notes in the same change as a public version bump.
+TestFlight builds alone do not mark notes as publicly released.
 
 Generate other configured languages manually:
 
@@ -52,4 +58,5 @@ Markdown retains hidden source hashes so unchanged translations survive version
 archival, while edited English text gets translated again. Do not hand-edit those
 generated files or remove their hashes. `--dry-run` makes no API calls or writes.
 Translations use the existing OpenAI configuration and cost money; release commands
-never invoke translation. Refresh existing generated locales before releasing.
+never invoke translation. Refresh existing generated locales before releasing;
+stale or incomplete pending translations stop archival before any file is changed.
