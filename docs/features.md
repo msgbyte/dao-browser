@@ -548,7 +548,9 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
   scrolling updates the selected item. Direct legacy top-level paths continue
   to resolve and normalize to overview hashes
 - Complex management flows remain independent secondary pages. Returning from
-  one restores the overview and its section/scroll context
+  one restores the overview and its section/scroll context. Entering a secondary
+  page from the overview starts at the top, including repeated visits to Agent
+  configuration, without inheriting the overview's scroll offset
 - Chromium settings components continue to own their routes, preferences,
   visibility gates, search integration, and external destinations; the shell
   changes presentation without replacing the settings inventory

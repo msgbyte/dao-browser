@@ -126,7 +126,7 @@ diff --git a/chrome/browser/resources/settings/settings_main/settings_main.ts b/
          this.pendingViewSwitching_.resolve();
          return;
        }
-@@ -192,6 +232,8 @@
+@@ -192,8 +232,16 @@
      }
  
      assert(sectionElement);
@@ -134,8 +134,16 @@ diff --git a/chrome/browser/resources/settings/settings_main/settings_main.ts b/
 +    this.overviewObserver_ = null;
      await this.$.switcher.switchView(
          sectionElement.id, 'no-animation', 'no-animation');
++    const container = this.getScrollContainer_();
++    if (wasOverview && route.isSubpage() && container &&
++        this.lastRoute_ === effectiveRoute) {
++      // Secondary pages must not inherit the overview's scroll offset.
++      container.scrollTop = 0;
++    }
      this.pendingViewSwitching_.resolve();
-@@ -210,6 +252,9 @@
+   }
+ 
+@@ -210,6 +258,9 @@
     * @return A promise indicating that searching finished.
     */
    searchContents(query: string): Promise<void> {
@@ -145,7 +153,7 @@ diff --git a/chrome/browser/resources/settings/settings_main/settings_main.ts b/
      this.inSearchMode_ = true;
      this.toolbarSpinnerActive = true;
      this.currentQuery_ = query;
-@@ -256,10 +301,23 @@
+@@ -256,10 +307,23 @@
        this.inSearchMode_ = !result.wasClearSearch;
        this.showNoResultsFound_ = this.inSearchMode_ && result.matchCount === 0;
  
@@ -169,7 +177,7 @@ diff --git a/chrome/browser/resources/settings/settings_main/settings_main.ts b/
                  loadTimeData.getStringF('searchResults', query));
        }
      });
-@@ -267,7 +325,7 @@
+@@ -267,7 +331,7 @@
    }
  
    private renderPlugin_(route: Route): boolean {
@@ -178,7 +186,7 @@ diff --git a/chrome/browser/resources/settings/settings_main/settings_main.ts b/
          (!!this.lastRoute_ && route.contains(this.lastRoute_));
    }
  
-@@ -295,8 +353,138 @@
+@@ -295,8 +359,138 @@
    }
  
    private shouldShowAll_(): boolean {
