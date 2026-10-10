@@ -4,6 +4,7 @@
 
 ### [Unreleased] Unreleased
 
+- GitHub release notes now include individual commits, so changes made without a pull request are included in the update history.
 - Keep readable release notes in English and Chinese for every change, with separate histories for desktop, Android, and iOS.
 - Translate release notes into other languages with the existing translation script, reusing unchanged text even after a release is archived.
 - Desktop releases archive pending notes under the new version and restore them if the release fails. Archived notes no longer prevent Windows from using the same release tag.
@@ -543,6 +544,7 @@
 
 ### [Unreleased] Unreleased
 
+- Set Dao as the default browser from a standalone card at the top of Android Settings. The card hides while Dao is the default and refreshes when returning from system settings.
 - Android releases archive pending notes alongside the version update in the same commit.
 - Reconstruct desktop and Android release notes from Git tags, checking each version, adding feature details, and rewriting the explanations.
 
