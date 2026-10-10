@@ -43,7 +43,9 @@ notes. If manually bumping a version, archive its notes in the same change befor
 using `--skip-bump`.
 
 `npm run release:android` includes archived Android notes in its version commit.
-Push failures preserve that local commit and tag for retry. iOS currently has no
+A failed version/changelog write or rejected release commit restores the version
+and affected locales without overwriting concurrent edits. Tag and push failures
+preserve the committed version and archived notes for retry. iOS currently has no
 public-release CLI; archive its notes in the same change as a public version bump.
 TestFlight builds alone do not mark notes as publicly released.
 

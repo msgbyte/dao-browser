@@ -4,6 +4,7 @@
 
 ### [Unreleased] Unreleased
 
+- Release documentation now points to one set of versioned histories, so maintainers no longer need to keep duplicate summaries.
 - GitHub release notes now include individual commits, so changes made without a pull request are included in the update history.
 - Keep readable release notes in English and Chinese for every change, with separate histories for desktop, Android, and iOS.
 - Translate release notes into other languages with the existing translation script, reusing unchanged text even after a release is archived.

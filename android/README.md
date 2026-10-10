@@ -127,8 +127,8 @@ The command reads `versionName` and `versionCode` from
 increment plus the next integer. Press Enter to accept either suggestion. Both
 values must increase. It then:
 
-1. Updates those two Gradle values.
-2. Commits only the version file as `chore(android): release android v<version>`.
+1. Updates those two Gradle values and archives the Android entries from `docs/changelog/*.md` under `### [<version>] - YYYY-MM-DD`. Other platforms remain pending.
+2. Commits only the version file and archived changelogs as `chore(android): release android v<version>`.
 3. Creates `android-v<version>` at the new commit.
 4. Atomically pushes `main` and the tag to `origin`.
 
@@ -137,6 +137,18 @@ included in the push. Existing local or remote release tags are rejected before
 editing. Configure your Git identity and push access, and finish any uncommitted
 work first. Local publishing needs the repository's Node dependencies and Git;
 Android builds and signing run in GitHub Actions.
+
+Before releasing, maintain matching `### [Unreleased]` entries in the
+`## [android]` sections of `docs/changelog/en.md` and `docs/changelog/zh-CN.md`.
+Refresh any generated locales before releasing. Missing, mismatched, or stale
+translations fail before the release commit. If updating the files or
+creating that commit fails, the script restores the version and notes while
+preserving concurrent edits. Once committed, a tag or push failure keeps
+that version and its sealed notes for recovery instead of sealing another version.
+Android release cancellation does not yet coordinate Git subprocesses: if
+Ctrl-C or a termination signal interrupts the process, inspect the version file,
+all changelog locales, and the local commit/tag before retrying. Automatic rollback
+only runs for errors the process catches; interrupted edits may remain locally.
 
 Explicit arguments work without prompts:
 

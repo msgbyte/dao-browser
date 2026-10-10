@@ -38,6 +38,23 @@ done them on this machine, skip to the per-release checklist below.
   critical one. Losing it permanently breaks auto-update for every shipped
   copy of the app.
 
+### Versioned changelogs
+
+Maintain English summaries in [`docs/changelog/en.md`](changelog/en.md) and
+matching Simplified Chinese summaries in [`docs/changelog/zh-CN.md`](changelog/zh-CN.md).
+Keep pending entries under the affected platform's `### [Unreleased]` heading;
+see the [changelog guide](changelog.md) for formatting and generated locales.
+
+`npm run release` archives desktop entries under `### [<version>] - YYYY-MM-DD`
+when it bumps `dao.json`. All changelog locales join the release metadata
+transaction, so a failed release restores their pending entries along with the
+old version without overwriting concurrent edits. Other platforms stay pending.
+Commit the finalized changelogs with the successful release's version and
+website metadata. Dry runs, `--skip-bump`, and Windows asset attachment leave
+all documents unchanged. Reusing a version with `--skip-bump` preserves its
+existing section without consuming newer pending entries. The GitHub archive's
+commit-based notes remain separate from these summaries.
+
 ### Per-release checklist (every version)
 
 Assume we're shipping `0.5.1`. Replace the version number throughout.

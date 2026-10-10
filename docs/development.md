@@ -394,7 +394,7 @@ The GitHub uploader preserves existing macOS assets and rejects a different
 Windows installer for an already published version. A retry can complete a
 missing checksum upload. `--skip-build` reuses the existing release EXE and
 checksum in `dist/`. The tag's sources must match HEAD; release-only changes to
-the display version, appcast, and website metadata are permitted. Code changes
+the display version, appcast, website metadata, and localized changelogs are permitted. Code changes
 require a new desktop release. Before building and again before uploading, the
 publisher checks for uncommitted source changes and verifies the tag against
 `origin`; staged and untracked sources also prevent publication.
