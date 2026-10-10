@@ -13,6 +13,7 @@ import {
   configureWindowsToolchain,
   getWindowsToolchainEnvironment,
   prepareWindowsCrossToolchain,
+  setupWindowsToolchain,
 } from '../../windows-toolchain.js';
 
 let root: string;
@@ -61,6 +62,42 @@ beforeEach(() => {
 afterEach(() => rmSync(root, {recursive: true, force: true}));
 
 describe('Windows cross toolchain provisioning', () => {
+  it('bootstraps the SDK on Mac without requiring downloaded Chromium resource tools', async () => {
+    checkout();
+    vi.mocked(runStreaming).mockImplementation(async (_command, args) => {
+      if (String(args?.[0]).endsWith('bootstrap-windows-toolchain.py')) {
+        write('.dao/windows-sdk/archives/0123456789.zip', 'archive');
+        write('.dao/windows-sdk/bootstrap.json', JSON.stringify({
+          baseUrl: path.join(root, '.dao/windows-sdk/archives'), hash: '0123456789',
+        }));
+      } else {
+        preparedToolchain();
+        rmSync(path.join(root, 'engine/src/build/toolchain/win/rc/mac/rc'));
+      }
+      return 0;
+    });
+    await setupWindowsToolchain({acceptLicense: true}, undefined, root, {});
+    expect(getWindowsToolchainEnvironment({}, root).GYP_MSVS_HASH_e66617bc68).toBe('0123456789');
+    expect(runStreaming).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not replace a configured private SDK or require license acceptance again', async () => {
+    preparedToolchain();
+    configureWindowsToolchain({baseUrl: 'https://private.test/sdk', hash: '0123456789'}, root);
+    await setupWindowsToolchain({}, undefined, root, {});
+    expect(runStreaming).toHaveBeenCalledTimes(1);
+    expect(getWindowsToolchainEnvironment({}, root).DEPOT_TOOLS_WIN_TOOLCHAIN_BASE_URL).toBe('https://private.test/sdk/');
+  });
+
+  it('requires explicit license acceptance before bootstrapping and preserves failure', async () => {
+    checkout();
+    await expect(setupWindowsToolchain({}, undefined, root, {})).rejects.toThrow(/--accept-license/);
+    expect(runStreaming).not.toHaveBeenCalled();
+    vi.mocked(runStreaming).mockResolvedValueOnce(1);
+    await expect(setupWindowsToolchain({acceptLicense: true}, undefined, root, {})).rejects.toThrow(/bootstrap.*1/i);
+    expect(() => getWindowsToolchainEnvironment({}, root)).toThrow();
+  });
+
   it('configures an archive before checkout and maps the pinned hash after checkout', () => {
     configureWindowsToolchain({baseUrl: 'https://example.test/sdk', hash: '0123456789'}, root);
     expect(getWindowsToolchainEnvironment({}, root)).toMatchObject({

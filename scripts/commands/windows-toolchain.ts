@@ -4,7 +4,7 @@ import path from 'node:path';
 import {ROOT_DIR, log, runStreaming, success, which} from '../utils.js';
 import {
   configureWindowsToolchain,
-  prepareWindowsCrossToolchain,
+  setupWindowsToolchain,
 } from '../windows-toolchain.js';
 
 export const windowsToolchainCommand = new Command('windows-toolchain')
@@ -20,11 +20,13 @@ windowsToolchainCommand.addCommand(new Command('configure')
   }));
 
 windowsToolchainCommand.addCommand(new Command('setup')
-  .description('Download and verify the configured Windows SDK using Chromium tooling')
-  .action(async () => {
+  .description('Download Windows build tools on macOS or install a configured SDK archive')
+  .option('--accept-license', 'Accept Microsoft licenses for downloading Visual Studio Build Tools and the Windows SDK')
+  .action(async (options: {acceptLicense?: boolean}) => {
     if (process.platform !== 'darwin') throw new Error('windows-toolchain setup is intended for the macOS cross compilation host.');
-    const toolchain = await prepareWindowsCrossToolchain();
+    const toolchain = await setupWindowsToolchain(options);
     success(`Windows toolchain ready: ${toolchain.toolchainRoot}`);
+    log('Run npm run download -- --platform windows to sync Chromium Windows dependencies before rebuilding.');
   }));
 
 windowsToolchainCommand.addCommand(new Command('export')

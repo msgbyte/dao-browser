@@ -34,7 +34,7 @@ beforeEach(() => {
   vi.spyOn(process, 'arch', 'get').mockReturnValue('arm64');
   vi.stubEnv('DAO_BUILD_PLATFORM', undefined);
   mocks.run.mockResolvedValue(0);
-  mocks.capture.mockReturnValue('0123abcd');
+  mocks.capture.mockReturnValue('0123abcd\n0123abcd');
   mocks.environment.mockReturnValue(mocks.env);
   mocks.gclient = 'solutions = []\ntarget_os = ["mac"]\ncustom_setting = True\n';
   mocks.prepare.mockResolvedValue({env: mocks.env});
@@ -71,31 +71,58 @@ describe('Windows cross-build CLI on Mac', () => {
     expect(mocks.run).toHaveBeenCalledWith('gn', ['gen', 'out/dao-win-x64-debug'], expect.anything());
   });
 
-  it('preserves gclient settings and runs hooks with the SDK after synchronization', async () => {
+  it('preserves imported patches at the requested revision and runs SDK hooks after dependency sync', async () => {
+    const {downloadCommand} = await import('../download.js');
+    await downloadCommand.parseAsync(['node', 'cli', '--platform', 'windows']);
+    expect(mocks.run).toHaveBeenNthCalledWith(1, 'python3', [
+      expect.stringContaining('configure-windows-checkout.py'), expect.stringContaining('.gclient'),
+    ]);
+    expect(mocks.run).toHaveBeenNthCalledWith(2, 'gclient',
+      ['sync', '--revision', 'src@unmanaged', '--no-history', '--shallow', '--nohooks'],
+      expect.anything());
+    expect(mocks.run).toHaveBeenNthCalledWith(3, 'gclient', ['runhooks'],
+      expect.objectContaining({env: mocks.env}));
+    expect(mocks.write).not.toHaveBeenCalled();
+  });
+
+  it('still selects the requested Chromium revision when the checkout needs an update', async () => {
+    mocks.capture.mockReturnValueOnce('0123abcd\nolder-commit').mockReturnValueOnce('0123abcd');
     const {downloadCommand} = await import('../download.js');
     await downloadCommand.parseAsync(['node', 'cli', '--platform', 'windows']);
     expect(mocks.run).toHaveBeenNthCalledWith(1, 'git', [
       '-C', expect.stringContaining('src'), 'fetch', '--depth=1', '--no-tags', 'origin',
       '+refs/tags/149.0.0.0:refs/tags/149.0.0.0',
     ]);
-    expect(mocks.run).toHaveBeenNthCalledWith(2, 'python3', [
-      expect.stringContaining('configure-windows-checkout.py'), expect.stringContaining('.gclient'),
-    ]);
-    expect(mocks.run).toHaveBeenNthCalledWith(3, 'gclient',
+    expect(mocks.run).toHaveBeenCalledWith('gclient',
       ['sync', '--revision', 'src@0123abcd', '--no-history', '--shallow', '--nohooks'],
       expect.anything());
-    expect(mocks.run).toHaveBeenNthCalledWith(4, 'gclient', ['runhooks'],
-      expect.objectContaining({env: mocks.env}));
-    expect(mocks.write).not.toHaveBeenCalled();
+  });
+
+  it('fetches the requested tag when it is not present locally', async () => {
+    mocks.capture.mockImplementationOnce(() => {throw new Error('Unknown revision');})
+      .mockReturnValueOnce('0123abcd');
+    const {downloadCommand} = await import('../download.js');
+    await downloadCommand.parseAsync(['node', 'cli', '--platform', 'windows']);
+    expect(mocks.run).toHaveBeenCalledWith('gclient',
+      ['sync', '--revision', 'src@0123abcd', '--no-history', '--shallow', '--nohooks'],
+      expect.anything());
+  });
+
+  it('retains the requested full-history synchronization', async () => {
+    const {downloadCommand} = await import('../download.js');
+    await downloadCommand.parseAsync(['node', 'cli', '--platform', 'windows', '--full-history']);
+    expect(mocks.run).toHaveBeenCalledWith('gclient',
+      ['sync', '--revision', 'src@refs/tags/149.0.0.0', '--with_branch_heads', '--with_tags', '--nohooks'],
+      expect.anything());
   });
 
   it('does not run hooks after a failed source sync', async () => {
-    mocks.run.mockResolvedValueOnce(0).mockResolvedValueOnce(0).mockResolvedValueOnce(1);
+    mocks.run.mockResolvedValueOnce(0).mockResolvedValueOnce(1);
     vi.spyOn(process, 'exit').mockImplementation(() => {throw new Error('exit');});
     const {downloadCommand} = await import('../download.js');
     await expect(downloadCommand.parseAsync(['node', 'cli', '--platform', 'windows']))
       .rejects.toThrow('exit');
-    expect(mocks.run).toHaveBeenCalledTimes(3);
+    expect(mocks.run).toHaveBeenCalledTimes(2);
   });
 
   it('keeps the SDK environment when a later native Mac sync retains Windows dependencies', async () => {
@@ -103,7 +130,7 @@ describe('Windows cross-build CLI on Mac', () => {
     mocks.gclient += '# Dao: retain Windows dependencies for cross compilation.\n';
     await downloadCommand.parseAsync(['node', 'cli', '--platform', 'mac']);
     expect(mocks.write).not.toHaveBeenCalled();
-    expect(mocks.run).toHaveBeenNthCalledWith(4, 'gclient', ['runhooks'],
+    expect(mocks.run).toHaveBeenNthCalledWith(3, 'gclient', ['runhooks'],
       expect.objectContaining({env: mocks.env}));
   });
 

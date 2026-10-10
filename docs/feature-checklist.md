@@ -153,12 +153,24 @@ These are acceptance checks, not a claim that the port has passed them.
   `process-termination` script tests. Cancelling a Windows batch job must stop
   its descendants before completion, preserve unrelated jobs, report cleanup
   failures, and handle repeated Ctrl+C during GN/build cleanup.
-- [ ] On macOS, configure a matching private Windows SDK archive, run
+- [ ] On macOS without a private SDK archive, install `msitools`, `sevenzip`, and
+  `makensis`, then run `windows-toolchain setup --accept-license`. Verify that
+  Microsoft packages are downloaded and checked, the local archive passes
+  Chromium's hash validation, and setup succeeds before Windows host tools are
+  fetched. Re-run setup to reuse the cache; corrupt a cached download or remove
+  a required runtime/header and confirm setup fails without configuring an
+  incomplete archive. Existing private archives and environment overrides must
+  remain usable without accepting licenses again. Run
+  `python3 -m unittest scripts.tests.test_windows_toolchain_bootstrap`.
+- [ ] On macOS, prepare or configure a matching Windows SDK archive, run
   `download --platform windows`, and verify Windows dependencies are retained in
-  an existing Mac checkout. Through `npm run rebuild`, compile `mini_installer`
+  an existing Mac checkout, including one with imported Dao patches at the
+  requested Chromium revision. Through `npm run rebuild`, compile `mini_installer`
   and `dao_installer_ui` with `DAO_BUILD_PLATFORM=windows`; package with
   `--platform windows`. Confirm `dao-win-x64[-debug]` is used and native Mac
-  caches are preserved. Missing/wrong SDK archives or host tools must fail
+  caches are preserved. Build the installer host from a checkout under `/Users/`
+  and from a path containing spaces; source paths must not become compiler options.
+  Missing/wrong SDK archives or host tools must fail
   before compilation. Check the EXE on a disposable Windows account/VM for
   launch, custom-directory install, repair, upgrade, fallback UI and uninstall.
   Run the focused cross-build/toolchain/installer/release script tests.

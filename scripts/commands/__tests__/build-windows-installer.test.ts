@@ -67,6 +67,9 @@ describe('Windows installer host assets', () => {
     expect(compile.args).toEqual(expect.arrayContaining(['--target=x86_64-pc-windows-msvc', '/c', '/MT', '/X']));
     expect(compile.args).toContain(`-imsvc${includeDirs[1]}`);
     expect(compile.args).toContain(path.join(sdk, 'build/native/include'));
+    // clang-cl interprets a macOS /Users/... source as the /U option otherwise.
+    expect(compile.args.slice(-2)).toEqual(['--', path.join(root, 'scripts/windows-installer/native/host.cc')]);
+    expect(compile.args.indexOf(`/Fo${path.join(staging, 'host.obj')}`)).toBeLessThan(compile.args.indexOf('--'));
     expect(link.command).toBe(toolchain.lldLink);
     expect(link.args).toEqual(expect.arrayContaining(['/MACHINE:X64', '/SUBSYSTEM:WINDOWS', 'kernel32.lib']));
     expect(link.args).toContain(`/LIBPATH:${libDirs[1]}`);

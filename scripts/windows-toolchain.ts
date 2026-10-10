@@ -58,7 +58,7 @@ export function readWindowsToolchainRequirements(rootDir: string = ROOT_DIR): {
 } {
   const file = path.join(rootDir, 'engine', 'src', 'build', 'vs_toolchain.py');
   if (!existsSync(file)) {
-    throw new Error('Chromium source is missing. Run npm run download -- --platform windows first.');
+    throw new Error('Chromium source is missing. Run npm run download first, then prepare the Windows toolchain.');
   }
   const source = readFileSync(file, 'utf8');
   const hash = source.match(/^TOOLCHAIN_HASH\s*=\s*['"]([0-9a-f]+)['"]/m)?.[1];
@@ -92,8 +92,8 @@ export function getWindowsToolchainEnvironment(
   if (!configuration && !env.DEPOT_TOOLS_WIN_TOOLCHAIN_BASE_URL &&
       !existsSync(path.join(srcDir, 'build', 'win_toolchain.json'))) {
     throw new Error('Windows cross compilation requires a packaged MSVC/Windows SDK. ' +
-      'Run npx tsx scripts/cli.ts windows-toolchain configure --base-url <archive-directory-or-url> --hash <hash>. ' +
-      'Export the SDK once with windows-toolchain export on Windows, then copy its <hash>.zip to the Mac.');
+      'On macOS, run npx tsx scripts/cli.ts windows-toolchain setup --accept-license. ' +
+      'To use an existing archive, run windows-toolchain configure --base-url <archive-directory-or-url> --hash <hash>.');
   }
   // A fresh checkout obtains the pinned hash during sync --nohooks. The caller
   // must read this environment again before running Chromium hooks.
@@ -109,6 +109,7 @@ export async function prepareWindowsCrossToolchain(
   signal?: AbortSignal,
   rootDir: string = ROOT_DIR,
   baseEnv: NodeJS.ProcessEnv = process.env,
+  checkHostTools = true,
 ): Promise<WindowsCrossToolchain> {
   const srcDir = path.join(rootDir, 'engine', 'src');
   const requirements = readWindowsToolchainRequirements(rootDir);
@@ -169,7 +170,7 @@ export async function prepareWindowsCrossToolchain(
   const lldLink = path.join(clangDir, 'lld-link');
   const rcScript = path.join(srcDir, 'build', 'toolchain', 'win', 'rc', 'rc.py');
   const rcBinary = path.join(path.dirname(rcScript), 'mac', 'rc');
-  for (const file of [clangCl, lldLink, rcScript, rcBinary]) {
+  for (const file of checkHostTools ? [clangCl, lldLink, rcScript, rcBinary] : []) {
     if (!existsSync(file)) {
       throw new Error(`Windows cross compilation tool is missing: ${file}. Run npm run download -- --platform windows to fetch Chromium host tools.`);
     }
@@ -181,4 +182,33 @@ export async function prepareWindowsCrossToolchain(
   env.WINDOWSSDKDIR = sdkDir;
   if (typeof metadata.wdk === 'string') env.WDK_DIR = metadata.wdk;
   return {toolchainRoot, sdkDir, includeDirs, libDirs, clangCl, lldLink, rcScript, env};
+}
+
+/** Provision SDK inputs before gclient fetches the Windows host tools. */
+export async function setupWindowsToolchain(
+  options: {acceptLicense?: boolean},
+  signal?: AbortSignal,
+  rootDir: string = ROOT_DIR,
+  baseEnv: NodeJS.ProcessEnv = process.env,
+): Promise<WindowsCrossToolchain> {
+  const configured = existsSync(configurationPath(rootDir)) ||
+    !!baseEnv.DEPOT_TOOLS_WIN_TOOLCHAIN_BASE_URL ||
+    existsSync(path.join(rootDir, 'engine/src/build/win_toolchain.json'));
+  if (!configured) {
+    if (!options.acceptLicense) {
+      throw new Error('Run windows-toolchain setup --accept-license to download Microsoft build tools on macOS. ' +
+        'This accepts the Microsoft Visual Studio Build Tools and Windows SDK licenses.');
+    }
+    const requirements = readWindowsToolchainRequirements(rootDir);
+    const code = await runStreaming('python3', [
+      path.join(rootDir, 'scripts/bootstrap-windows-toolchain.py'),
+      '--root', rootDir, '--vs-version', requirements.visualStudioVersion,
+      '--sdk-version', requirements.sdkVersion, '--accept-license',
+    ], {cwd: rootDir, env: baseEnv, signal});
+    if (code !== 0) throw new Error(`Windows toolchain bootstrap failed with exit code ${code}.`);
+    signal?.throwIfAborted();
+    const result = JSON.parse(readFileSync(path.join(rootDir, '.dao/windows-sdk/bootstrap.json'), 'utf8'));
+    configureWindowsToolchain(result, rootDir);
+  }
+  return prepareWindowsCrossToolchain(signal, rootDir, baseEnv, false);
 }

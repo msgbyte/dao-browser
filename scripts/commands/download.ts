@@ -80,10 +80,21 @@ See: https://commondatastorage.googleapis.com/chrome-infra-docs/flat/depot_tools
       log("Running gclient sync to update...");
 
       let revision = `refs/tags/${version}`;
-      if (shallow) {
+      const srcDir = path.join(ENGINE_DIR, "src");
+      if (crossWindows && shallow) {
+        try {
+          const [requested, current] = run(
+            `git -C "${srcDir}" rev-parse "${revision}^{commit}" HEAD`, {silent: true},
+          ).split(/\r?\n/);
+          // Keep imported Dao patches when only adding Windows dependencies.
+          if (requested && requested === current) revision = 'unmanaged';
+        } catch {
+          // The requested tag is not available locally yet; fetch it below.
+        }
+      }
+      if (shallow && revision !== 'unmanaged') {
         // gclient only skips its full-history fetch of every branch when the
         // revision is a SHA that already exists locally, so fetch it first.
-        const srcDir = path.join(ENGINE_DIR, "src");
         const fetchCode = await runStreaming("git", [
           "-C", srcDir, "fetch", "--depth=1", "--no-tags", "origin", `+${revision}:${revision}`,
         ]);

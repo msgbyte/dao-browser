@@ -110,8 +110,35 @@ Clang/lld/resource compiler and its hermetic MSVC/Windows SDK archive. Compilati
 and packaging run on the Mac; no Windows VM, Wine, or remote builder is used.
 See the [upstream cross-compilation instructions](https://chromium.googlesource.com/chromium/src/+/refs/tags/149.0.7827.201/docs/win_cross.md).
 
-**Prepare the SDK once.** The Google-hosted SDK archive is not public. Supply a
-compatible private archive, or export one from a Windows installation using:
+**Prepare the SDK on the Mac.** With the Chromium checkout already present,
+install the native extraction/packaging tools and run (for a fresh checkout,
+run `npm run download` first):
+
+```bash
+brew install msitools sevenzip makensis
+npx tsx scripts/cli.ts windows-toolchain setup --accept-license
+npm run download -- --platform windows
+```
+
+The first setup accepts the Microsoft Visual Studio Build Tools and Windows SDK
+licenses, downloads their public packages, and creates a local Chromium-compatible
+SDK archive. A Windows machine, Wine, and a VM are not required. The downloader
+from [msvc-wine](https://github.com/mstorsjo/msvc-wine) is pinned by commit and
+SHA-256; only its package download/extraction code runs. Microsoft's Visual Studio
+2026 (18.10.3) manifest is also pinned by SHA-256; the manifest and verified payloads
+are cached under `.dao/windows-sdk/`.
+The standalone SDK 10.0.26100.7705 bundle supplies the debugging tools omitted by
+Visual Studio's SDK component. Setup verifies its SHA-256 and its payload hashes,
+then packages the x86/x64/ARM64 headers, libraries, ATL, DIA, runtimes, and environment
+files using Chromium's content-hash format. Chromium's own installer verifies and
+installs that archive. SDK setup does not require the cross resource compiler;
+the following download command fetches those Chromium host tools. The output
+target remains Windows x64; Chromium also loads the ARM64 toolchain environment
+when generating its build graph on Apple Silicon.
+
+Existing archive configurations remain supported and are reused without public
+downloads. The Google-hosted SDK archive is not public. To use a compatible private
+archive instead, optionally export one from a Windows installation using:
 
 ```powershell
 npx.cmd tsx scripts/cli.ts windows-toolchain export --output C:\dao-sdk-export
@@ -126,7 +153,7 @@ for this hermetic configuration. No application binaries are compiled during
 SDK export. Copy the resulting `<hash>.zip` to a private directory on the Mac;
 the hash is the ten-character archive filename without `.zip`.
 
-Use a case-insensitive macOS volume for depot_tools and its SDK cache. Keep the
+Use a case-insensitive macOS volume for the checkout, depot_tools and its SDK cache. Keep the
 normal macOS build prerequisites and allow extra space for a separate Windows
 build. Install the native [NSIS compiler](https://formulae.brew.sh/formula/makensis),
 configure the archive, and sync the Windows dependencies:
@@ -147,7 +174,9 @@ are also supported. The CLI selects `DEPOT_TOOLS_WIN_TOOLCHAIN=1` for cross
 builds even if the native Windows environment used `0`. Upgrading Chromium may
 require exporting a new compatible SDK archive.
 
-Download preserves existing `.gclient` settings, adds the Windows target, then
+Download preserves existing `.gclient` settings and imported Dao patches when
+the shallow checkout already matches the locally available requested version tag,
+adds the Windows target, then
 runs hooks with the configured SDK. This fetches Windows runtime libraries,
 resource tools and the native archive tools required by `mini_installer`.
 Do not skip this sync just because a Mac build already exists.
