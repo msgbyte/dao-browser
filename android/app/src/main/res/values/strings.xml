@@ -98,6 +98,8 @@
     <string name="font_preview_body">Page text will appear at this size.</string>
     <string name="appearance">Appearance</string>
     <string name="search_and_privacy">Search and privacy</string>
+    <string name="set_as_default_browser">Set as default browser</string>
+    <string name="default_browser_settings_unavailable">Could not open default browser settings</string>
     <string name="default_search_engine">Default search engine</string>
     <string name="google">Google</string>
     <string name="baidu">Baidu</string>

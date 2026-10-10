@@ -98,6 +98,8 @@
     <string name="font_preview_body">网页中的文字会按这个大小显示。</string>
     <string name="appearance">外观</string>
     <string name="search_and_privacy">搜索与隐私</string>
+    <string name="set_as_default_browser">设为默认浏览器</string>
+    <string name="default_browser_settings_unavailable">无法打开默认浏览器设置</string>
     <string name="default_search_engine">默认搜索引擎</string>
     <string name="google">Google</string>
     <string name="baidu">百度</string>

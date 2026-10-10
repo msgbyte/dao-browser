@@ -1,11 +1,14 @@
 package com.msgbyte.dao.ui
 
+import android.app.role.RoleManager
 import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.provider.Settings
 import android.text.format.Formatter
 import android.widget.Toast
@@ -66,6 +69,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.composables.icons.lucide.AlignLeft
 import com.composables.icons.lucide.BookOpen
@@ -142,6 +147,13 @@ fun SettingsScreen(
     var searchEngineMenuOpen by remember { mutableStateOf(false) }
     var remoteDebuggingWarningOpen by remember { mutableStateOf(false) }
     var remoteDebuggingGuideOpen by remember { mutableStateOf(false) }
+    var defaultBrowser by remember(context) { mutableStateOf(isDefaultBrowser(context)) }
+    val defaultBrowserLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { defaultBrowser = isDefaultBrowser(context) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        defaultBrowser = isDefaultBrowser(context)
+    }
 
     Column(
         Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).background(colors.background),
@@ -151,6 +163,22 @@ fun SettingsScreen(
             modifier = Modifier.fillMaxSize().testTag("settings-list"),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp),
         ) {
+            if (!defaultBrowser) {
+                item {
+                    NovaCard(Modifier.padding(top = 14.dp)) {
+                        SettingsRow(
+                            modifier = Modifier.testTag("settings-default-browser-entry"),
+                            icon = Lucide.Globe,
+                            title = stringResource(R.string.set_as_default_browser),
+                            onClick = {
+                                openDefaultBrowserSettings(context) { defaultBrowserLauncher.launch(it) }
+                            },
+                        ) {
+                            Icon(Lucide.ChevronRight, null, tint = colors.faint, modifier = Modifier.size(17.dp))
+                        }
+                    }
+                }
+            }
             item { SectionLabel(stringResource(R.string.appearance)) }
             item {
                 NovaCard {
@@ -406,6 +434,44 @@ internal fun SettingsRow(
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) { trailing() }
     }
+}
+
+internal fun isDefaultBrowser(context: Context): Boolean {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        val roleManager = context.getSystemService(RoleManager::class.java)
+        if (roleManager != null && roleManager.isRoleAvailable(RoleManager.ROLE_BROWSER)) {
+            return roleManager.isRoleHeld(RoleManager.ROLE_BROWSER)
+        }
+    }
+    // A hostless URL avoids treating a site-specific app link as the default browser.
+    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("http://"))
+        .addCategory(Intent.CATEGORY_BROWSABLE)
+    return context.packageManager.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)
+        ?.activityInfo?.packageName == context.packageName
+}
+
+internal fun openDefaultBrowserSettings(context: Context, launch: (Intent) -> Unit) {
+    val intents = mutableListOf<Intent>()
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        val roleManager = context.getSystemService(RoleManager::class.java)
+        if (roleManager != null && roleManager.isRoleAvailable(RoleManager.ROLE_BROWSER) &&
+            !roleManager.isRoleHeld(RoleManager.ROLE_BROWSER)
+        ) {
+            intents.add(roleManager.createRequestRoleIntent(RoleManager.ROLE_BROWSER))
+        }
+    }
+    intents.add(Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS))
+    for (intent in intents) {
+        try {
+            launch(intent)
+            return
+        } catch (_: ActivityNotFoundException) {
+            // Some devices expose settings but do not provide a role dialog.
+        } catch (_: SecurityException) {
+            // Device policy may block a system entry point.
+        }
+    }
+    Toast.makeText(context, R.string.default_browser_settings_unavailable, Toast.LENGTH_SHORT).show()
 }
 
 private fun openDeveloperOptions(context: Context) {
