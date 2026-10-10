@@ -10400,8 +10400,8 @@ IN_PROC_BROWSER_TEST_F(DaoDarkModeBrowserTest,
 // =============================================================================
 // DaoSessionStartupBrowserTest
 //
-// Verifies the Dao patches that force "restore last session" as the default
-// startup behavior (see
+// Verifies the Dao patches that always restore regular profiles, regardless
+// of stored startup settings (see
 // src/patches/chrome/browser/prefs/session_startup_pref.cc.patch and
 // src/patches/chrome/browser/ui/startup/startup_browser_creator.cc.patch).
 // These tests guard against regressions where a Chromium rebase silently
@@ -10438,6 +10438,57 @@ IN_PROC_BROWSER_TEST_F(DaoSessionStartupBrowserTest,
       SessionStartupPref::TypeIsDefault(browser()->profile()->GetPrefs()));
   EXPECT_EQ(SessionStartupPref::LAST,
             SessionStartupPref::GetDefaultStartupType());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSessionStartupBrowserTest,
+                       RegularStartupIgnoresLegacyStartupSettings) {
+  base::CommandLine command_line(base::CommandLine::NO_PROGRAM);
+  for (const auto type : {SessionStartupPref::DEFAULT, SessionStartupPref::LAST,
+                          SessionStartupPref::URLS,
+                          SessionStartupPref::LAST_AND_URLS}) {
+    SCOPED_TRACE(type);
+    SessionStartupPref stored(type);
+    stored.urls.emplace_back("https://startup.example/");
+    SessionStartupPref::SetStartupPref(browser()->profile(), stored);
+
+    const auto effective = StartupBrowserCreator::GetSessionStartupPref(
+        command_line, browser()->profile());
+    EXPECT_TRUE(effective.ShouldRestoreLastSession());
+    EXPECT_FALSE(effective.ShouldOpenUrls());
+    EXPECT_TRUE(effective.urls.empty());
+    EXPECT_EQ(type,
+              SessionStartupPref::GetStartupPref(browser()->profile()).type);
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSessionStartupBrowserTest,
+                       IncognitoNeverRestoresRegularSession) {
+  base::CommandLine command_line(base::CommandLine::NO_PROGRAM);
+  Profile* incognito =
+      browser()->profile()->GetPrimaryOTRProfile(/*create_if_needed=*/true);
+  for (const auto type : {SessionStartupPref::DEFAULT, SessionStartupPref::LAST,
+                          SessionStartupPref::URLS,
+                          SessionStartupPref::LAST_AND_URLS}) {
+    SCOPED_TRACE(type);
+    SessionStartupPref stored(type);
+    stored.urls.emplace_back("https://startup.example/");
+    SessionStartupPref::SetStartupPref(browser()->profile(), stored);
+
+    const auto effective =
+        StartupBrowserCreator::GetSessionStartupPref(command_line, incognito);
+    EXPECT_EQ(SessionStartupPref::DEFAULT, effective.type);
+    EXPECT_TRUE(effective.urls.empty());
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSessionStartupBrowserTest,
+                       GuestNeverRestoresRegularSession) {
+  Browser* guest = CreateGuestBrowser();
+  base::CommandLine command_line(base::CommandLine::NO_PROGRAM);
+  const auto effective =
+      StartupBrowserCreator::GetSessionStartupPref(command_line, guest->profile());
+  EXPECT_EQ(SessionStartupPref::DEFAULT, effective.type);
+  EXPECT_TRUE(effective.urls.empty());
 }
 
 // =============================================================================

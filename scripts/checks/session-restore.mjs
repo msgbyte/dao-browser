@@ -98,35 +98,43 @@ async function waitForSavedTab(url) {
 }
 
 const expected = ['data:text/html,session-one', 'data:text/html,session-two'];
-async function expectRestored(browser, addedTab = false) {
+async function expectRestored(browser, addedTab = false, profileCount = 2) {
   let pages = [];
   try {
     await until(async () => {
       pages = (await browser.targets()).filter(t => t.type === 'page').map(t => t.url);
-      return pages.filter(url => url === 'dao://sidebar/').length === 2 &&
-          expected.every(url => pages.filter(page => page === url).length >= 2) &&
+      return pages.filter(url => url === 'dao://sidebar/').length === profileCount &&
+          expected.every(url => pages.filter(page => page === url).length >= profileCount) &&
           (!addedTab || pages.includes('data:text/html,after-crash'));
-    }, 'both profiles restored their saved tabs');
+    }, `${profileCount} profile(s) restored their saved tabs`);
   } catch (error) {
     throw new Error(`Restore failed; open pages: ${JSON.stringify(pages)}`, {cause: error});
   }
   for (const url of expected) {
-    assert.equal(pages.filter(page => page === url).length, 2,
+    assert.equal(pages.filter(page => page === url).length, profileCount,
         `Every profile must restore ${url}; got ${JSON.stringify(pages)}`);
   }
   if (addedTab) assert(pages.includes('data:text/html,after-crash'),
       'Tabs opened after recovery must survive the next restart');
+  assert(!pages.includes('data:text/html,legacy-startup-page'),
+      'Legacy startup pages must not replace or accompany the saved session');
 }
 
 try {
   await mkdir(join(profile, 'Default'));
   await writeFile(join(profile, 'Default', 'Preferences'),
-      JSON.stringify({dao: {welcome_shown: true}}));
+      JSON.stringify({dao: {welcome_shown: true}, session: {restore_on_startup: 5}}));
   let browser = await start();
   for (const url of expected) {
     await browser.send('Target.createTarget', {url});
     await waitForSavedTab(url);
   }
+  await stop(browser);
+  assert.equal((await readJSON(join(profile, 'Default', 'Preferences')))
+      .session.restore_on_startup, 5, 'Keep the legacy blank-page setting in the fixture');
+  browser = await start();
+  await expectRestored(browser, false, 1);
+  console.log('PASS: clean restart restores despite the legacy blank-page setting');
   await until(async () => {
     const prefs = await readJSON(join(profile, 'Default', 'Preferences'));
     const state = await readJSON(join(profile, 'Local State'));
@@ -136,6 +144,11 @@ try {
 
   // Seed another crashed profile: only the first profile gets PROCESS_STARTUP.
   await cp(join(profile, 'Default'), join(profile, 'Profile 1'), {recursive: true});
+  const secondPrefsPath = join(profile, 'Profile 1', 'Preferences');
+  const secondPrefs = await readJSON(secondPrefsPath);
+  secondPrefs.session = {restore_on_startup: 4,
+    startup_urls: ['data:text/html,legacy-startup-page']};
+  await writeFile(secondPrefsPath, JSON.stringify(secondPrefs));
   const statePath = join(profile, 'Local State');
   const state = await readJSON(statePath);
   state.profile.info_cache['Profile 1'] = {...state.profile.info_cache.Default, name: 'Second profile'};
@@ -156,7 +169,7 @@ try {
   browser = await start();
   await expectRestored(browser, true);
   await stop(browser);
-  console.log('PASS: both profiles restore after force-quit and clean restart');
+  console.log('PASS: both profiles restore after force-quit and clean restart despite legacy startup settings');
 } finally {
   if (child && child.exitCode === null && child.signalCode === null) {
     const exit = new Promise(resolve => child.once('exit', resolve));

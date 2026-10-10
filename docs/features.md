@@ -1163,17 +1163,23 @@ file count.
 
 ### 13.4 Startup Flow
 - `ui/startup/startup_browser_creator.cc.patch` + `startup_browser_creator_impl.cc.patch` — Startup behavior
-- **Crash session recovery** — The default last-session startup setting restores
-  saved tabs after a forced quit, including secondary profiles and windows opened
-  after the process has already started. Pending crash recovery takes precedence
-  over the existing-process new-window path; explicit non-restore startup settings
-  and off-the-record profiles retain their existing behavior. The recovery uses
-  Chromium's session service and resumes normal session saving afterward. Only
-  data already saved to disk can be recovered; pending writes and damaged session
-  files are not covered by this behavior.
+- **Always restore regular sessions** — Regular profiles restore their saved
+  tabs after clean exits and forced quits, including secondary profiles and
+  windows opened after the process has already started. Stored startup settings
+  cannot disable recovery or append configured startup pages. Settings shows
+  the localized continue-session description instead of conflicting startup
+  choices; the Windows launch-on-login toggle remains available. Incognito and
+  Guest never restore regular tabs or configured startup pages. Pending crash
+  recovery takes precedence over the existing-process new-window path, and the
+  sidebar waits for recovery before reconciling pinned tabs even when an old
+  startup setting requested a blank page. The recovery uses Chromium's session
+  service and resumes normal session saving afterward. Only data already saved
+  to disk can be recovered; pending writes and damaged session files are not
+  covered by this behavior.
   `startup_browser_creator_impl_session_restore.cc.patch` owns the deferred-launch
   fix; `scripts/checks/session-restore.mjs` exercises repeated force-quits and a
-  subsequent clean restart with disposable profiles.
+  subsequent clean restart with disposable profiles that retain legacy blank-page
+  and specified-page startup settings.
 - `ui/startup/infobar_utils.cc.patch` — Infobar suppression
 - `signin/account_consistency_mode_manager.cc.patch` — Account consistency mode
 - `profiles/chrome_browser_main_extra_parts_profiles.cc.patch` — Profile init hook

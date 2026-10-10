@@ -1,20 +1,81 @@
 diff --git a/chrome/browser/ui/startup/startup_browser_creator.cc b/chrome/browser/ui/startup/startup_browser_creator.cc
-index d26f0998c8..0f3ae8efd8 100644
 --- a/chrome/browser/ui/startup/startup_browser_creator.cc
 +++ b/chrome/browser/ui/startup/startup_browser_creator.cc
-@@ -882,11 +882,10 @@ SessionStartupPref StartupBrowserCreator::GetSessionStartupPref(
-   // The pref has an OS-dependent default value. For the first run only, this
-   // default is overridden with SessionStartupPref::DEFAULT so that first run
-   // behavior (sync promo, welcome page) is consistently invoked.
+@@ -860,71 +860,15 @@
+ 
+ // static
+ SessionStartupPref StartupBrowserCreator::GetSessionStartupPref(
+-    const base::CommandLine& command_line,
++    const base::CommandLine&,
+     const Profile* profile) {
+   DCHECK(profile);
+-  const PrefService* prefs = profile->GetPrefs();
+-  SessionStartupPref pref = SessionStartupPref::GetStartupPref(prefs);
+-
+-  // IsChromeFirstRun() looks for a sentinel file to determine whether the user
+-  // is starting Chrome for the first time. On Chrome OS, the sentinel is stored
+-  // in a location shared by all users and the check is meaningless. Query the
+-  // UserManager instead to determine whether the user is new.
+-#if BUILDFLAG(IS_CHROMEOS)
+-  const bool is_first_run =
+-      user_manager::UserManager::Get()->IsCurrentUserNew();
+-  // On ChromeOS restarts force the user to login again. The expectation is that
+-  // after a login the user gets clean state. For this reason we ignore
+-  // StartupBrowserCreator::WasRestarted(). However
+-  // StartupBrowserCreator::WasRestarted has to be called in order to correctly
+-  // update pref values.
+-  const bool did_restart = false;
++  // Keep caching and clearing the restart marker even though startup is fixed.
+   StartupBrowserCreator::WasRestarted();
+-#else
+-  const bool is_first_run = first_run::IsChromeFirstRun();
+-  const bool did_restart = StartupBrowserCreator::WasRestarted();
+-#endif
+-
+-  // The pref has an OS-dependent default value. For the first run only, this
+-  // default is overridden with SessionStartupPref::DEFAULT so that first run
+-  // behavior (sync promo, welcome page) is consistently invoked.
 -  // This applies only if the pref is still at its default and has not been
 -  // set by the user, managed prefs or policy.
 -  if (is_first_run && SessionStartupPref::TypeIsDefault(prefs)) {
 -    pref.type = SessionStartupPref::DEFAULT;
 -  }
-+  // Dao Browser: Skip the first-run override so that the default startup type
-+  // (LAST) is always respected, even on the very first launch. Dao has no
-+  // sync promo or welcome page that would need SessionStartupPref::DEFAULT.
-+  (void)is_first_run;
+-
+-  // The switches::kRestoreLastSession command line switch is used to restore
+-  // sessions after a browser self restart (e.g. after a Chrome upgrade).
+-  // However, new profiles can be created from a browser process that has this
+-  // switch so do not set the session pref to SessionStartupPref::LAST for
+-  // those as there is nothing to restore.
+-  bool restore_last_session =
+-      command_line.HasSwitch(switches::kRestoreLastSession);
+-  if ((restore_last_session || did_restart) && !profile->IsNewProfile()) {
+-    pref.type = SessionStartupPref::LAST;
+-  }
+-
+-  // A browser starting for a profile being unlocked should always restore.
+-  if (!profile->IsGuestSession()) {
+-    ProfileAttributesEntry* entry =
+-        g_browser_process->profile_manager()
+-            ->GetProfileAttributesStorage()
+-            .GetProfileAttributesWithPath(profile->GetPath());
+-
+-    if (entry && entry->IsSigninRequired()) {
+-      pref.type = SessionStartupPref::LAST;
+-    }
+-  }
+-  if ((pref.ShouldRestoreLastSession() && !pref.ShouldOpenUrls()) &&
+-      (profile->IsGuestSession() || profile->IsOffTheRecord())) {
+-    // We don't store session information when incognito. If the user has
+-    // chosen to restore last session and launched incognito, fallback to
+-    // default launch behavior.
+-    pref.type = SessionStartupPref::DEFAULT;
+-  }
+-
+-  return pref;
++  return SessionStartupPref(
++      profile->IsGuestSession() || profile->IsOffTheRecord()
++          ? SessionStartupPref::DEFAULT
++          : SessionStartupPref::LAST);
+ }
  
-   // The switches::kRestoreLastSession command line switch is used to restore
-   // sessions after a browser self restart (e.g. after a Chrome upgrade).
+ // static
