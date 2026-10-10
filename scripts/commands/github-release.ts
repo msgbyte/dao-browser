@@ -1,11 +1,12 @@
 import { Command } from "commander";
 import {createHash} from "node:crypto";
-import { spawnSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import {
   existsSync,
   mkdtempSync,
   readFileSync,
   rmSync,
+  writeFileSync,
 } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -21,6 +22,8 @@ import {
 import {windowsInstallerName} from "./package-windows.js";
 
 const RELEASE_BASE_URL = "https://dao-release.msgbyte.com";
+const GITHUB_URL = "https://github.com/msgbyte/dao-browser";
+const RELEASE_TAG_PATTERN = /^v\d+\.\d+\.\d+$/;
 
 export interface GithubReleasePlan {
   tag: string;
@@ -39,7 +42,7 @@ interface GithubReleaseBackfillOptions extends GithubReleaseOptions {
 }
 
 export function buildGithubReleasePlan(tag: string, platform: "mac" | "windows" = "mac"): GithubReleasePlan {
-  if (!/^v\d+\.\d+\.\d+$/.test(tag)) {
+  if (!RELEASE_TAG_PATTERN.test(tag)) {
     throw new Error(`Invalid release tag: ${tag}`);
   }
   const version = tag.slice(1);
@@ -77,6 +80,37 @@ export function collectGithubReleasePlans(xml: string): GithubReleasePlan[] {
     plans.push({ tag: `v${version}`, assetName, sourceUrl });
   }
   return plans;
+}
+
+export function generateGithubReleaseNotes(tag: string): string {
+  if (!RELEASE_TAG_PATTERN.test(tag)) {
+    throw new Error(`Invalid release tag: ${tag}`);
+  }
+  const git = (args: string[]) => execFileSync("git", args, {
+    cwd: ROOT_DIR, encoding: "utf-8", stdio: ["ignore", "pipe", "pipe"],
+  }).trim();
+  if (git(["rev-parse", "--is-shallow-repository"]) === "true") {
+    throw new Error("Release notes require full git history and tags (checkout fetch-depth: 0).");
+  }
+  const ref = `refs/tags/${tag}`;
+  const tags = git([
+    "tag", "--merged", ref, "--list", "v[0-9]*", "--sort=-version:refname",
+  ]).split("\n").filter(value => RELEASE_TAG_PATTERN.test(value));
+  const index = tags.indexOf(tag);
+  if (index === -1) throw new Error(`Release tag ${tag} not found in local history.`);
+  const previousTag = tags[index + 1];
+  const range = previousTag ? `refs/tags/${previousTag}..${ref}` : ref;
+  const commits = git(["log", "--no-merges", "--format=%H%x09%s", range, "--"]);
+  const entries = commits ? commits.split("\n").map(line => {
+    const separator = line.indexOf("\t");
+    const sha = line.slice(0, separator);
+    const subject = line.slice(separator + 1);
+    return `* ${subject} ([${sha.slice(0, 7)}](${GITHUB_URL}/commit/${sha}))`;
+  }) : [];
+  const changelog = previousTag
+    ? `[${previousTag}...${tag}](${GITHUB_URL}/compare/${previousTag}...${tag})`
+    : `${GITHUB_URL}/commits/${tag}`;
+  return `## What's Changed\n\n${entries.join("\n")}\n\n**Full Changelog**: ${changelog}\n`;
 }
 
 export const githubReleaseCommand = new Command("github-release")
@@ -176,6 +210,21 @@ async function runCommand(command: string, args: string[]): Promise<void> {
   if (code !== 0) throw new Error(`${command} exited with code ${code}`);
 }
 
+async function createGithubRelease(plan: GithubReleasePlan, assets: string[]): Promise<void> {
+  const notes = generateGithubReleaseNotes(plan.tag);
+  const tempDir = mkdtempSync(path.join(os.tmpdir(), "dao-release-notes-"));
+  try {
+    const notesPath = path.join(tempDir, "notes.md");
+    writeFileSync(notesPath, notes);
+    await runCommand("gh", [
+      "release", "create", plan.tag, ...assets, "--verify-tag",
+      "--title", `Dao Browser ${plan.tag}`, "--notes-file", notesPath,
+    ]);
+  } finally {
+    rmSync(tempDir, {recursive: true, force: true});
+  }
+}
+
 export function validateLocalInstaller(plan: GithubReleasePlan, asset: string): string {
   const assetPath = path.resolve(asset);
   if (path.basename(assetPath) !== plan.assetName || !plan.assetName.endsWith(".exe")) {
@@ -223,8 +272,7 @@ async function publishLocalInstaller(plan: GithubReleasePlan, options: GithubRel
       await runCommand("gh", ["release", "upload", plan.tag, assetPath + ".sha256"]);
     }
   } else {
-    await runCommand("gh", ["release", "create", plan.tag, assetPath, assetPath + ".sha256",
-      "--verify-tag", "--title", `Dao Browser ${plan.tag}`, "--generate-notes"]);
+    await createGithubRelease(plan, [assetPath, assetPath + ".sha256"]);
   }
   success(`${plan.tag} contains ${plan.assetName}`);
 }
@@ -241,7 +289,7 @@ export async function publishGithubRelease(
     console.log(`[dry-run] curl ${plan.sourceUrl}`);
     console.log(
       `[dry-run] gh release create ${plan.tag} ${plan.assetName} ` +
-        `--verify-tag --title "Dao Browser ${plan.tag}" --generate-notes`
+        `--verify-tag --title "Dao Browser ${plan.tag}" --notes-file <generated-commit-notes.md>`
     );
     return;
   }
@@ -277,16 +325,7 @@ export async function publishGithubRelease(
         await runCommand("gh", ["release", "edit", plan.tag, "--draft=false"]);
       }
     } else {
-      await runCommand("gh", [
-        "release",
-        "create",
-        plan.tag,
-        assetPath,
-        "--verify-tag",
-        "--title",
-        `Dao Browser ${plan.tag}`,
-        "--generate-notes",
-      ]);
+      await createGithubRelease(plan, [assetPath]);
     }
     success(`Archived ${plan.assetName} in GitHub Release ${plan.tag}`);
   } finally {

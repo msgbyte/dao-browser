@@ -1,6 +1,7 @@
 import {spawnSync} from 'node:child_process';
 import {
   chmodSync,
+  existsSync,
   mkdtempSync,
   readFileSync,
   rmSync,
@@ -24,11 +25,31 @@ function installFakeReleaseTools(releaseJson: string) {
 printf '%s' "$(basename "$0")" >> "$DAO_GITHUB_RELEASE_TEST_LOG"
 printf ' %s' "$@" >> "$DAO_GITHUB_RELEASE_TEST_LOG"
 printf '\n' >> "$DAO_GITHUB_RELEASE_TEST_LOG"
+if [ "$(basename "$0")" = "git" ]; then
+  case "$1" in
+    rev-parse) printf 'false\\n' ;;
+    tag) printf 'v1.0.101\\nv1.0.100\\n' ;;
+    log) printf 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\\tfix: include direct commits\\n' ;;
+    *) exit 1 ;;
+  esac
+fi
 if [ "$(basename "$0")" = "gh" ] && [ "$1" = "release" ] && [ "$2" = "view" ]; then
+  if [ -z "$DAO_GITHUB_RELEASE_VIEW_JSON" ]; then
+    printf 'release not found\n' >&2
+    exit 1
+  fi
   printf '%s\n' "$DAO_GITHUB_RELEASE_VIEW_JSON"
 fi
+if [ "$(basename "$0")" = "gh" ] && [ "$1" = "release" ] && [ "$2" = "create" ]; then
+  while [ "$#" -gt 0 ]; do
+    if [ "$1" = "--notes-file" ]; then
+      cat "$2" > "$DAO_GITHUB_RELEASE_TEST_LOG.notes"
+    fi
+    shift
+  done
+fi
 `;
-  for (const name of ['gh', 'curl']) {
+  for (const name of ['gh', 'curl', 'git']) {
     const toolPath = path.join(binDir, name);
     writeFileSync(toolPath, tool);
     chmodSync(toolPath, 0o755);
@@ -43,6 +64,7 @@ fi
 
   return {
     readCommands: () => readFileSync(logPath, 'utf-8').trim().split('\n'),
+    readNotes: () => readFileSync(logPath + '.notes', 'utf-8'),
     restore: () => {
       process.env.PATH = previousPath;
       if (previousLog === undefined) {
@@ -61,6 +83,24 @@ fi
 }
 
 describe('GitHub release publishing', () => {
+  it('creates a release with commit notes and cleans up its temporary notes file', async () => {
+    const tools = installFakeReleaseTools('');
+    try {
+      await publishGithubRelease(buildGithubReleasePlan('v1.0.101'));
+
+      const command = tools.readCommands().find(line => line.startsWith('gh release create '));
+      expect(command).toContain('--notes-file ');
+      expect(command).not.toContain('--generate-notes');
+      expect(tools.readNotes()).toContain("## What's Changed");
+      expect(tools.readNotes()).toContain('/commit/');
+      expect(tools.readNotes()).toContain('/compare/v1.0.100...v1.0.101');
+      const notesPath = command!.split('--notes-file ')[1];
+      expect(existsSync(notesPath)).toBe(false);
+    } finally {
+      tools.restore();
+    }
+  });
+
   it('publishes an existing draft whose asset is already uploaded', async () => {
     const assetName = 'dao-browser-1.0.101-mac-arm64.dmg';
     const tools = installFakeReleaseTools(JSON.stringify({

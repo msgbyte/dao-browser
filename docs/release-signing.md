@@ -54,11 +54,13 @@ Assume we're shipping `0.5.1`. Replace the version number throughout.
    If `display` does not strictly increase, clients will silently skip the
    update. Always bump it.
 
-2. **Write release notes**
+2. **Review release commits**
 
-   Create `CHANGELOG_v0.5.1.md` (or update a single `CHANGELOG.md`). The
-   contents end up in the GitHub Release body and — via the appcast's
-   `<sparkle:releaseNotesLink>` — in Sparkle's "Update available" dialog.
+   GitHub Release notes are generated from commit subjects between the
+   previous desktop version tag and the new tag. Review those subjects for
+   the public "What's Changed" list; direct commits are included even when
+   they have no pull request. Each entry links to its commit, and the notes
+   retain a Full Changelog link.
 
 3. **Build release (NOT debug)**
 
@@ -428,6 +430,14 @@ on R2; older rows derive a GitHub tag by removing the fixed trailing `.0`
 from `sparkle:shortVersionString`. All referenced tags must already exist on
 GitHub because publishing uses `--verify-tag`. Complete the initial backfill
 before deploying the history-link change.
+
+New desktop releases generate "What's Changed" from non-merge commits since
+the highest earlier `vX.Y.Z` tag reachable from the release tag. Android tags
+do not define the desktop version range. A first desktop release includes its
+full non-merge history. The workflow checks out full history and tags;
+shallow local checkouts fail rather than publish incomplete notes. Existing
+release bodies are preserved when rerunning archive or attaching Windows
+assets. These notes are generated for GitHub Releases, not the Sparkle feed.
 
 ### Verifying end-to-end
 

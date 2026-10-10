@@ -11,9 +11,16 @@ const fake = vi.hoisted(() => ({
   assets: [] as string[], calls: [] as string[][],
   status: 0, stderr: '', remote: '',
   isDraft: false,
+  notes: '',
 }));
 vi.mock('node:child_process', async importOriginal => ({
   ...await importOriginal<typeof import('node:child_process')>(),
+  execFileSync: (_command: string, args: string[]) => {
+    if (args[0] === 'rev-parse') return 'false\n';
+    if (args[0] === 'tag') return 'v1.2.3\nv1.2.2\n';
+    if (args[0] === 'log') return 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\tfix: include direct commits\n';
+    throw new Error(`Unexpected git command: ${args}`);
+  },
   spawnSync: () => ({status: fake.status, stderr: fake.stderr,
     stdout: JSON.stringify({assets: fake.assets.map(name => ({name})), isDraft: fake.isDraft})}),
 }));
@@ -23,6 +30,7 @@ vi.mock('../../utils.js', async importOriginal => ({
   runStreaming: async (command: string, args: string[]) => {
     fake.calls.push([command, ...args]);
     if (args[1] === 'download') writeFileSync(args.at(-1)!, fake.remote);
+    if (args[1] === 'create') fake.notes = readFileSync(args.at(-1)!, 'utf8');
     return 0;
   },
 }));
@@ -45,6 +53,22 @@ describe('shared desktop GitHub release', () => {
     fake.stderr = '';
     fake.remote = '';
     fake.isDraft = false;
+    fake.notes = '';
+  });
+
+  it('uses commit notes when creating a desktop release from Windows', async () => {
+    fake.status = 1;
+    fake.stderr = 'HTTP 404: Not Found';
+    const asset = artifact();
+    await publishGithubRelease(plan, {asset});
+
+    expect(fake.calls[0].slice(0, 6)).toEqual([
+      'gh', 'release', 'create', 'v1.2.3', asset, asset + '.sha256',
+    ]);
+    expect(fake.calls[0]).toContain('--notes-file');
+    expect(fake.calls[0]).not.toContain('--generate-notes');
+    expect(fake.notes).toContain('fix: include direct commits');
+    expect(fake.notes).toContain('/compare/v1.2.2...v1.2.3');
   });
 
   it('only appends the Windows installer/checksum without replacing macOS or release metadata', async () => {
