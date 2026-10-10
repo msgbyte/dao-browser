@@ -545,6 +545,8 @@
 
 ### [Unreleased] Unreleased
 
+### [0.1.10] - 2026-10-11
+
 - A failed Android version update or rejected release commit now restores the version and release notes together without overwriting concurrent edits; tag and push failures retain the committed release for retry.
 - Set Dao as the default browser from a standalone card at the top of Android Settings. The card hides while Dao is the default and refreshes when returning from system settings.
 - Android releases archive pending notes alongside the version update in the same commit.
