@@ -1163,6 +1163,17 @@ file count.
 
 ### 13.4 Startup Flow
 - `ui/startup/startup_browser_creator.cc.patch` + `startup_browser_creator_impl.cc.patch` — Startup behavior
+- **Crash session recovery** — The default last-session startup setting restores
+  saved tabs after a forced quit, including secondary profiles and windows opened
+  after the process has already started. Pending crash recovery takes precedence
+  over the existing-process new-window path; explicit non-restore startup settings
+  and off-the-record profiles retain their existing behavior. The recovery uses
+  Chromium's session service and resumes normal session saving afterward. Only
+  data already saved to disk can be recovered; pending writes and damaged session
+  files are not covered by this behavior.
+  `startup_browser_creator_impl_session_restore.cc.patch` owns the deferred-launch
+  fix; `scripts/checks/session-restore.mjs` exercises repeated force-quits and a
+  subsequent clean restart with disposable profiles.
 - `ui/startup/infobar_utils.cc.patch` — Infobar suppression
 - `signin/account_consistency_mode_manager.cc.patch` — Account consistency mode
 - `profiles/chrome_browser_main_extra_parts_profiles.cc.patch` — Profile init hook

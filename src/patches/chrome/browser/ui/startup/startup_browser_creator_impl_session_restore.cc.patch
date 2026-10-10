@@ -1,0 +1,24 @@
+diff --git a/chrome/browser/ui/startup/startup_browser_creator_impl.cc b/chrome/browser/ui/startup/startup_browser_creator_impl.cc
+--- a/chrome/browser/ui/startup/startup_browser_creator_impl.cc
++++ b/chrome/browser/ui/startup/startup_browser_creator_impl.cc
+@@ -543,7 +543,7 @@ void StartupBrowserCreatorImpl::DetermineURLsAndLaunch(
+   if (process_startup == chrome::startup::IsProcessStartup::kYes) {
+     behavior_options |= PROCESS_STARTUP;
+   }
+-  if (is_post_crash_launch) {
++  if (is_post_crash_launch && !is_incognito_or_guest) {
+     behavior_options |= IS_POST_CRASH_LAUNCH;
+   }
+   if (command_line_->HasSwitch(switches::kOpenInNewWindow)) {
+@@ -803,6 +803,11 @@ StartupBrowserCreatorImpl::BrowserOpenBehavior
+ StartupBrowserCreatorImpl::DetermineBrowserOpenBehavior(
+     const SessionStartupPref& pref,
+     BrowserOpenBehaviorOptions options) {
++  // Dao: deferred windows and secondary profiles also need crash recovery.
++  if ((options & IS_POST_CRASH_LAUNCH) && pref.ShouldRestoreLastSession()) {
++    return BrowserOpenBehavior::SYNCHRONOUS_RESTORE;
++  }
++
+   if (!(options & PROCESS_STARTUP)) {
+     // For existing processes, restore would have happened before invoking this
+     // function. If Chrome was launched with passed URLs, assume these should

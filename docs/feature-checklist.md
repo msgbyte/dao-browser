@@ -594,7 +594,7 @@ Not in `src/patches/`. Import mechanically rewrites `chrome://`→`dao://` in:
 
 | ✔ | Feature | Patch(es) | Risk | Verify |
 |---|---------|-----------|------|--------|
-| ☐ | Always restore LAST session (even first-run + post-crash) | `ui/startup/startup_browser_creator.cc.patch`, `startup_browser_creator_impl.cc.patch`, `prefs/session_startup_pref.cc.patch` | 🔴 / 🟡 | Fresh profile restores session; force-crash then relaunch restores with no crash bubble |
+| ☐ | Always restore LAST session (even first-run + post-crash) | `ui/startup/startup_browser_creator.cc.patch`, `startup_browser_creator_impl.cc.patch`, `startup_browser_creator_impl_session_restore.cc.patch`, `prefs/session_startup_pref.cc.patch` | 🔴 / 🟡 | Run `node scripts/checks/session-restore.mjs` after rebuild: force-quit with saved tabs in two profiles and verify both restore; add a tab after recovery, force-quit again, then cleanly restart and retain all tabs. Also verify a background-started process restores when its first window opens, explicit non-restore startup settings remain respected, and Incognito/Guest do not restore regular tabs. No crash bubble should appear. |
 | ☐ | Startup tab top-insertion order + no stray NTP | `startup_browser_creator_impl.cc.patch` | 🔴 | Multiple `--` URLs preserve order at top; no stray empty tab |
 | ☐ | Suppress crash bubble / API-key infobar / default-browser prompt | `ui/startup/infobar_utils.cc.patch` (`#if 0` block) | 🟡 | None of the 3 prompts appear on startup |
 | ☐ | Dao profile prefs registered | `prefs/browser_prefs.cc.patch` | 🟢 | No "unregistered pref" crash on fresh profile |
