@@ -63,6 +63,8 @@ describe('Android release Git transaction', () => {
   let remote: string;
   const gradlePath = 'android/app/build.gradle.kts';
   const original = 'android {\n  defaultConfig {\n    versionCode = 1\n    versionName = "0.1.0"\n  }\n}\n';
+  const notesFiles = ['docs/changelog/en.md', 'docs/changelog/zh-CN.md'];
+  const readNotes = () => notesFiles.map(file => readFileSync(path.join(checkout, file), 'utf8'));
   const options = {version: '0.1.1', versionCode: '2'};
   const git = (cwd: string, ...args: string[]) => {
     const result = spawnSync('git', args, {cwd, encoding: 'utf8'});
@@ -173,4 +175,16 @@ describe('Android release Git transaction', () => {
     expect(git(remote, 'rev-parse', 'main')).toBe(before);
     expect(git(remote, 'tag', '--list')).toBe('');
   });
+
+  it('restores the version and both changelogs if the release commit is rejected', async () => {
+    const before = git(checkout, 'rev-parse', 'HEAD');
+    const originalNotes = readNotes();
+    writeFileSync(path.join(checkout, '.git/hooks/pre-commit'), '#!/bin/sh\nexit 1\n', {mode: 0o755});
+    await expect(runAndroidRelease(options, checkout)).rejects.toThrow(/rolled back/);
+    expect(gradle()).toBe(original);
+    expect(readNotes()).toEqual(originalNotes);
+    expect(git(checkout, 'rev-parse', 'HEAD')).toBe(before);
+    expect(git(checkout, 'status', '--porcelain')).toBe('');
+  });
+
 });

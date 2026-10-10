@@ -715,11 +715,34 @@ describe('release helpers', () => {
     const dao = readFileSync(fixture.daoPath);
     const appcast = readFileSync(fixture.appcastPath);
     const info = readFileSync(fixture.infoPath);
+    const changelogs = ['docs/changelog/en.md', 'docs/changelog/zh-CN.md'].map(file => path.join(fixture.root, file));
+    const originalNotes = changelogs.map(file => readFileSync(file, 'utf8'));
     await runRelease({dryRun: true}, fixture.dependencies);
     expect(readFileSync(fixture.daoPath)).toEqual(dao);
     expect(readFileSync(fixture.appcastPath)).toEqual(appcast);
     expect(readFileSync(fixture.infoPath)).toEqual(info);
     expect(fixture.createdTags).toEqual([]);
+    expect(changelogs.map(file => readFileSync(file, 'utf8'))).toEqual(originalNotes);
+  });
+
+  it('seals both changelogs during the version bump before packaging and preserves them on skip-bump', async () => {
+    const fixture = releaseFixture();
+    for (const locale of ['en', 'zh-CN']) {
+      const file = path.join(fixture.root, `docs/changelog/${locale}.md`);
+      writeFileSync(file, readFileSync(file, 'utf8') + '- Restore tabs.\n');
+    }
+    const runPhase = fixture.dependencies.runPhase;
+    fixture.dependencies.runPhase = async (phase, context) => {
+      for (const file of ['docs/changelog/en.md', 'docs/changelog/zh-CN.md']) {
+        expect(readFileSync(path.join(fixture.root, file), 'utf8')).toContain('### [1.0.71] - 2026-07-12');
+      }
+      await runPhase(phase, context);
+    };
+    await runRelease({}, fixture.dependencies);
+    const files = ['docs/changelog/en.md', 'docs/changelog/zh-CN.md'].map(file => path.join(fixture.root, file));
+    const sealed = files.map(file => readFileSync(file, 'utf8'));
+    await runRelease({skipBump: true}, fixture.dependencies);
+    expect(files.map(file => readFileSync(file, 'utf8'))).toEqual(sealed);
   });
 
   it('preserves import, build, and package command arguments', async () => {
@@ -1376,6 +1399,9 @@ describe('release orchestration', () => {
       info: readFileSync(fixture.infoPath),
     };
     fixture.failPhase = phase;
+    const changelogs = ['docs/changelog/en.md', 'docs/changelog/zh-CN.md'].map(file => path.join(fixture.root, file));
+    for (const file of changelogs) writeFileSync(file, readFileSync(file, 'utf8') + '- Pending release change.\n');
+    const originalNotes = changelogs.map(file => readFileSync(file, 'utf8'));
 
     await expect(runRelease({}, fixture.dependencies))
       .rejects.toMatchObject({phase});
@@ -1385,6 +1411,7 @@ describe('release orchestration', () => {
     expect(readFileSync(fixture.infoPath)).toEqual(original.info);
     expect(fixture.createdTags).toEqual([]);
     expect(fixture.deletedTags).toEqual([]);
+    expect(changelogs.map(file => readFileSync(file, 'utf8'))).toEqual(originalNotes);
   });
 
   it('retries the same candidate after rollback', async () => {

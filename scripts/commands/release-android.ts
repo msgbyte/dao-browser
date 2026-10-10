@@ -1,11 +1,12 @@
 import {execFile} from "node:child_process";
-import {readFile, writeFile} from "node:fs/promises";
+import {readdirSync} from "node:fs";
 import path from "node:path";
 import {createInterface} from "node:readline/promises";
 import {promisify} from "node:util";
 import {Command} from "commander";
 import {ROOT_DIR, error, log, success} from "../utils.js";
 import {planChangelogRelease} from "../changelog.js";
+import {ReleaseTransaction} from "./release-transaction.js";
 
 const exec = promisify(execFile);
 const VERSION_FILE = "android/app/build.gradle.kts";
@@ -66,7 +67,13 @@ export async function resolveAndroidVersion(
 
 export async function runAndroidRelease(options: ReleaseOptions, root = ROOT_DIR): Promise<void> {
   const file = path.join(root, VERSION_FILE);
-  const source = await readFile(file, "utf8");
+  const changelogDirectory = path.join(root, "docs/changelog");
+  const changelogPaths = readdirSync(changelogDirectory).filter(name => name.endsWith(".md"))
+    .map(name => path.join(changelogDirectory, name));
+  const transaction = new ReleaseTransaction([file, ...changelogPaths]);
+  const original = transaction.originalFileContents(file);
+  if (!original) throw new Error(`Missing Android version file: ${VERSION_FILE}`);
+  const source = original.toString("utf8");
   const name = source.match(VERSION_NAME);
   const code = source.match(VERSION_CODE);
   if (!name || !code) throw new Error(`Cannot read literal Android versions from ${VERSION_FILE}.`);
@@ -121,15 +128,20 @@ export async function runAndroidRelease(options: ReleaseOptions, root = ROOT_DIR
   await git("var", "GIT_COMMITTER_IDENT");
   const updated = source.replace(VERSION_NAME, (_, prefix) => `${prefix}"${next.version}"`)
     .replace(VERSION_CODE, (_, prefix) => `${prefix}${next.versionCode}`);
-  await writeFile(file, updated);
   try {
-    for (const {file, contents} of changelog) await writeFile(file, contents);
+    for (const {file, contents} of changelog) transaction.writeFile(file, contents);
+    transaction.writeFile(file, Buffer.from(updated));
     // --only keeps unrelated staged files out of the release commit.
     await git("commit", "--only", "-m", message, "--", VERSION_FILE,
       ...changelog.map(({file}) => path.relative(root, file)));
   } catch (cause) {
-    throw new Error(`${cause}\nVersion/changelog edits remain in the checkout; finish or undo them before retrying.`);
+    const rollback = transaction.rollback(() => {});
+    const unresolved = [...rollback.conflicts, ...rollback.restoreFailures.map(failure => failure.path)];
+    throw new Error(`${cause}\n` + (unresolved.length
+      ? `Release rollback is incomplete; inspect: ${unresolved.join(", ")}`
+      : "Version and changelog edits were rolled back."));
   }
+  transaction.commit();
   try {
     await git("tag", tag, "HEAD");
   } catch (cause) {
