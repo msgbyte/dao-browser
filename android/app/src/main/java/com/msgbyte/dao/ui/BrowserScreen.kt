@@ -1148,7 +1148,7 @@ private fun ScannerOverlay(
                 modifier = Modifier.size(44.dp).border(1.dp, Color.White.copy(alpha = .2f), CircleShape),
             ) { Icon(Lucide.X, stringResource(R.string.close_scanner), tint = Color.White, modifier = Modifier.size(18.dp)) }
         }
-        Canvas(Modifier.size(210.dp).align(Alignment.Center)) {
+        Canvas(Modifier.size(300.dp).align(Alignment.Center)) {
             val stroke = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
             drawRoundRect(Color.White, style = stroke, cornerRadius = androidx.compose.ui.geometry.CornerRadius(10.dp.toPx()))
             val y = size.height * laserPosition

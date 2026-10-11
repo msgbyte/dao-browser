@@ -546,6 +546,8 @@
 
 ### [Unreleased] Unreleased
 
+- Enlarge the QR scanner guide so codes are easier to frame from both the new-tab page and browser menu.
+
 ### [0.1.10] - 2026-10-11
 
 - A failed Android version update or rejected release commit now restores the version and release notes together without overwriting concurrent edits; tag and push failures retain the committed release for retry.
