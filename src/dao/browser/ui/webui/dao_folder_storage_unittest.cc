@@ -4,6 +4,8 @@
 
 #include "dao/browser/ui/webui/dao_folder_storage.h"
 
+#include <utility>
+
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/json/json_reader.h"
@@ -99,6 +101,7 @@ TEST(DaoFolderStorageTest, InvalidExistingFilesAreNeverOverwritten) {
     ASSERT_TRUE(base::WriteFile(path, invalid));
     EXPECT_FALSE(ReadFolderFile(path));
     EXPECT_FALSE(UpdateFolderFile(path, "", kFolders));
+    EXPECT_FALSE(UpdateFolderFileIfUnchanged(path, "", kFolders));
     std::string disk;
     ASSERT_TRUE(base::ReadFileToString(path, &disk));
     EXPECT_EQ(invalid, disk);
@@ -119,6 +122,124 @@ TEST(DaoFolderStorageTest, FailedWritePreservesExistingData) {
   ASSERT_TRUE(base::CreateDirectory(directory));
   EXPECT_FALSE(UpdateFolderFile(directory, "", kFolders));
   EXPECT_TRUE(base::DirectoryExists(directory));
+}
+
+TEST(DaoFolderStorageTest, SettingsEditsNamesAndReleasesAllChildren) {
+  auto added = EditFolderData(kFolders, FolderEdit::kAdd, "b", "  Work  ");
+  ASSERT_TRUE(added);
+  auto renamed = EditFolderData(*added, FolderEdit::kRename, "a", "Research");
+  ASSERT_TRUE(renamed);
+  auto removed = EditFolderData(*renamed, FolderEdit::kRemove, "a", "");
+  ASSERT_TRUE(removed);
+  auto data = base::JSONReader::ReadDict(*removed, base::JSON_PARSE_RFC);
+  const auto& items = *data->FindList("items");
+  ASSERT_EQ(2u, items.size());
+  EXPECT_EQ("tab-a", *items[0].GetDict().FindString("tabId"));
+  EXPECT_EQ("b", *items[1].GetDict().FindString("id"));
+  EXPECT_EQ("Work", *items[1].GetDict().FindString("name"));
+  EXPECT_TRUE(items[1].GetDict().FindList("children")->empty());
+}
+
+TEST(DaoFolderStorageTest, SettingsRejectInvalidAndDuplicateNames) {
+  const std::string invalid_names[] = {
+      "", "  ", "\t\n", "\xE3\x80\x80", "a", " A ", std::string(101, 'x')};
+  for (const auto& invalid : invalid_names) {
+    EXPECT_FALSE(EditFolderData(kFolders, FolderEdit::kAdd, "b", invalid));
+  }
+  EXPECT_FALSE(EditFolderData(kFolders, FolderEdit::kAdd, "a", "Work"));
+  EXPECT_FALSE(EditFolderData(kFolders, FolderEdit::kRename, "missing", "Work"));
+  EXPECT_FALSE(EditFolderData(kFolders, FolderEdit::kRemove, "missing", ""));
+  EXPECT_TRUE(EditFolderData(kFolders, FolderEdit::kRename, "a", "A"));
+  EXPECT_TRUE(
+      EditFolderData(kFolders, FolderEdit::kAdd, "b", std::string(100, 'x')));
+  EXPECT_FALSE(EditFolderData("broken", FolderEdit::kAdd, "b", "Work"));
+}
+
+TEST(DaoFolderStorageTest, SettingsCountsUnicodeCodepoints) {
+  std::string name;
+  for (int i = 0; i < 100; ++i) {
+    name += "\xF0\x9F\x8C\x8D";
+  }
+  EXPECT_TRUE(EditFolderData(kFolders, FolderEdit::kAdd, "b", name));
+  name += "x";
+  EXPECT_FALSE(EditFolderData(kFolders, FolderEdit::kAdd, "b", name));
+  EXPECT_FALSE(EditFolderData(kFolders, FolderEdit::kAdd, "b", "\xff"));
+}
+
+TEST(DaoFolderStorageTest, SettingsEditsLatestFileAndPreservesInvalidData) {
+  base::ScopedTempDir temp;
+  ASSERT_TRUE(temp.CreateUniqueTempDir());
+  const auto path = temp.GetPath().AppendASCII("folders.json");
+  ASSERT_TRUE(UpdateFolderFile(path, "", kFolders));
+  ASSERT_TRUE(UpdateFolderFile(path, "", kOtherFolders));
+  ASSERT_TRUE(EditFolderFile(path, FolderEdit::kRename, "a", "Research"));
+  EXPECT_FALSE(EditFolderFile(path, FolderEdit::kAdd, "c", "research"));
+  auto removed = EditFolderFile(path, FolderEdit::kRemove, "a", "");
+  ASSERT_TRUE(removed);
+  auto data = base::JSONReader::ReadDict(*removed, base::JSON_PARSE_RFC);
+  const auto& items = *data->FindList("items");
+  ASSERT_EQ(2u, items.size());
+  EXPECT_EQ("b", *items[0].GetDict().FindString("id"));
+  EXPECT_EQ("tab-b", *(*items[0].GetDict().FindList("children"))[0]
+                            .GetDict().FindString("tabId"));
+  EXPECT_EQ("tab-a", *items[1].GetDict().FindString("tabId"));
+  ASSERT_TRUE(base::WriteFile(path, "broken"));
+  EXPECT_FALSE(EditFolderFile(path, FolderEdit::kRemove, "b", ""));
+  std::string disk;
+  ASSERT_TRUE(base::ReadFileToString(path, &disk));
+  EXPECT_EQ("broken", disk);
+}
+
+TEST(DaoFolderStorageTest, ClassificationAcceptsUnchangedLegacySnapshots) {
+  base::ScopedTempDir temp;
+  ASSERT_TRUE(temp.CreateUniqueTempDir());
+  const auto path = temp.GetPath().AppendASCII("folders.json");
+  ASSERT_TRUE(base::WriteFile(path, WindowSnapshots()));
+  auto loaded = ReadFolderFile(path);
+  ASSERT_TRUE(loaded);
+  auto classified = base::JSONReader::ReadDict(*loaded, base::JSON_PARSE_RFC);
+  ASSERT_TRUE(classified);
+  auto tab = base::JSONReader::ReadDict(
+      R"({"type":"tab","tabId":"tab-new","url":"https://new.example/","title":"New"})",
+      base::JSON_PARSE_RFC);
+  ASSERT_TRUE(tab);
+  (*classified->FindList("items"))[0].GetDict().FindList("children")->Append(
+      std::move(*tab));
+  const auto json = base::WriteJson(*classified);
+  ASSERT_TRUE(json);
+
+  ASSERT_TRUE(UpdateFolderFileIfUnchanged(path, *loaded, *json));
+  const auto saved_json = ReadFolderFile(path);
+  ASSERT_TRUE(saved_json);
+  EXPECT_EQ(json, saved_json);
+  const auto saved = base::JSONReader::ReadDict(
+      *saved_json, base::JSON_PARSE_RFC);
+  ASSERT_TRUE(saved);
+  const auto& items = *saved->FindList("items");
+  ASSERT_EQ(2u, items.size());
+  const auto& children = *items[0].GetDict().FindList("children");
+  ASSERT_EQ(2u, children.size());
+  EXPECT_EQ("tab-a", *children[0].GetDict().FindString("tabId"));
+  EXPECT_EQ("tab-new", *children[1].GetDict().FindString("tabId"));
+  ASSERT_EQ(1u, items[1].GetDict().FindList("children")->size());
+  EXPECT_EQ("tab-b", *(*items[1].GetDict().FindList("children"))[0]
+                         .GetDict().FindString("tabId"));
+}
+
+TEST(DaoFolderStorageTest, ClassificationRejectsChangedFileWithoutWriting) {
+  base::ScopedTempDir temp;
+  ASSERT_TRUE(temp.CreateUniqueTempDir());
+  const auto path = temp.GetPath().AppendASCII("folders.json");
+  ASSERT_TRUE(UpdateFolderFile(path, "", kFolders));
+  auto base = ReadFolderFile(path);
+  ASSERT_TRUE(base);
+  auto renamed = EditFolderData(*base, FolderEdit::kRename, "a", "Research");
+  ASSERT_TRUE(renamed);
+  ASSERT_TRUE(UpdateFolderFileIfUnchanged(path, kFolders, *renamed));
+  EXPECT_FALSE(UpdateFolderFileIfUnchanged(path, *base, ""));
+  EXPECT_EQ(renamed, ReadFolderFile(path));
+  EXPECT_FALSE(UpdateFolderFileIfUnchanged(path, *renamed, "broken"));
+  EXPECT_EQ(renamed, ReadFolderFile(path));
 }
 
 }  // namespace dao

@@ -8,6 +8,7 @@ import {loadTimeData} from '//resources/js/load_time_data.js';
 import {
   SIDEBAR_POINTER_EXITED_EVENT,
   sendNative,
+  sendNativeAsync,
   addListener,
   removeListener,
   loadFolders,
@@ -18,6 +19,7 @@ import type {
   SidebarState, TabData, PinnedItemData, FolderAction, UpdateStateData
 } from './sidebar_bridge.js';
 import {FolderModel} from './dao_folder_model.js';
+import {applyTabClassification, getClassificationTabs} from './dao_tab_classification.js';
 
 import './dao_update_button.js';
 import './dao_favorites_view.js';
@@ -286,6 +288,9 @@ export class DaoSidebarApp extends CrLitElement {
   // Non-reactive internals — plain fields are fine here because Lit doesn't
   // install accessors for these.
   private folderModel_ = new FolderModel();
+  private classificationInFlight_ = false;
+  private classificationGeneration_ = 0;
+  private folderEditVersion_ = 0;
   private foldersLoaded_: boolean = false;
   private folderBaseJson_: string = '';
   private folderLoadGeneration_: number = 0;
@@ -373,7 +378,7 @@ export class DaoSidebarApp extends CrLitElement {
         if (this.completePendingFolderDeletion_()) {
           this.saveFolders_();
         } else if (expandedActiveFolder) {
-          this.saveFolders_();
+          this.saveFolders_(false);
         } else {
           this.folderModelVersion_++;
         }
@@ -402,7 +407,12 @@ export class DaoSidebarApp extends CrLitElement {
     this.addSidebarListener_('folderTabsClosed', (...args: unknown[]) => {
       if (!this.foldersLoaded_) return;
       this.folderModel_.forgetTabs(args[0] as string[]);
-      this.saveFolders_();
+      // Classification skips closed tabs and can still group the survivors.
+      this.saveFolders_(false);
+    });
+
+    this.addSidebarListener_('classifyTabsRequested', (...args: unknown[]) => {
+      if (typeof args[0] === 'string') void this.classifyTabs_(args[0]);
     });
 
     this.addSidebarListener_('folderDataChanged', () => {
@@ -448,6 +458,8 @@ export class DaoSidebarApp extends CrLitElement {
   }
 
   override disconnectedCallback() {
+    ++this.classificationGeneration_;
+    this.classificationInFlight_ = false;
     super.disconnectedCallback?.();
     this.clearTabScrollbarHoverTimeout_();
     this.clearToastTimer_();
@@ -488,27 +500,91 @@ export class DaoSidebarApp extends CrLitElement {
     const generation = ++this.folderLoadGeneration_;
     try {
       const json = await loadFolders();
-      if (generation !== this.folderLoadGeneration_) return;
+      if (generation !== this.folderLoadGeneration_) return false;
       const model = new FolderModel();
-      if (json && !model.loadFromJson(json)) return;
+      if (json && !model.loadFromJson(json)) return false;
       this.folderBaseJson_ = json;
       this.folderModel_ = model;
       this.folderModel_.reconcile(this.unpinnedTabs_);
       this.expandPendingActiveTabFolder_();
       this.foldersLoaded_ = true;
       this.folderModelVersion_++;
+      return true;
     } catch (e) {
       console.error('DaoSidebarApp: failed to load folders', e);
+      return false;
     }
   }
 
   /** Save only explicit edits, never a window's initial/reloaded projection. */
-  private saveFolders_() {
+  private saveFolders_(invalidateClassification = true) {
+    if (invalidateClassification) ++this.folderEditVersion_;
     const json = this.folderModel_.toJson();
     ++this.folderLoadGeneration_;
     saveFolders(json, this.folderBaseJson_);
     this.folderBaseJson_ = json;
     this.folderModelVersion_++;
+  }
+
+  private async classifyTabs_(belowTabId: string) {
+    if (this.classificationInFlight_ || !this.foldersLoaded_) return;
+    this.classificationInFlight_ = true;
+    const generation = ++this.classificationGeneration_;
+    const live = () => this.isConnected && generation === this.classificationGeneration_;
+    try {
+      if (!await this.reloadFolders_()) throw new Error('Folders changed');
+      if (!live()) return;
+      const tabs = getClassificationTabs(
+          this.folderModel_, this.unpinnedTabs_, belowTabId || undefined)
+          .map(tab => ({...tab}));
+      if (!tabs.length) {
+        sendNative('showClassificationToast', 'empty');
+        return;
+      }
+      const order = getClassificationTabs(this.folderModel_, this.unpinnedTabs_)
+          .map(tab => tab.tabId);
+      const folders = this.folderModel_.getFolders().map(({id, name}) => ({id, name}));
+      const editVersion = this.folderEditVersion_;
+      sendNative('showClassificationToast', 'started');
+      const result = await sendNativeAsync<{ok: boolean; groups?: unknown}>(
+          'classifyTabs', tabs.map(({tabId, url}) => ({tabId, url})), folders);
+      if (!live()) return;
+      if (!result?.ok) throw new Error('Classification failed');
+      if (!await this.reloadFolders_()) throw new Error('Folders changed');
+      if (!live()) return;
+      if (editVersion !== this.folderEditVersion_) throw new Error('Folders changed');
+      const currentOrder = getClassificationTabs(this.folderModel_, this.unpinnedTabs_)
+          .map(tab => tab.tabId).filter(id => order.includes(id));
+      const survivingOrder = order.filter(id => currentOrder.includes(id));
+      if (JSON.stringify(currentOrder) !== JSON.stringify(survivingOrder)) {
+        throw new Error('Tab order changed');
+      }
+      // Apply to a copy: failed validation or disk writes never change the UI.
+      const model = new FolderModel();
+      model.loadFromJson(this.folderModel_.toJson());
+      const moved = applyTabClassification(
+          model, this.unpinnedTabs_, tabs, folders, result.groups);
+      if (!moved) {
+        sendNative('showClassificationToast', 'changed');
+        return;
+      }
+      const saved = await sendNativeAsync<boolean>(
+          'saveClassifiedFolders', model.toJson(), this.folderBaseJson_,
+          tabs.filter(tab => model.findTabFolder(tab) !==
+              this.folderModel_.findTabFolder(tab)).map(tab => tab.tabId));
+      if (!live()) return;
+      if (!saved) throw new Error('Folders changed');
+      await this.reloadFolders_();
+      if (live()) sendNative('showClassificationToast', 'done');
+    } catch (error) {
+      if (live()) {
+        sendNative('showClassificationToast',
+            error instanceof Error && error.message.includes('changed') ?
+                'changed' : 'failed');
+      }
+    } finally {
+      if (generation === this.classificationGeneration_) this.classificationInFlight_ = false;
+    }
   }
 
   private expandFolderForActiveTab_(activeTabId: string): boolean {

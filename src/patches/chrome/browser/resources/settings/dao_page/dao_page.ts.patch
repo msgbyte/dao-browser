@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_page.ts
-@@ -0,0 +1,450 @@
+@@ -0,0 +1,588 @@
 +// Copyright 2026 Dao Browser Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -37,6 +37,39 @@ index 0000000000..0000000001
 +import {SiteSettingsBrowserProxyImpl} from '../site_settings/site_settings_browser_proxy.js';
 +
 +import {getTemplate} from './dao_page.html.js';
++
++export interface DaoTabCategory {
++  id: string;
++  name: string;
++}
++
++export interface DaoFolderBrowserProxy {
++  getCategories(): Promise<DaoTabCategory[]>;
++  editCategory(operation: 'add'|'rename'|'remove', id: string, name: string):
++      Promise<DaoTabCategory[]>;
++}
++
++export class DaoFolderBrowserProxyImpl implements DaoFolderBrowserProxy {
++  getCategories(): Promise<DaoTabCategory[]> {
++    return sendWithPromise('getDaoTabCategories');
++  }
++
++  editCategory(operation: 'add'|'rename'|'remove', id: string, name: string):
++      Promise<DaoTabCategory[]> {
++    return sendWithPromise('editDaoTabCategory', operation, id, name);
++  }
++
++  static getInstance(): DaoFolderBrowserProxy {
++    return folderInstance ||
++        (folderInstance = new DaoFolderBrowserProxyImpl());
++  }
++
++  static setInstance(proxy: DaoFolderBrowserProxy): void {
++    folderInstance = proxy;
++  }
++}
++
++let folderInstance: DaoFolderBrowserProxy|null = null;
 +
 +export type DaoMcpStatusState =
 +    'disabled'|'ready'|'approval_requested'|'connected';
@@ -128,6 +161,12 @@ index 0000000000..0000000001
 +        type: Object,
 +        notify: true,
 +      },
++      daoTabCategories_: {type: Array, value: () => []},
++      daoTabCategoryName_: {type: String, value: ''},
++      daoTabCategoryEditingId_: {type: String, value: ''},
++      daoTabCategoryError_: {type: String, value: ''},
++      daoTabCategoriesBusy_: {type: Boolean, value: false},
++      daoTabCategoriesLoaded_: {type: Boolean, value: false},
 +      autoPipEnabledPref_: {
 +        type: Object,
 +        value() {
@@ -249,6 +288,15 @@ index 0000000000..0000000001
 +  declare private daoMcpGenericSetup_: boolean;
 +  declare private daoMcpUsageTotal_: number;
 +  declare private daoMcpUsageTools_: Array<{name: string, count: number}>;
++  declare private daoTabCategories_: DaoTabCategory[];
++  declare private daoTabCategoryName_: string;
++  declare private daoTabCategoryEditingId_: string;
++  declare private daoTabCategoryError_: string;
++  declare private daoTabCategoriesBusy_: boolean;
++  declare private daoTabCategoriesLoaded_: boolean;
++  private daoFolderBrowserProxy_: DaoFolderBrowserProxy =
++      DaoFolderBrowserProxyImpl.getInstance();
++  private daoTabCategoryRequest_ = 0;
 +  private daoMcpSetupContentRequest_ = 0;
 +  private daoMcpCopyRequest_ = 0;
 +  private daoMcpBrowserProxy_: DaoMcpBrowserProxy =
@@ -271,7 +319,97 @@ index 0000000000..0000000001
 +        (status: DaoMcpStatus) => this.updateDaoMcpStatus_(status));
 +    this.daoMcpBrowserProxy_.getDaoMcpStatus().then(
 +        status => this.updateDaoMcpStatus_(status));
++    this.addWebUiListener(
++        'dao-tab-categories-changed',
++        () => void this.refreshDaoTabCategories_());
++    void this.refreshDaoTabCategories_();
 +    this.updateAutoPipEnabled_();
++  }
++
++  private async refreshDaoTabCategories_() {
++    const request = ++this.daoTabCategoryRequest_;
++    try {
++      const categories = await this.daoFolderBrowserProxy_.getCategories();
++      if (request === this.daoTabCategoryRequest_) {
++        this.daoTabCategories_ = categories;
++        this.daoTabCategoriesLoaded_ = true;
++        if (!this.daoTabCategoriesBusy_) {
++          this.daoTabCategoryError_ = '';
++        }
++      }
++    } catch {
++      if (request === this.daoTabCategoryRequest_) {
++        this.daoTabCategoriesLoaded_ = false;
++        this.daoTabCategoryError_ =
++            loadTimeData.getString('daoTabCategoriesLoadError');
++      }
++    }
++  }
++
++  private onDaoTabCategoryRename_(event: Event) {
++    const id = (event.currentTarget as HTMLElement).dataset['id'];
++    const category = this.daoTabCategories_.find(item => item.id === id);
++    if (category) {
++      this.daoTabCategoryEditingId_ = category.id;
++      this.daoTabCategoryName_ = category.name;
++      this.daoTabCategoryError_ = '';
++      this.shadowRoot!.querySelector<CrInputElement>('#daoTabCategoryName')!
++          .focus();
++    }
++  }
++
++  private onDaoTabCategoryCancel_() {
++    this.daoTabCategoryEditingId_ = '';
++    this.daoTabCategoryName_ = '';
++    this.daoTabCategoryError_ = '';
++  }
++
++  private onDaoTabCategorySave_() {
++    const name = this.daoTabCategoryName_.trim();
++    if (!name || Array.from(name).length > 100) {
++      this.daoTabCategoryError_ =
++          loadTimeData.getString('daoTabCategoriesEditError');
++      return;
++    }
++    void this.editDaoTabCategory_(
++        this.daoTabCategoryEditingId_ ? 'rename' : 'add',
++        this.daoTabCategoryEditingId_, name);
++  }
++
++  private onDaoTabCategoryRemove_(event: Event) {
++    const id = (event.currentTarget as HTMLElement).dataset['id'];
++    if (id) {
++      void this.editDaoTabCategory_('remove', id, '');
++    }
++  }
++
++  private async editDaoTabCategory_(
++      operation: 'add'|'rename'|'remove', id: string, name: string) {
++    if (this.daoTabCategoriesBusy_ || !this.daoTabCategoriesLoaded_) {
++      return;
++    }
++    ++this.daoTabCategoryRequest_;
++    this.daoTabCategoriesBusy_ = true;
++    this.daoTabCategoryError_ = '';
++    try {
++      this.daoTabCategories_ =
++          await this.daoFolderBrowserProxy_.editCategory(operation, id, name);
++      this.onDaoTabCategoryCancel_();
++    } catch {
++      this.daoTabCategoryError_ =
++          loadTimeData.getString('daoTabCategoriesEditError');
++    } finally {
++      this.daoTabCategoriesBusy_ = false;
++    }
++  }
++
++  private daoTabCategoryControlsDisabled_(busy: boolean, loaded: boolean):
++      boolean {
++    return busy || !loaded;
++  }
++
++  private daoTabCategoryActionLabel_(key: string, name: string): string {
++    return loadTimeData.getStringF(key, name);
 +  }
 +
 +  private async updateAutoPipEnabled_() {

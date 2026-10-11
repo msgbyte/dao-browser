@@ -272,4 +272,21 @@
 <translation id="5871587867665501112">无法下载更新，请检查网络连接后重试。</translation>
 <translation id="526914273689269452">更新校验失败，请重新检查更新。</translation>
 <translation id="8275944289159404181">无法准备更新，请关闭其他 Dao 窗口后重新检查更新。</translation>
+<translation id="4859807944816838153">标签页分类</translation>
+<translation id="4035407495671939408">分类就是侧栏文件夹，在各窗口间共享。删除分类不会关闭其中的标签页。</translation>
+<translation id="4266212153477838284">分类名称</translation>
+<translation id="4232621721540918439">添加分类</translation>
+<translation id="1012992913272155116">保存名称</translation>
+<translation id="7144878232160441200">重试</translation>
+<translation id="4295243539321743535">无法加载分类，请重试。</translation>
+<translation id="6656129507502694306">无法保存更改。请使用不重复的名称，长度为 1–100 个字符，然后重试。</translation>
+<translation id="8418820571067205581">重命名<ph name="CATEGORY_NAME" /></translation>
+<translation id="8906224532433579938">删除<ph name="CATEGORY_NAME" /></translation>
+<translation id="1272715216003098560">AI 一键分类</translation>
+<translation id="8926634901954934116">AI 分类以下标签页</translation>
+<translation id="6989101061273386020">正在分类标签页…</translation>
+<translation id="3852321986178170339">标签页已分类</translation>
+<translation id="4118056334668149949">没有可分类的标签页</translation>
+<translation id="2138282385481288588">标签页分类失败，请重试。</translation>
+<translation id="1964416750705529726">标签页或文件夹已变更，请重新分类。</translation>
 </translationbundle>

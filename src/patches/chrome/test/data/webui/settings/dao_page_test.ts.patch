@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/test/data/webui/settings/dao_page_test.ts
-@@ -0,0 +1,663 @@
+@@ -0,0 +1,733 @@
 +// Copyright 2026 Dao Browser Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -15,12 +15,15 @@ index 0000000000..0000000001
 +import {webUIListenerCallback} from 'chrome://resources/js/cr.js';
 +import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 +import type {
++  DaoFolderBrowserProxy,
++  DaoTabCategory,
 +  DaoMcpBrowserProxy,
 +  DaoMcpStatus,
 +  SettingsDaoPageElement,
 +  SettingsToggleButtonElement,
 +} from 'chrome://settings/settings.js';
 +import {
++  DaoFolderBrowserProxyImpl,
 +  DaoMcpBrowserProxyImpl,
 +  loadTimeData,
 +  OpenWindowProxyImpl,
@@ -119,13 +122,37 @@ index 0000000000..0000000001
 +  }
 +}
 +
++class TestDaoFolderBrowserProxy extends TestBrowserProxy implements
++    DaoFolderBrowserProxy {
++  categories: DaoTabCategory[] = [{id: 'work', name: 'Work'}];
++  fail = false;
++
++  constructor() {
++    super(['getCategories', 'editCategory']);
++  }
++
++  getCategories(): Promise<DaoTabCategory[]> {
++    this.methodCalled('getCategories');
++    return this.fail ? Promise.reject() : Promise.resolve(this.categories);
++  }
++
++  editCategory(operation: 'add'|'rename'|'remove', id: string, name: string):
++      Promise<DaoTabCategory[]> {
++    this.methodCalled('editCategory', [operation, id, name]);
++    return this.fail ? Promise.reject() : Promise.resolve(this.categories);
++  }
++}
++
 +suite('DaoPage', function() {
 +  let page: SettingsDaoPageElement;
 +  let mcpBrowserProxy: TestDaoMcpBrowserProxy;
++  let folderBrowserProxy: TestDaoFolderBrowserProxy;
 +  let openWindowProxy: TestOpenWindowProxy;
 +  let siteSettingsBrowserProxy: TestSiteSettingsBrowserProxy;
 +
 +  setup(async function() {
++    folderBrowserProxy = new TestDaoFolderBrowserProxy();
++    DaoFolderBrowserProxyImpl.setInstance(folderBrowserProxy);
 +    mcpBrowserProxy = new TestDaoMcpBrowserProxy();
 +    DaoMcpBrowserProxyImpl.setInstance(mcpBrowserProxy);
 +    openWindowProxy = new TestOpenWindowProxy();
@@ -665,5 +692,48 @@ index 0000000000..0000000001
 +  test('navigatesToDaoRoute', function() {
 +    Router.getInstance().navigateTo(routes.DAO);
 +    assertEquals(routes.DAO, Router.getInstance().getCurrentRoute());
++  });
++
++  test('categoryNamesAreLoadedAndAddIsTrimmed', async () => {
++    await flushTasks();
++    assertTrue(page.shadowRoot!.querySelector('#daoTabCategories')!
++                   .textContent!.includes('Work'));
++    const input = page.shadowRoot!.querySelector<CrInputElement>(
++        '#daoTabCategoryName')!;
++    input.value = '  Research  ';
++    input.dispatchEvent(new CustomEvent('value-changed', {
++      detail: {value: input.value}, bubbles: true, composed: true,
++    }));
++    page.shadowRoot!.querySelector<HTMLElement>('#daoTabCategorySave')!.click();
++    const args = await folderBrowserProxy.whenCalled('editCategory');
++    assertEquals('add', args[0]);
++    assertEquals('', args[1]);
++    assertEquals('Research', args[2]);
++  });
++
++  test('categoryRemovalUsesFolderIdentity', async () => {
++    await flushTasks();
++    page.shadowRoot!.querySelector<HTMLElement>(
++        '.dao-tab-category-remove')!.click();
++    const args = await folderBrowserProxy.whenCalled('editCategory');
++    assertEquals('remove', args[0]);
++    assertEquals('work', args[1]);
++    assertEquals('', args[2]);
++  });
++
++  test('failedCategoryEditPreservesInputAndExistingFolders', async () => {
++    await flushTasks();
++    folderBrowserProxy.fail = true;
++    page.shadowRoot!.querySelector<HTMLElement>(
++        '.dao-tab-category-rename')!.click();
++    await flushTasks();
++    page.shadowRoot!.querySelector<HTMLElement>('#daoTabCategorySave')!.click();
++    await flushTasks();
++    assertEquals('Work', page.shadowRoot!.querySelector<CrInputElement>(
++        '#daoTabCategoryName')!.value);
++    assertTrue(!!page.shadowRoot!.querySelector('#daoTabCategoryError')!
++                     .textContent!.trim());
++    assertTrue(page.shadowRoot!.querySelector('#daoTabCategories')!
++                   .textContent!.includes('Work'));
 +  });
 +});

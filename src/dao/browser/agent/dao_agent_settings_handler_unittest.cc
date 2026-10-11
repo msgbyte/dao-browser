@@ -34,6 +34,18 @@ protected:
   TestingPrefServiceSimple prefs_;
 };
 
+TEST_F(DaoAgentSettingsHandlerTest, ClassificationUsesOnlyActiveProviderKey) {
+  EXPECT_FALSE(IsDaoTabClassificationConfigured(&prefs_));
+  SetDaoAgentSetting(&prefs_, "dao_agent_providers", base::Value(
+      R"({"openai-compatible":{"apiKey":"key"},"anthropic":{"apiKey":" "}})"));
+  EXPECT_TRUE(IsDaoTabClassificationConfigured(&prefs_));
+  SetDaoAgentSetting(&prefs_, "dao_agent_active_provider",
+                     base::Value("anthropic"));
+  EXPECT_FALSE(IsDaoTabClassificationConfigured(&prefs_));
+  SetDaoAgentSetting(&prefs_, "dao_agent_providers", base::Value("invalid"));
+  EXPECT_FALSE(IsDaoTabClassificationConfigured(&prefs_));
+}
+
 TEST_F(DaoAgentSettingsHandlerTest, UsageStatsDefaultToZero) {
   const base::DictValue stats = BuildDaoAgentUsageStats(&prefs_);
   EXPECT_EQ(0.0, stats.FindDouble("apiCalls").value_or(-1));

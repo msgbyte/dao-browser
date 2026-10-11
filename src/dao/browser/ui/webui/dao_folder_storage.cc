@@ -4,17 +4,21 @@
 
 #include "dao/browser/ui/webui/dao_folder_storage.h"
 
+#include <algorithm>
 #include <map>
 #include <set>
 #include <utility>
 #include <vector>
 
 #include "base/files/file_util.h"
+#include "base/i18n/case_conversion.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/memory/raw_ptr.h"
 #include "base/no_destructor.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/synchronization/lock.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
@@ -349,6 +353,89 @@ std::optional<std::string> MergeFolderData(const std::string& base_json,
   return base::WriteJson(*current);
 }
 
+std::optional<std::string> EditFolderData(const std::string& json,
+                                          FolderEdit edit,
+                                          const std::string& id,
+                                          const std::string& name) {
+  auto normalized = MergeFolderData("", "", json);
+  auto data = normalized ? ParseFolders(*normalized) : std::nullopt;
+  if (!data || id.empty() || !base::IsStringUTF8(name)) {
+    return std::nullopt;
+  }
+  const std::string trimmed = base::UTF16ToUTF8(
+      base::TrimWhitespace(base::UTF8ToUTF16(name), base::TRIM_ALL));
+  if (edit != FolderEdit::kRemove &&
+      (trimmed.empty() ||
+       std::ranges::count_if(trimmed, [](unsigned char c) {
+         return (c & 0xc0) != 0x80;
+       }) > 100)) {
+    return std::nullopt;
+  }
+  const auto folded = base::i18n::FoldCase(base::UTF8ToUTF16(trimmed));
+  bool found = false;
+  base::ListValue items;
+  for (const auto& value : *data->FindList("items")) {
+    const auto& item = value.GetDict();
+    if (*item.FindString("type") != "folder") {
+      items.Append(item.Clone());
+      continue;
+    }
+    const bool matches = *item.FindString("id") == id;
+    if (matches && (found || edit == FolderEdit::kAdd)) {
+      return std::nullopt;
+    }
+    if (!matches) {
+      if (edit != FolderEdit::kRemove &&
+          base::i18n::FoldCase(base::TrimWhitespace(
+              base::UTF8ToUTF16(*item.FindString("name")), base::TRIM_ALL)) ==
+              folded) {
+        return std::nullopt;
+      }
+      items.Append(item.Clone());
+      continue;
+    }
+    found = true;
+    if (edit == FolderEdit::kRemove) {
+      for (const auto& child : *item.FindList("children")) {
+        items.Append(child.Clone());
+      }
+    } else {
+      auto renamed = item.Clone();
+      renamed.Set("name", trimmed);
+      items.Append(std::move(renamed));
+    }
+  }
+  if (edit == FolderEdit::kAdd) {
+    base::DictValue folder;
+    folder.Set("type", "folder");
+    folder.Set("id", id);
+    folder.Set("name", trimmed);
+    folder.Set("collapsed", false);
+    folder.Set("children", base::ListValue());
+    items.Append(std::move(folder));
+  } else if (!found) {
+    return std::nullopt;
+  }
+  data->Set("items", std::move(items));
+  return base::WriteJson(*data);
+}
+
+std::optional<std::string> EditFolderFile(const base::FilePath& path,
+                                          FolderEdit edit,
+                                          const std::string& id,
+                                          const std::string& name) {
+  base::AutoLock lock(FolderFileLock());
+  auto contents = ReadFile(path);
+  if (!contents) {
+    return std::nullopt;
+  }
+  auto edited = EditFolderData(*contents, edit, id, name);
+  if (!edited || !WritePinnedTabsFileAtomically(path, *edited)) {
+    return std::nullopt;
+  }
+  return edited;
+}
+
 std::optional<std::string> ReadFolderFile(const base::FilePath& path) {
   base::AutoLock lock(FolderFileLock());
   auto contents = ReadFile(path);
@@ -365,6 +452,25 @@ bool UpdateFolderFile(const base::FilePath& path,
   base::AutoLock lock(FolderFileLock());
   auto contents = ReadFile(path);
   if (!contents) {
+    return false;
+  }
+  auto merged = MergeFolderData(base_json, json, *contents);
+  return merged && WritePinnedTabsFileAtomically(path, *merged);
+}
+
+bool UpdateFolderFileIfUnchanged(const base::FilePath& path,
+                                 const std::string& base_json,
+                                 const std::string& json) {
+  base::AutoLock lock(FolderFileLock());
+  auto contents = ReadFile(path);
+  // Compare the same normalized snapshots returned by ReadFolderFile.
+  auto normalized_base = MergeFolderData("", "", base_json);
+  auto normalized_current =
+      contents ? MergeFolderData("", "", *contents) : std::nullopt;
+  auto before = normalized_base ? ParseFolders(*normalized_base) : std::nullopt;
+  auto current =
+      normalized_current ? ParseFolders(*normalized_current) : std::nullopt;
+  if (!before || !current || *before != *current) {
     return false;
   }
   auto merged = MergeFolderData(base_json, json, *contents);

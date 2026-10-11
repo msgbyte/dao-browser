@@ -230,6 +230,141 @@ describe('dao-sidebar-app', () => {
     expect(pinnedIndex).toBeLessThan(newTabIndex);
   });
 
+  it('classifies only tabs below the anchor and waits for persistence success', async () => {
+    const {el, send} = await loadApp();
+    const app = el as SidebarAppInternals;
+    const tabs = [tab({tabId: 'anchor'}), tab({tabId: 'below'})];
+    const model = installFolderModel(app);
+    model.reconcile(tabs);
+    app.unpinnedTabs_ = tabs;
+    let stored = model.toJson();
+    const fire = (window as unknown as {
+      cr: {webUIListenerCallback: (event: string, value?: unknown) => void};
+    }).cr.webUIListenerCallback;
+    send.mockImplementation((method: string, args: unknown[]) => {
+      if (method === 'loadFolders') queueMicrotask(() => fire(args[0] as string, stored));
+    });
+    fire('classifyTabsRequested', 'anchor');
+    await vi.waitFor(() => expect(didSendNative(send, 'classifyTabs')).toBe(true));
+    const request = send.mock.calls.find(call => call[0] === 'classifyTabs')![1];
+    expect(request.slice(1)).toEqual([[{tabId: 'below', url: 'https://docs.example/'}], []]);
+    fire(request[0], {ok: true, groups: [
+      {folderId: '', name: 'Reading', tabIds: ['below']},
+    ]});
+    await vi.waitFor(() => expect(didSendNative(send, 'saveClassifiedFolders')).toBe(true));
+    expect(send).not.toHaveBeenCalledWith('showClassificationToast', ['done']);
+    const save = send.mock.calls.find(call => call[0] === 'saveClassifiedFolders')![1];
+    expect(save[3]).toEqual(['below']);
+    stored = save[1];
+    fire(save[0], true);
+    await vi.waitFor(() => expect(send).toHaveBeenCalledWith('showClassificationToast', ['done']));
+    expect(app.folderModel_.findTabFolder(tabs[0]!)).toBeNull();
+    expect(app.folderModel_.findFolderByName('Reading')!.children.map(t => t.tabId))
+        .toEqual(['below']);
+  });
+
+  it.each([
+    {closedId: 'above', expectedIds: ['first-below', 'second-below'], activateFolder: false},
+    {closedId: 'first-below', expectedIds: ['second-below'], activateFolder: false},
+    {closedId: 'above', expectedIds: ['first-below', 'second-below'], activateFolder: true},
+  ])('keeps classifying after $closedId closes (activate folder: $activateFolder)', async ({closedId, expectedIds, activateFolder}) => {
+    const {el, send} = await loadApp();
+    const app = el as SidebarAppInternals;
+    const tabs = ['above', 'anchor', 'first-below', 'second-below']
+        .map(tabId => tab({tabId}));
+    if (activateFolder) tabs.push(tab({tabId: 'grouped'}));
+    const model = installFolderModel(app);
+    model.reconcile(tabs);
+    if (activateFolder) {
+      const folder = model.addFolder('Work');
+      model.moveTabsToFolder([tabs[4]!], folder.id);
+      model.toggleCollapse(folder.id);
+    }
+    app.unpinnedTabs_ = tabs;
+    app.initialStateReceived_ = true;
+    let stored = model.toJson();
+    const fire = (window as unknown as {
+      cr: {webUIListenerCallback: (event: string, value?: unknown) => void};
+    }).cr.webUIListenerCallback;
+    send.mockImplementation((method: string, args: unknown[]) => {
+      if (method === 'loadFolders') {
+        queueMicrotask(() => fire(args[0] as string, stored));
+      } else if (method === 'saveFolders') {
+        stored = args[0] as string;
+      } else if (method === 'saveClassifiedFolders') {
+        stored = args[1] as string;
+        queueMicrotask(() => fire(args[0] as string, true));
+      }
+    });
+
+    fireSidebarStateChanged(sidebarState({unpinnedTabs: tabs.map(tab => ({
+      ...tab, isActive: tab.tabId === closedId,
+    }))}));
+    fire('classifyTabsRequested', 'anchor');
+    await vi.waitFor(() => expect(didSendNative(send, 'classifyTabs')).toBe(true));
+    const request = send.mock.calls.find(call => call[0] === 'classifyTabs')![1];
+    expect(request[1]).toEqual([
+      {tabId: 'first-below', url: 'https://docs.example/'},
+      {tabId: 'second-below', url: 'https://docs.example/'},
+    ]);
+    fire('folderTabsClosed', [closedId]);
+    fireSidebarStateChanged(sidebarState({
+      unpinnedTabs: tabs.filter(tab => tab.tabId !== closedId).map(tab => ({
+        ...tab, isActive: tab.tabId === (activateFolder ? 'grouped' : 'anchor'),
+      })),
+    }));
+    fire(request[0], {ok: true, groups: [
+      {folderId: '', name: 'Reading', tabIds: ['first-below', 'second-below']},
+    ]});
+
+    await vi.waitFor(() => expect(app.folderModel_.findFolderByName('Reading')
+        ?.children.map(tab => tab.tabId)).toEqual(expectedIds));
+    expect(app.folderModel_.findTabFolder(tabs[1]!)).toBeNull();
+    expect(app.folderModel_.findTabFolder(tabs[0]!)).toBeNull();
+    if (activateFolder) {
+      const folder = app.folderModel_.findFolderByName('Work')!;
+      expect(folder.collapsed).toBe(false);
+      expect(folder.children.map(tab => tab.tabId)).toEqual(['grouped']);
+    }
+    const persisted = new FolderModel();
+    expect(persisted.loadFromJson(stored)).toBe(true);
+    expect(persisted.findFolderByName('Reading')!.children.map(tab => tab.tabId))
+        .toEqual(expectedIds);
+    expect(persisted.getOrderedItems().some(item =>
+        item.type === 'tab' && item.tabId === closedId)).toBe(false);
+    const save = send.mock.calls.find(call => call[0] === 'saveClassifiedFolders')![1];
+    expect(save[3]).toEqual(expectedIds);
+    expect(send).toHaveBeenCalledWith('showClassificationToast', ['done']);
+  });
+
+  it('preserves a manual reorder made while classification is pending', async () => {
+    const {el, send} = await loadApp();
+    const app = el as SidebarAppInternals;
+    const tabs = [tab({tabId: 'a'}), tab({tabId: 'b'})];
+    const model = installFolderModel(app);
+    model.reconcile(tabs);
+    app.unpinnedTabs_ = tabs;
+    let stored = model.toJson();
+    const fire = (window as unknown as {
+      cr: {webUIListenerCallback: (event: string, value?: unknown) => void};
+    }).cr.webUIListenerCallback;
+    send.mockImplementation((method: string, args: unknown[]) => {
+      if (method === 'loadFolders') queueMicrotask(() => fire(args[0] as string, stored));
+      if (method === 'saveFolders') stored = args[0] as string;
+    });
+    fire('classifyTabsRequested', '');
+    await vi.waitFor(() => expect(didSendNative(send, 'classifyTabs')).toBe(true));
+    fireMoveTabToTopRequested('b');
+    const request = send.mock.calls.find(call => call[0] === 'classifyTabs')![1];
+    fire(request[0], {ok: true, groups: [
+      {folderId: '', name: 'Reading', tabIds: ['a', 'b']},
+    ]});
+    await vi.waitFor(() => expect(send).toHaveBeenCalledWith('showClassificationToast', ['changed']));
+    expect(didSendNative(send, 'saveClassifiedFolders')).toBe(false);
+    expect(app.folderModel_.getFolders()).toEqual([]);
+    expect(app.folderModel_.getOrderedItems()[0]).toMatchObject({tabId: 'b'});
+  });
+
   it('requests the initial sidebar and update states on connect', async () => {
     const {send} = await loadApp();
 
