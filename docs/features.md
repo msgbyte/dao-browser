@@ -88,8 +88,12 @@ profile paths use `Dao`, with Dao AppUserModelID/ProgID prefixes and separate
 COM server identities. Chrome and Chromium installations remain independent.
 `release --platform windows` reuses `dao.json`'s desktop version and `v<version>`
 tag and attaches the EXE and its SHA-256 checksum to the shared GitHub Release.
-macOS remains the default release platform and owns desktop version bumps;
-Windows does not use Apple signing, notarization, or Sparkle.
+The default `npm run release` bumps the desktop version once, builds macOS and
+Windows sequentially on a Mac, and uploads both installers to R2 before
+publishing the signed Windows feed. `release:mac` retains the Mac-only workflow;
+`release:windows` retains the existing tag attachment workflow without advancing
+the Windows feed. Windows does not use Apple signing, notarization, or Sparkle
+at runtime.
 macOS hosts can select `--platform windows` to cross-compile the browser and
 WebView2 installer host from source and package the NSIS EXE locally. The
 pipeline reuses Chromium's hermetic Windows SDK and bundled host tools, keeps

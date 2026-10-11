@@ -20,6 +20,7 @@ import {
   runStreaming,
 } from "../utils.js";
 import {windowsInstallerName} from "./package-windows.js";
+import {verifyWindowsUpdateEnvelope, windowsUpdateManifestName, validateWindowsUpdateArtifact} from '../windows-update.js';
 
 const RELEASE_BASE_URL = "https://dao-release.msgbyte.com";
 const GITHUB_URL = "https://github.com/msgbyte/dao-browser";
@@ -33,7 +34,7 @@ export interface GithubReleasePlan {
 
 interface GithubReleaseOptions {
   dryRun?: boolean;
-  platform?: "mac" | "windows";
+  platform?: "mac" | "windows" | "all";
   asset?: string;
 }
 
@@ -120,8 +121,8 @@ githubReleaseCommand
   .command("publish")
   .description("Publish one tagged DMG to GitHub Releases")
   .argument("<tag>", "Release tag, for example v1.0.101")
-  .option("--platform <platform>", "Desktop platform: mac | windows", (value: string) => {
-    if (value !== "mac" && value !== "windows") throw new Error(`Invalid --platform: ${value}`);
+  .option("--platform <platform>", "Desktop platform: mac | windows | all", (value: string) => {
+    if (value !== "mac" && value !== "windows" && value !== "all") throw new Error(`Invalid --platform: ${value}`);
     return value;
   }, "mac")
   .option("--asset <path>", "Attach a local installer and its SHA-256 checksum")
@@ -131,12 +132,48 @@ githubReleaseCommand
       if (options.platform === "windows" && !options.asset) {
         throw new Error("Windows publishing requires --asset pointing to the packaged installer.");
       }
-      await publishGithubRelease(buildGithubReleasePlan(tag, options.platform), options);
+      await publishGithubRelease(buildGithubReleasePlan(tag, options.platform === 'all' ? 'mac' : options.platform), options);
+      if (options.platform === 'all') await archiveWindowsUpdate(tag, options);
     } catch (cause) {
       error(cause instanceof Error ? cause.message : String(cause));
       process.exitCode = 1;
     }
   });
+
+export async function archiveWindowsUpdate(tag: string, options: GithubReleaseOptions = {}): Promise<void> {
+  const plan = buildGithubReleasePlan(tag, 'windows');
+  const name = windowsUpdateManifestName(tag.slice(1));
+  if (options.dryRun) { log(`[dry-run] Archive signed Windows artifacts from ${RELEASE_BASE_URL}/${name}`); return; }
+  const response = await fetch(`${RELEASE_BASE_URL}/${name}`, {redirect: 'error', signal: AbortSignal.timeout(30_000)});
+  if (response.status === 404) { log(`No Windows update for ${tag}; keeping the macOS-only release.`); return; }
+  if (!response.ok) throw new Error(`Cannot read Windows update metadata: HTTP ${response.status}`);
+  let text = '';
+  for await (const chunk of response.body!) {
+    text += Buffer.from(chunk).toString('utf8');
+    if (Buffer.byteLength(text) > 65536) throw new Error('Windows update metadata exceeds the size limit.');
+  }
+  const metadata = verifyWindowsUpdateEnvelope(text);
+  if (metadata.version !== tag.slice(1)) throw new Error('Windows update metadata does not match the release tag.');
+  const directory = mkdtempSync(path.join(os.tmpdir(), 'dao-windows-archive-'));
+  try {
+    const artifact = path.join(directory, plan.assetName);
+    const manifest = path.join(directory, name);
+    writeFileSync(manifest, text);
+    await runCommand('curl', ['--fail', '--location', '--proto', '=https', '--proto-redir', '=https',
+      '--max-filesize', String(metadata.size), '--output', artifact, metadata.url]);
+    writeFileSync(artifact + '.sha256', `${metadata.sha256}  ${plan.assetName}\n`);
+    await validateWindowsUpdateArtifact(manifest, artifact, metadata.version, metadata.chromiumVersion);
+    await publishLocalInstaller(plan, {asset: artifact});
+    const state = inspectGithubRelease({...plan, assetName: name});
+    if (state.assetExists) {
+      const existing = path.join(directory, 'existing.json');
+      await runCommand('gh', ['release', 'download', tag, '--pattern', name, '--output', existing]);
+      if (readFileSync(existing, 'utf8') !== text) throw new Error('Different Windows metadata already archived.');
+    } else {
+      await runCommand('gh', ['release', 'upload', tag, manifest]);
+    }
+  } finally { rmSync(directory, {recursive: true, force: true}); }
+}
 
 githubReleaseCommand
   .command("backfill")

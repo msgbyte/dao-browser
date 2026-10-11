@@ -4,6 +4,40 @@ This document describes how to build Dao Browser from source.
 
 ## Desktop releases and automatic updates
 
+On a configured macOS signing host with the Windows cross toolchain ready:
+
+```bash
+npm run release -- --dry-run
+npm run release          # One version, Mac DMG + Windows EXE, then R2 publication
+npm run release:mac      # Mac DMG only
+npm run release:windows  # Attach Windows EXE/checksum to an existing desktop tag
+```
+
+The combined command uses normal import, preserves each platform's build cache,
+and completes both packages before uploading. It signs the Windows JSON payload
+with the existing Sparkle keychain key, uploads immutable installers, checksums,
+versioned Windows metadata and Mac deltas, verifies their public bytes, and
+publishes `windows-update.json` last. The website metadata points both platforms
+to R2. A pushed desktop tag archives available Mac and signed Windows artifacts
+on GitHub; a genuine HTTP 404 for Windows metadata permits older Mac-only tags.
+Commit/push and website deployment remain manual.
+
+If immutable artifact upload has started but the feed has not, local metadata
+rolls back and recovery adds `--skip-build` while keeping the original bump.
+Preflight blocks rebuilding an already public candidate; preserve its `dist/`
+files so a retry uses identical bytes.
+
+Before the Windows feed upload starts, failures restore local release metadata.
+Once it starts (or the candidate is already public), failures retain the version
+and archived notes because remote publication may have succeeded. Inspect the
+remote feed and retry the same candidate with
+`npm run release -- --skip-bump --skip-build`; retain the original `dist/` files.
+Different bytes under an existing version are rejected. Do not run simultaneous
+publishers; the command rejects a changed feed snapshot but object storage does
+not provide a transaction across uploads. Combined `--skip-build` requires both
+installers, the Windows checksum and signed metadata. Mac notarization recovery
+uses `release:mac -- --resume-from-staple`.
+
 Windows checks daily and downloads verified updates in the background. Apply
 from Settings About or the sidebar. Cancelling browser shutdown cancels that
 install attempt. Only registered per-user x64 installations with default user
@@ -223,7 +257,7 @@ Unset `DAO_BUILD_PLATFORM` to return to native Mac development; `start` cannot
 execute Windows binaries on macOS.
 
 The output is `dist/dao-browser-<version>-windows-x64.exe` plus its SHA-256 file.
-After the normal Mac release has created the shared desktop tag, use:
+For a Windows attachment to an already published desktop tag, use:
 
 ```bash
 npm run release:windows -- --dry-run
@@ -392,8 +426,9 @@ command by selecting that target. Test install/uninstall behavior in a disposabl
 Windows account or VM, not against a development machine's active Dao profile.
 
 Desktop releases share one `dao.json.version.display` and one GitHub Release
-named `v<version>`. Publish macOS first with the existing `npm run release`
-workflow, then commit/push its metadata and tag as directed. On Windows, sync
+named `v<version>`. The default `npm run release` builds both platforms on macOS.
+For a Mac-only release, use `npm run release:mac`, then commit/push its metadata
+and tag as directed. For a later Windows attachment, sync
 that release's sources and tags before running:
 
 ```powershell
@@ -406,13 +441,14 @@ npm.cmd run release:windows -- --skip-upload
 ```
 
 `release:windows` is `cli release --platform windows`; plain `cli release`
-defaults to `--platform mac`. Windows reuses the current version without a
+defaults to `--platform all`. The standalone Windows workflow reuses the current version without a
 bump or new tag, imports normally without `--force`, builds `mini_installer`
 in `out/dao` on Windows or `out/dao-win-x64` on Mac, and packages
 `dao-browser-<version>-windows-x64.exe`. It requires native Windows x64 tools or
 the configured Mac cross toolchain, and authenticated GitHub CLI (`gh auth login`),
 but no signing credentials, R2 credentials, or Sparkle tools. Unsigned packages
-can display Windows security prompts. Installed Windows builds support verified automatic updates; this standalone command does not publish update metadata.
+can display Windows security prompts. This standalone command does not sign or
+promote the Windows update feed; combined releases do.
 
 The GitHub uploader preserves existing macOS assets and rejects a different
 Windows installer for an already published version. A retry can complete a

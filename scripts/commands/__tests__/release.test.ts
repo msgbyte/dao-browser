@@ -265,7 +265,7 @@ describe('release helpers', () => {
       'Next manual steps (not done by this script):',
       '  - Commit + push (one-liner):',
       '      git add . && git commit -m "chore: dump to version v1.0.102" && git push origin main v1.0.102',
-      '  - The pushed tag automatically archives the R2 DMG on GitHub Releases.',
+      '  - The pushed tag automatically archives available R2 desktop installers on GitHub Releases.',
       '  - Deploy the website so dao.msgbyte.com/appcast.xml updates.',
     ]);
   });
@@ -762,7 +762,7 @@ describe('release helpers', () => {
     await packageReleaseArtifact(fixtureContext(fixture), runner);
 
     expect(calls).toEqual([
-      {cmd: 'npx', args: ['tsx', 'scripts/cli.ts', 'import', '--platform', 'mac', '--force']},
+      {cmd: 'npx', args: ['tsx', 'scripts/cli.ts', 'import', '--platform', 'mac']},
       {cmd: 'npx', args: ['tsx', 'scripts/cli.ts', 'import', '--platform', 'mac']},
       {cmd: 'npx', args: ['tsx', 'scripts/cli.ts', 'build', '--platform', 'mac']},
       {
@@ -1238,7 +1238,7 @@ describe('release orchestration', () => {
         'side effects were left in place and were not rolled back',
     );
     expect(output).toContain(
-      'Run npm run release normally to retry candidate 1.0.71',
+      'Retry candidate 1.0.71 with:',
     );
   });
 
@@ -1366,7 +1366,7 @@ describe('release orchestration', () => {
       'dist/dao-browser-1.0.71-mac-arm64.dmg',
       'dao-notary',
     );
-    expect(command).toContain('npm run release -- --resume-from-staple');
+    expect(command).toContain('npm run release -- --platform mac --resume-from-staple');
     expect(command).not.toContain('--skip-bump');
   });
 
@@ -1383,7 +1383,7 @@ describe('release orchestration', () => {
     );
 
     expect(command).toContain(
-      "npm run release -- --bump minor --bucket 'release bucket' " +
+      "npm run release -- --platform mac --bump minor --bucket 'release bucket' " +
         "--prefix 'candidate'\\''s' --skip-upload --resume-from-staple",
     );
   });
@@ -1437,7 +1437,7 @@ describe('release orchestration', () => {
     }, fixture.dependencies).catch((cause: unknown) => cause) as ReleaseError;
 
     expect(formatReleaseFailure(failure)).toContain(
-      "npm run release -- --bump minor --bucket 'release bucket' " +
+      "npm run release -- --platform mac --bump minor --bucket 'release bucket' " +
         "--prefix 'candidate'\\''s' --skip-upload --skip-build " +
         '--no-force-import',
     );
@@ -1816,4 +1816,99 @@ describe('release orchestration', () => {
        expect(fixture.createdTags).toEqual([]);
        expect(fixture.deletedTags).toEqual([]);
      });
+});
+
+describe('combined release transaction', () => {
+  function combinedFixture() {
+    const fixture = releaseFixture();
+    writeFileSync(path.join(fixture.root, 'third_party/sparkle/bin/sign_update'), 'test signer');
+    mkdirSync(path.join(fixture.root, '.dao'));
+    writeFileSync(path.join(fixture.root, '.dao/windows-toolchain.json'), '{}');
+    return fixture;
+  }
+
+  it('bumps once, finishes both packages before upload and writes both download URLs', async () => {
+    const fixture = combinedFixture();
+    const calls: string[] = [];
+    const phase = fixture.dependencies.runPhase;
+    fixture.dependencies.runPhase = async (name, context) => {
+      if (name === 'upload') {
+        expect(calls).toContain('package:mac');
+        expect(calls).toContain('package:windows');
+      }
+      calls.push(`${name}:${context.options.platform}`);
+      await phase(name, context);
+    };
+    await runRelease({platform: 'all'}, fixture.dependencies);
+    expect(JSON.parse(readFileSync(fixture.daoPath, 'utf8')).version.display).toBe('1.0.71');
+    const info = JSON.parse(readFileSync(fixture.infoPath, 'utf8'));
+    expect(info.platforms.macArm64.url).toContain('1.0.71-mac-arm64.dmg');
+    expect(info.platforms.win.url).toBe('https://dao-release.msgbyte.com/dao-browser-1.0.71-windows-x64.exe');
+    expect(fixture.createdTags).toEqual(['v1.0.71']);
+  });
+
+  it('restores version and notes when the Windows build fails after packaging Mac', async () => {
+    const fixture = combinedFixture();
+    const original = readFileSync(fixture.daoPath, 'utf8');
+    const phase = fixture.dependencies.runPhase;
+    fixture.dependencies.runPhase = async (name, context) => {
+      if (name === 'build' && context.options.platform === 'windows') throw new Error('Windows failed');
+      await phase(name, context);
+    };
+    await expect(runRelease({platform: 'all'}, fixture.dependencies)).rejects.toThrow('Windows failed');
+    expect(fixture.phases).toContain('package');
+    expect(fixture.phases).not.toContain('upload');
+    expect(readFileSync(fixture.daoPath, 'utf8')).toBe(original);
+    expect(fixture.createdTags).toEqual([]);
+  });
+
+  it('retains a possibly published version and completes its missing tag on an identical retry', async () => {
+    const fixture = combinedFixture();
+    const phase = fixture.dependencies.runPhase;
+    fixture.dependencies.runPhase = async (name, context) => {
+      if (name === 'upload') {
+        context.publication!.started = true;
+        throw new Error('connection lost');
+      }
+      await phase(name, context);
+    };
+    await expect(runRelease({platform: 'all'}, fixture.dependencies)).rejects.toThrow(/may already be public/);
+    expect(JSON.parse(readFileSync(fixture.daoPath, 'utf8')).version.display).toBe('1.0.71');
+    expect(fixture.deletedTags).toEqual([]);
+    fixture.dependencies.runPhase = phase;
+    await runRelease({platform: 'all', skipBump: true, skipBuild: true}, fixture.dependencies);
+    expect(fixture.createdTags).toEqual(['v1.0.71']);
+  });
+});
+
+describe('immutable artifact recovery', () => {
+  it('rolls back local metadata but reuses original artifacts after a partial upload', async () => {
+    const fixture = releaseFixture();
+    writeFileSync(path.join(fixture.root, 'third_party/sparkle/bin/sign_update'), 'signer');
+    mkdirSync(path.join(fixture.root, '.dao'));
+    writeFileSync(path.join(fixture.root, '.dao/windows-toolchain.json'), '{}');
+    const phase = fixture.dependencies.runPhase;
+    fixture.dependencies.runPhase = async (name, context) => {
+      if (name === 'upload') {
+        context.publication!.artifactsStarted = true;
+        throw new Error('partial artifact upload');
+      }
+      await phase(name, context);
+    };
+    try {
+      await runRelease({platform: 'all'}, fixture.dependencies);
+      expect.fail('Expected partial upload failure');
+    } catch (error) {
+      const recovery = (error as ReleaseError).recovery!;
+      expect(recovery.retryCommand).toContain('--skip-build');
+      expect(recovery.retryCommand).not.toContain('--skip-bump');
+      expect(JSON.parse(readFileSync(fixture.daoPath, 'utf8')).version.display).toBe('1.0.70');
+    }
+    const mac = path.join(fixture.root, 'dist/dao-browser-1.0.71-mac-arm64.dmg');
+    const original = readFileSync(mac);
+    fixture.dependencies.runPhase = phase;
+    await runRelease({platform: 'all', skipBuild: true}, fixture.dependencies);
+    expect(readFileSync(mac)).toEqual(original);
+    expect(fixture.createdTags).toEqual(['v1.0.71']);
+  });
 });

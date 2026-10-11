@@ -42,6 +42,8 @@ Learn more at [dao.msgbyte.com/agent](https://dao.msgbyte.com/agent).
 
 Dao Browser is an open-source project. Bug reports and feature requests are welcome via [GitHub Issues](https://github.com/msgbyte/dao-browser/issues). To build from source or contribute code, see the [development guide](docs/development.md).
 
+For maintainers, `npm run release` builds and uploads both desktop installers on a configured Mac. Use `npm run release:mac` for Mac only, or `npm run release:windows` to attach a Windows installer to an existing desktop tag. See the [release guide](docs/release-signing.md).
+
 ### License
 
 [BSD-3-Clause](LICENSE) — Dao-owned source code is licensed under the 3-Clause BSD License. Dao Browser is built on top of [Chromium](https://www.chromium.org/), which is licensed under the [3-Clause BSD License](https://chromium.googlesource.com/chromium/src/+/main/LICENSE). Chromium and third-party dependencies retain their original licenses.

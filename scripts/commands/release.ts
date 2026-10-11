@@ -10,6 +10,8 @@ import {
 import path from "node:path";
 import chalk from "chalk";
 import { windowsInstallerName } from "./package-windows.js";
+import {createWindowsUpdatePayload, signWindowsUpdatePayload, validateWindowsUpdateArtifact,
+  windowsUpdateManifestName, WINDOWS_UPDATE_ORIGIN, publishWindowsUpdate, assertUnpublishedReleaseArtifacts} from '../windows-update.js';
 import { formatReleaseDate, planChangelogRelease } from "../changelog.js";
 import {
   ROOT_DIR,
@@ -30,16 +32,14 @@ import {
 } from "./release-transaction.js";
 
 export interface ReleaseOptions {
-  platform?: "mac" | "windows";
+  platform?: "mac" | "windows" | "all";
   bump?: "patch" | "minor" | "major";
   bucket?: string;
   prefix?: string;
   skipUpload?: boolean;
   skipBuild?: boolean;
   skipBump?: boolean;
-  // Default true. Set to false via --no-force-import to call
-  // `cli.ts import` without --force, e.g. when iterating on a release
-  // failure and you've already reset engine/src yourself.
+  // Normal import preserves the shared source tree and warm platform caches.
   forceImport?: boolean;
   // Resume from staple: dmg has already been notarized externally
   // (e.g. you ran `xcrun stapler staple dist/...dmg` yourself), and
@@ -57,6 +57,7 @@ export type ReleasePhase =
   | "notarize"
   | "staple"
   | "appcast"
+  | "update-manifest"
   | "metadata"
   | "upload"
   | "tag"
@@ -120,12 +121,12 @@ const NOTARIZE_TRIPLE_ENV = [
 
 export const releaseCommand = new Command("release")
   .description(
-    "Release desktop builds: macOS creates a version; Windows attaches an unsigned installer to that version."
+    "Build and upload both desktop installers; select mac or windows for a single platform."
   )
-  .option("--platform <platform>", "Desktop release platform: mac | windows", (value: string) => {
-    if (value !== "mac" && value !== "windows") throw new Error(`Invalid --platform: ${value}`);
+  .option("--platform <platform>", "Desktop release platform: all | mac | windows", (value: string) => {
+    if (value !== "mac" && value !== "windows" && value !== "all") throw new Error(`Invalid --platform: ${value}`);
     return value;
-  }, "mac")
+  }, "all")
   .option(
     "--bump <type>",
     "Version bump kind: patch | minor | major",
@@ -143,9 +144,10 @@ export const releaseCommand = new Command("release")
   .option("--skip-build", "Skip import + build (use existing dist/ artifact)")
   .option(
     "--no-force-import",
-    "Run `cli.ts import` without --force (default: forced). " +
+    "Run `cli.ts import` without --force (the default). " +
       "Use this when engine/src is already in a known-good state and you " +
-      "don't want the import step to reset local edits."
+      "don't want the import step to reset local edits.",
+    false
   )
   .option(
     "--skip-bump",
@@ -202,6 +204,8 @@ export interface ReleasePhaseContext {
   dmgPath: string;
   appcastPath: string;
   signal?: AbortSignal;
+  chromiumVersion?: string;
+  publication?: {started: boolean; artifactsStarted: boolean};
 }
 
 export interface ReleaseResult {
@@ -235,6 +239,7 @@ function buildReleasePhaseContext(
       ? windowsInstallerName(newVersion) : baseName + ".dmg"),
     appcastPath: path.join(rootDir, "dist", "appcast.xml"),
     signal,
+    chromiumVersion: config.version.version,
   };
 }
 
@@ -300,6 +305,26 @@ export function plannedReleasePhases(
   return phases;
 }
 
+export interface ReleaseStep {
+  phase: ReleasePhase;
+  platform?: 'mac' | 'windows';
+}
+
+export function plannedReleaseSteps(options: ReleaseOptions): ReleaseStep[] {
+  if (options.platform !== 'all') return plannedReleasePhases(options).map(phase => ({phase}));
+  const steps: ReleaseStep[] = [];
+  if (!options.skipBuild) {
+    for (const phase of ['import', 'build', 'package', 'notarize', 'staple'] as const)
+      steps.push({phase, platform: 'mac'});
+    for (const phase of ['import', 'build', 'package'] as const)
+      steps.push({phase, platform: 'windows'});
+  }
+  steps.push({phase: 'update-manifest'}, {phase: 'appcast'});
+  if (!options.skipUpload) steps.push({phase: 'upload'});
+  steps.push({phase: 'metadata'}, {phase: 'tag'});
+  return steps;
+}
+
 function collectReleasePreflightProblems(
   options: ReleaseOptions,
   rootDir: string,
@@ -311,6 +336,16 @@ function collectReleasePreflightProblems(
   const bucket = options.bucket || env.R2_BUCKET;
   const problems: string[] = [];
   void config;
+
+  if (options.platform === 'all') {
+    if (options.resumeFromStaple) problems.push('Use release:mac -- --resume-from-staple for notarization recovery.');
+    if (options.prefix) problems.push('Combined releases require the root R2 artifact paths for signed Windows updates.');
+    if (!options.skipBuild && !existsSync(path.join(rootDir, 'third_party/sparkle/bin/sign_update')))
+      problems.push('Sparkle sign_update is required to sign Windows update metadata.');
+    if (!options.dryRun && !options.skipBuild && !existsSync(path.join(rootDir, '.dao/windows-toolchain.json')) &&
+        !existsSync(path.join(rootDir, 'engine/src/build/win_toolchain.json')))
+      problems.push('Prepare the Windows cross toolchain before a combined release.');
+  }
 
   if (options.platform === "windows") {
     if (options.resumeFromStaple) problems.push("--resume-from-staple is macOS-only.");
@@ -456,14 +491,14 @@ function verifyWindowsPublicationSources(dependencies: ReleaseDependencies, tagN
   }
 }
 
-function runReleasePreflight(
+async function runReleasePreflight(
   options: ReleaseOptions,
   dependencies: ReleaseDependencies,
   config: DaoConfig,
   tagName: string,
   releaseHead: string,
   tag: ReleaseTagState
-): void {
+): Promise<void> {
   const problems = collectReleasePreflightProblems(
     options,
     dependencies.rootDir,
@@ -506,6 +541,22 @@ function runReleasePreflight(
   }
   if (problems.length) {
     throw new ReleaseError("preflight", problems.join("\n\n"));
+  }
+  if (options.platform === 'all' && !options.dryRun && !options.skipBuild && dependencies.hostPlatform) {
+    try {
+      if (!options.skipUpload) {
+        await assertUnpublishedReleaseArtifacts([
+          `dao-browser-${tagName.slice(1)}-mac-${config.build.target_cpu}.dmg`,
+          windowsInstallerName(tagName.slice(1)), windowsUpdateManifestName(tagName.slice(1))
+        ], dependencies.signal);
+      }
+      await (await import('../windows-toolchain.js')).prepareWindowsCrossToolchain(
+        dependencies.signal, dependencies.rootDir, dependencies.env);
+      const nsis = spawnSync('makensis', ['-VERSION'], {encoding: 'utf8', timeout: 10_000});
+      if (nsis.status !== 0) throw new Error('makensis is required to package the Windows installer.');
+    } catch (cause) {
+      throw new ReleaseError('preflight', cause instanceof Error ? cause.message : String(cause), {cause});
+    }
   }
 }
 
@@ -652,6 +703,13 @@ function applyCanonicalPhaseMutation(
         releasedAt: formatReleaseDate(now),
       }
     ));
+    if (context.options.platform === 'all') {
+      const info = JSON.parse(readFileSync(infoPath, 'utf8'));
+      info.platforms ??= {};
+      info.platforms.win = {label: 'Windows (x64)', version: context.newVersion,
+        url: `${WINDOWS_UPDATE_ORIGIN}/${windowsInstallerName(context.newVersion)}`};
+      transaction.writeFile(infoPath, Buffer.from(JSON.stringify(info, null, 2) + '\n'));
+    }
     success(
       `info.json → version ${context.newVersion}, ` +
         `releasedAt ${formatReleaseDate(now)}`
@@ -691,7 +749,7 @@ export async function runRelease(
   const tagName = "v" + newVersion;
   const provenance = readReleaseProvenance(dependencies, tagName);
 
-  runReleasePreflight(
+  await runReleasePreflight(
     options,
     dependencies,
     config,
@@ -701,6 +759,7 @@ export async function runRelease(
   );
   success("Pre-flight check passed");
   let currentPhase: ReleasePhase = "version";
+  const publication = {started: false, artifactsStarted: false};
 
   try {
     throwIfReleaseAborted(dependencies.signal, currentPhase);
@@ -734,13 +793,14 @@ export async function runRelease(
       config,
       dependencies.signal
     );
+    context.publication = publication;
     if (options.skipBuild && !options.resumeFromStaple) {
       warn("Skipping build/package (--skip-build)");
     }
     if (options.skipUpload) {
       warn("Skipping publishing (--skip-upload)");
     }
-    for (const phase of plannedReleasePhases(options)) {
+    for (const {phase, platform} of plannedReleaseSteps(options)) {
       currentPhase = phase;
       throwIfReleaseAborted(dependencies.signal, currentPhase);
       if (phase === "upload" && options.platform === "windows") {
@@ -749,7 +809,10 @@ export async function runRelease(
           verifyWindowsPublicationSources(dependencies, tagName, provenance.tag, "upload");
         }
       }
-      await dependencies.runPhase(phase, context);
+      const stepContext = platform ? buildReleasePhaseContext(dependencies.rootDir,
+        {...options, platform}, oldVersion, newVersion, provenance.releaseHead, config,
+        dependencies.signal) : context;
+      await dependencies.runPhase(phase, stepContext);
       throwIfReleaseAborted(dependencies.signal, currentPhase);
       applyCanonicalPhaseMutation(
         phase,
@@ -770,7 +833,7 @@ export async function runRelease(
       provenance.releaseHead,
       provenance.tag
     );
-    if (!options.skipBump && !provenance.tag.exists) {
+    if ((!options.skipBump || options.platform === "all") && !provenance.tag.exists) {
       if (options.dryRun) {
         console.log(
           `  [dry-run] git tag -a ${tagName} -m "Release ${tagName}" ${provenance.releaseHead}`
@@ -799,6 +862,13 @@ export async function runRelease(
       currentPhase,
       dependencies.signal
     );
+    if (publication.started) {
+      throw new ReleaseError(failure.phase, `${failure.message}\nWindows update publication may already be public. ` +
+        `Candidate ${newVersion} and local metadata were retained; verify the remote feed before retrying ` +
+        `npm run release -- --skip-bump --skip-build. No remote rollback was attempted.`, {cause: failure});
+    }
+    // Retain the original signed artifacts if immutable uploads may exist.
+    const retryOptions = publication.artifactsStarted ? {...options, skipBuild: true} : options;
     let rollback: ReturnType<ReleaseTransaction["rollback"]>;
     try {
       rollback = transaction.rollback(dependencies.deleteTag);
@@ -828,7 +898,7 @@ export async function runRelease(
         notarizationRecovery: failure.notarizationRecovery,
         terminationUncertain: failure.terminationUncertain,
         rollbackFailure: rollbackFailure.message,
-        retryCommand: formatReleaseRetryCommand(options),
+        retryCommand: formatReleaseRetryCommand(retryOptions),
       };
       throw rollbackError;
     }
@@ -852,7 +922,7 @@ export async function runRelease(
         tagCleanupFailure: rollback.tagCleanupFailure,
         notarizationRecovery: failure.notarizationRecovery,
         terminationUncertain: failure.terminationUncertain,
-        retryCommand: formatReleaseRetryCommand(options),
+        retryCommand: formatReleaseRetryCommand(retryOptions),
       };
       throw rollbackError;
     }
@@ -866,7 +936,7 @@ export async function runRelease(
       tagCleanupFailure: null,
       notarizationRecovery: failure.notarizationRecovery,
       terminationUncertain: failure.terminationUncertain,
-      retryCommand: formatReleaseRetryCommand(options),
+      retryCommand: formatReleaseRetryCommand(retryOptions),
     };
     throw failure;
   }
@@ -1039,7 +1109,8 @@ export function formatReleaseRetryCommand(
   overrides: {resumeFromStaple?: boolean} = {}
 ): string {
   const args: string[] = [];
-  if (options.platform === "windows") args.push("--platform", "windows");
+  if (options.platform) args.push("--platform", options.platform);
+  else args.push('--platform', 'mac');
   if (options.bump && options.bump !== "patch") {
     args.push("--bump", options.bump);
   }
@@ -1079,7 +1150,7 @@ export function formatReleaseSuccessInstructions(
     "Next manual steps (not done by this script):",
     "  - Commit + push (one-liner):",
     `      git add . && git commit -m "chore: dump to version v${newVersion}" && git push origin main v${newVersion}`,
-    "  - The pushed tag automatically archives the R2 DMG on GitHub Releases.",
+    "  - The pushed tag automatically archives available R2 desktop installers on GitHub Releases.",
     "  - Deploy the website so dao.msgbyte.com/appcast.xml updates.",
   ];
 }
@@ -1088,7 +1159,7 @@ export function importReleaseSources(
   context: ReleasePhaseContext,
   runner: ReleaseCommandRunner = runStreaming
 ): Promise<void> {
-  const forceImport = context.options.forceImport !== false;
+  const forceImport = context.options.forceImport === true;
   const args = ["tsx", "scripts/cli.ts", "import", "--platform", context.options.platform ?? "mac"];
   if (forceImport) args.push("--force");
   return runReleaseStep(
@@ -1201,6 +1272,20 @@ const defaultReleaseDependencies: ReleaseDependencies = {
       case "appcast":
         await generateReleaseAppcast(context, defaultReleaseDependencies);
         return;
+      case 'update-manifest': {
+        const artifact = path.join(path.dirname(context.dmgPath), windowsInstallerName(context.newVersion));
+        const manifest = path.join(path.dirname(context.dmgPath), windowsUpdateManifestName(context.newVersion));
+        if (context.options.dryRun) {
+          log(`[dry-run] Sign and validate Windows update metadata: ${manifest}`);
+        } else if (context.options.skipBuild) {
+          if (!existsSync(context.dmgPath)) throw new ReleaseError('package', 'The macOS DMG is missing.');
+          await validateWindowsUpdateArtifact(manifest, artifact, context.newVersion, context.chromiumVersion!);
+        } else {
+          writeFileSync(manifest, await signWindowsUpdatePayload(
+            await createWindowsUpdatePayload(artifact, context.newVersion, context.chromiumVersion!), context.signal));
+        }
+        return;
+      }
       case "upload":
         await uploadReleaseArtifacts(context, defaultReleaseDependencies);
         return;
@@ -1714,6 +1799,34 @@ export async function uploadReleaseArtifacts(
   dependencies: ReleaseDependencies,
   runner: ReleaseCommandRunner = runStreaming
 ): Promise<void> {
+  if (context.options.platform === 'all') {
+    const directory = path.dirname(context.dmgPath);
+    const deltaPaths = [...collectCandidateDeltaBasenames(context.appcastPath, path.basename(context.dmgPath))]
+      .map(name => path.join(directory, name));
+    const files = [context.dmgPath, ...deltaPaths,
+      path.join(directory, windowsInstallerName(context.newVersion)),
+      path.join(directory, windowsInstallerName(context.newVersion) + '.sha256'),
+      path.join(directory, windowsUpdateManifestName(context.newVersion))];
+    if (context.options.dryRun) {
+      log(`[dry-run] Upload immutable desktop artifacts: ${files.join(', ')}`);
+      log('[dry-run] Publish signed windows-update.json last');
+      return;
+    }
+    await validateWindowsUpdateArtifact(files[files.length - 1], files[files.length - 3],
+      context.newVersion, context.chromiumVersion!);
+    await publishWindowsUpdate(files, context.options.bucket || dependencies.env.R2_BUCKET!,
+      stage => {
+        if (context.publication) {
+          if (stage === 'feed') context.publication.started = true;
+          else context.publication.artifactsStarted = true;
+        }
+      }, context.signal,
+      async args => {
+        await runReleaseStep('upload', false, 'Uploading desktop release', 'npx',
+          ['tsx', 'scripts/cli.ts', 'upload', ...args], runner, context.signal);
+      });
+    return;
+  }
   if (context.options.platform === "windows") {
     await runReleaseStep("upload", context.options.dryRun,
       "Attaching Windows installer to the shared desktop GitHub Release", "npx",
@@ -1990,6 +2103,6 @@ export function formatNotarizeRecoveryCommand(
     "xcrun notarytool submit " + dmgPath +
       " --keychain-profile " + profile + " --wait \\",
     "  && xcrun stapler staple " + dmgPath + " \\",
-    "  && " + formatReleaseRetryCommand(options, {resumeFromStaple: true}),
+    "  && " + formatReleaseRetryCommand({...options, platform: "mac"}, {resumeFromStaple: true}),
   ].join("\n");
 }

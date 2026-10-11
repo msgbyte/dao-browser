@@ -4,7 +4,9 @@
 
 ### [Unreleased] Unreleased
 
+- Build and upload macOS and Windows installers together with one desktop version through `npm run release`; use `release:mac` for a Mac-only release.
 - Windows installations can download signed updates in the background, show update status in Settings About, and install from the sidebar after a cancellable restart while preserving browsing data.
+- Publish Windows update metadata only after both installers are verified online; uncertain feed publication keeps the candidate version for a safe retry, and GitHub archives both installers.
 - Sidebar tab close buttons no longer receive focus through Tab navigation or mouse clicks, preventing lingering focus outlines and accidental Space/Enter activation; close-tab shortcuts and context-menu actions remain available.
 - Release documentation now points to one set of versioned histories, so maintainers no longer need to keep duplicate summaries.
 - GitHub release notes now include individual commits, so changes made without a pull request are included in the update history.

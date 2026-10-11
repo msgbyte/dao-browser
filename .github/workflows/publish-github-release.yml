@@ -30,7 +30,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Archive DMG from R2
-        run: npm run release:github -- "$GITHUB_REF_NAME"
+      - name: Archive desktop installers from R2
+        run: npm run release:github -- "$GITHUB_REF_NAME" --platform all
         env:
           GH_TOKEN: ${{ github.token }}
