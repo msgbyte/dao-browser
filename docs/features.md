@@ -157,6 +157,10 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
 - **sidebar_bridge.ts** — Mojo client wrapper
 - **dao_sidebar_section.ts** — Reusable collapsible section container
 - **dao_tab_list.ts** / **dao_tab_item.ts** — Vertical tab list, dual-line layout for the active tab (title + URL)
+- **Tab close-button focus** — Close buttons stay out of sequential Tab
+  navigation, and mouse clicks do not leave them focused for accidental
+  Space/Enter activation. Close-tab shortcuts and context-menu actions remain
+  available.
 - **Active-tab auto-scroll** — Expands a collapsed folder when one of its tabs
   becomes active, then smoothly keeps the active tab inside the tab-list
   viewport

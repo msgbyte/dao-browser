@@ -358,7 +358,9 @@ export class DaoTabItem extends CrLitElement {
             </span>
           ` : ''}
           <button class="close-btn"
+                  tabindex="-1"
                   aria-label=${loadTimeData.getString('daoCloseTab')}
+                  @mousedown=${this.onCloseMouseDown_}
                   @click=${this.onClose_}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
                  stroke="currentColor" stroke-width="2"
@@ -386,6 +388,12 @@ export class DaoTabItem extends CrLitElement {
   private onActivate_() {
     this.clearTooltip_(true);
     sendNative('activateTab', this.tabData.index);
+  }
+
+  private onCloseMouseDown_(e: MouseEvent) {
+    // Mouse closing must not leave a button armed for Space or Enter.
+    e.preventDefault();
+    (e.currentTarget as HTMLButtonElement).blur();
   }
 
   private onClose_(e: Event) {

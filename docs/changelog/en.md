@@ -4,6 +4,7 @@
 
 ### [Unreleased] Unreleased
 
+- Sidebar tab close buttons no longer receive focus through Tab navigation or mouse clicks, preventing lingering focus outlines and accidental Space/Enter activation; close-tab shortcuts and context-menu actions remain available.
 - Release documentation now points to one set of versioned histories, so maintainers no longer need to keep duplicate summaries.
 - GitHub release notes now include individual commits, so changes made without a pull request are included in the update history.
 - Keep readable release notes in English and Chinese for every change, with separate histories for desktop, Android, and iOS.

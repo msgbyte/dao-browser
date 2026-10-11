@@ -116,6 +116,49 @@ describe('dao-tab-item', () => {
     expect(el.shadowRoot!.querySelector('.mcp-control-icon')).toBeNull();
   });
 
+  it('closes with the mouse without leaving the close button focused',
+      async () => {
+        const send = vi.fn();
+        (globalThis as unknown as {chrome: {send: typeof send}}).chrome = {send};
+        const el = document.createElement('dao-tab-item') as TestTabItem;
+        el.tabData = tab();
+        document.body.appendChild(el);
+        await el.updateComplete;
+
+        const button = el.shadowRoot!.querySelector<HTMLButtonElement>(
+            '.close-btn')!;
+        button.focus();
+        expect(el.shadowRoot!.activeElement).toBe(button);
+
+        const down = new MouseEvent('mousedown', {
+          bubbles: true,
+          cancelable: true,
+          button: 0,
+        });
+        button.dispatchEvent(down);
+        expect(down.defaultPrevented).toBe(true);
+        expect(el.shadowRoot!.activeElement).toBeNull();
+        expect(send).not.toHaveBeenCalled();
+
+        button.dispatchEvent(new MouseEvent('click', {
+          bubbles: true,
+          detail: 1,
+        }));
+        expect(send).toHaveBeenCalledExactlyOnceWith('closeTab', [3]);
+      });
+
+  it('excludes the close button from sequential keyboard navigation',
+      async () => {
+        const el = document.createElement('dao-tab-item') as TestTabItem;
+        el.tabData = tab();
+        document.body.appendChild(el);
+        await el.updateComplete;
+
+        const button = el.shadowRoot!.querySelector<HTMLButtonElement>(
+            '.close-btn')!;
+        expect(button.tabIndex).toBe(-1);
+      });
+
   it('marks tab drags with a Dao tab MIME type', async () => {
     const send = vi.fn();
     (globalThis as unknown as {chrome: {send: typeof send}}).chrome = {send};
