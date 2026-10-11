@@ -130,7 +130,7 @@ function releaseFixture(): ReleaseFixture {
       CLOUDFLARE_API_TOKEN: 'token',
       R2_BUCKET: 'releases',
     },
-    now: () => new Date('2026-07-12T00:00:00+08:00'),
+    now: () => new Date(2026, 6, 12),
     head: () => 'a'.repeat(40),
     tagState: () => ({exists: false}),
     createTag: (tagName, commit) => {
