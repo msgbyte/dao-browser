@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_agent_page.html
-@@ -0,0 +1,1384 @@
+@@ -0,0 +1,1388 @@
 +<style include="settings-shared">
 +  :host {
 +    --dao-agent-content-inset: 18px;
@@ -623,6 +623,10 @@ index 0000000000..0000000001
 +                  value="[[plugin.token]]" data-setting$="[[plugin.tokenKey]]"
 +                  on-input="onAgentTextSettingChange_" invalid="[[plugin.tokenInvalid]]"
 +                  error-message="$i18n{daoAgentPluginTokenError}"></cr-input>
++              <cr-input label="$i18n{daoAgentModelLabel}"
++                  value="[[plugin.model]]" placeholder="[[plugin.defaultModel]]"
++                  data-setting$="[[plugin.modelKey]]"
++                  on-input="onAgentTextSettingChange_"></cr-input>
 +              <p>$i18n{daoAgentPluginConnectionHint}</p>
 +            </div>
 +          </template>

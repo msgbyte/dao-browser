@@ -208,6 +208,17 @@ function preservedContractToken(line: string): string | null {
 }
 
 describe("settings continuous overview contract", () => {
+  it("provides an optional model ID field for bundled Agent plugins", () => {
+    const html = addedPayload(readPatch("dao_page/dao_agent_page.html.patch"));
+    const modelInput = html.match(/<cr-input\b[^>]*data-setting\$="\[\[plugin\.modelKey\]\]"[^>]*>/)?.[0];
+    expect(modelInput).toBeDefined();
+    expect(modelInput).toContain('label="$i18n{daoAgentModelLabel}"');
+    expect(modelInput).toContain('value="[[plugin.model]]"');
+    expect(modelInput).toContain('placeholder="[[plugin.defaultModel]]"');
+    expect(modelInput).toContain('on-input="onAgentTextSettingChange_"');
+    expect(modelInput).not.toContain('required');
+  });
+
   it("provides an integrated table of contents and overview controller", () => {
     const requiredPatches = [
       "settings_ui/settings_ui.html.patch",

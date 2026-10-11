@@ -453,9 +453,16 @@ void DaoJevTask::OnObserved(DaoBrowserToolResult result) {
         question(std::move(choices),
                  "Choose the known input matching the next field to fill."));
   }
+  const auto& settings =
+      session_->profile()->GetPrefs()->GetDict(prefs::kDaoAgentSettings);
+  std::string model(base::TrimWhitespaceASCII(
+      Text(settings, Text(plugin_, "modelKey")), base::TRIM_ALL));
+  if (model.empty()) {
+    model = Text(plugin_, "defaultModel");
+  }
   auto body =
       base::DictValue()
-          .Set("model", "jev-latest")
+          .Set("model", model)
           .Set("questions", questions_.Clone())
           .Set("state", base::DictValue()
                             .Set("page", base::DictValue()
@@ -465,8 +472,6 @@ void DaoJevTask::OnObserved(DaoBrowserToolResult result) {
                             .Set("known_inputs", inputs_.Clone())
                             .Set("elements", std::move(offered_elements))
                             .Set("recent_actions", recent_.Clone()));
-  const auto& settings =
-      session_->profile()->GetPrefs()->GetDict(prefs::kDaoAgentSettings);
   auto request = std::make_unique<network::ResourceRequest>();
   request->url = GURL(Text(settings, Text(plugin_, "urlKey")));
   request->method = "POST";

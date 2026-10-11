@@ -2,7 +2,8 @@ import {afterEach, describe, expect, it} from 'vitest';
 import {getAgentPlugins, isPluginEnabled, isPluginTool, syncAgentPlugins} from '../agent_plugins.js';
 
 const plugin = {id: 'jev', name: 'Jev', tool: 'run_browser_task', revision: 'revision-1',
-  enabledKey: 'enabled', urlKey: 'url', tokenKey: 'token', permissionKey: 'permission'};
+  enabledKey: 'enabled', urlKey: 'url', tokenKey: 'token', permissionKey: 'permission',
+  modelKey: 'model', defaultModel: 'jev-latest'};
 const settings = {enabled: 'true', url: 'https://service.test/full/path',
   token: 'private-token', permission: 'true'};
 

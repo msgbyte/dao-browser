@@ -26,12 +26,15 @@ struct DaoAgentPluginManifest {
   const char* enabled_key;
   const char* url_key;
   const char* token_key;
+  const char* model_key;
+  const char* default_model;
   const char* permission_key;
 };
 
 inline constexpr DaoAgentPluginManifest kDaoAgentPlugins[] = {
     {"jev", "Jev", "run_browser_task", "dao_plugin_jev_enabled",
      "dao_plugin_jev_url", "dao_plugin_jev_token",
+     "dao_plugin_jev_model", "jev-latest",
      "dao_plugin_jev_permission"},
 };
 
@@ -49,7 +52,8 @@ inline std::string DaoAgentPluginRevision(
     const DaoAgentPluginManifest& plugin) {
   base::ListValue state;
   for (const char* key : {plugin.enabled_key, plugin.url_key,
-                          plugin.token_key, plugin.permission_key}) {
+                          plugin.token_key, plugin.model_key,
+                          plugin.permission_key}) {
     state.Append(DaoAgentPluginSetting(settings, key));
   }
   return base::HexEncode(
@@ -67,6 +71,8 @@ inline base::ListValue GetDaoAgentPlugins(
                      .Set("enabledKey", plugin.enabled_key)
                      .Set("urlKey", plugin.url_key)
                      .Set("tokenKey", plugin.token_key)
+                     .Set("modelKey", plugin.model_key)
+                     .Set("defaultModel", plugin.default_model)
                      .Set("permissionKey", plugin.permission_key);
     if (settings) {
       entry.Set("revision", DaoAgentPluginRevision(*settings, plugin));
@@ -121,7 +127,8 @@ inline bool IsDaoAgentPluginAuthorized(const base::DictValue& settings,
 inline bool IsDaoAgentPluginSetting(std::string_view key) {
   for (const auto& plugin : kDaoAgentPlugins) {
     for (const char* field : {plugin.enabled_key, plugin.url_key,
-                              plugin.token_key, plugin.permission_key}) {
+                              plugin.token_key, plugin.model_key,
+                              plugin.permission_key}) {
       if (key == field) {
         return true;
       }
