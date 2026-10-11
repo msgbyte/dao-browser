@@ -262,4 +262,14 @@
 <translation id="5292940529945963735">未能迁移你的数据</translation>
 <translation id="6892485888853878041">没有导入任何数据。请解决问题后重试。</translation>
 <translation id="7730621721268635191">请完全退出来源浏览器（包括后台进程），然后重试失败的项目。</translation>
+<translation id="8844720272392876439">Dao 会自动检查更新。</translation>
+<translation id="8268597460038610895">正在检查更新…</translation>
+<translation id="1751501907198032977">正在下载更新…</translation>
+<translation id="8615411791010568896">Dao 已是最新版本。</translation>
+<translation id="9123565437975681856">更新已就绪，重启 Dao 即可安装。</translation>
+<translation id="8217815143840213636">正在关闭 Dao 以安装更新…</translation>
+<translation id="5675930078556298404">自动更新需要使用为当前用户安装的 Dao 和默认用户数据目录。</translation>
+<translation id="5871587867665501112">无法下载更新，请检查网络连接后重试。</translation>
+<translation id="526914273689269452">更新校验失败，请重新检查更新。</translation>
+<translation id="8275944289159404181">无法准备更新，请关闭其他 Dao 窗口后重新检查更新。</translation>
 </translationbundle>

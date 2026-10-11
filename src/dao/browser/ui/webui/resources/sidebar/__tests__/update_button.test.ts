@@ -48,7 +48,7 @@ describe('dao-update-button', () => {
     delete (globalThis as unknown as {chrome?: unknown}).chrome;
   });
 
-  it.each(['idle', 'unsupported'] as const)(
+  it.each(['idle', 'checking', 'downloading', 'up-to-date', 'error', 'unsupported'] as const)(
       'does not render a button while %s', async (state) => {
     const {el} = await loadButton();
     el.updateState = updateState({state});
@@ -57,7 +57,7 @@ describe('dao-update-button', () => {
     expect(el.shadowRoot!.querySelector('button')).toBeNull();
   });
 
-  it.each(['idle', 'unsupported'] as const)(
+  it.each(['idle', 'checking', 'downloading', 'up-to-date', 'error', 'unsupported'] as const)(
       'hides the host while %s', async (state) => {
     const {el} = await loadButton();
     el.updateState = updateState({state});

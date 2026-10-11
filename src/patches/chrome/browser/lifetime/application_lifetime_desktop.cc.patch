@@ -1,0 +1,27 @@
+diff --git a/chrome/browser/lifetime/application_lifetime_desktop.cc b/chrome/browser/lifetime/application_lifetime_desktop.cc
+--- a/chrome/browser/lifetime/application_lifetime_desktop.cc
++++ b/chrome/browser/lifetime/application_lifetime_desktop.cc
+@@ -177,7 +177,23 @@
+       new BrowserCloseManager;
+   browser_close_manager->StartClosingBrowsers();
+ }
+ 
++void PreserveSessionsForDaoUpdate() {
++  ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
++      [](BrowserWindowInterface* browser) {
++        Profile* profile = browser->GetProfile();
++        if (!profile->IsOffTheRecord()) {
++          profile->SaveSessionState();
++#if BUILDFLAG(ENABLE_SESSION_SERVICE)
++          if (auto* service = SessionDataServiceFactory::GetForProfile(profile)) {
++            service->SetForceKeepSessionState();
++          }
++#endif
++        }
++        return true;
++      });
++}
++
+ void AttemptRestart() {
+   AttemptRestartInternal(IgnoreUnloadHandlers(false), RelaunchMode::kNormal);
+ }

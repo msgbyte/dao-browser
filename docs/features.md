@@ -109,6 +109,33 @@ reported explicitly instead of claiming successful cancellation.
 plain `rebuild` continues to use the debug cache.
 See [`development.md`](development.md) for setup and verification requirements.
 
+### Windows updates
+
+`browser/updater/dao_windows_updater.*` uses Chromium networking to check
+`https://dao-release.msgbyte.com/windows-update.json` after a 30-second startup
+delay when due, then daily. It runs only for registered per-user x64 installations
+using the default user-data directory, excluding component builds and
+Guest/Incognito-only starts. macOS continues using Sparkle.
+
+The updater verifies an Ed25519 signature over the exact metadata payload,
+requires a newer Dao version and no Chromium downgrade, and accepts only the
+fixed R2 installer URL. Metadata is limited to 64 KiB and installers to 1 GiB;
+redirects and credentials are disabled. Size and SHA-256 are checked before
+caching in the user-restricted `Dao/Updates` directory and again before launch.
+A signed ready update survives browser restarts. Settings About exposes localized
+checking, downloading, current, ready, unsupported-installation, and error states;
+the sidebar only shows its existing update control for ready/applying states.
+
+Applying an update starts an authenticated, current-user-only named-pipe handoff
+to the existing NSIS installer host without WebView2. The helper waits for an
+explicit graceful-exit commit and the original browser process to exit. Cancelling
+an unload/download prompt cancels the handoff, including a later unrelated quit.
+The helper rechecks registration and other processes, silently installs into the
+existing directory, and relaunches with session restoration. It never force-kills
+browsers. Installer errors show localized retry guidance and log locations.
+Existing Windows versions without this updater need one manual upgrade first.
+
+
 ## 1. Vertical Sidebar
 
 An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the single biggest UI change in Dao Browser. The sidebar is a hybrid: a C++ Views container hosts a Lit/TypeScript WebUI that renders the actual tab list, favorites, and controls.

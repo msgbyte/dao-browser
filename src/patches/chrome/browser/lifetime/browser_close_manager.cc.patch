@@ -1,0 +1,30 @@
+diff --git a/chrome/browser/lifetime/browser_close_manager.cc b/chrome/browser/lifetime/browser_close_manager.cc
+--- a/chrome/browser/lifetime/browser_close_manager.cc
++++ b/chrome/browser/lifetime/browser_close_manager.cc
+@@ -17,8 +17,10 @@
+ #include "chrome/browser/browser_process.h"
+ #include "chrome/browser/download/download_core_service.h"
+ #include "chrome/browser/download/download_core_service_factory.h"
+ #include "chrome/browser/lifetime/application_lifetime.h"
++#include "chrome/browser/lifetime/application_lifetime_desktop.h"
++#include "dao/browser/updater/dao_updater_service.h"
+ #include "chrome/browser/lifetime/browser_shutdown.h"
+ #include "chrome/browser/profiles/profile_manager.h"
+ #include "chrome/browser/ui/browser.h"
+ #include "chrome/browser/ui/browser_window.h"
+@@ -187,8 +189,15 @@
+   }
+ }
+ 
+ void BrowserCloseManager::CloseBrowsers() {
++#if BUILDFLAG(IS_WIN)
++  // Preserve session-only data only after every cancellation prompt has passed.
++  if (!browser_shutdown::ShouldIgnoreUnloadHandlers() &&
++      dao::DaoUpdaterService::GetInstance()->PrepareForExit()) {
++    chrome::PreserveSessionsForDaoUpdate();
++  }
++#endif
+ #if BUILDFLAG(ENABLE_SESSION_SERVICE)
+   // Before we close the browsers shutdown all session services. That way an
+   // exit can restore all browsers open before exiting.
+   ProfileManager::ShutdownSessionServices();

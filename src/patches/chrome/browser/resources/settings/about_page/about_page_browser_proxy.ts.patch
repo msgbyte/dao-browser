@@ -1,12 +1,12 @@
 diff --git a/chrome/browser/resources/settings/about_page/about_page_browser_proxy.ts b/chrome/browser/resources/settings/about_page/about_page_browser_proxy.ts
-index 10bea4664a..093d69d965 100644
 --- a/chrome/browser/resources/settings/about_page/about_page_browser_proxy.ts
 +++ b/chrome/browser/resources/settings/about_page/about_page_browser_proxy.ts
-@@ -50,11 +50,13 @@ export interface AboutPageBrowserProxy {
+@@ -49,13 +49,15 @@
+    * Indicates to the browser that the page is ready.
     */
    pageReady(): void;
  
-+  // <if expr="not is_macosx">
++  // <if expr="not is_macosx and not is_win">
    /**
     * Request update status from the browser. It results in one or more
     * 'update-status-changed' WebUI events.
@@ -16,14 +16,16 @@ index 10bea4664a..093d69d965 100644
  
    /** Opens the help page. */
    openHelpPage(): void;
-@@ -73,6 +75,14 @@ export interface AboutPageBrowserProxy {
+ 
+@@ -72,22 +74,38 @@
+    * Triggers setting up auto-updates for all users.
     */
    promoteUpdater(): void;
    // </if>
 +
-+  // <if expr="is_macosx">
++  // <if expr="is_macosx or is_win">
 +  /**
-+   * Dao: triggers a user-initiated Sparkle update check on macOS. Replaces
++   * Dao: triggers a user-initiated update check on macOS and Windows. Replaces
 +   * the Chromium updater path which is disabled in non-Google-branded builds.
 +   */
 +  daoCheckForUpdates(): void;
@@ -31,11 +33,11 @@ index 10bea4664a..093d69d965 100644
  }
  
  export class AboutPageBrowserProxyImpl implements AboutPageBrowserProxy {
-@@ -80,9 +90,11 @@ export class AboutPageBrowserProxyImpl implements AboutPageBrowserProxy {
+   pageReady() {
      chrome.send('aboutPageReady');
    }
  
-+  // <if expr="not is_macosx">
++  // <if expr="not is_macosx and not is_win">
    refreshUpdateStatus() {
      chrome.send('refreshUpdateStatus');
    }
@@ -43,16 +45,14 @@ index 10bea4664a..093d69d965 100644
  
    // <if expr="_google_chrome and is_macosx">
    promoteUpdater() {
-@@ -90,6 +102,12 @@ export class AboutPageBrowserProxyImpl implements AboutPageBrowserProxy {
-   }
-   // </if>
- 
-+  // <if expr="is_macosx">
-+  daoCheckForUpdates() {
-+    chrome.send('daoCheckForUpdates');
+     chrome.send('promoteUpdater');
 +  }
 +  // </if>
 +
-   openHelpPage() {
-     chrome.send('openHelpPage');
++  // <if expr="is_macosx or is_win">
++  daoCheckForUpdates() {
++    chrome.send('daoCheckForUpdates');
    }
+   // </if>
+ 
+   openHelpPage() {

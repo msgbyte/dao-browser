@@ -1770,7 +1770,7 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarFullscreenBrowserTest,
 }
 #endif
 
-#if BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
 IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
                        SidebarHandlerSerializesIdleUpdateState) {
   dao::DaoUpdaterService* service = dao::DaoUpdaterService::GetInstance();
@@ -1791,7 +1791,7 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
 }
 #endif
 
-#if BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
 IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
                        ReadyUpdateStatusRetainsDisplayVersion) {
   dao::DaoUpdaterService* service = dao::DaoUpdaterService::GetInstance();

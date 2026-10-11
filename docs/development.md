@@ -2,6 +2,30 @@
 
 This document describes how to build Dao Browser from source.
 
+## Desktop releases and automatic updates
+
+Windows checks daily and downloads verified updates in the background. Apply
+from Settings About or the sidebar. Cancelling browser shutdown cancels that
+install attempt. Only registered per-user x64 installations with default user
+data participate; development/component, portable, machine-wide and private-only
+sessions do not. Updates preserve the registered directory and browsing data,
+then restore normal sessions. The feed signature is separate from Windows
+Authenticode signing; the EXE remains unsigned. Older builds without the updater
+need one manual install of a build containing it.
+
+For local verification, run focused release/installer/WebUI tests and use only
+`npm run rebuild` for native compilation. Windows cross compilation does not
+prove runtime behavior: validate install, same-Chromium-version upgrade, cancelled
+shutdown, other running profiles, non-ASCII paths and relaunch on disposable
+Windows before shipping. See [release signing](release-signing.md).
+The `dao_updater_unittests` target covers shared signature/file validation and,
+on Windows, mock-time scheduling, URL-loader failures, download integrity and
+commit/exit coordination. Build it through `npm run rebuild` with the relevant
+platform, then run its executable with
+`--gtest_filter="DaoUpdateManifestTest.*:DaoUpdateWinUtilTest.*:DaoWindowsUpdaterTest.*"`.
+These unit tests do not modify an installed browser; the complete registered
+installation and restart flow still needs disposable-Windows acceptance.
+
 ## Prerequisites
 
 - macOS arm64 with Xcode and Command Line Tools, or Windows x64 with the
@@ -388,7 +412,7 @@ in `out/dao` on Windows or `out/dao-win-x64` on Mac, and packages
 `dao-browser-<version>-windows-x64.exe`. It requires native Windows x64 tools or
 the configured Mac cross toolchain, and authenticated GitHub CLI (`gh auth login`),
 but no signing credentials, R2 credentials, or Sparkle tools. Unsigned packages
-can display Windows security prompts. Automatic Windows updates are not included.
+can display Windows security prompts. Installed Windows builds support verified automatic updates; this standalone command does not publish update metadata.
 
 The GitHub uploader preserves existing macOS assets and rejects a different
 Windows installer for an already published version. A retry can complete a

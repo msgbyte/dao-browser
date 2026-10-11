@@ -23,6 +23,7 @@ VIAddVersionKey /LANG=1033 "LegalCopyright" "The Dao Authors"
 Var ExistingRoot
 Var PathError
 Var ExitCode
+Var UpdateToken
 
 !define UNINSTALL_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\Dao"
 !define MUI_ICON "${ICON}"
@@ -51,6 +52,31 @@ SetFont /LANG=${LANG_SIMPCHINESE} "Microsoft YaHei UI" 9
 !include "locales\en.nsh"
 !include "locales\zh-CN.nsh"
 !include "theme.nsh"
+
+Function TryUpdate
+  ${GetParameters} $0
+  ClearErrors
+  ${GetOptions} $0 "/DAOUPDATE=" $UpdateToken
+  IfErrors normal_start
+!ifdef WEBVIEW_HOST
+  InitPluginsDir
+  File "/oname=$PLUGINSDIR\dao-installer-ui.exe" "${WEBVIEW_HOST}"
+  FileOpen $0 "$PLUGINSDIR\session.ini" w
+  FileWriteWord $0 0xFEFF
+  FileClose $0
+  WriteINIStr "$PLUGINSDIR\session.ini" "Installer" "Executable" "$EXEPATH"
+  WriteINIStr "$PLUGINSDIR\session.ini" "Installer" "Language" "$LANGUAGE"
+  ClearErrors
+  ExecWait '"$PLUGINSDIR\dao-installer-ui.exe" --dao-update "$UpdateToken"' $0
+  IfErrors update_failed
+  SetErrorLevel $0
+  Quit
+!endif
+update_failed:
+  SetErrorLevel 10
+  Quit
+normal_start:
+FunctionEnd
 
 Function TryWebView
 !ifdef WEBVIEW_HOST
@@ -139,6 +165,7 @@ Function .onInit
     ${GetParent} "$0" $ExistingRoot
     StrCpy $INSTDIR $ExistingRoot
   ${EndIf}
+  Call TryUpdate
   Call TryWebView
 FunctionEnd
 

@@ -1,24 +1,32 @@
 diff --git a/chrome/test/data/webui/settings/test_about_page_browser_proxy.ts b/chrome/test/data/webui/settings/test_about_page_browser_proxy.ts
-index aaaaaaaaaa..bbbbbbbbbb 100644
 --- a/chrome/test/data/webui/settings/test_about_page_browser_proxy.ts
 +++ b/chrome/test/data/webui/settings/test_about_page_browser_proxy.ts
-@@ -17,6 +17,10 @@ export class TestAboutPageBrowserProxy extends TestBrowserProxy implements
-       // <if expr="is_macosx">
+@@ -15,8 +15,12 @@
+     super([
+       'pageReady', 'refreshUpdateStatus', 'openHelpPage', 'openFeedbackDialog',
+ 
+-      // <if expr="is_macosx">
++      // <if expr="is_macosx or is_win">
        'promoteUpdater',
-       // </if>
-+
-+      // <if expr="is_macosx">
-+      'daoCheckForUpdates',
 +      // </if>
++
++      // <if expr="is_macosx or is_win">
++      'daoCheckForUpdates',
+       // </if>
      ]);
    }
-
-@@ -49,4 +53,10 @@ export class TestAboutPageBrowserProxy extends TestBrowserProxy implements
+@@ -45,9 +49,15 @@
+     this.methodCalled('openHelpPage');
+   }
+ 
+-  // <if expr="is_macosx">
++  // <if expr="is_macosx or is_win">
+   promoteUpdater() {
      this.methodCalled('promoteUpdater');
    }
    // </if>
 +
-+  // <if expr="is_macosx">
++  // <if expr="is_macosx or is_win">
 +  daoCheckForUpdates() {
 +    this.methodCalled('daoCheckForUpdates');
 +  }

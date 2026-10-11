@@ -137,7 +137,7 @@ export interface DownloadState {
 
 // ---- Application Update Data Types ----
 
-export type UpdateState = 'idle' | 'ready' | 'applying' | 'unsupported';
+export type UpdateState = 'idle' | 'checking' | 'downloading' | 'up-to-date' | 'error' | 'ready' | 'applying' | 'unsupported';
 export interface UpdateStateData {
   state: UpdateState;
   displayVersion: string;

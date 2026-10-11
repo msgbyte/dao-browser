@@ -20,6 +20,8 @@ const inputs = [
   'scripts/commands/build-windows-installer.ts',
   'scripts/windows-toolchain.ts',
   'scripts/windows-installer/native/host.cc',
+  'scripts/windows-installer/native/update.h',
+  'src/dao/browser/updater/dao_update_win_util.h',
   'scripts/windows-installer/native/host.manifest',
   'branding/win/dao.ico',
   'scripts/windows-installer/web/locales/en.json',

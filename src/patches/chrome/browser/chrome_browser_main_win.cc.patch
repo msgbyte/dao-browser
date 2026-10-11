@@ -1,0 +1,30 @@
+diff --git a/chrome/browser/chrome_browser_main_win.cc b/chrome/browser/chrome_browser_main_win.cc
+--- a/chrome/browser/chrome_browser_main_win.cc
++++ b/chrome/browser/chrome_browser_main_win.cc
+@@ -4,6 +4,7 @@
+ 
+ 
+ #include "chrome/browser/chrome_browser_main_win.h"
++#include "dao/browser/updater/dao_updater_service.h"
+ 
+ // windows.h must be included before shellapi.h
+ #include <windows.h>
+@@ -599,6 +600,7 @@
+ }
+ 
+ void ChromeBrowserMainPartsWin::PostMainMessageLoopRun() {
++  dao::DaoUpdaterService::GetInstance()->Shutdown();
+   base::ImportantFileWriterCleaner::GetInstance().Stop();
+ 
+   ChromeBrowserMainParts::PostMainMessageLoopRun();
+@@ -635,6 +637,10 @@
+ void ChromeBrowserMainPartsWin::PostProfileInit(Profile* profile,
+                                                 bool is_initial_profile) {
+   ChromeBrowserMainParts::PostProfileInit(profile, is_initial_profile);
++
++  if (!profile->IsOffTheRecord() && !profile->IsGuestSession()) {
++    dao::DaoUpdaterService::GetInstance()->Init();
++  }
+ 
+   // The setup below is intended to run for only the initial profile.
+   if (!is_initial_profile)

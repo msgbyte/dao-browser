@@ -34,5 +34,6 @@
   "details": "View details",
   "tipSidebar": "Keep your tabs in the sidebar, with every page in view.",
   "tipAgent": "The built-in Agent can understand the page and help you take action.",
-  "tipMemory": "Long-term memory remembers your preferences as you browse."
+  "tipMemory": "Long-term memory remembers your preferences as you browse.",
+  "updateFailed": "Dao could not finish the update. Close other Dao windows, reopen Dao, and try again. Installation details are in %TEMP%\\dao_installer.log; handoff details are in %TEMP%\\dao_installer_ui.log."
 }

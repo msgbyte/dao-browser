@@ -1,23 +1,21 @@
 diff --git a/chrome/browser/ui/webui/settings/about_handler.cc b/chrome/browser/ui/webui/settings/about_handler.cc
-index 17a72c6c10..6d9a8e9cf6 100644
 --- a/chrome/browser/ui/webui/settings/about_handler.cc
 +++ b/chrome/browser/ui/webui/settings/about_handler.cc
-@@ -51,6 +51,10 @@
+@@ -51,6 +51,9 @@
  #include "ui/base/l10n/l10n_util.h"
  #include "v8/include/v8-version-string.h"
  
-+#if BUILDFLAG(IS_MAC)
 +#include "dao/browser/updater/dao_updater_service.h"
-+#endif
++#include "dao/browser/strings/grit/dao_strings.h"
 +
  #if BUILDFLAG(IS_CHROMEOS)
  #include <optional>
  
-@@ -304,10 +308,15 @@ void AboutHandler::RegisterMessages() {
+@@ -304,10 +307,15 @@
    web_ui()->RegisterMessageCallback(
        "aboutPageReady", base::BindRepeating(&AboutHandler::HandlePageReady,
                                              base::Unretained(this)));
-+#if !BUILDFLAG(IS_MAC)
++#if !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_WIN)
 +  // Dao: macOS uses Sparkle. Skip Chromium's auto-fired update check so the
 +  // settings About page does not trigger the Omaha backend, which is absent
 +  // on non-Google-branded official builds and surfaces a misleading error.
@@ -29,44 +27,36 @@ index 17a72c6c10..6d9a8e9cf6 100644
    web_ui()->RegisterMessageCallback(
        "openFeedbackDialog",
        base::BindRepeating(&AboutHandler::HandleOpenFeedbackDialog,
-@@ -412,10 +421,21 @@ void AboutHandler::RegisterMessages() {
+@@ -411,10 +419,13 @@
+       base::BindRepeating(&AboutHandler::HandleRecordExtendedUpdatesShown,
                            base::Unretained(this)));
  #endif  // BUILDFLAG(IS_CHROMEOS)
- #if BUILDFLAG(IS_MAC)
-+  // Dao: Chromium's promoteUpdater (Keystone "make autoupdate available to
-+  // all users") is replaced by Sparkle's update flow. Disable the message
-+  // handler so the front-end can drop its call site.
-+#if 0
-   web_ui()->RegisterMessageCallback(
-       "promoteUpdater", base::BindRepeating(&AboutHandler::PromoteUpdater,
-                                             base::Unretained(this)));
+-#if BUILDFLAG(IS_MAC)
+-  web_ui()->RegisterMessageCallback(
+-      "promoteUpdater", base::BindRepeating(&AboutHandler::PromoteUpdater,
+-                                            base::Unretained(this)));
++#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
++  web_ui()->RegisterMessageCallback("daoCheckForUpdates",
++      base::BindRepeating(&AboutHandler::HandleDaoCheckForUpdates, base::Unretained(this)));
++  web_ui()->RegisterMessageCallback("daoRequestUpdateStatus",
++      base::BindRepeating(&AboutHandler::HandleDaoRequestUpdateStatus, base::Unretained(this)));
++  web_ui()->RegisterMessageCallback("daoApplyReadyUpdate",
++      base::BindRepeating(&AboutHandler::HandleDaoApplyUpdate, base::Unretained(this)));
  #endif
-+  // Dao: route the settings "Check for updates" button to the Sparkle-backed
-+  // updater service so the UI matches the menu item behaviour.
-+  web_ui()->RegisterMessageCallback(
-+      "daoCheckForUpdates",
-+      base::BindRepeating(&AboutHandler::HandleDaoCheckForUpdates,
-+                          base::Unretained(this)));
-+#endif
  
  #if BUILDFLAG(IS_CHROMEOS)
-   // Handler for the product label image, which will be shown if available.
-@@ -426,6 +446,14 @@ void AboutHandler::RegisterMessages() {
+@@ -426,6 +437,10 @@
  }
  
  void AboutHandler::OnJavascriptAllowed() {
-+#if BUILDFLAG(IS_MAC)
-+  // Dao: macOS uses Sparkle for updates. Skip allocation of VersionUpdater
-+  // and the policy observer so opening the About page does not auto-fire
-+  // the Chromium update check. The UpgradeDetector observer registered in
-+  // the ctor is a no-op on mac because apply_changes_from_upgrade_observer_
-+  // remains at its default value of false.
++#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
++  dao_updater_observation_.Observe(dao::DaoUpdaterService::GetInstance());
 +  return;
 +#else
    apply_changes_from_upgrade_observer_ = true;
    version_updater_ = VersionUpdater::Create(web_ui()->GetWebContents());
    policy_registrar_ = std::make_unique<policy::PolicyChangeRegistrar>(
-@@ -445,15 +473,18 @@ void AboutHandler::OnJavascriptAllowed() {
+@@ -445,15 +460,19 @@
                                  weak_factory_.GetWeakPtr()));
    }
  #endif  // BUILDFLAG(IS_CHROMEOS)
@@ -74,10 +64,11 @@ index 17a72c6c10..6d9a8e9cf6 100644
  }
  
  void AboutHandler::OnJavascriptDisallowed() {
++  dao_updater_observation_.Reset();
    // Invalidate all existing WeakPtrs so that no stale callbacks occur.
    weak_factory_.InvalidateWeakPtrs();
  
-+#if !BUILDFLAG(IS_MAC)
++#if !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_WIN)
    apply_changes_from_upgrade_observer_ = false;
    version_updater_.reset();
    policy_registrar_.reset();
@@ -85,17 +76,53 @@ index 17a72c6c10..6d9a8e9cf6 100644
  }
  
  void AboutHandler::OnUpgradeRecommended() {
-@@ -509,6 +540,13 @@ void AboutHandler::RefreshUpdateStatus() {
+@@ -509,7 +528,49 @@
  void AboutHandler::PromoteUpdater(const base::ListValue& args) {
    version_updater_->PromoteUpdater();
  }
 +
++
+ #endif
++
 +void AboutHandler::HandleDaoCheckForUpdates(const base::ListValue& args) {
 +  AllowJavascript();
-+  // Sparkle owns its own progress / "up to date" sheet, so we just kick off
-+  // the check and let Sparkle drive any user-visible UI.
 +  dao::DaoUpdaterService::GetInstance()->CheckForUpdatesUserInitiated();
 +}
- #endif
++
++void AboutHandler::HandleDaoRequestUpdateStatus(const base::ListValue& args) {
++  AllowJavascript();
++  OnDaoUpdateStatusChanged(dao::DaoUpdaterService::GetInstance()->GetUpdateStatus());
++}
++
++void AboutHandler::HandleDaoApplyUpdate(const base::ListValue& args) {
++  dao::DaoUpdaterService::GetInstance()->ApplyReadyUpdate();
++}
++
++void AboutHandler::OnDaoUpdateStatusChanged(const dao::DaoUpdateStatus& status) {
++  if (!IsJavascriptAllowed()) return;
++  int message = IDS_DAO_UPDATE_IDLE;
++  using State = dao::DaoUpdateState;
++  switch (status.state) {
++    case State::kIdle: break;
++    case State::kChecking: message = IDS_DAO_UPDATE_CHECKING; break;
++    case State::kDownloading: message = IDS_DAO_UPDATE_DOWNLOADING; break;
++    case State::kUpToDate: message = IDS_DAO_UPDATE_CURRENT; break;
++    case State::kReady: message = IDS_DAO_UPDATE_READY; break;
++    case State::kApplying: message = IDS_DAO_UPDATE_APPLYING; break;
++    case State::kUnsupported: message = IDS_DAO_UPDATE_UNSUPPORTED; break;
++    case State::kError:
++      message = status.error == dao::DaoUpdateError::kVerification ? IDS_DAO_UPDATE_VERIFY_ERROR :
++                status.error == dao::DaoUpdateError::kInstall ? IDS_DAO_UPDATE_INSTALL_ERROR :
++                IDS_DAO_UPDATE_NETWORK_ERROR;
++      break;
++  }
++  base::DictValue value;
++  value.Set("message", l10n_util::GetStringUTF16(message));
++  value.Set("busy", status.state == State::kChecking || status.state == State::kDownloading ||
++                    status.state == State::kApplying || status.state == State::kUnsupported);
++  value.Set("ready", status.state == State::kReady);
++  FireWebUIListener("dao-update-status-changed", value);
++}
  
  void AboutHandler::HandleOpenFeedbackDialog(const base::ListValue& args) {
+   DCHECK(args.empty());

@@ -16,6 +16,10 @@
 
 #if BUILDFLAG(IS_MAC)
 #include "dao/browser/updater/dao_sparkle_updater_mac.h"
+#elif BUILDFLAG(IS_WIN)
+#include "dao/browser/updater/dao_windows_updater.h"
+#include "chrome/browser/browser_process.h"
+#include "chrome/browser/net/system_network_context_manager.h"
 #endif
 
 namespace dao {
@@ -27,7 +31,12 @@ namespace dao {
 
 class DaoUpdaterService::Impl {
  public:
-  Impl() = default;
+  Impl() {
+#if BUILDFLAG(IS_WIN)
+    // A normal profile must initialize an eligible installation first.
+    update_status_.state = DaoUpdateState::kUnsupported;
+#endif
+  }
   ~Impl() = default;
 
   Impl(const Impl&) = delete;
@@ -45,9 +54,32 @@ class DaoUpdaterService::Impl {
                             base::Unretained(this)),
         base::BindRepeating(&DaoUpdaterService::Impl::OnUpdateSessionFinished,
                             base::Unretained(this)));
+#elif BUILDFLAG(IS_WIN)
+    windows_ = std::make_unique<DaoWindowsUpdater>();
+    windows_->Start(base::BindRepeating(
+        [](Impl* self, const DaoUpdateStatus& status) {
+          self->update_status_ = status;
+          ++self->update_status_generation_;
+          self->NotifyUpdateStatusChanged();
+        }, base::Unretained(this)),
+        g_browser_process->system_network_context_manager()->GetSharedURLLoaderFactory());
 #else
     LOG(WARNING) << "DaoUpdaterService: auto-update not supported on this "
                     "platform (compiled without Sparkle).";
+#endif
+  }
+
+  bool PrepareForExit() {
+#if BUILDFLAG(IS_WIN)
+    return windows_ && windows_->PrepareForExit();
+#else
+    return false;
+#endif
+  }
+
+  void Shutdown() {
+#if BUILDFLAG(IS_WIN)
+    if (windows_) windows_->Shutdown();
 #endif
   }
 
@@ -61,6 +93,8 @@ class DaoUpdaterService::Impl {
     if (sparkle_) {
       sparkle_->CheckForUpdatesUserInitiated();
     }
+#elif BUILDFLAG(IS_WIN)
+    if (windows_) windows_->CheckForUpdates(true);
 #endif
   }
 
@@ -73,7 +107,7 @@ class DaoUpdaterService::Impl {
   }
 
   DaoUpdateStatus GetUpdateStatus() const {
-#if BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
     return update_status_;
 #else
     DaoUpdateStatus status;
@@ -85,7 +119,7 @@ class DaoUpdaterService::Impl {
   void SetReadyUpdate(std::string display_version,
                       base::OnceClosure install_callback) {
     DCHECK(!install_callback.is_null());
-#if !BUILDFLAG(IS_MAC)
+#if !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_WIN)
     (void)display_version;
     (void)install_callback;
     return;
@@ -119,7 +153,7 @@ class DaoUpdaterService::Impl {
   }
 
   bool ApplyReadyUpdate() {
-#if !BUILDFLAG(IS_MAC)
+#if !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_WIN)
     return false;
 #else
     if (update_status_.state != DaoUpdateState::kReady) {
@@ -127,6 +161,9 @@ class DaoUpdaterService::Impl {
     }
 
     if (ready_install_callback_.is_null()) {
+#if BUILDFLAG(IS_WIN)
+      if (windows_) return windows_->ApplyReadyUpdate();
+#endif
       ClearReadyUpdate();
       return false;
     }
@@ -182,6 +219,8 @@ class DaoUpdaterService::Impl {
 
 #if BUILDFLAG(IS_MAC)
   std::unique_ptr<DaoSparkleUpdaterMac> sparkle_;
+#elif BUILDFLAG(IS_WIN)
+  std::unique_ptr<DaoWindowsUpdater> windows_;
 #endif
 };
 
@@ -206,8 +245,13 @@ void DaoUpdaterService::CheckForUpdatesUserInitiated() {
   impl_->CheckForUpdatesUserInitiated();
 }
 
+void DaoUpdaterService::Shutdown() { impl_->Shutdown(); }
+bool DaoUpdaterService::PrepareForExit() { return impl_->PrepareForExit(); }
+
 bool DaoUpdaterService::IsSupported() const {
-#if BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_WIN)
+  return impl_->GetUpdateStatus().state != DaoUpdateState::kUnsupported;
+#elif BUILDFLAG(IS_MAC)
   return true;
 #else
   return false;

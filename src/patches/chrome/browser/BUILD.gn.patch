@@ -1,22 +1,21 @@
 diff --git a/chrome/browser/BUILD.gn b/chrome/browser/BUILD.gn
-index 97b17f850c..333ac2ac61 100644
 --- a/chrome/browser/BUILD.gn
 +++ b/chrome/browser/BUILD.gn
-@@ -2232,6 +2232,8 @@ static_library("browser") {
+@@ -1531,6 +1531,9 @@
      "//content/public/common",
      "//content/public/common:buildflags",
      "//crypto",
++    "//dao/browser/updater:dao_updater",
 +    # Dao MV2 Support: provide kRestoreManifestV2Deprecation feature for about_flags.cc.
 +    "//dao/browser/extensions/legacy_mv2:dao_legacy_mv2",
      "//device/base",
      "//device/base/synchronization",
      "//device/fido",
-@@ -6165,6 +6167,8 @@ static_library("browser") {
+@@ -4214,6 +4217,7 @@
        "//chrome/services/mac_notifications",
        "//chrome/services/mac_notifications/public/cpp",
        "//chrome/services/mac_notifications/public/mojom",
 +      "//dao/browser/telemetry:dao_telemetry",
-+      "//dao/browser/updater:dao_updater",
        "//components/crash/core/app",
        "//components/device_signals/core/browser/mac",
        "//components/enterprise/platform_auth:enterprise_platform_auth",

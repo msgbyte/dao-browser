@@ -1,5 +1,4 @@
 diff --git a/chrome/browser/resources/settings/about_page/about_page.ts b/chrome/browser/resources/settings/about_page/about_page.ts
-index aa3f435d83..f0c76e5469 100644
 --- a/chrome/browser/resources/settings/about_page/about_page.ts
 +++ b/chrome/browser/resources/settings/about_page/about_page.ts
 @@ -8,7 +8,7 @@
@@ -7,28 +6,27 @@ index aa3f435d83..f0c76e5469 100644
  
  import '/shared/settings/prefs/prefs.js';
 -// <if expr="not is_chromeos">
-+// <if expr="not is_chromeos and not is_macosx">
++// <if expr="not is_chromeos and not is_macosx and not is_win">
  import '../relaunch_confirmation_dialog.js';
  // </if>
  import '../settings_page/settings_section.js';
-@@ -21,21 +21,33 @@ import 'chrome://resources/cr_elements/icons.html.js';
- import 'chrome://resources/cr_elements/cr_shared_style.css.js';
+@@ -22,20 +22,32 @@
  
  import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
-+// <if expr="not is_macosx">
  import {WebUiListenerMixin} from 'chrome://resources/cr_elements/web_ui_listener_mixin.js';
++// <if expr="not is_macosx and not is_win">
  import {assert} from 'chrome://resources/js/assert.js';
 +// </if>
  // <if expr="_google_chrome">
  import {OpenWindowProxyImpl} from 'chrome://resources/js/open_window_proxy.js';
  // </if>
-+// <if expr="not is_macosx">
++// <if expr="not is_macosx and not is_win">
  import {sanitizeInnerHtml} from 'chrome://resources/js/parse_html_subset.js';
 +// </if>
  import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
  
  import {loadTimeData} from '../i18n_setup.js';
-+// <if expr="not is_macosx">
++// <if expr="not is_macosx and not is_win">
  import {RelaunchMixin, RestartType} from '../relaunch_mixin.js';
 +// </if>
  import type {SettingsPlugin} from '../settings_main/settings_plugin.js';
@@ -37,39 +35,44 @@ index aa3f435d83..f0c76e5469 100644
 -import type {AboutPageBrowserProxy, UpdateStatusChangedEvent} from './about_page_browser_proxy.js';
 -import {AboutPageBrowserProxyImpl, UpdateStatus} from './about_page_browser_proxy.js';
 +import type {AboutPageBrowserProxy} from './about_page_browser_proxy.js';
-+// <if expr="not is_macosx">
++// <if expr="not is_macosx and not is_win">
 +import type {UpdateStatusChangedEvent} from './about_page_browser_proxy.js';
 +// </if>
 +import {AboutPageBrowserProxyImpl} from './about_page_browser_proxy.js';
-+// <if expr="not is_macosx">
++// <if expr="not is_macosx and not is_win">
 +import {UpdateStatus} from './about_page_browser_proxy.js';
 +// </if>
  // clang-format off
  // <if expr="_google_chrome and is_macosx">
  import type {PromoteUpdaterStatus} from './about_page_browser_proxy.js';
-@@ -47,8 +59,13 @@ export const ABOUT_PAGE_PRIVACY_POLICY_URL: string =
+@@ -47,8 +59,13 @@
      'https://policies.google.com/privacy';
  // </if>
  
-+// <if expr="not is_macosx">
++// <if expr="not is_macosx and not is_win">
  const SettingsAboutPageElementBase =
      RelaunchMixin(WebUiListenerMixin(I18nMixin(PolymerElement)));
 +// </if>
-+// <if expr="is_macosx">
-+const SettingsAboutPageElementBase = I18nMixin(PolymerElement);
++// <if expr="is_macosx or is_win">
++const SettingsAboutPageElementBase = WebUiListenerMixin(I18nMixin(PolymerElement));
 +// </if>
  
  export class SettingsAboutPageElement extends SettingsAboutPageElementBase
      implements SettingsPlugin {
-@@ -62,6 +79,7 @@ export class SettingsAboutPageElement extends SettingsAboutPageElementBase
+@@ -62,6 +79,12 @@
  
    static get properties() {
      return {
-+      // <if expr="not is_macosx">
++      // <if expr="is_win">
++      daoUpdateMessage_: {type: String, value: ''},
++      daoUpdateBusy_: {type: Boolean, value: false},
++      daoUpdateReady_: {type: Boolean, value: false},
++      // </if>
++      // <if expr="not is_macosx and not is_win">
        currentUpdateStatusEvent_: {
          type: Object,
          value: {
-@@ -71,6 +89,7 @@ export class SettingsAboutPageElement extends SettingsAboutPageElementBase
+@@ -71,6 +94,7 @@
            status: UpdateStatus.DISABLED,
          },
        },
@@ -77,86 +80,104 @@ index aa3f435d83..f0c76e5469 100644
  
        /**
         * Whether the browser/ChromeOS is managed by their organization
-@@ -98,7 +117,7 @@ export class SettingsAboutPageElement extends SettingsAboutPageElementBase
+@@ -98,7 +122,7 @@
        promoteUpdaterStatus_: Object,
        // </if>
  
 -      // <if expr="not is_chromeos">
-+      // <if expr="not is_chromeos and not is_macosx">
++      // <if expr="not is_chromeos and not is_macosx and not is_win">
        obsoleteSystemInfo_: {
          type: Object,
          value() {
-@@ -124,7 +143,7 @@ export class SettingsAboutPageElement extends SettingsAboutPageElementBase
+@@ -124,7 +148,7 @@
      };
    }
  
 -  // <if expr="not is_chromeos">
-+  // <if expr="not is_chromeos and not is_macosx">
++  // <if expr="not is_chromeos and not is_macosx and not is_win">
    static get observers() {
      return [
        'updateShowUpdateStatus_(' +
-@@ -135,7 +154,9 @@ export class SettingsAboutPageElement extends SettingsAboutPageElementBase
+@@ -135,7 +159,14 @@
    }
    // </if>
  
-+  // <if expr="not is_macosx">
++  // <if expr="not is_macosx and not is_win">
    declare private currentUpdateStatusEvent_: UpdateStatusChangedEvent|null;
++  // </if>
++  // <if expr="is_win">
++  declare private daoUpdateMessage_: string;
++  declare private daoUpdateBusy_: boolean;
++  declare private daoUpdateReady_: boolean;
 +  // </if>
    declare private isManaged_: boolean;
    declare private managedByIcon_: string;
  
-@@ -143,7 +164,7 @@ export class SettingsAboutPageElement extends SettingsAboutPageElementBase
+@@ -143,7 +174,7 @@
    declare private promoteUpdaterStatus_: PromoteUpdaterStatus;
    // </if>
  
 -  // <if expr="not is_chromeos">
-+  // <if expr="not is_chromeos and not is_macosx">
++  // <if expr="not is_chromeos and not is_macosx and not is_win">
    declare private obsoleteSystemInfo_: {obsolete: boolean, endOfLine: boolean};
    declare private showUpdateStatus_: boolean;
    declare private showButtonContainer_: boolean;
-@@ -158,7 +179,7 @@ export class SettingsAboutPageElement extends SettingsAboutPageElementBase
+@@ -156,9 +187,18 @@
+   override connectedCallback() {
+     super.connectedCallback();
  
++    // <if expr="is_win">
++    this.addWebUiListener('dao-update-status-changed',
++        (status: {message: string, busy: boolean, ready: boolean}) => {
++          this.daoUpdateMessage_ = status.message;
++          this.daoUpdateBusy_ = status.busy;
++          this.daoUpdateReady_ = status.ready;
++        });
++    chrome.send('daoRequestUpdateStatus');
++    // </if>
      this.aboutBrowserProxy_.pageReady();
  
 -    // <if expr="not is_chromeos">
-+    // <if expr="not is_chromeos and not is_macosx">
++    // <if expr="not is_chromeos and not is_macosx and not is_win">
      this.startListening_();
      // </if>
    }
-@@ -173,7 +194,7 @@ export class SettingsAboutPageElement extends SettingsAboutPageElementBase
+@@ -173,7 +213,7 @@
      return '';
    }
  
 -  // <if expr="not is_chromeos">
-+  // <if expr="not is_chromeos and not is_macosx">
++  // <if expr="not is_chromeos and not is_macosx and not is_win">
    private startListening_() {
      this.addWebUiListener(
          'update-status-changed', this.onUpdateStatusChanged_.bind(this));
-@@ -218,11 +239,22 @@ export class SettingsAboutPageElement extends SettingsAboutPageElementBase
+@@ -218,11 +258,23 @@
      this.aboutBrowserProxy_.openHelpPage();
    }
  
-+  // <if expr="not is_macosx">
++  // <if expr="not is_macosx and not is_win">
    private onRelaunchClick_() {
      this.performRestart(RestartType.RELAUNCH);
    }
-+  // </if>
- 
+-
 -  // <if expr="not is_chromeos">
-+  // <if expr="is_macosx">
-+  // Dao: route the settings "Check for updates" button to Sparkle. Sparkle
-+  // owns its own progress sheet and "up to date" UI, so we don't need to
-+  // wire any status listener — clicking just fires and forgets.
++  // </if>
++
++  // <if expr="is_macosx or is_win">
 +  private onDaoCheckForUpdatesClick_() {
++    // <if expr="is_win">
++    if (this.daoUpdateBusy_) return;
++    this.daoUpdateBusy_ = true;
++    // </if>
 +    this.aboutBrowserProxy_.daoCheckForUpdates();
 +  }
 +  // </if>
 +
-+  // <if expr="not is_chromeos and not is_macosx">
++  // <if expr="not is_chromeos and not is_macosx and not is_win">
    private updateShowUpdateStatus_() {
      if (this.obsoleteSystemInfo_.endOfLine) {
        this.showUpdateStatus_ = false;
-@@ -320,11 +352,11 @@ export class SettingsAboutPageElement extends SettingsAboutPageElementBase
+@@ -320,11 +372,19 @@
          return false;
      }
    }
@@ -166,15 +187,23 @@ index aa3f435d83..f0c76e5469 100644
      return this.currentUpdateStatusEvent_!.status === status;
    }
 +  // </if>
++
++  // <if expr="is_win">
++  private onDaoApplyUpdateClick_() {
++    if (this.daoUpdateBusy_) return;
++    this.daoUpdateBusy_ = true;
++    chrome.send('daoApplyReadyUpdate');
++  }
++  // </if>
  
    private onManagementPageClick_() {
      window.location.href = loadTimeData.getString('managementPageUrl');
-@@ -351,7 +383,7 @@ export class SettingsAboutPageElement extends SettingsAboutPageElementBase
+@@ -351,7 +411,7 @@
    }
    // </if>
  
 -  // <if expr="not is_chromeos">
-+  // <if expr="not is_chromeos and not is_macosx">
++  // <if expr="not is_chromeos and not is_macosx and not is_win">
    private shouldShowIcons_(): boolean {
      if (this.obsoleteSystemInfo_.endOfLine) {
        return true;

@@ -8,11 +8,13 @@ import type {WindowsCrossToolchain} from "../windows-toolchain.js";
 const SDK_VERSION = "1.0.4258.31";
 const SDK_SHA256 = "56f7f4b8bf9aee4b8efefbbdd4f67d5f74ebd1b100ed0806da71bf76af481aa9";
 const REBUILD_COMMAND = "npm run rebuild -- -- --release --target dao_installer_ui --platform windows";
-const NATIVE_KEYS = ["windowTitle", "installingClose", "hostFailed", "hostCompleted", "launchFailed"];
+const NATIVE_KEYS = ["windowTitle", "installingClose", "hostFailed", "hostCompleted", "launchFailed", "updateFailed"];
 const HOST_INPUTS = [
   "scripts/commands/build-windows-installer.ts",
   "scripts/windows-toolchain.ts",
   "scripts/windows-installer/native/host.cc",
+  "scripts/windows-installer/native/update.h",
+  "src/dao/browser/updater/dao_update_win_util.h",
   "scripts/windows-installer/native/host.manifest",
   "branding/win/dao.ico",
   "scripts/windows-installer/web/locales/en.json",

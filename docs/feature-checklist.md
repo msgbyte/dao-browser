@@ -175,6 +175,9 @@ These are acceptance checks, not a claim that the port has passed them.
   before compilation. Check the EXE on a disposable Windows account/VM for
   launch, custom-directory install, repair, upgrade, fallback UI and uninstall.
   Run the focused cross-build/toolchain/installer/release script tests.
+- [ ] Signed Windows updates: reject tampered signatures, wrong origin/platform/architecture, replay/downgrade, wrong size/hash, redirects, truncated transfers and a modified cached EXE. Test offline/manual retry, daily checks, cached ready state after restart, and portable/component/system/private-only exclusions.
+- [ ] Windows update handoff on a disposable installed profile: cancel beforeunload and then quit later (no install), time out or disconnect before commit (no install), verify original PID/creation time and pipe peer, block other running Dao processes, reject changed registration, and preserve a non-ASCII custom path. Upgrade Dao while Chromium stays fixed; verify changed browser bytes, bookmarks/profile/session preservation, one relaunch, no forced process termination, and localized failure/log guidance. Cross compilation alone does not satisfy this check.
+- [ ] Settings About announces checking/downloading/current/error/unsupported/ready states in English and Chinese; repeat clicks and multiple windows cannot apply twice. Transient states leave no sidebar update gap; cancelling exit restores its ready action. Mac still uses Sparkle.
 - [ ] `release --platform windows --dry-run` reuses the desktop version/tag and
   selects `mini_installer` without signing, notarization, Sparkle, or R2. Publish
   to a test GitHub release: preserve the macOS DMG, append EXE/checksum, recover

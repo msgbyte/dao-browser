@@ -1,15 +1,43 @@
 diff --git a/chrome/browser/ui/webui/settings/about_handler.h b/chrome/browser/ui/webui/settings/about_handler.h
-index f3bcddd212..08ebd19839 100644
 --- a/chrome/browser/ui/webui/settings/about_handler.h
 +++ b/chrome/browser/ui/webui/settings/about_handler.h
-@@ -72,6 +72,10 @@ class AboutHandler : public settings::SettingsPageUIHandler,
+@@ -9,6 +9,8 @@
+ #include <string>
+ 
+ #include "base/memory/raw_ptr.h"
++#include "base/scoped_observation.h"
++#include "dao/browser/updater/dao_updater_service.h"
+ #include "base/memory/weak_ptr.h"
+ #include "base/values.h"
+ #include "build/build_config.h"
+@@ -34,7 +36,8 @@
+ 
+ // WebUI message handler for the help page.
+ class AboutHandler : public settings::SettingsPageUIHandler,
+-                     public UpgradeObserver {
++                     public UpgradeObserver,
++                     public dao::DaoUpdaterServiceObserver {
+  public:
+   explicit AboutHandler(Profile* profile);
+ 
+@@ -56,6 +59,12 @@
+   void set_clock(base::Clock* clock) { clock_ = clock; }
+ 
+  private:
++  void HandleDaoCheckForUpdates(const base::ListValue& args);
++  void HandleDaoRequestUpdateStatus(const base::ListValue& args);
++  void HandleDaoApplyUpdate(const base::ListValue& args);
++  void OnDaoUpdateStatusChanged(const dao::DaoUpdateStatus& status) override;
++  base::ScopedObservation<dao::DaoUpdaterService, dao::DaoUpdaterServiceObserver>
++      dao_updater_observation_{this};
+   void OnDeviceAutoUpdatePolicyChanged(const base::Value* previous_policy,
+                                        const base::Value* current_policy);
+ 
+@@ -72,6 +81,7 @@
  #if BUILDFLAG(IS_MAC)
    // Promotes the updater for all users.
    void PromoteUpdater(const base::ListValue& args);
 +
-+  // Dao: triggers a user-initiated Sparkle update check. Replaces the Chromium
-+  // updater path on macOS, which is disabled in non-Google-branded builds.
-+  void HandleDaoCheckForUpdates(const base::ListValue& args);
  #endif
  
    // Opens the feedback dialog.

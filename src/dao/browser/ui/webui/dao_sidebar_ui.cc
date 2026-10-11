@@ -2523,6 +2523,14 @@ std::string DaoSidebarUIHandler::UpdateStateToString(DaoUpdateState state) {
   switch (state) {
     case DaoUpdateState::kIdle:
       return "idle";
+    case DaoUpdateState::kChecking:
+      return "checking";
+    case DaoUpdateState::kDownloading:
+      return "downloading";
+    case DaoUpdateState::kUpToDate:
+      return "up-to-date";
+    case DaoUpdateState::kError:
+      return "error";
     case DaoUpdateState::kReady:
       return "ready";
     case DaoUpdateState::kApplying:

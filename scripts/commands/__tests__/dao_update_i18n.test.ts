@@ -24,7 +24,7 @@ describe('Dao update i18n wiring', () => {
     expect(mainMenuPatch).not.toContain('initWithTitle:@"Check for Updates..."');
   });
 
-  it('localizes the macOS settings Check for updates button', () => {
+  it('localizes the desktop settings Check for updates button', () => {
     const settingsPatch = readFileSync(
         'src/patches/chrome/browser/ui/webui/settings/' +
             'settings_localized_strings_provider.cc.patch',
@@ -42,7 +42,7 @@ describe('Dao update i18n wiring', () => {
     expect(settingsPatch).toContain(
         '#include "dao/browser/strings/grit/dao_strings.h"');
     expect(settingsPatch).toContain(
-        '{"aboutDaoCheckForUpdates", IDS_DAO_CHECK_FOR_UPDATES_BUTTON}');
+        'AddLocalizedString("aboutDaoCheckForUpdates", IDS_DAO_CHECK_FOR_UPDATES_BUTTON)' );
     expect(settingsPatch).not.toContain(
         'html_source->AddString("aboutDaoCheckForUpdates", u"Check for updates")');
   });

@@ -223,6 +223,36 @@
       <message name="IDS_DAO_SIDEBAR_TOGGLE_RETRY_TOAST" desc="Toast shown when a webpage handles the sidebar shortcut first. SHORTCUT is the localized platform shortcut, such as Ctrl+S or Command+S.">
         Press <ph name="SHORTCUT">$1<ex>Ctrl+S</ex></ph> again to toggle sidebar
       </message>
+      <message name="IDS_DAO_UPDATE_IDLE" desc="Windows update status on the settings About page.">
+        Dao checks for updates automatically.
+      </message>
+      <message name="IDS_DAO_UPDATE_CHECKING" desc="Windows update status on the settings About page.">
+        Checking for updates…
+      </message>
+      <message name="IDS_DAO_UPDATE_DOWNLOADING" desc="Windows update status on the settings About page.">
+        Downloading an update…
+      </message>
+      <message name="IDS_DAO_UPDATE_CURRENT" desc="Windows update status on the settings About page.">
+        Dao is up to date.
+      </message>
+      <message name="IDS_DAO_UPDATE_READY" desc="Windows update status on the settings About page.">
+        An update is ready. Restart Dao to install it.
+      </message>
+      <message name="IDS_DAO_UPDATE_APPLYING" desc="Windows update status on the settings About page.">
+        Closing Dao to install the update…
+      </message>
+      <message name="IDS_DAO_UPDATE_UNSUPPORTED" desc="Windows update status on the settings About page.">
+        Automatic updates require a per-user Dao installation with its default profile directory.
+      </message>
+      <message name="IDS_DAO_UPDATE_NETWORK_ERROR" desc="Windows update status on the settings About page.">
+        Could not download the update. Check your connection and try again.
+      </message>
+      <message name="IDS_DAO_UPDATE_VERIFY_ERROR" desc="Windows update status on the settings About page.">
+        The update could not be verified. Please check for updates again.
+      </message>
+      <message name="IDS_DAO_UPDATE_INSTALL_ERROR" desc="Windows update status on the settings About page.">
+        Could not prepare the update. Close other Dao windows and check for updates again.
+      </message>
       <message name="IDS_DAO_UPDATE_READY_ACTION" desc="Label and tooltip for the sidebar button that applies a downloaded Dao Browser update.">
         Update
       </message>
@@ -241,7 +271,7 @@
       <message name="IDS_DAO_CHECK_FOR_UPDATES_MENU" desc="Menu item in the macOS application menu that opens Dao Browser's Sparkle update checker. Uses title case to match neighboring macOS app menu commands.">
         Check for Updates...
       </message>
-      <message name="IDS_DAO_CHECK_FOR_UPDATES_BUTTON" desc="Button on the macOS settings About page that opens Dao Browser's Sparkle update checker. Uses sentence case to match settings page button style.">
+      <message name="IDS_DAO_CHECK_FOR_UPDATES_BUTTON" desc="Button on the settings About page that checks for Dao Browser updates. Uses sentence case to match settings page button style.">
         Check for updates
       </message>
       <message name="IDS_DAO_ADDRESS_BAR_STOP_LOADING_ACCESSIBLE_NAME" desc="Accessible name for the button in the address bar that stops the current page from loading.">

@@ -3,10 +3,39 @@
 # found in the LICENSE file.
 
 # -----------------------------------------------------------------------------
+
+import("//testing/test.gni")
+import("//dao/browser/dao_version.gni")
+
+source_set("dao_update_manifest") {
+  sources = [ "dao_update_manifest.cc", "dao_update_manifest.h" ]
+  public_deps = [ "//base", "//url" ]
+  deps = [ "//crypto" ]
+}
+
+test("dao_updater_unittests") {
+  sources = [ "dao_update_manifest_unittest.cc", "dao_update_manifest_test_data.h", "//base/test/run_all_unittests.cc" ]
+  deps = [ ":dao_update_manifest", "//base/test:test_support", "//crypto", "//testing/gtest" ]
+  if (is_win) {
+    sources += [ "dao_update_win_util_unittest.cc", "dao_update_win_util.h",
+                 "dao_windows_updater_unittest.cc", "dao_windows_updater.cc",
+                 "dao_windows_updater.h", "dao_updater_service.h",
+                 # Reuse only the URL-loader helpers without linking the network service.
+                 "//services/network/test/test_url_loader_factory.cc",
+                 "//services/network/test/test_url_loader_factory.h",
+                 "//services/network/test/test_utils.cc",
+                 "//services/network/test/test_utils.h" ]
+    defines = [ "DAO_DISPLAY_VERSION=\"$dao_display_version\"" ]
+    deps += [ "//chrome/common:constants", "//components/version_info", "//net",
+              "//mojo/core/embedder", "//mojo/public/cpp/bindings", "//services/network/public/cpp",
+              "//services/network/public/mojom" ]
+    libs = [ "advapi32.lib" ]
+  }
+}
 # Public source_set: dao_updater
 #
-# The cross-platform facade (dao_updater_service.{h,cc}) reports unsupported
-# on non-macOS targets. Only the macOS backend links against Sparkle.
+# The cross-platform facade (dao_updater_service.{h,cc}) supports macOS and
+# Windows. Only the macOS backend links against Sparkle.
 # -----------------------------------------------------------------------------
 
 if (is_mac) {
@@ -60,6 +89,14 @@ source_set("dao_updater") {
   ]
 
   deps = [ "//base" ]
+
+  if (is_win) {
+    sources += [ "dao_windows_updater.cc", "dao_windows_updater.h", "dao_update_win_util.h" ]
+    defines = [ "DAO_DISPLAY_VERSION=\"$dao_display_version\"" ]
+    deps += [ ":dao_update_manifest", "//components/version_info", "//net",
+              "//services/network/public/cpp", "//services/network/public/mojom" ]
+    libs = [ "advapi32.lib" ]
+  }
 
   if (is_mac) {
     sources += [

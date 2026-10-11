@@ -1,5 +1,6 @@
 // The local WebView2 UI delegates all installation policy to the NSIS wrapper.
 #include <windows.h>
+#include <shellapi.h>
 #include <dwmapi.h>
 #include <shlobj.h>
 #include <wrl.h>
@@ -12,6 +13,7 @@
 
 #include "WebView2.h"
 #include "native_strings.h"
+#include "update.h"
 
 using Microsoft::WRL::Callback;
 using Microsoft::WRL::ComPtr;
@@ -582,6 +584,23 @@ class Installer {
 }  // namespace
 
 int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
+  int argc = 0;
+  LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
+  if (argv && argc >= 2 && std::wstring(argv[1]) == L"--dao-update") {
+    std::vector<wchar_t> module(32768);
+    GetModuleFileNameW(nullptr, module.data(), static_cast<DWORD>(module.size()));
+    const fs::path config = fs::path(module.data()).parent_path() / L"session.ini";
+    const std::wstring token = argc == 3 ? argv[2] : L"";
+    LocalFree(argv);
+    const int result = dao::RunUpdate(token, ReadIni(config, L"Executable"));
+    if (result != 0) {
+      Log("Update handoff or installation failed", HRESULT_FROM_WIN32(GetLastError()));
+      MessageBoxW(nullptr, dao::NativeString(L"updateFailed", ReadIni(config, L"Language") == L"2052"),
+                  dao::NativeString(L"windowTitle", false), MB_OK | MB_ICONERROR);
+    }
+    return result;
+  }
+  if (argv) LocalFree(argv);
   if (FAILED(CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED)))
     return kFallback;
   int code;

@@ -34,5 +34,6 @@
   "details": "查看详情",
   "tipSidebar": "把标签页放到侧边栏，一屏看清所有打开的网页",
   "tipAgent": "内置 Agent 可以直接读懂当前页面，替你完成操作",
-  "tipMemory": "长期记忆会记住你的偏好，越用越顺手"
+  "tipMemory": "长期记忆会记住你的偏好，越用越顺手",
+  "updateFailed": "Dao 未能完成更新。请关闭其他 Dao 窗口，重新打开 Dao 后再试。安装日志位于 %TEMP%\\dao_installer.log，更新交接日志位于 %TEMP%\\dao_installer_ui.log。"
 }

@@ -16,14 +16,21 @@ namespace dao {
 
 enum class DaoUpdateState {
   kIdle,
+  kChecking,
+  kDownloading,
+  kUpToDate,
+  kError,
   kReady,
   kApplying,
   kUnsupported,
 };
 
+enum class DaoUpdateError { kNone, kNetwork, kVerification, kInstall };
+
 struct DaoUpdateStatus {
   DaoUpdateState state = DaoUpdateState::kIdle;
   std::string display_version;
+  DaoUpdateError error = DaoUpdateError::kNone;
 };
 
 class DaoUpdaterServiceObserver : public base::CheckedObserver {
@@ -32,7 +39,7 @@ class DaoUpdaterServiceObserver : public base::CheckedObserver {
 };
 
 // Process-wide auto-update facade. Wraps the platform-specific updater
-// implementation (Sparkle on macOS). Browser code should never #include the
+// implementation (Sparkle on macOS, signed Dao releases on Windows). Browser code should never #include the
 // platform impl directly.
 //
 // Threading: all methods must be called on the UI thread.
@@ -57,6 +64,9 @@ class DaoUpdaterService {
   // SPUStandardUpdaterController, asks Sparkle to begin its scheduled
   // background checks, and performs one silent startup check.
   void Init();
+  // Called from the irreversible graceful-exit hook on Windows.
+  void Shutdown();
+  bool PrepareForExit();
 
   // Triggers a user-visible update check (shows progress UI even if no update
   // is available). Wired to the menu command. No-op if Init() hasn't run.
