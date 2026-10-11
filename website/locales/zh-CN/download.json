@@ -1,0 +1,11 @@
+{
+  "title": "下载 Dao 浏览器",
+  "loadingTitle": "正在准备下载…",
+  "loadingBody": "正在获取可用版本。",
+  "automaticTitle": "即将开始下载",
+  "automaticBody": "macOS 安装包将自动下载。如果没有开始，请点击下方链接。",
+  "manualBody": "请选择适合你操作系统的安装包，点击链接后才会开始下载。",
+  "errorTitle": "暂时无法准备下载",
+  "errorBody": "无法获取下载信息，请重试或前往 GitHub Releases 下载。",
+  "releasesLink": "GitHub Releases"
+}

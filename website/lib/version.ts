@@ -2,8 +2,8 @@ import { z } from 'zod';
 import infoJson from '../public/info.json' with { type: 'json' };
 
 // Single source of truth for version + binary URLs is `public/info.json`.
-// The same file is fetched at runtime by the /download route to redirect
-// users to the platform-specific binary, so editing it updates both the
+// The same file is fetched at runtime by the download page to offer
+// platform-specific binaries, so editing it updates both the
 // static copy on the site and the redirect target without code changes.
 const InfoConfigSchema = z.object({
   version: z.string().min(1, 'must be non-empty'), // Product version, e.g. "0.5.0"
@@ -45,8 +45,9 @@ export const SITE_URL = 'https://dao.msgbyte.com';
 /**
  * Canonical download link used by every "Download" CTA on the site.
  *
- * Points at the local `/download` route, which reads `/info.json` at
- * runtime and redirects to the platform-appropriate release URL. Using a
+ * Points at the local `/download` route, whose page reads `/info.json` at
+ * runtime and automatically downloads only on macOS. Other devices choose
+ * a platform on the manual download page. Using a
  * single internal route lets us update the actual binary URL by editing
  * `public/info.json` without rebuilding the website.
  */

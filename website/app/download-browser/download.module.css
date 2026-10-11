@@ -71,16 +71,37 @@
   line-height: 1.5;
 }
 
-.platformChip {
-  display: inline-flex;
+.downloads {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+}
+
+.downloadLink {
+  display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  padding: 6px 14px;
-  border-radius: 999px;
+  padding: 14px 18px;
+  border-radius: 12px;
   background: color-mix(in srgb, var(--text) 6%, transparent);
   color: var(--text);
   font-size: 14px;
   font-weight: 500;
+  text-decoration: none;
+}
+
+.downloadLink:hover {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+.downloadLink:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
 
 .manualLink {

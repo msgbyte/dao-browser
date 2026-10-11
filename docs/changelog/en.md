@@ -4,6 +4,8 @@
 
 ### [Unreleased] Unreleased
 
+- The website starts downloads automatically only on macOS; other devices show a manual download page with the configured platform installers instead of downloading a potentially incompatible file.
+
 - Build and upload macOS and Windows installers together with one desktop version through `npm run release`; use `release:mac` for a Mac-only release.
 - Windows installations can download signed updates in the background, show update status in Settings About, and install from the sidebar after a cancellable restart while preserving browsing data.
 - Publish Windows update metadata only after both installers are verified online; uncertain feed publication keeps the candidate version for a safe retry, and GitHub archives both installers.

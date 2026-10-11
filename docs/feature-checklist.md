@@ -23,6 +23,17 @@
   reuse after archival, structural Markdown preservation, source-language
   protection, and no file writes on dry-run or invalid API output.
 
+## Website downloads
+
+- [ ] Visit `/download` on macOS and confirm the configured Mac download starts,
+  with manual links still available. Windows, Linux, mobile, and unknown devices
+  must show manual platform links without starting a download, including iPads
+  using a desktop Mac user agent. Check HTML and non-HTML requests.
+- [ ] Manual links list only configured installers, preserve per-platform versions,
+  and remain keyboard accessible. A missing Mac installer must not download a
+  different platform's file; configuration errors offer GitHub Releases. Check
+  English/Chinese copy and cancellation when leaving before the download starts.
+
 ## Windows desktop development
 
 These are acceptance checks, not a claim that the port has passed them.

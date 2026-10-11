@@ -1,0 +1,11 @@
+{
+  "title": "Download Dao Browser",
+  "loadingTitle": "Preparing your download…",
+  "loadingBody": "Fetching the available releases.",
+  "automaticTitle": "Your download is starting",
+  "automaticBody": "Your macOS download will start automatically. If it does not, choose a download below.",
+  "manualBody": "Choose a download for your operating system. Downloads start only when you select a link.",
+  "errorTitle": "We couldn't prepare your download",
+  "errorBody": "Download information is unavailable. Please try again or visit GitHub Releases.",
+  "releasesLink": "GitHub Releases"
+}
