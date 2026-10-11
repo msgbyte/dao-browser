@@ -67,6 +67,7 @@ describe('native development target', () => {
 
   it('keeps Windows lld and macOS development linker behavior', () => {
     const config = utils.loadConfig();
+    config.version.display = '2.3.4';
     const common = readFileSync(path.join(utils.CONFIGS_DIR, 'common.gn'), 'utf8');
     const args = build.createBuildArgs(
         config, {os: 'win', cpu: 'x64'}, true, common, 'use_lld = true\n');
@@ -76,7 +77,7 @@ describe('native development target', () => {
     expect(args).not.toContain('use_lld = false');
     expect(args).toContain('is_component_build = true');
     expect(args).toContain('is_official_build = false');
-    expect(args).toContain('dao_display_version = "1.0.108.0"');
+    expect(args).toContain('dao_display_version = "2.3.4.0"');
     expect(build.createBuildArgs(
         config, {os: 'mac', cpu: 'arm64'}, true, common, 'use_lld = true\n'))
         .toContain('use_lld = false');
