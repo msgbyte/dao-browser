@@ -25,8 +25,15 @@ jobs:
         with:
           node-version: 24
           cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            website/package-lock.json
 
       - name: Install dependencies
+        run: npm ci
+
+      - name: Install website dependencies
+        working-directory: website
         run: npm ci
 
       - name: Run WebUI and script tests

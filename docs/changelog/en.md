@@ -4,6 +4,7 @@
 
 ### [Unreleased] Unreleased
 
+- Fast Checks now installs website dependencies so download-page tests can run on clean CI runners.
 - Release tests now use a local calendar date so changelog checks pass in both UTC CI and developer time zones.
 - Windows build-argument tests use their own version fixture so normal release version bumps no longer break CI.
 - Set a custom model ID for the experimental Jev plugin in Agent settings; leave it blank to keep using `jev-latest` for Agent and MCP browser tasks.
