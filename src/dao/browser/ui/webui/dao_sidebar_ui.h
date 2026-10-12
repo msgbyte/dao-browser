@@ -251,6 +251,11 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   void OnTabDragEnded(std::string tab_id, const gfx::Point& screen_point);
   void HandleMoveTabCrossWindow(const base::ListValue& args);
   void HandleDetachTabToNewWindow(const base::ListValue& args);
+  bool IsClassificationTabEligible(const std::string& tab_id,
+                                   const std::string& url) const;
+  void HandleClassifyTabs(const base::ListValue& args);
+  void HandleSaveClassifiedFolders(const base::ListValue& args);
+  void HandleShowClassificationToast(const base::ListValue& args);
   void HandleLoadFolders(const base::ListValue& args);
   void HandleSaveFolders(const base::ListValue& args);
   void HandleSetStaleTabIds(const base::ListValue& args);
@@ -318,8 +323,13 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
     kFolderDelete,
     kMoveTabToNewWindow,
     kMoveTabToTop,
+    kClassifyTabs,
+    kClassifyTabsBelow,
   };
 
+  bool classification_in_progress_ = false;
+  uint64_t classification_generation_ = 0;
+  std::map<std::string, std::string> classification_tab_urls_;
   raw_ptr<Browser> browser_ = nullptr;
 
   class DuplicateTabCloseObserver;

@@ -10,8 +10,8 @@ index f221bf6cd2..0905c92e55 100644
 +export type {DaoAgentMemorySummary, DaoAgentSettingsBrowserProxy, DaoAgentSettingsSnapshot, DaoAgentUsageStats, DaoAgentWorkspaceActivity, DaoAgentWorkspaceSummary} from './dao_page/dao_agent_settings_browser_proxy.js';
 +export {SettingsDaoAgentPageElement} from './dao_page/dao_agent_page.js';
 +export {SettingsDaoAgentPageIndexElement} from './dao_page/dao_agent_page_index.js';
-+export {DaoMcpBrowserProxyImpl, SettingsDaoPageElement} from './dao_page/dao_page.js';
-+export type {DaoMcpBrowserProxy, DaoMcpStatus} from './dao_page/dao_page.js';
++export {DaoFolderBrowserProxyImpl, DaoMcpBrowserProxyImpl, SettingsDaoPageElement} from './dao_page/dao_page.js';
++export type {DaoFolderBrowserProxy, DaoTabCategory, DaoMcpBrowserProxy, DaoMcpStatus} from './dao_page/dao_page.js';
  // </if>
  export {GlicBrowserProxyImpl} from './glic_page/glic_browser_proxy.js';
  export type {GlicBrowserProxy, LoginPermission} from './glic_page/glic_browser_proxy.js';

@@ -34,6 +34,7 @@ build_webui("build") {
     "dao_media_control.ts",
     "dao_folder_item.ts",
     "dao_folder_model.ts",
+    "dao_tab_classification.ts",
   ]
 
   ts_definitions = [ "//tools/typescript/definitions/chrome_send.d.ts" ]

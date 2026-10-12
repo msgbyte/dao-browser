@@ -18,6 +18,7 @@
 #include "content/public/browser/web_ui_message_handler.h"
 
 class PrefService;
+class Profile;
 
 namespace dao {
 
@@ -32,6 +33,7 @@ inline constexpr char kDaoDreamExcludedDomainsSetting[] =
     "dao_dream_excluded_domains";
 
 bool IsManagedDaoAgentSetting(std::string_view key);
+bool IsDaoTabClassificationConfigured(PrefService* prefs);
 base::DictValue BuildDaoAgentSettingsSnapshot(PrefService* prefs);
 base::DictValue BuildDaoAgentUsageStats(PrefService* prefs);
 bool MigrateLegacyDaoAgentUsageStats(PrefService* prefs,
@@ -61,6 +63,10 @@ public:
   void OnJavascriptAllowed() override;
   void OnJavascriptDisallowed() override;
 
+  // Reuse the resident Agent's configured model without opening a chat.
+  static void ClassifyTabs(Profile* profile, base::DictValue request,
+                           base::OnceCallback<void(base::DictValue)> callback);
+
 private:
   using ConnectionTestCallback = base::OnceCallback<void(base::DictValue)>;
 
@@ -84,6 +90,9 @@ private:
   void StartConnectionTest(base::DictValue config,
                            ConnectionTestCallback callback);
   void UnregisterConnectionTester();
+  void HandleTabClassificationResult(const base::ListValue& args);
+  void FinishTabClassification(std::string request_id, base::DictValue result);
+  void CancelTabClassifications();
   void OnSettingsChanged();
   void OnUsageStatsChanged();
   PrefService* GetPrefs();
@@ -91,6 +100,8 @@ private:
   PrefChangeRegistrar pref_change_registrar_;
   base::flat_map<std::string, ConnectionTestCallback>
       pending_connection_tests_;
+  base::flat_map<std::string, ConnectionTestCallback>
+      pending_tab_classifications_;
   int next_connection_test_id_ = 0;
   base::WeakPtrFactory<DaoAgentSettingsHandler> weak_factory_{this};
 };

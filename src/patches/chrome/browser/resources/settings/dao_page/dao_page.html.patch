@@ -3,8 +3,33 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_page.html
-@@ -0,0 +1,785 @@
+@@ -0,0 +1,864 @@
 +<style include="settings-shared">
++  .dao-tab-categories {
++    border-top: var(--cr-separator-line);
++    padding: 16px 20px;
++  }
++
++  .dao-tab-category-row {
++    align-items: center;
++    display: flex;
++    flex-wrap: wrap;
++    gap: 12px;
++    margin-top: 12px;
++  }
++
++  .dao-tab-category-name,
++  #daoTabCategoryName {
++    flex: 1;
++    min-width: 160px;
++    overflow-wrap: anywhere;
++  }
++
++  #daoTabCategoryError {
++    color: var(--cr-error-text-color);
++    margin-top: 8px;
++  }
++
 +  .dao-mcp-settings {
 +    border: 1px solid var(--cr-separator-color);
 +    border-radius: 12px;
@@ -561,6 +586,60 @@ index 0000000000..0000000001
 +        $i18n{staleTabExpirationHoursUnit}
 +      </span>
 +    </cr-input>
++  </div>
++  <div id="daoTabCategories" class="dao-tab-categories" role="group"
++      aria-label="$i18n{daoTabCategoriesTitle}">
++    <div class="dao-stale-tab-expiration-label">
++      $i18n{daoTabCategoriesTitle}
++    </div>
++    <div class="dao-stale-tab-expiration-sub-label">
++      $i18n{daoTabCategoriesDescription}
++    </div>
++    <div class="dao-tab-category-row">
++      <cr-input id="daoTabCategoryName"
++          label="$i18n{daoTabCategoriesName}"
++          value="{{daoTabCategoryName_}}"
++          disabled="[[daoTabCategoryControlsDisabled_(daoTabCategoriesBusy_, daoTabCategoriesLoaded_)]]">
++      </cr-input>
++      <cr-button id="daoTabCategorySave" on-click="onDaoTabCategorySave_"
++          disabled="[[daoTabCategoryControlsDisabled_(daoTabCategoriesBusy_, daoTabCategoriesLoaded_)]]">
++        <template is="dom-if" if="[[!daoTabCategoryEditingId_]]">
++          $i18n{daoTabCategoriesAdd}
++        </template>
++        <template is="dom-if" if="[[daoTabCategoryEditingId_]]">
++          $i18n{daoTabCategoriesSave}
++        </template>
++      </cr-button>
++      <template is="dom-if" if="[[daoTabCategoryEditingId_]]">
++        <cr-button on-click="onDaoTabCategoryCancel_"
++            disabled="[[daoTabCategoriesBusy_]]">
++          $i18n{daoTabCategoriesCancel}
++        </cr-button>
++      </template>
++    </div>
++    <div id="daoTabCategoryError" role="alert">[[daoTabCategoryError_]]</div>
++    <template is="dom-if" if="[[!daoTabCategoriesLoaded_]]">
++      <cr-button on-click="refreshDaoTabCategories_">
++        $i18n{daoTabCategoriesRetry}
++      </cr-button>
++    </template>
++    <template is="dom-repeat" items="[[daoTabCategories_]]">
++      <div class="dao-tab-category-row">
++        <span class="dao-tab-category-name">[[item.name]]</span>
++        <cr-button class="dao-tab-category-rename" data-id$="[[item.id]]"
++            aria-label$="[[daoTabCategoryActionLabel_('daoTabCategoriesRenameLabel', item.name)]]"
++            disabled="[[daoTabCategoryControlsDisabled_(daoTabCategoriesBusy_, daoTabCategoriesLoaded_)]]"
++            on-click="onDaoTabCategoryRename_">
++          $i18n{daoTabCategoriesRename}
++        </cr-button>
++        <cr-button class="dao-tab-category-remove" data-id$="[[item.id]]"
++            aria-label$="[[daoTabCategoryActionLabel_('daoTabCategoriesRemoveLabel', item.name)]]"
++            disabled="[[daoTabCategoryControlsDisabled_(daoTabCategoriesBusy_, daoTabCategoriesLoaded_)]]"
++            on-click="onDaoTabCategoryRemove_">
++          $i18n{daoTabCategoriesRemove}
++        </cr-button>
++      </div>
++    </template>
 +  </div>
 +  <settings-toggle-button id="tabHoverPreviewEnabled"
 +      pref="{{prefs.dao.tab_hover_preview_enabled}}"

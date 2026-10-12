@@ -233,6 +233,37 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
   before closing the folder's currently matched child tabs. The folder is
   deleted only after those tabs actually close; cancelling either confirmation
   or a page's beforeunload prompt preserves the folder and remaining tabs.
+- **AI tab classification** — Once an Agent model is configured, the sidebar
+  background and ordinary-tab context menus expose **Classify Tabs with AI**.
+  The tab menu also offers **Classify Tabs Below with AI**, using sidebar visual
+  order and excluding the clicked tab. Both actions group only loose HTTP(S)
+  tabs in the current window; pinned tabs, split panes, existing folder members,
+  and Agent/MCP-controlled tabs are preserved. Off-the-record and Guest windows
+  do not expose classification. Each request sends the chosen tabs' titles and
+  URLs plus the profile's existing folder names and IDs to the configured model,
+  without page content, chat history, or browser tools. Existing categories are
+  preferred; new folders are created only when needed, in the interface language.
+  Categories are the existing folders, with no separate category database or
+  pre-created empty folders. **You and Dao > Tab categories** lists all of them
+  and supports adding, renaming, and deleting categories. Deleting a category
+  there releases its tabs in place across windows without closing pages; the
+  sidebar's separate **Delete Folder** action retains its close-confirmation flow.
+  Names must be nonblank, unique without regard to case, and at most 100 Unicode
+  codepoints. Changes persist through the existing profile folder file and
+  notify both Settings and all same-profile sidebars.
+  Classification uses the resident Agent's model adapter without opening a chat,
+  permits one request per profile, and aborts after 60 seconds. Invalid, incomplete,
+  or duplicate assignments fail without changing folders. Closed, transferred,
+  navigated, pinned, or newly grouped tabs are excluded when results are applied;
+  manual edits or reordered snapshots can discard the result with retry feedback.
+  Closing a tab, including one outside the chosen range, does not discard the
+  classification of surviving tabs, even when the newly active tab automatically
+  expands its folder. The final atomic write compares normalized
+  snapshots so unchanged legacy data remains writable, and rejects newer folder
+  data rather than overwriting it. Classification does not activate or navigate
+  tabs, and uses Dao native toasts for progress, completion, empty scope, and
+  failure. Requests exceeding
+  1,000 tabs, 500 existing folders, or 512 KiB fail without partial classification.
 - **Configurable stale-tab expiration** — The "You and Dao" Settings page
   stores a profile-scoped integer from 1–720 hours (24 hours by default);
   the sidebar's "Move Stale Tabs to stale" action reads that value when run,

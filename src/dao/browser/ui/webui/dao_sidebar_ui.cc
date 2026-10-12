@@ -19,6 +19,7 @@
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
+#include "base/json/json_writer.h"
 #include "base/logging.h"
 #include "base/no_destructor.h"
 #include "base/run_loop.h"
@@ -69,6 +70,7 @@
 #include "content/public/browser/web_ui_data_source.h"
 #include "content/public/common/url_constants.h"
 #include "dao/browser/agent/dao_agent_lock_tab_helper.h"
+#include "dao/browser/agent/dao_agent_settings_handler.h"
 #include "dao/browser/dao_pref_names.h"
 #include "dao/browser/mcp/dao_mcp_service.h"
 #include "dao/browser/pip/dao_pip_interceptor.h"
@@ -87,6 +89,7 @@
 #include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
 #include "dao/browser/ui/views/sidebar/dao_tab_tooltip_view.h"
 #include "dao/browser/ui/views/split/dao_split_view.h"
+#include "dao/browser/ui/webui/dao_folder_settings_handler.h"
 #include "dao/browser/ui/webui/dao_folder_storage.h"
 #include "dao/browser/ui/webui/dao_pinned_tab_storage.h"
 #include "dao/browser/updater/dao_updater_service.h"
@@ -725,6 +728,7 @@ void DaoSidebarUIHandler::SetBrowser(Browser* browser) {
 
 // static
 void DaoSidebarUIHandler::NotifyFolderDataChanged(Profile* profile) {
+  DaoFolderSettingsHandler::NotifyFolderDataChanged(profile);
   auto state_it = GetPinnedItemsProfileStates().find(profile);
   if (state_it == GetPinnedItemsProfileStates().end()) {
     return;
@@ -853,6 +857,17 @@ int DaoSidebarUIHandler::CloseDuplicateTabsForTesting() {
 }
 
 void DaoSidebarUIHandler::RegisterMessages() {
+  web_ui()->RegisterMessageCallback(
+      "classifyTabs", base::BindRepeating(
+          &DaoSidebarUIHandler::HandleClassifyTabs, base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "saveClassifiedFolders", base::BindRepeating(
+          &DaoSidebarUIHandler::HandleSaveClassifiedFolders,
+          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "showClassificationToast", base::BindRepeating(
+          &DaoSidebarUIHandler::HandleShowClassificationToast,
+          base::Unretained(this)));
   web_ui()->RegisterMessageCallback(
       "getInitialState",
       base::BindRepeating(&DaoSidebarUIHandler::HandleGetInitialState,
@@ -1040,6 +1055,9 @@ void DaoSidebarUIHandler::OnJavascriptAllowed() {
 }
 
 void DaoSidebarUIHandler::OnJavascriptDisallowed() {
+  classification_in_progress_ = false;
+  ++classification_generation_;
+  classification_tab_urls_.clear();
   pending_download_animation_.reset();
 }
 
@@ -2761,6 +2779,178 @@ void DaoSidebarUIHandler::HandleDetachTabToNewWindow(
       gfx::Point(args[1].GetInt(), args[2].GetInt()));
 }
 
+bool DaoSidebarUIHandler::IsClassificationTabEligible(
+    const std::string& tab_id, const std::string& url) const {
+  if (!browser_) {
+    return false;
+  }
+  const int index = ResolveDraggedTabIndex(browser_, -1, tab_id);
+  if (index < 0 || browser_->tab_strip_model()->IsTabPinned(index)) {
+    return false;
+  }
+  auto* contents = browser_->tab_strip_model()->GetWebContentsAt(index);
+  if (!contents->GetLastCommittedURL().SchemeIsHTTPOrHTTPS() ||
+      contents->GetLastCommittedURL().spec() != url ||
+      contents->GetVisibleURL().spec() != url ||
+      DaoAgentLockTabHelper::IsLocked(contents) ||
+      DaoMcpService::Get()->IsTargetControlled(contents)) {
+    return false;
+  }
+  if (auto* split = GetSplitView()) {
+    for (const auto& group : split->GetSplitGroupSummaries()) {
+      if (std::ranges::find(group.contents, contents) != group.contents.end()) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+void DaoSidebarUIHandler::HandleClassifyTabs(const base::ListValue& args) {
+  AllowJavascript();
+  if (args.size() != 3 || !args[0].is_string()) {
+    return;
+  }
+  const std::string callback = args[0].GetString();
+  auto fail = [&] {
+    base::DictValue result;
+    result.Set("ok", false);
+    FireWebUIListener(callback, result);
+  };
+  if (!browser_ || classification_in_progress_ ||
+      browser_->profile()->IsOffTheRecord() ||
+      browser_->profile()->IsGuestSession() || !args[1].is_list() ||
+      !args[2].is_list() || args[1].GetList().empty() ||
+      args[1].GetList().size() > 1000 || args[2].GetList().size() > 500) {
+    fail();
+    return;
+  }
+  base::ListValue tabs;
+  std::map<std::string, std::string> tab_urls;
+  for (const auto& value : args[1].GetList()) {
+    const auto* tab = value.GetIfDict();
+    const auto* id = tab ? tab->FindString("tabId") : nullptr;
+    const auto* url = tab ? tab->FindString("url") : nullptr;
+    if (!id || !url || !tab_urls.emplace(*id, *url).second ||
+        !IsClassificationTabEligible(*id, *url)) {
+      fail();
+      return;
+    }
+    const int index = ResolveDraggedTabIndex(browser_, -1, *id);
+    auto* contents = browser_->tab_strip_model()->GetWebContentsAt(index);
+    base::DictValue metadata;
+    metadata.Set("tabId", *id);
+    metadata.Set("title", base::UTF16ToUTF8(contents->GetTitle()));
+    metadata.Set("url", *url);
+    tabs.Append(std::move(metadata));
+  }
+  for (const auto& value : args[2].GetList()) {
+    const auto* folder = value.GetIfDict();
+    if (!folder || !folder->FindString("id") || !folder->FindString("name")) {
+      fail();
+      return;
+    }
+  }
+  base::DictValue request;
+  request.Set("tabs", std::move(tabs));
+  request.Set("folders", args[2].Clone());
+  std::string serialized;
+  base::JSONWriter::Write(request, &serialized);
+  if (serialized.size() > 512 * 1024) {
+    fail();
+    return;
+  }
+  classification_in_progress_ = true;
+  classification_tab_urls_ = std::move(tab_urls);
+  const uint64_t generation = ++classification_generation_;
+  DaoAgentSettingsHandler::ClassifyTabs(
+      browser_->profile(), std::move(request),
+      base::BindOnce(
+          [](base::WeakPtr<DaoSidebarUIHandler> self, std::string callback,
+             uint64_t generation, base::DictValue result) {
+            if (!self || self->classification_generation_ != generation) {
+              return;
+            }
+            self->classification_in_progress_ = false;
+            if (!result.FindBool("ok").value_or(false)) {
+              self->classification_tab_urls_.clear();
+            }
+            if (self->IsJavascriptAllowed()) {
+              self->FireWebUIListener(callback, result);
+            }
+          }, weak_factory_.GetWeakPtr(), callback, generation));
+}
+
+void DaoSidebarUIHandler::HandleSaveClassifiedFolders(
+    const base::ListValue& args) {
+  if (!browser_ || args.size() != 4 || !args[0].is_string() ||
+      !args[1].is_string() || !args[2].is_string() || !args[3].is_list()) {
+    return;
+  }
+  AllowJavascript();
+  if (browser_->profile()->IsOffTheRecord() ||
+      browser_->profile()->IsGuestSession()) {
+    FireWebUIListener(args[0].GetString(), base::Value(false));
+    return;
+  }
+  const auto requested_urls = std::move(classification_tab_urls_);
+  classification_tab_urls_.clear();
+  bool valid = !classification_in_progress_ && !args[3].GetList().empty();
+  std::set<std::string> seen;
+  for (const auto& value : args[3].GetList()) {
+    const auto* id = value.GetIfString();
+    if (!id || !seen.insert(*id).second || !requested_urls.contains(*id) ||
+        !IsClassificationTabEligible(*id, requested_urls.at(*id))) {
+      valid = false;
+      break;
+    }
+  }
+  if (!valid) {
+    FireWebUIListener(args[0].GetString(), base::Value(false));
+    return;
+  }
+  const auto path = browser_->profile()->GetPath().AppendASCII("dao_folders.json");
+  GetFolderFileTaskRunner()->PostTaskAndReplyWithResult(
+      FROM_HERE, base::BindOnce(&UpdateFolderFileIfUnchanged, path,
+                               args[2].GetString(), args[1].GetString()),
+      base::BindOnce(
+          [](base::WeakPtr<DaoSidebarUIHandler> self,
+             base::WeakPtr<Profile> profile, std::string callback,
+             uint64_t generation, bool success) {
+            if (success && profile) {
+              NotifyFolderDataChanged(profile.get());
+            }
+            if (self && self->IsJavascriptAllowed() &&
+                self->classification_generation_ == generation) {
+              self->FireWebUIListener(callback, base::Value(success));
+            }
+          },
+          weak_factory_.GetWeakPtr(), browser_->profile()->GetWeakPtr(),
+          args[0].GetString(), classification_generation_));
+}
+
+void DaoSidebarUIHandler::HandleShowClassificationToast(
+    const base::ListValue& args) {
+  if (!browser_ || args.size() != 1 || !args[0].is_string()) {
+    return;
+  }
+  const auto& state = args[0].GetString();
+  int message = IDS_DAO_CLASSIFY_TABS_FAILED;
+  if (state == "started") {
+    message = IDS_DAO_CLASSIFY_TABS_STARTED;
+  } else if (state == "done") {
+    message = IDS_DAO_CLASSIFY_TABS_DONE;
+  } else if (state == "empty") {
+    message = IDS_DAO_CLASSIFY_TABS_EMPTY;
+  } else if (state == "changed") {
+    message = IDS_DAO_CLASSIFY_TABS_CHANGED;
+  }
+  auto* view = BrowserView::GetBrowserViewForBrowser(browser_);
+  if (view && view->dao_toast()) {
+    view->dao_toast()->ShowToast(l10n_util::GetStringUTF16(message));
+  }
+}
+
 void DaoSidebarUIHandler::HandleLoadFolders(const base::ListValue& args) {
   AllowJavascript();
 
@@ -2917,6 +3107,17 @@ void DaoSidebarUIHandler::HandleShowTabContextMenu(
   tab_context_menu_model_->AddItem(
       kMoveStaleTabsToFolder,
       l10n_util::GetStringUTF16(IDS_DAO_SIDEBAR_CONTEXT_MOVE_STALE_TABS));
+  if (!browser_->profile()->IsOffTheRecord() &&
+      !browser_->profile()->IsGuestSession() &&
+      IsDaoTabClassificationConfigured(browser_->profile()->GetPrefs())) {
+    tab_context_menu_model_->AddItem(
+        kClassifyTabs, l10n_util::GetStringUTF16(IDS_DAO_CLASSIFY_TABS));
+    if (context_menu_tab_index_ >= 0) {
+      tab_context_menu_model_->AddItem(
+          kClassifyTabsBelow,
+          l10n_util::GetStringUTF16(IDS_DAO_CLASSIFY_TABS_BELOW));
+    }
+  }
 
   bool is_muted = contents->IsAudioMuted();
   if (is_muted) {
@@ -3550,6 +3751,17 @@ void DaoSidebarUIHandler::HandleShowSidebarContextMenu(
   tab_context_menu_model_->AddItem(
       kMoveStaleTabsToFolder,
       l10n_util::GetStringUTF16(IDS_DAO_SIDEBAR_CONTEXT_MOVE_STALE_TABS));
+  if (!browser_->profile()->IsOffTheRecord() &&
+      !browser_->profile()->IsGuestSession() &&
+      IsDaoTabClassificationConfigured(browser_->profile()->GetPrefs())) {
+    tab_context_menu_model_->AddItem(
+        kClassifyTabs, l10n_util::GetStringUTF16(IDS_DAO_CLASSIFY_TABS));
+    if (context_menu_tab_index_ >= 0) {
+      tab_context_menu_model_->AddItem(
+          kClassifyTabsBelow,
+          l10n_util::GetStringUTF16(IDS_DAO_CLASSIFY_TABS_BELOW));
+    }
+  }
 #if DCHECK_IS_ON()
   tab_context_menu_model_->AddItem(kInspectSidebar, u"Inspect");
 #endif
@@ -3782,6 +3994,14 @@ bool DaoSidebarUIHandler::IsCommandIdEnabled(int command_id) const {
   if (!browser_) {
     return false;
   }
+  if (command_id == kClassifyTabs || command_id == kClassifyTabsBelow) {
+    return !classification_in_progress_ &&
+           !browser_->profile()->IsOffTheRecord() &&
+           !browser_->profile()->IsGuestSession() &&
+           IsDaoTabClassificationConfigured(browser_->profile()->GetPrefs()) &&
+           (command_id == kClassifyTabs ||
+            ResolveDraggedTabIndex(browser_, -1, context_menu_tab_id_) >= 0);
+  }
   if (command_id == kMoveTabToTop) {
     const int index =
         ResolveDraggedTabIndex(browser_, -1, context_menu_tab_id_);
@@ -3915,6 +4135,15 @@ bool DaoSidebarUIHandler::GetAcceleratorForCommandId(
 
 void DaoSidebarUIHandler::ExecuteCommand(int command_id, int event_flags) {
   if (!browser_) {
+    return;
+  }
+
+  if (command_id == kClassifyTabs || command_id == kClassifyTabsBelow) {
+    if (IsJavascriptAllowed() && IsCommandIdEnabled(command_id)) {
+      FireWebUIListener("classifyTabsRequested", base::Value(
+          command_id == kClassifyTabsBelow ? context_menu_tab_id_ : ""));
+    }
+    ClearContextMenuState();
     return;
   }
 

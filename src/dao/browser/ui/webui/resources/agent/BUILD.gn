@@ -50,6 +50,7 @@ build_webui("build") {
     "dao_memory_context.ts",
     "dao_memory_table.ts",
     "dao_skill_manager_view.ts",
+    "dao_tab_classification.ts",
     "dao_tool_renderer.ts",
     "llm_cost.ts",
     "llm_config.ts",

@@ -781,6 +781,28 @@
       <!-- Tab hover preview settings -->
       <message name="IDS_DAO_TAB_HOVER_PREVIEW" desc="Label for the switch in You and Dao settings that shows page snapshots when hovering sidebar tabs.">Tab hover previews</message>
       <message name="IDS_DAO_TAB_HOVER_PREVIEW_DESCRIPTION" desc="Description explaining when tab hover preview snapshots are taken and where they are stored.">Hover over a tab in the sidebar to see a snapshot of its page. Snapshots are taken only when you switch away from a tab and are kept in memory.</message>
+
+      <!-- Tab categories and AI classification -->
+      <message name="IDS_DAO_TAB_CATEGORIES_TITLE" desc="Heading for the folder and tab category manager in You and Dao settings.">Tab categories</message>
+      <message name="IDS_DAO_TAB_CATEGORIES_DESCRIPTION" desc="Description explaining category scope and non-destructive removal.">Categories are sidebar folders shared across windows. Deleting a category keeps its tabs open.</message>
+      <message name="IDS_DAO_TAB_CATEGORIES_NAME" desc="Accessible label for the category name editor.">Category name</message>
+      <message name="IDS_DAO_TAB_CATEGORIES_ADD" desc="Button that adds an empty sidebar folder from settings.">Add category</message>
+      <message name="IDS_DAO_TAB_CATEGORIES_SAVE" desc="Button that saves an edited category name.">Save name</message>
+      <message name="IDS_DAO_TAB_CATEGORIES_CANCEL" desc="Button that cancels editing a category name.">Cancel</message>
+      <message name="IDS_DAO_TAB_CATEGORIES_RENAME" desc="Button that starts editing a category name.">Rename</message>
+      <message name="IDS_DAO_TAB_CATEGORIES_REMOVE" desc="Button that deletes a category while keeping its tabs open.">Delete</message>
+      <message name="IDS_DAO_TAB_CATEGORIES_RETRY" desc="Button that reloads the tab categories after a read failure.">Retry</message>
+      <message name="IDS_DAO_TAB_CATEGORIES_LOAD_ERROR" desc="Error when the existing folder data cannot be safely loaded.">Could not load categories. Retry to continue.</message>
+      <message name="IDS_DAO_TAB_CATEGORIES_EDIT_ERROR" desc="Error when a category mutation fails validation or cannot be saved.">Could not save changes. Use a unique name of 1–100 characters, then try again.</message>
+      <message name="IDS_DAO_TAB_CATEGORIES_RENAME_LABEL" desc="Accessible label naming the category to rename.">Rename <ph name="CATEGORY_NAME">$1<ex>Research</ex></ph></message>
+      <message name="IDS_DAO_TAB_CATEGORIES_REMOVE_LABEL" desc="Accessible label naming the category to delete without closing tabs.">Delete <ph name="CATEGORY_NAME">$1<ex>Research</ex></ph></message>
+      <message name="IDS_DAO_CLASSIFY_TABS" desc="Sidebar menu action that classifies all eligible ordinary tabs using the configured AI model.">Classify Tabs with AI</message>
+      <message name="IDS_DAO_CLASSIFY_TABS_BELOW" desc="Tab context menu action that classifies eligible tabs below this tab in visible sidebar order.">Classify Tabs Below with AI</message>
+      <message name="IDS_DAO_CLASSIFY_TABS_STARTED" desc="Toast shown when AI tab classification starts.">Classifying tabs…</message>
+      <message name="IDS_DAO_CLASSIFY_TABS_DONE" desc="Toast confirming successful AI classification into sidebar folders.">Tabs classified</message>
+      <message name="IDS_DAO_CLASSIFY_TABS_EMPTY" desc="Toast shown when no eligible tabs are available for AI classification.">No tabs to classify</message>
+      <message name="IDS_DAO_CLASSIFY_TABS_FAILED" desc="Toast shown when AI tab classification fails without applying a result.">Could not classify tabs. Please try again.</message>
+      <message name="IDS_DAO_CLASSIFY_TABS_CHANGED" desc="Toast shown when a stale AI classification result is discarded after tabs or folders changed.">Tabs or folders changed. Please classify again.</message>
     </messages>
   </release>
 </grit>

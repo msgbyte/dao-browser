@@ -11,6 +11,10 @@
 - Allow up to ten minutes to verify uploaded desktop release files so slower downloads do not abort publication after a successful upload.
 - The website starts downloads automatically only on macOS; other devices show a manual download page with the configured platform installers instead of downloading a potentially incompatible file.
 - Windows uploads to GitHub Releases now include only the installer, omitting separate checksum and update metadata files while retaining release validation and automatic updates through R2.
+- Classify ungrouped tabs in the current window into folders with your configured AI model, or classify only the tabs below a chosen tab without disturbing existing groups.
+- Reuse existing tab categories in each AI classification, create new categories when needed, and add, rename, or delete categories in Settings without closing their tabs.
+- Closing tabs while AI classification is running no longer discards results for the remaining tabs, including when the closed tab was outside the selected range.
+- AI classification can save results when older folder files contain duplicate references, without mistaking unchanged data for a conflicting edit.
 
 ### [1.0.110] - 2026-10-12
 

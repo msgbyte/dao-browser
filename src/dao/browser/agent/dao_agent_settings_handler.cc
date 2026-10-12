@@ -20,9 +20,11 @@
 #include "base/no_destructor.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
+#include "base/task/sequenced_task_runner.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/scoped_user_pref_update.h"
+#include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui.h"
 #include "dao/browser/agent/dao_agent_plugins.h"
 #include "dao/browser/agent/dao_agent_memory_service.h"
@@ -323,6 +325,26 @@ base::DictValue BuildWorkspaceSummary(
 
 }  // namespace
 
+bool IsDaoTabClassificationConfigured(PrefService* prefs) {
+  if (!prefs) {
+    return false;
+  }
+  const auto& settings = prefs->GetDict(prefs::kDaoAgentSettings);
+  const auto* providers_json = settings.FindString("dao_agent_providers");
+  const auto* active = settings.FindString("dao_agent_active_provider");
+  const std::string provider = active ? *active : "openai-compatible";
+  if (!providers_json) {
+    const auto* legacy = settings.FindString("dao_agent_api_key");
+    return provider == "openai-compatible" && legacy &&
+           !base::TrimWhitespaceASCII(*legacy, base::TRIM_ALL).empty();
+  }
+  auto providers =
+      base::JSONReader::ReadDict(*providers_json, base::JSON_PARSE_RFC);
+  const auto* config = providers ? providers->FindDict(provider) : nullptr;
+  const auto* key = config ? config->FindString("apiKey") : nullptr;
+  return key && !base::TrimWhitespaceASCII(*key, base::TRIM_ALL).empty();
+}
+
 bool IsManagedDaoAgentSetting(std::string_view key) {
   for (std::string_view candidate : kManagedStringSettings) {
     if (candidate == key) {
@@ -516,9 +538,14 @@ DaoAgentSettingsHandler::DaoAgentSettingsHandler() = default;
 DaoAgentSettingsHandler::~DaoAgentSettingsHandler() {
   weak_factory_.InvalidateWeakPtrs();
   UnregisterConnectionTester();
+  CancelTabClassifications();
 }
 
 void DaoAgentSettingsHandler::RegisterMessages() {
+  web_ui()->RegisterMessageCallback(
+      "daoTabClassificationResult",
+      base::BindRepeating(&DaoAgentSettingsHandler::HandleTabClassificationResult,
+                          base::Unretained(this)));
   web_ui()->RegisterMessageCallback(
       "getDaoAgentSettings",
       base::BindRepeating(&DaoAgentSettingsHandler::HandleGetSettings,
@@ -607,6 +634,7 @@ void DaoAgentSettingsHandler::OnJavascriptDisallowed() {
   pref_change_registrar_.Reset();
   weak_factory_.InvalidateWeakPtrs();
   UnregisterConnectionTester();
+  CancelTabClassifications();
 }
 
 void DaoAgentSettingsHandler::HandleGetSettings(const base::ListValue& args) {
@@ -843,6 +871,77 @@ void DaoAgentSettingsHandler::HandleRecordToolUsage(
   RecordDaoAgentToolUsage(GetPrefs(), args[0].GetString());
 }
 
+// static
+void DaoAgentSettingsHandler::ClassifyTabs(
+    Profile* profile, base::DictValue request,
+    base::OnceCallback<void(base::DictValue)> callback) {
+  if (!profile || profile->IsOffTheRecord() || profile->IsGuestSession() ||
+      !IsDaoTabClassificationConfigured(profile->GetPrefs())) {
+    std::move(callback).Run(ConnectionTestUnavailable());
+    return;
+  }
+  for (auto& tester : ConnectionTesters()) {
+    if (tester->GetPrefs() == profile->GetPrefs() &&
+        !tester->pending_tab_classifications_.empty()) {
+      std::move(callback).Run(ConnectionTestUnavailable());
+      return;
+    }
+  }
+  for (auto& tester : base::Reversed(ConnectionTesters())) {
+    if (Profile::FromWebUI(tester->web_ui()) != profile ||
+        tester->web_ui()->GetWebContents()->GetLastCommittedURL().host() !=
+            "agent") {
+      continue;
+    }
+    const std::string id = base::NumberToString(++tester->next_connection_test_id_);
+    tester->pending_tab_classifications_.emplace(id, std::move(callback));
+    request.Set("requestId", id);
+    tester->FireWebUIListener("dao-classify-tabs", request);
+    base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+        FROM_HERE,
+        base::BindOnce(&DaoAgentSettingsHandler::FinishTabClassification,
+                       tester->weak_factory_.GetWeakPtr(), id,
+                       ConnectionTestUnavailable()),
+        base::Seconds(65));
+    return;
+  }
+  std::move(callback).Run(ConnectionTestUnavailable());
+}
+
+void DaoAgentSettingsHandler::HandleTabClassificationResult(
+    const base::ListValue& args) {
+  if (args.size() != 2 || !args[0].is_string() || !args[1].is_dict()) {
+    return;
+  }
+  std::string serialized;
+  base::JSONWriter::Write(args[1], &serialized);
+  FinishTabClassification(
+      args[0].GetString(), serialized.size() <= 512 * 1024
+                               ? args[1].GetDict().Clone()
+                               : ConnectionTestUnavailable());
+}
+
+void DaoAgentSettingsHandler::FinishTabClassification(
+    std::string request_id, base::DictValue result) {
+  auto it = pending_tab_classifications_.find(request_id);
+  if (it == pending_tab_classifications_.end()) {
+    return;
+  }
+  auto callback = std::move(it->second);
+  pending_tab_classifications_.erase(it);
+  if (IsJavascriptAllowed()) {
+    FireWebUIListener("dao-classify-tabs-cancel", base::Value(request_id));
+  }
+  std::move(callback).Run(std::move(result));
+}
+
+void DaoAgentSettingsHandler::CancelTabClassifications() {
+  while (!pending_tab_classifications_.empty()) {
+    FinishTabClassification(pending_tab_classifications_.begin()->first,
+                             ConnectionTestUnavailable());
+  }
+}
+
 void DaoAgentSettingsHandler::HandleRegisterConnectionTester(
     const base::ListValue& args) {
   AllowJavascript();
@@ -935,6 +1034,7 @@ void DaoAgentSettingsHandler::UnregisterConnectionTester() {
 }
 
 void DaoAgentSettingsHandler::OnSettingsChanged() {
+  CancelTabClassifications();
   if (IsJavascriptAllowed() && GetPrefs()) {
     FireWebUIListener(kSettingsChangedEvent,
                       BuildDaoAgentSettingsSnapshot(GetPrefs()));
