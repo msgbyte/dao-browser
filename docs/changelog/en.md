@@ -4,7 +4,10 @@
 
 ### [Unreleased] Unreleased
 
+- Allow up to ten minutes to verify uploaded desktop release files so slower downloads do not abort publication after a successful upload.
 - The website starts downloads automatically only on macOS; other devices show a manual download page with the configured platform installers instead of downloading a potentially incompatible file.
+
+### [1.0.110] - 2026-10-12
 
 - Build and upload macOS and Windows installers together with one desktop version through `npm run release`; use `release:mac` for a Mac-only release.
 - Windows installations can download signed updates in the background, show update status in Settings About, and install from the sidebar after a cancellable restart while preserving browsing data.

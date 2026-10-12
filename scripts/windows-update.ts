@@ -102,7 +102,7 @@ export async function validateWindowsUpdateArtifact(manifestPath: string, artifa
 
 async function publicObject(name: string, limit: number, signal?: AbortSignal): Promise<Response | null> {
   const response = await fetch(`${WINDOWS_UPDATE_ORIGIN}/${name}`, {redirect: 'error', cache: 'no-store',
-    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(60_000)]) : AbortSignal.timeout(60_000)});
+    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(600_000)]) : AbortSignal.timeout(600_000)});
   if (response.status === 404) return null;
   if (!response.ok) throw new Error(`Cannot verify published ${name}: HTTP ${response.status}`);
   if (Number(response.headers.get('content-length')) > limit) throw new Error(`Published ${name} exceeds the size limit.`);
