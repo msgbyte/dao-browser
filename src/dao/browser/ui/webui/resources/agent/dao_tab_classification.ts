@@ -204,6 +204,6 @@ addWebUIListener('dao-classify-tabs', async (payload: unknown) => {
 });
 
 addWebUIListener('dao-classify-tabs-cancel', (requestId: unknown) => {
-  if (inFlight?.requestId === requestId) inFlight.controller.abort();
+  if (inFlight && inFlight.requestId === requestId) inFlight.controller.abort();
 });
 window.addEventListener('pagehide', () => inFlight?.controller.abort());

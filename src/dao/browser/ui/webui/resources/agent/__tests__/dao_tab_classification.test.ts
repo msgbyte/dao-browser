@@ -59,7 +59,7 @@ function emit(payload: unknown = request()): Promise<void>|void {
   return mocks.listeners.get('dao-classify-tabs')!(payload);
 }
 
-function cancel(requestId: string) {
+function cancel(requestId: unknown) {
   mocks.listeners.get('dao-classify-tabs-cancel')!(requestId);
 }
 
@@ -263,6 +263,12 @@ describe('tab classification runner', () => {
     pending.callbacks().onDone(VALID, []);
     await Promise.resolve();
     expect(chrome.send).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores cancellation without a request ID when no request is running', () => {
+    expect(() => cancel(undefined)).not.toThrow();
+    expect(chrome.send).not.toHaveBeenCalled();
+    expect(mocks.call).not.toHaveBeenCalled();
   });
 
   it('rejects overlap and releases the guard after cancellation', async () => {

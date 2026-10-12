@@ -15,6 +15,7 @@
 - Reuse existing tab categories in each AI classification, create new categories when needed, and add, rename, or delete categories in Settings without closing their tabs.
 - Closing tabs while AI classification is running no longer discards results for the remaining tabs, including when the closed tab was outside the selected range.
 - AI classification can save results when older folder files contain duplicate references, without mistaking unchanged data for a conflicting edit.
+- Fix a TypeScript build failure in AI tab classification and safely ignore cancellation events without a request ID when no request is running.
 
 ### [1.0.110] - 2026-10-12
 
