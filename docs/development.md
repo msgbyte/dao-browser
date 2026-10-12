@@ -16,8 +16,11 @@ npm run release:windows  # Attach Windows EXE to an existing desktop tag
 The combined command uses normal import, preserves each platform's build cache,
 and completes both packages before uploading. It signs the Windows JSON payload
 with the existing Sparkle keychain key, uploads immutable installers, checksums,
-versioned Windows metadata and Mac deltas, verifies their public bytes, and
-publishes `windows-update.json` last. The website metadata points both platforms
+versioned Windows metadata and Mac deltas, and publishes `windows-update.json`
+last after Wrangler succeeds. It does not download artifacts for verification
+or recheck their public URLs after upload. Existing artifacts are checked with
+HEAD for uncompressed size when provided and skipped on retry; local Windows signatures/checksums and the
+public update feed are still verified. The website metadata points both platforms
 to R2. A pushed desktop tag archives available Mac and Windows installers on
 GitHub after verifying the signed Windows metadata. The `.sha256` and
 `.update.json` files stay in R2 and are not attached to GitHub Releases;
@@ -34,7 +37,9 @@ Once it starts (or the candidate is already public), failures retain the version
 and archived notes because remote publication may have succeeded. Inspect the
 remote feed and retry the same candidate with
 `npm run release -- --skip-bump --skip-build`; retain the original `dist/` files.
-Different bytes under an existing version are rejected. Do not run simultaneous
+Different reported artifact sizes are rejected; a missing Content-Length is
+accepted, and same-size content changes are not detected by HEAD. Network
+failures include the request method, URL, and underlying error. Do not run simultaneous
 publishers; the command rejects a changed feed snapshot but object storage does
 not provide a transaction across uploads. Combined `--skip-build` requires both
 installers, the Windows checksum and signed metadata. Mac notarization recovery

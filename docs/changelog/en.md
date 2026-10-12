@@ -4,11 +4,14 @@
 
 ### [Unreleased] Unreleased
 
+### [1.0.111] - 2026-10-13
+
 - Fast Checks now installs website dependencies so download-page tests can run on clean CI runners.
 - Release tests now use a local calendar date so changelog checks pass in both UTC CI and developer time zones.
 - Windows build-argument tests use their own version fixture so normal release version bumps no longer break CI.
 - Set a custom model ID for the experimental Jev plugin in Agent settings; leave it blank to keep using `jev-latest` for Agent and MCP browser tasks.
-- Allow up to ten minutes to verify uploaded desktop release files so slower downloads do not abort publication after a successful upload.
+- Desktop releases no longer download installers and delta files again to verify uploads, avoiding failures from stale public 404 responses after successful R2 uploads.
+- Release prechecks request uncompressed file sizes and tolerate missing size headers; network failures report the failed URL and underlying error.
 - The website starts downloads automatically only on macOS; other devices show a manual download page with the configured platform installers instead of downloading a potentially incompatible file.
 - Windows uploads to GitHub Releases now include only the installer, omitting separate checksum and update metadata files while retaining release validation and automatic updates through R2.
 - Classify ungrouped tabs in the current window into folders with your configured AI model, or classify only the tabs below a chosen tab without disturbing existing groups.

@@ -100,9 +100,14 @@ export async function validateWindowsUpdateArtifact(manifestPath: string, artifa
   return value;
 }
 
-async function publicObject(name: string, limit: number, signal?: AbortSignal): Promise<Response | null> {
-  const response = await fetch(`${WINDOWS_UPDATE_ORIGIN}/${name}`, {redirect: 'error', cache: 'no-store',
-    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(600_000)]) : AbortSignal.timeout(600_000)});
+async function publicObject(name: string, limit: number, method: 'GET' | 'HEAD', signal?: AbortSignal): Promise<Response | null> {
+  const url = `${WINDOWS_UPDATE_ORIGIN}/${name}`;
+  const response = await fetch(url, {method, redirect: 'error', cache: 'no-store', headers: {'accept-encoding': 'identity'},
+    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(600_000)]) : AbortSignal.timeout(600_000)})
+    .catch((cause: unknown) => {
+      const reason = cause instanceof Error ? cause.cause ?? cause : cause;
+      throw new Error(`Cannot ${method} ${url}: ${String(reason)}`, {cause});
+    });
   if (response.status === 404) return null;
   if (!response.ok) throw new Error(`Cannot verify published ${name}: HTTP ${response.status}`);
   if (Number(response.headers.get('content-length')) > limit) throw new Error(`Published ${name} exceeds the size limit.`);
@@ -110,7 +115,7 @@ async function publicObject(name: string, limit: number, signal?: AbortSignal): 
 }
 
 async function readPublicFeed(signal?: AbortSignal): Promise<string | null> {
-  const response = await publicObject(WINDOWS_UPDATE_FEED, 65536, signal);
+  const response = await publicObject(WINDOWS_UPDATE_FEED, 65536, 'GET', signal);
   if (!response) return null;
   const chunks: Uint8Array[] = [];
   let size = 0;
@@ -154,38 +159,23 @@ export async function publishWindowsUpdate(files: string[], bucket: string, onPu
   for (const file of files) {
     signal?.throwIfAborted();
     const size = statSync(file).size;
-    const remote = await publicObject(path.basename(file), size, signal);
+    const remote = await publicObject(path.basename(file), size, 'HEAD', signal);
     if (!remote) { missing.push(file); continue; }
-    await verifyPublishedFile(file, remote);
+    // shortcut: HEAD cannot detect same-size changes; use remote checksums if retries must prove byte equality.
+    const remoteSize = remote.headers.get('content-length');
+    if (remoteSize !== null && Number(remoteSize) !== size)
+      throw new Error(`Different artifact already published: ${path.basename(file)}`);
     onPublication('artifacts');
   }
   if (missing.length) {
     onPublication('artifacts');
     await upload([...missing, '--bucket', bucket]);
-    for (const file of missing) {
-      const remote = await publicObject(path.basename(file), statSync(file).size, signal);
-      if (!remote) throw new Error(`Uploaded artifact is not publicly available: ${path.basename(file)}`);
-      await verifyPublishedFile(file, remote);
-    }
   }
   if (await readPublicFeed(signal) !== previous) throw new Error('The update feed changed during publication; retry after checking the other publisher.');
   signal?.throwIfAborted();
   onPublication('feed');
   await upload([manifest, '--bucket', bucket, '--key', WINDOWS_UPDATE_FEED, '--content-type', 'application/json']);
   if (await readPublicFeed(signal) !== candidateText) throw new Error('The public update feed did not confirm the candidate; verify publication before retrying.');
-}
-
-async function verifyPublishedFile(file: string, response: Response): Promise<void> {
-  const size = statSync(file).size;
-  const hash = createHash('sha256');
-  let received = 0;
-  for await (const chunk of response.body!) {
-    received += chunk.length;
-    if (received > size) throw new Error(`Different artifact already published: ${path.basename(file)}`);
-    hash.update(chunk);
-  }
-  if (received !== size || hash.digest('hex') !== await hashUpdateFile(file))
-    throw new Error(`Different artifact already published: ${path.basename(file)}`);
 }
 
 /** Check before rebuilding so an interrupted upload cannot lose its original bytes. */

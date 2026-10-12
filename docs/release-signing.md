@@ -25,8 +25,13 @@ Windows metadata uses the same Ed25519 key as Sparkle. `sign_update` signs the
 exact UTF-8 JSON payload; the release command verifies the signature against the
 embedded public key before accepting it. Do not export the private key for
 Windows builds. The versioned `.update.json`, EXE, checksum, DMG and applicable
-Mac deltas are immutable. Their public bytes must match before the signed JSON
-is promoted to `windows-update.json`. This makes the Windows release live
+Mac deltas are immutable. The command requests uncompressed HEAD responses,
+checks existing artifact sizes when provided, and skips their upload on retry.
+It trusts Wrangler upload success without
+downloading artifacts or rechecking their public URLs, then promotes the signed
+JSON to `windows-update.json`. Local Windows signatures/checksums and the public
+feed remain verified; HEAD cannot detect same-size content changes, so retries
+must retain the original `dist/` files. This makes the Windows release live
 independently of website deployment. Commit/push and deploying the Mac appcast
 remain manual. The pushed tag archives only the available installers on GitHub;
 Windows checksums and signed metadata remain in R2 for verification and updates.

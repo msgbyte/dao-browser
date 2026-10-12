@@ -92,7 +92,11 @@ local SHA-256 checksum. GitHub archival also verifies signed Windows metadata,
 but does not upload `.sha256` or `.update.json` attachments.
 The default `npm run release` bumps the desktop version once, builds macOS and
 Windows sequentially on a Mac, and uploads both installers to R2 before
-publishing the signed Windows feed. `release:mac` retains the Mac-only workflow;
+publishing the signed Windows feed. Artifact uploads rely on Wrangler success;
+the release command does not download them for verification. Existing objects
+are checked with HEAD for uncompressed size when provided and skipped on retry; local Windows signatures
+and checksums and the public update feed are still verified.
+`release:mac` retains the Mac-only workflow;
 `release:windows` retains the existing tag attachment workflow without advancing
 the Windows feed. Windows does not use Apple signing, notarization, or Sparkle
 at runtime.

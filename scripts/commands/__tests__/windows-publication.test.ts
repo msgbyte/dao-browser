@@ -48,9 +48,13 @@ function publish(input: string[]) {
 beforeEach(() => {
   directory = mkdtempSync(path.join(os.tmpdir(), 'dao-publication-'));
   remote = new Map(); uploads = []; promoted = false; fetchError = undefined; feedError = false;
-  vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+  vi.stubGlobal('fetch', vi.fn(async (url: string, options?: RequestInit) => {
     const key = url.slice(WINDOWS_UPDATE_ORIGIN.length + 1);
-    return new Response(fetchError ? '' : remote.get(key)?.toString() ?? '', {status: fetchError ?? (remote.has(key) ? 200 : 404)});
+    const body = fetchError ? '' : remote.get(key)?.toString() ?? '';
+    return new Response(options?.method === 'HEAD' ? null : body, {
+      status: fetchError ?? (remote.has(key) ? 200 : 404),
+      headers: {'content-length': String(Buffer.byteLength(body))},
+    });
   }));
 });
 afterEach(() => {vi.unstubAllGlobals(); rmSync(directory, {recursive: true, force: true});});
@@ -72,11 +76,53 @@ describe('Windows update publication', () => {
     uploads = [];
     await publish(input);
     expect(uploads).toHaveLength(1);
+    const artifactRequests = vi.mocked(fetch).mock.calls.filter(([url]) => !String(url).endsWith(WINDOWS_UPDATE_FEED));
+    expect(artifactRequests).toHaveLength(input.length * 2);
+    for (const [, options] of artifactRequests) expect(options?.method).toBe('HEAD');
   });
-  it('refuses to replace an immutable artifact with different bytes', async () => {
+  it('publishes after successful uploads even while artifact URLs still return 404', async () => {
     const input = await files();
-    remote.set(path.basename(input[1]), 'different');
-    await expect(publish(input)).rejects.toThrow(/Different artifact/);
+    const publicFetch = vi.mocked(fetch).getMockImplementation()!;
+    vi.mocked(fetch).mockImplementation((url, options) => String(url).endsWith(WINDOWS_UPDATE_FEED)
+      ? publicFetch(url, options) : Promise.resolve(new Response(null, {status: 404})));
+    await publish(input);
+    expect(promoted).toBe(true);
+    expect(remote.get(WINDOWS_UPDATE_FEED)).toEqual(readFileSync(input[3]));
+    expect(uploads).toHaveLength(2);
+  });
+  it.each(['', 'bad', 'oversized installer'])('rejects an existing artifact with a different size (%j)', async content => {
+    const input = await files();
+    remote.set(path.basename(input[1]), content);
+    await expect(publish(input)).rejects.toThrow(/Different artifact|size limit/);
+    expect(uploads).toHaveLength(0);
+    expect(promoted).toBe(false);
+  });
+  it('requests uncompressed artifact sizes and accepts HEAD responses without a content length', async () => {
+    const input = await files();
+    for (const file of input) remote.set(path.basename(file), readFileSync(file));
+    const publicFetch = vi.mocked(fetch).getMockImplementation()!;
+    vi.mocked(fetch).mockImplementation(async (url, options) => {
+      const response = await publicFetch(url, options);
+      if (options?.method === 'HEAD') response.headers.delete('content-length');
+      return response;
+    });
+    await publish(input);
+    expect(uploads).toHaveLength(1);
+    expect(uploads[0]).toContain(WINDOWS_UPDATE_FEED);
+    for (const [, options] of vi.mocked(fetch).mock.calls) {
+      expect(new Headers(options?.headers).get('accept-encoding')).toBe('identity');
+    }
+  });
+  it.each(['GET', 'HEAD'])('reports the failing %s URL and underlying network error', async method => {
+    const input = await files();
+    const cause = new TypeError('fetch failed', {cause: new Error('connect ETIMEDOUT')});
+    const publicFetch = vi.mocked(fetch).getMockImplementation()!;
+    vi.mocked(fetch).mockImplementation((url, options) => {
+      if ((options?.method ?? 'GET') === method) return Promise.reject(cause);
+      return publicFetch(url, options);
+    });
+    const name = method === 'GET' ? WINDOWS_UPDATE_FEED : path.basename(input[0]);
+    await expect(publish(input)).rejects.toThrow(`${method} ${WINDOWS_UPDATE_ORIGIN}/${name}: Error: connect ETIMEDOUT`);
     expect(uploads).toHaveLength(0);
     expect(promoted).toBe(false);
   });
