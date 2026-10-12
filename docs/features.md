@@ -485,8 +485,10 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
 **Unified Agent settings** (`dao://settings/agent`, overview entry `#agent`)
 - The optional bundled Jev plugin has an experimental, default-off connection
   checkbox after the main provider settings and a separate default-off global
-  tool permission. Its full HTTP(S) API URL and masked Bearer token persist in
-  Profile settings independently of the main model. Opening or editing settings
+  tool permission. Its full HTTP(S) API URL, masked Bearer token and optional
+  model ID persist in Profile settings independently of the main model. The model
+  ID is trimmed for requests; empty or whitespace-only values use `jev-latest`.
+  Opening or editing settings
   sends no inference request. Invalid or incomplete configuration is unavailable.
   MCP discovery lists `run_browser_task` only when the connection and tool
   permission are enabled with valid configuration; clients must refresh the tool
@@ -495,7 +497,7 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
   through a shared native executor available to Dao Agent and external MCP.
   Agent calls retain the existing turn and sequential scheduler; MCP calls
   retain connection approval and the exact authorized tab lease, and work with
-  the Agent panel closed. Both enforce browser permissions. Jev uses the `jev-latest` choice
+  the Agent panel closed. Both enforce browser permissions. Jev uses the choice
   protocol, selects fill targets and known inputs separately to keep every choice
   below the service's 255-option limit, accepts only offered actions and known
   non-sensitive inputs, and verifies all completion predicates locally. Compact viewport snapshots and

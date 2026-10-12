@@ -14,6 +14,7 @@ const profile = await realpath(await mkdtemp(join(tmpdir(), 'dao-jev-check-')));
 const sockets = [];
 let child, helper, port, stderr = '', mode = 'normal', requests = 0, disconnected = 0;
 let pendingResponse, pendingBody, redirectedRequests = 0, submissions = 0, navigationDelay = 0;
+let expectedModel = 'custom-jev-model';
 const choice = (question, selected) => ({choice: selected, confidence: 1,
   probabilities: Object.fromEntries(Object.keys(question.criteria).map(key => [key, Number(key === selected)]))});
 function normalAnswer(body) {
@@ -54,7 +55,7 @@ const server = createServer(async (req, res) => {
   assert(!raw.includes('local-test-token'), 'Token is excluded from model input');
   assert(!raw.includes('private-editor-'), 'Editable drafts and nested controls are excluded');
   const body = JSON.parse(raw);
-  assert.equal(body.model, 'jev-latest');
+  assert.equal(body.model, expectedModel);
   for (const question of Object.values(body.questions)) {
     assert(Object.keys(question.criteria).length <= 255, 'Every choice respects the service limit');
   }
@@ -123,6 +124,7 @@ const targets = async () => (await fetch(`http://127.0.0.1:${port}/json/list`)).
 const enabled = '[data-setting="dao_plugin_jev_enabled"]';
 const url = '[data-setting="dao_plugin_jev_url"]';
 const token = '[data-setting="dao_plugin_jev_token"]';
+const model = '[data-setting="dao_plugin_jev_model"]';
 const permission = '[data-setting="dao_plugin_jev_permission"]';
 async function start() {
   await rm(join(profile, 'DevToolsActivePort'), {force: true});
@@ -217,6 +219,9 @@ try {
   };
   await setField(url, `${origin}/jev`);
   await setField(token, 'local-test-token');
+  assert.equal(await ui(`return find('${model}').value;`), '');
+  assert.equal(await ui(`return find('${model}').placeholder;`), 'jev-latest');
+  await setField(model, '  custom-jev-model  ');
   await until(() => ui(`return !find('${permission}').disabled;`), 'valid connection');
   assert.equal(await ui(`return find('${token}').type;`), 'password');
   assert.equal(await ui(`return find('${permission}').checked;`), false);
@@ -239,6 +244,7 @@ try {
   await until(() => ui(`return find('settings-dao-agent-page').agentPlugins_[0].effective;`), 'restart persistence');
   assert.equal(await ui(`return find('${url}').value;`), `${origin}/jev`);
   assert.equal(await ui(`return find('${token}').value;`), 'local-test-token');
+  assert.equal(await ui(`return find('${model}').value;`), '  custom-jev-model  ');
   assert.equal(requests, 0);
   console.log('PASS settings: defaults, expansion, validation, masking, two badges, explicit permission, collapse and restart persistence; zero inference requests');
 
@@ -413,6 +419,14 @@ try {
     await until(() => evaluate(formSend, `!!document.querySelector('input') && !document.querySelector('input').value`), 'fresh MCP form');
   };
   const runMcp = (args = task) => mcp.call('tools/call', {name: 'run_browser_task', arguments: args});
+  for (const value of ['', '   ', '  another-jev-model  ']) {
+    await resetForm();
+    expectedModel = value.trim() || 'jev-latest';
+    await setField(model, value);
+    const result = await runMcp().result;
+    assert.equal(result.structuredContent.status, 'completed', JSON.stringify(result));
+  }
+  console.log('PASS custom model IDs reach Agent and MCP requests; empty or whitespace-only IDs use jev-latest');
   for (let i = 0; i < 3; i++) {
     await checkNavigation(async args => (await runMcp(args).result).structuredContent, i);
   }
@@ -473,17 +487,21 @@ try {
   assert.equal(bounded.structuredContent.status, 'step_limit');
   console.log('PASS native argument bounds and split field/input choices remain within the Jev choice limit');
 
-  for (const cancellation of ['timeout', 'client', 'permission']) {
+  for (const cancellation of ['timeout', 'client', 'model', 'permission']) {
     await resetForm(); mode = 'hold'; pendingResponse = null;
     const beforeDisconnect = disconnected;
     const running = runMcp({...task, timeout_ms: cancellation === 'timeout' ? 1000 : 60000});
     await until(() => pendingResponse, 'pending external Jev request');
     if (cancellation === 'client') mcp.notify('notifications/cancelled', {requestId: running.id, reason: 'Integration cancellation'});
+    if (cancellation === 'model') {
+      expectedModel = 'changed-jev-model';
+      await setField(model, expectedModel);
+    }
     if (cancellation === 'permission') await ui(`find('${permission}').click();`);
     // MCP cancellation deliberately suppresses the cancelled request's reply.
     if (cancellation !== 'client') {
       const result = await running.result;
-      const expected = cancellation === 'permission' ? 'configuration_changed' : 'timeout';
+      const expected = cancellation === 'timeout' ? 'timeout' : 'configuration_changed';
       assert.equal(result.structuredContent.status, expected, JSON.stringify(result));
       assert.equal(result.isError, true);
     }

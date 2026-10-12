@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_agent_page.ts
-@@ -0,0 +1,974 @@
+@@ -0,0 +1,975 @@
 +// Copyright 2026 Dao Browser Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -136,7 +136,7 @@ index 0000000000..0000000001
 +  private agentSettingsBrowserProxy_: DaoAgentSettingsBrowserProxy =
 +      DaoAgentSettingsBrowserProxyImpl.getInstance();
 +  declare private agentPlugins_: Array<DaoAgentPlugin & {
-+    enabled: boolean; url: string; token: string; permission: boolean;
++    enabled: boolean; url: string; token: string; model: string; permission: boolean;
 +    ready: boolean; effective: boolean; urlInvalid: boolean; tokenInvalid: boolean;
 +    configLabel: string; groupLabel: string;
 +  }>;
@@ -711,6 +711,7 @@ index 0000000000..0000000001
 +      const enabled = snapshot.values[plugin.enabledKey] === 'true';
 +      const url = snapshot.values[plugin.urlKey] || '';
 +      const token = snapshot.values[plugin.tokenKey] || '';
++      const model = snapshot.values[plugin.modelKey] || '';
 +      const permission = snapshot.values[plugin.permissionKey] === 'true';
 +      let validUrl = false;
 +      try {
@@ -719,7 +720,7 @@ index 0000000000..0000000001
 +            !parsed.username && !parsed.password && !parsed.href.includes('#');
 +      } catch {}
 +      const ready = enabled && validUrl && !!token.trim() && !/[\0\r\n]/.test(token);
-+      return {...plugin, enabled, url, token, permission, ready,
++      return {...plugin, enabled, url, token, model, permission, ready,
 +        effective: ready && permission, urlInvalid: !validUrl,
 +        tokenInvalid: !token.trim() || /[\0\r\n]/.test(token),
 +        configLabel: loadTimeData.getStringF('daoAgentPluginEnable', plugin.name),

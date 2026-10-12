@@ -5,6 +5,7 @@
 export interface AgentPlugin {
   id: string; name: string; tool: string; revision?: string;
   enabledKey: string; urlKey: string; tokenKey: string; permissionKey: string;
+  modelKey: string; defaultModel: string;
 }
 let plugins: AgentPlugin[] = [];
 let values: Record<string, string> = {};
