@@ -28,8 +28,8 @@ Windows builds. The versioned `.update.json`, EXE, checksum, DMG and applicable
 Mac deltas are immutable. Their public bytes must match before the signed JSON
 is promoted to `windows-update.json`. This makes the Windows release live
 independently of website deployment. Commit/push and deploying the Mac appcast
-remain manual. The pushed tag archives the available installers and signed
-Windows metadata on GitHub.
+remain manual. The pushed tag archives only the available installers on GitHub;
+Windows checksums and signed metadata remain in R2 for verification and updates.
 
 If immutable artifact upload has started but the feed has not, local metadata
 rolls back and recovery adds `--skip-build` while keeping the original bump.

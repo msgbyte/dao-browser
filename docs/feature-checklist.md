@@ -192,8 +192,11 @@ These are acceptance checks, not a claim that the port has passed them.
 - [ ] Settings About announces checking/downloading/current/error/unsupported/ready states in English and Chinese; repeat clicks and multiple windows cannot apply twice. Transient states leave no sidebar update gap; cancelling exit restores its ready action. Mac still uses Sparkle.
 - [ ] `release --platform windows --dry-run` reuses the desktop version/tag and
   selects `mini_installer` without signing, notarization, Sparkle, or R2. Publish
-  to a test GitHub release: preserve the macOS DMG, append EXE/checksum, recover
-  an interrupted checksum upload, and reject a different existing installer.
+  to a test GitHub release: preserve the macOS DMG, append only the EXE, verify
+  an identical installer on retry, and reject a different existing installer.
+  Verify standalone publishing and combined GitHub archival never attach or
+  restore `.sha256` or `.update.json` files, preserve legacy attachments, and
+  still reject invalid local checksums or signed R2 metadata before uploading.
   Verify missing tags, divergent source commits, bad checksums, and failed
   uploads fail without changing the version or deleting the desktop tag.
   A later macOS version bump must preserve the last published Windows URL.

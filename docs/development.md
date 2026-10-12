@@ -10,7 +10,7 @@ On a configured macOS signing host with the Windows cross toolchain ready:
 npm run release -- --dry-run
 npm run release          # One version, Mac DMG + Windows EXE, then R2 publication
 npm run release:mac      # Mac DMG only
-npm run release:windows  # Attach Windows EXE/checksum to an existing desktop tag
+npm run release:windows  # Attach Windows EXE to an existing desktop tag
 ```
 
 The combined command uses normal import, preserves each platform's build cache,
@@ -18,8 +18,10 @@ and completes both packages before uploading. It signs the Windows JSON payload
 with the existing Sparkle keychain key, uploads immutable installers, checksums,
 versioned Windows metadata and Mac deltas, verifies their public bytes, and
 publishes `windows-update.json` last. The website metadata points both platforms
-to R2. A pushed desktop tag archives available Mac and signed Windows artifacts
-on GitHub; a genuine HTTP 404 for Windows metadata permits older Mac-only tags.
+to R2. A pushed desktop tag archives available Mac and Windows installers on
+GitHub after verifying the signed Windows metadata. The `.sha256` and
+`.update.json` files stay in R2 and are not attached to GitHub Releases;
+a genuine HTTP 404 for Windows metadata permits older Mac-only tags.
 Commit/push and website deployment remain manual.
 
 If immutable artifact upload has started but the feed has not, local metadata
@@ -264,10 +266,10 @@ npm run release:windows -- --dry-run
 npm run release:windows
 ```
 
-The second command builds and publishes Windows assets under the existing tag.
-Use `--skip-upload` for build/package only, or `--skip-build` to publish a
-previously verified EXE/checksum. The Windows release does not bump the desktop
-version and keeps macOS assets. Signing remains disabled. Script tests cover
+The second command builds and publishes the Windows installer under the existing
+tag. Use `--skip-upload` for build/package only, or `--skip-build` to publish a
+previously verified EXE using its local checksum. The Windows release does not
+bump the desktop version and keeps macOS assets. Signing remains disabled. Script tests cover
 cross-platform routing and tool invocation; a real Mac compilation and a
 Windows install/launch/upgrade/uninstall test are still required before treating
 the cross-produced artifact as release-verified.
@@ -451,9 +453,10 @@ can display Windows security prompts. This standalone command does not sign or
 promote the Windows update feed; combined releases do.
 
 The GitHub uploader preserves existing macOS assets and rejects a different
-Windows installer for an already published version. A retry can complete a
-missing checksum upload. `--skip-build` reuses the existing release EXE and
-checksum in `dist/`. The tag's sources must match HEAD; release-only changes to
+Windows installer for an already published version. It uploads only the EXE;
+retries verify existing installers without adding checksum or metadata attachments.
+`--skip-build` reuses the existing release EXE and checksum in `dist/`.
+The tag's sources must match HEAD; release-only changes to
 the display version, appcast, website metadata, and localized changelogs are permitted. Code changes
 require a new desktop release. Before building and again before uploading, the
 publisher checks for uncommitted source changes and verifies the tag against

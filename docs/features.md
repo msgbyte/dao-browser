@@ -87,7 +87,9 @@ installing again. System folders, profile folders, and existing unowned
 profile paths use `Dao`, with Dao AppUserModelID/ProgID prefixes and separate
 COM server identities. Chrome and Chromium installations remain independent.
 `release --platform windows` reuses `dao.json`'s desktop version and `v<version>`
-tag and attaches the EXE and its SHA-256 checksum to the shared GitHub Release.
+tag and attaches only the EXE to the shared GitHub Release after checking its
+local SHA-256 checksum. GitHub archival also verifies signed Windows metadata,
+but does not upload `.sha256` or `.update.json` attachments.
 The default `npm run release` bumps the desktop version once, builds macOS and
 Windows sequentially on a Mac, and uploads both installers to R2 before
 publishing the signed Windows feed. `release:mac` retains the Mac-only workflow;

@@ -62,36 +62,37 @@ describe('shared desktop GitHub release', () => {
     const asset = artifact();
     await publishGithubRelease(plan, {asset});
 
-    expect(fake.calls[0].slice(0, 6)).toEqual([
-      'gh', 'release', 'create', 'v1.2.3', asset, asset + '.sha256',
+    expect(fake.calls[0].slice(0, 5)).toEqual([
+      'gh', 'release', 'create', 'v1.2.3', asset,
     ]);
+    expect(fake.calls[0]).not.toContain(asset + '.sha256');
     expect(fake.calls[0]).toContain('--notes-file');
     expect(fake.calls[0]).not.toContain('--generate-notes');
     expect(fake.notes).toContain('fix: include direct commits');
     expect(fake.notes).toContain('/compare/v1.2.2...v1.2.3');
   });
 
-  it('only appends the Windows installer/checksum without replacing macOS or release metadata', async () => {
+  it('only appends the Windows installer without replacing macOS or release metadata', async () => {
     const asset = artifact();
     await publishGithubRelease(plan, {asset});
     expect(fake.calls).toEqual([
       ['gh', 'release', 'upload', 'v1.2.3', asset],
-      ['gh', 'release', 'upload', 'v1.2.3', asset + '.sha256'],
     ]);
   });
 
-  it('repairs an interrupted checksum upload after verifying the published binary', async () => {
+  it('verifies the published binary on retry without uploading a checksum', async () => {
     const asset = artifact();
     fake.assets.push(plan.assetName);
     fake.remote = 'complete installer';
     await publishGithubRelease(plan, {asset});
     expect(fake.calls[0].slice(0, 6)).toEqual(['gh', 'release', 'download', 'v1.2.3', '--pattern', plan.assetName]);
-    expect(fake.calls[1]).toEqual(['gh', 'release', 'upload', 'v1.2.3', asset + '.sha256']);
+    expect(fake.calls).toHaveLength(1);
   });
 
-  it('rejects replacing an existing installer with different contents', async () => {
-    fake.assets.push(plan.assetName, plan.assetName + '.sha256');
-    fake.remote = 'different checksum';
+  it.each([false, true])('rejects a different published installer with a legacy checksum: %s', async hasChecksum => {
+    fake.assets.push(plan.assetName);
+    if (hasChecksum) fake.assets.push(plan.assetName + '.sha256');
+    fake.remote = 'different contents';
     await expect(publishGithubRelease(plan, {asset: artifact()})).rejects.toThrow(/different installer/);
     expect(fake.calls.every(call => call[2] === 'download')).toBe(true);
   });

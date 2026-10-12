@@ -44,11 +44,10 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('signed Windows GitHub archival', () => {
-  it('archives the installer, checksum and signed metadata and preserves Mac on retry', async () => {
+  it('archives only the verified installer and preserves Mac on retry', async () => {
     await archiveWindowsUpdate('v1.2.3');
     expect([...fake.assets.keys()]).toEqual(['dao-browser-1.2.3-mac-arm64.dmg',
-      'dao-browser-1.2.3-windows-x64.exe', 'dao-browser-1.2.3-windows-x64.exe.sha256',
-      'dao-browser-1.2.3-windows-x64.update.json']);
+      'dao-browser-1.2.3-windows-x64.exe']);
     fake.calls = [];
     await archiveWindowsUpdate('v1.2.3');
     expect(fake.calls.some(call => call[2] === 'upload')).toBe(false);
@@ -66,11 +65,15 @@ describe('signed Windows GitHub archival', () => {
     await expect(archiveWindowsUpdate('v1.2.3')).rejects.toThrow(/does not match/);
     expect(fake.calls.some(call => call[2] === 'upload')).toBe(false);
   });
-  it('does not replace existing versioned metadata', async () => {
+  it('leaves legacy metadata attachments untouched on retry', async () => {
     await archiveWindowsUpdate('v1.2.3');
     fake.assets.set('dao-browser-1.2.3-windows-x64.update.json', 'different');
     fake.calls = [];
-    await expect(archiveWindowsUpdate('v1.2.3')).rejects.toThrow(/Different Windows metadata/);
-    expect(fake.calls.some(call => call[2] === 'upload')).toBe(false);
+    await archiveWindowsUpdate('v1.2.3');
+    expect(fake.assets.get('dao-browser-1.2.3-windows-x64.update.json')).toBe('different');
+    expect(fake.calls.filter(call => call[0] === 'gh')).toEqual([
+      ['gh', 'release', 'download', 'v1.2.3', '--pattern',
+        'dao-browser-1.2.3-windows-x64.exe', '--output', expect.any(String)],
+    ]);
   });
 });

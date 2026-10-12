@@ -125,7 +125,7 @@ githubReleaseCommand
     if (value !== "mac" && value !== "windows" && value !== "all") throw new Error(`Invalid --platform: ${value}`);
     return value;
   }, "mac")
-  .option("--asset <path>", "Attach a local installer and its SHA-256 checksum")
+  .option("--asset <path>", "Attach a local installer after verifying its SHA-256 checksum")
   .option("--dry-run", "Print the archive operation without running it")
   .action(async (tag: string, options: GithubReleaseOptions) => {
     try {
@@ -143,7 +143,7 @@ githubReleaseCommand
 export async function archiveWindowsUpdate(tag: string, options: GithubReleaseOptions = {}): Promise<void> {
   const plan = buildGithubReleasePlan(tag, 'windows');
   const name = windowsUpdateManifestName(tag.slice(1));
-  if (options.dryRun) { log(`[dry-run] Archive signed Windows artifacts from ${RELEASE_BASE_URL}/${name}`); return; }
+  if (options.dryRun) { log(`[dry-run] Archive Windows installer verified against ${RELEASE_BASE_URL}/${name}`); return; }
   const response = await fetch(`${RELEASE_BASE_URL}/${name}`, {redirect: 'error', signal: AbortSignal.timeout(30_000)});
   if (response.status === 404) { log(`No Windows update for ${tag}; keeping the macOS-only release.`); return; }
   if (!response.ok) throw new Error(`Cannot read Windows update metadata: HTTP ${response.status}`);
@@ -164,14 +164,6 @@ export async function archiveWindowsUpdate(tag: string, options: GithubReleaseOp
     writeFileSync(artifact + '.sha256', `${metadata.sha256}  ${plan.assetName}\n`);
     await validateWindowsUpdateArtifact(manifest, artifact, metadata.version, metadata.chromiumVersion);
     await publishLocalInstaller(plan, {asset: artifact});
-    const state = inspectGithubRelease({...plan, assetName: name});
-    if (state.assetExists) {
-      const existing = path.join(directory, 'existing.json');
-      await runCommand('gh', ['release', 'download', tag, '--pattern', name, '--output', existing]);
-      if (readFileSync(existing, 'utf8') !== text) throw new Error('Different Windows metadata already archived.');
-    } else {
-      await runCommand('gh', ['release', 'upload', tag, manifest]);
-    }
   } finally { rmSync(directory, {recursive: true, force: true}); }
 }
 
@@ -277,7 +269,7 @@ export function validateLocalInstaller(plan: GithubReleasePlan, asset: string): 
 
 async function publishLocalInstaller(plan: GithubReleasePlan, options: GithubReleaseOptions): Promise<void> {
   if (options.dryRun) {
-    console.log(`[dry-run] Attach ${options.asset} and its .sha256 to desktop GitHub Release ${plan.tag}`);
+    console.log(`[dry-run] Verify local SHA-256 checksum and attach ${options.asset} to desktop GitHub Release ${plan.tag}`);
     return;
   }
   const assetPath = validateLocalInstaller(plan, options.asset!);
@@ -305,11 +297,8 @@ async function publishLocalInstaller(plan: GithubReleasePlan, options: GithubRel
     if (!state.assetExists) {
       await runCommand("gh", ["release", "upload", plan.tag, assetPath]);
     }
-    if (!state.checksumExists) {
-      await runCommand("gh", ["release", "upload", plan.tag, assetPath + ".sha256"]);
-    }
   } else {
-    await createGithubRelease(plan, [assetPath, assetPath + ".sha256"]);
+    await createGithubRelease(plan, [assetPath]);
   }
   success(`${plan.tag} contains ${plan.assetName}`);
 }
