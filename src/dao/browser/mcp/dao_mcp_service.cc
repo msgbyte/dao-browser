@@ -1772,11 +1772,16 @@ void DaoMcpService::FailPendingCallsForTarget(
 
 void DaoMcpService::DispatchPendingCalls(ConnectionState& connection) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  while (!connection.closing && !connection.pending_tool_calls.empty()) {
-    auto it = connection.pending_tool_calls.begin();
+  const uint64_t generation = connection.generation;
+  // Executing a tool can synchronously disable MCP and destroy its connection.
+  while (ConnectionState* current = FindConnection(generation)) {
+    if (current->closing || current->pending_tool_calls.empty()) {
+      return;
+    }
+    auto it = current->pending_tool_calls.begin();
     PendingToolCall pending = std::move(it->second);
-    connection.pending_tool_calls.erase(it);
-    DispatchToolCall(connection, std::move(pending));
+    current->pending_tool_calls.erase(it);
+    DispatchToolCall(*current, std::move(pending));
   }
 }
 
