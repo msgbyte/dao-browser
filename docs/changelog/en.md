@@ -571,6 +571,8 @@
 
 ### [Unreleased] Unreleased
 
+### [0.1.11] - 2026-10-14
+
 - Enlarge the QR scanner guide so codes are easier to frame from both the new-tab page and browser menu.
 - Fixed the keyboard failing to appear when editing a page address after touching the page content.
 
