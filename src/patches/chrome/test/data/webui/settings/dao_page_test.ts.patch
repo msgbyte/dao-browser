@@ -697,7 +697,7 @@ index 0000000000..0000000001
 +  test('categoryNamesAreLoadedAndAddIsTrimmed', async () => {
 +    await flushTasks();
 +    assertTrue(page.shadowRoot!.querySelector('#daoTabCategories')!
-+                   .textContent!.includes('Work'));
++                   .textContent.includes('Work'));
 +    const input = page.shadowRoot!.querySelector<CrInputElement>(
 +        '#daoTabCategoryName')!;
 +    input.value = '  Research  ';
@@ -732,8 +732,8 @@ index 0000000000..0000000001
 +    assertEquals('Work', page.shadowRoot!.querySelector<CrInputElement>(
 +        '#daoTabCategoryName')!.value);
 +    assertTrue(!!page.shadowRoot!.querySelector('#daoTabCategoryError')!
-+                     .textContent!.trim());
++                     .textContent.trim());
 +    assertTrue(page.shadowRoot!.querySelector('#daoTabCategories')!
-+                   .textContent!.includes('Work'));
++                   .textContent.includes('Work'));
 +  });
 +});
