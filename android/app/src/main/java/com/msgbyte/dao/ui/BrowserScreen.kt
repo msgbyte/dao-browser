@@ -88,6 +88,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -187,6 +188,9 @@ private val NovaEasing = CubicBezierEasing(0.22f, 0.61f, 0.36f, 1f)
 private const val BrowserTransitionDurationMillis = 220
 private const val BrowserTransitionOffsetDivisor = 10
 private const val TabGridInitialScale = 0.96f
+// Frames to wait for an exiting engine view to release the Android focus before the search
+// input requests it. The handoff normally completes within one or two frames.
+private const val SearchFocusHandoffMaxFrames = 5
 private val EdgeBackGestureWidth = 24.dp
 private val EdgeBackGestureThreshold = 64.dp
 
@@ -745,6 +749,7 @@ private fun NewTabScreen(
     val colors = LocalNovaColors.current
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
+    val hostView = LocalView.current
     var searchExpanded by remember(startExpanded) { mutableStateOf(startExpanded) }
     var scannerOpen by remember { mutableStateOf(false) }
     // Start with the whole address selected so typing replaces it.
@@ -764,7 +769,20 @@ private fun NewTabScreen(
     }
 
     LaunchedEffect(searchExpanded) {
-        if (searchExpanded) focusRequester.requestFocus()
+        if (!searchExpanded) return@LaunchedEffect
+        // When address editing opens from a page, the exiting browsing screen keeps its engine
+        // view attached for a frame, and that view keeps the Android focus whenever the user has
+        // touched the page. Compose never takes focus away from an embedded view, so a keyboard
+        // request made now targets the engine view and is dropped. Wait for the focus to return
+        // to this Compose host before focusing the input.
+        var frames = 0
+        while (frames++ < SearchFocusHandoffMaxFrames) {
+            val focused = hostView.findFocus()
+            if (focused == null || focused === hostView) break
+            withFrameNanos {}
+        }
+        focusRequester.requestFocus()
+        keyboardController?.show()
     }
 
     BackHandler(enabled = scannerOpen || searchExpanded) {

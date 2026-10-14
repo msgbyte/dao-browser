@@ -4,6 +4,10 @@
 
 ### [Unreleased] Unreleased
 
+- Request MCP access to one specific tab by ID, including a background tab in another window; the approval dialog identifies it, and MCP tools on that connection cannot target other tabs or use open_tab.
+- Avoid a browser crash when MCP is disabled while a browser tool is starting; pending calls stop as soon as their connection is destroyed.
+- Remove redundant type assertions in tab-category settings tests that blocked the desktop browser-test build.
+
 ### [1.0.111] - 2026-10-13
 
 - Fast Checks now installs website dependencies so download-page tests can run on clean CI runners.
@@ -568,6 +572,7 @@
 ### [Unreleased] Unreleased
 
 - Enlarge the QR scanner guide so codes are easier to frame from both the new-tab page and browser menu.
+- Fixed the keyboard failing to appear when editing a page address after touching the page content.
 
 ### [0.1.10] - 2026-10-11
 
