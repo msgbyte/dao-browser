@@ -539,6 +539,15 @@
       <message name="IDS_DAO_MCP_APPROVAL_EXPLANATION" desc="Explanation in the MCP connection approval dialog.">
         A local automation client is requesting access to this Dao window.
       </message>
+      <message name="IDS_DAO_MCP_APPROVAL_TAB_EXPLANATION" desc="Explanation when an MCP connection requests access only to one specific tab.">
+        A local automation client is requesting control of only the tab below. Other tabs cannot be selected as automation targets.
+      </message>
+      <message name="IDS_DAO_MCP_APPROVAL_TAB" desc="Exact tab requested by a local MCP client. TAB is the page title recorded at request time.">
+        Tab: <ph name="TAB">$1<ex>Example page</ex></ph>
+      </message>
+      <message name="IDS_DAO_MCP_APPROVAL_TAB_URL" desc="URL of the exact tab requested by a local MCP client. URL is recorded at request time.">
+        URL: <ph name="URL">$1<ex>https://example.com/</ex></ph>
+      </message>
       <message name="IDS_DAO_MCP_APPROVAL_WARNING" desc="Security warning in the MCP connection approval dialog.">
         If allowed, it can read and interact with websites using your current login, including by running JavaScript.
       </message>

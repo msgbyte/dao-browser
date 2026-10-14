@@ -132,7 +132,9 @@ std::unique_ptr<views::View> DaoMcpApprovalDialog::BuildContents(
       views::BoxLayout::CrossAxisAlignment::kStretch);
 
   contents->AddChildView(CreateLabel(
-      l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_EXPLANATION),
+      l10n_util::GetStringUTF16(request.tab_target
+                                  ? IDS_DAO_MCP_APPROVAL_TAB_EXPLANATION
+                                  : IDS_DAO_MCP_APPROVAL_EXPLANATION),
       TextPrimary(), true));
   contents->AddChildView(CreateLabel(
       l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_WARNING), TextSecondary(),
@@ -175,6 +177,16 @@ std::unique_ptr<views::View> DaoMcpApprovalDialog::BuildContents(
   details->AddChildView(CreateLabel(
       l10n_util::GetStringFUTF16(IDS_DAO_MCP_APPROVAL_WINDOW, window_title),
       TextSecondary(), false));
+  if (request.tab_target) {
+    details->AddChildView(CreateLabel(
+        l10n_util::GetStringFUTF16(IDS_DAO_MCP_APPROVAL_TAB,
+                                 SanitizeLabel(request.tab_title)),
+        TextPrimary(), false));
+    details->AddChildView(CreateLabel(
+        l10n_util::GetStringFUTF16(IDS_DAO_MCP_APPROVAL_TAB_URL,
+                                 SanitizeLabel(request.tab_target->url)),
+        TextSecondary(), false));
+  }
 
   std::u16string profile_name;
   if (browser && browser->profile()) {

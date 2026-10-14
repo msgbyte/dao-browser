@@ -225,6 +225,16 @@ class DaoTabTools::PendingClose : public TabListInterfaceObserver,
       return;
     }
     if (closes_pinned_target_) {
+      if (session_->tab_scoped()) {
+        DaoBrowserToolResult result;
+        result.ok = true;
+        result.data = base::Value(base::DictValue()
+                                      .Set("success", true)
+                                      .Set("closed_tab_id", closing_tab_id_)
+                                      .Set("closed_index", closing_index_));
+        Complete(std::move(result));
+        return;
+      }
       tabs::TabInterface* replacement = tab_list.GetActiveTab();
       if (!replacement || replacement == closing_tab_) {
         base::WeakPtr<PendingClose> weak_this = weak_factory_.GetWeakPtr();
@@ -422,6 +432,10 @@ DaoBrowserToolResult DaoTabTools::ExecuteSync(
     std::vector<tabs::TabInterface*> all_tabs = tab_list->GetAllTabs();
     tabs::TabInterface* active_tab = tab_list->GetActiveTab();
     for (size_t i = 0; i < all_tabs.size(); ++i) {
+      if (session_weak->tab_scoped() &&
+          all_tabs[i]->GetContents() != *pinned_target) {
+        continue;
+      }
       serialized_tabs.Append(
           SerializeTab(all_tabs[i], static_cast<int>(i), active_tab));
     }
@@ -449,6 +463,11 @@ DaoBrowserToolResult DaoTabTools::ExecuteSync(
                          "The selected tab is no longer available.");
     }
     if (client == DaoToolClient::kMcp) {
+      if (session_weak->tab_scoped() &&
+          selected_tab->GetContents() != *pinned_target) {
+        return ErrorResult(DaoToolErrorCode::kAuthorizationDenied,
+                           "This connection is authorized for only one tab.");
+      }
       Browser* browser = browser_window->GetBrowserForMigrationOnly();
       auto policy = ValidateExternalTarget(browser, session_weak->profile(),
                                       selected_tab->GetContents());
@@ -508,6 +527,10 @@ DaoBrowserToolResult DaoTabTools::ExecuteSync(
   }
 
   if (name == "open_tab") {
+    if (session_weak->tab_scoped()) {
+      return ErrorResult(DaoToolErrorCode::kAuthorizationDenied,
+                         "A tab-only connection cannot open another tab.");
+    }
     RepairDuplicateSidebarTabIds(GetTabContentsInOrder(tab_list));
     const std::string* requested_url = arguments.FindString("url");
     GURL url(requested_url ? *requested_url : std::string());
@@ -661,6 +684,11 @@ void DaoTabTools::ExecuteClose(std::string request_id,
     return;
   }
   content::WebContents* closing_contents = selected_tab->GetContents();
+  if (session_weak->tab_scoped() && closing_contents != *pinned_target) {
+    reply(ErrorResult(DaoToolErrorCode::kAuthorizationDenied,
+                      "This connection is authorized for only one tab."));
+    return;
+  }
   auto pending = std::make_unique<PendingClose>(
       weak_this, request_id, session_weak, tab_list, selected_tab,
       selected->index, GetOrCreateSidebarTabId(closing_contents),

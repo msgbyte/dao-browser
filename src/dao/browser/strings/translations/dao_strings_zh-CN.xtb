@@ -289,4 +289,7 @@
 <translation id="4118056334668149949">没有可分类的标签页</translation>
 <translation id="2138282385481288588">标签页分类失败，请重试。</translation>
 <translation id="1964416750705529726">标签页或文件夹已变更，请重新分类。</translation>
+<translation id="2840970850699819939">本地自动化客户端正在申请仅控制下方标签页。其他标签页不能作为自动化操作目标。</translation>
+<translation id="3696233115467211566">标签页：<ph name="TAB"/></translation>
+<translation id="1589170129806173037">网址：<ph name="URL"/></translation>
 </translationbundle>

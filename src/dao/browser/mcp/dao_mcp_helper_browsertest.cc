@@ -523,11 +523,19 @@ TEST_F(DaoMcpHelperBrowserTest,
   const std::string* instructions = result->FindString("instructions");
   ASSERT_TRUE(instructions);
   EXPECT_EQ(
+      "Include a non-blank reason explaining why browser access is needed in "
+      "the first tool call's arguments (up to 1024 UTF-8 bytes). Dao shows it "
+      "in the permission dialog. If the user provides a tab ID, include "
+      "tab_id in the first get_page_info or list_tabs call to request access "
+      "only to that tab, including a background tab in another window. That "
+      "connection cannot target other tabs or use open_tab; reconnect with "
+      "another tab_id to request different access. "
       "Use this server whenever the user asks to inspect or operate Dao "
       "Browser, including the current page, tabs, navigation, or page "
       "interaction. Prefer these tools over generic browser automation for "
-      "Dao Browser. Use list_tabs to establish the initial current target, "
-      "then pass its tab_id to page-specific tools. Preserve that target "
+      "Dao Browser. Without an explicit tab ID, use list_tabs to request "
+      "window access and establish the initial current target, then pass its "
+      "tab_id to page-specific tools. Preserve that target "
       "across follow-up requests unless the user explicitly asks to switch "
       "browser tabs. Treat ambiguous requests such as open, click, or select "
       "X as page-local: inspect the current target with "

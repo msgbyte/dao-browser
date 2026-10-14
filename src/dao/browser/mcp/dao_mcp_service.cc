@@ -32,6 +32,7 @@
 #include "base/task/thread_pool.h"
 #include "base/uuid.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
@@ -146,6 +147,19 @@ std::string SideEffectName(DaoBrowserToolSideEffect side_effect) {
 #endif
 }  // namespace
 
+DaoMcpApprovalRequest::DaoMcpApprovalRequest() = default;
+DaoMcpApprovalRequest::DaoMcpApprovalRequest(DaoMcpClientInfo client,
+                                           std::string reason,
+                                           base::Time requested_at)
+    : client(std::move(client)),
+      reason(std::move(reason)),
+      requested_at(requested_at) {}
+DaoMcpApprovalRequest::~DaoMcpApprovalRequest() = default;
+DaoMcpApprovalRequest::DaoMcpApprovalRequest(const DaoMcpApprovalRequest&) =
+    default;
+DaoMcpApprovalRequest& DaoMcpApprovalRequest::operator=(
+    const DaoMcpApprovalRequest&) = default;
+
 base::DictValue BuildDaoMcpUsageStats(PrefService* prefs) {
   base::DictValue normalized = NewMcpUsageStats(base::Time::Now());
   if (!prefs) {
@@ -209,6 +223,7 @@ struct DaoMcpService::ConnectionState {
   std::map<std::string, std::unique_ptr<TargetContext>, std::less<>>
       target_contexts;
   std::string default_target_id;
+  std::optional<tabs::TabHandle> authorized_tab;
   std::map<std::string, PendingToolCall, std::less<>> pending_tool_calls;
   std::set<std::string, std::less<>> active_tool_calls;
   std::map<std::string, std::string, std::less<>> active_tool_targets;
@@ -929,6 +944,7 @@ void DaoMcpService::ResetConnectionState(ConnectionState& connection) {
   connection.tab_tool_sessions.clear();
   connection.default_target_id.clear();
   connection.target_contexts.clear();
+  connection.authorized_tab.reset();
   connection.client_info.reset();
   connection.connection_id.clear();
   connection.approval_state = ApprovalState::kNotRequested;
@@ -1138,14 +1154,20 @@ void DaoMcpService::HandleToolsList(ConnectionState& connection,
                  "this reason in the permission dialog. Use non-blank text "
                  "within 1024 UTF-8 bytes. May be omitted after requesting "
                  "permission."));
-    if (definition->group != DaoBrowserToolGroup::kTabs) {
+    if (definition->group != DaoBrowserToolGroup::kTabs ||
+        definition->name == "list_tabs") {
       properties->Set(
           "tab_id",
           base::DictValue()
               .Set("type", "string")
               .Set("description",
-                   "Optional controlled tab id. Uses the current automation "
-                   "target when omitted."));
+                   "On the first call, requests access only to this exact tab "
+                   "instead of a window. On later calls, selects an already "
+                   "controlled tab. Omit to use the current target."));
+    } else if (base::DictValue* tab_id = properties->FindDict("tab_id")) {
+      tab_id->Set("description",
+                  "Stable tab id. On the first call, requests access only to "
+                  "this exact tab instead of a window.");
     }
     base::DictValue tool =
         base::DictValue()
@@ -1235,8 +1257,15 @@ void DaoMcpService::HandleToolsCall(ConnectionState& connection,
     return;
   }
 
+  const std::string* requested_tab_id = arguments->FindString("tab_id");
+  if (arguments->contains("tab_id") &&
+      (!requested_tab_id || requested_tab_id->empty())) {
+    SendError(connection, request.id,
+              InvalidRequest("tab_id must be a non-empty string."));
+    return;
+  }
   if (connection.approval_state == ApprovalState::kNotRequested) {
-    auto approval_browser = PrepareApprovalSession(connection);
+    auto approval_browser = PrepareApprovalSession(connection, requested_tab_id);
     if (!approval_browser.has_value()) {
       SendError(connection, request.id, std::move(approval_browser).error());
       return;
@@ -1257,23 +1286,19 @@ void DaoMcpService::HandleToolsCall(ConnectionState& connection,
   pending.call.timeout = definition->timeout;
   pending.group = definition->group;
   pending.target_id = connection.default_target_id;
-  if (definition->group != DaoBrowserToolGroup::kTabs) {
-    if (base::Value* routing_tab_id =
-            pending.call.arguments.Find("tab_id")) {
-      if (!routing_tab_id->is_string() ||
-          routing_tab_id->GetString().empty()) {
-        SendError(connection, request.id,
-                  InvalidRequest("tab_id must be a non-empty string."));
-        return;
-      }
-      pending.target_id = routing_tab_id->GetString();
+  if (definition->group != DaoBrowserToolGroup::kTabs || *name == "list_tabs") {
+    if (requested_tab_id) {
+      pending.target_id = *requested_tab_id;
       pending.call.arguments.Remove("tab_id");
     }
     if (!connection.target_contexts.contains(pending.target_id)) {
       SendError(connection, request.id,
                 MakeDaoToolError(
-                    DaoToolErrorCode::kTargetGone,
-                    "The requested MCP browser target is not controlled."));
+                    connection.authorized_tab
+                        ? DaoToolErrorCode::kAuthorizationDenied
+                        : DaoToolErrorCode::kTargetGone,
+                    "The requested MCP browser target is not controlled. "
+                    "Reconnect with its tab_id to request access."));
       return;
     }
   }
@@ -1369,7 +1394,8 @@ void DaoMcpService::CloseConnectionAfterWrites(ConnectionState& connection) {
 }
 
 base::expected<Browser*, DaoToolError>
-DaoMcpService::PrepareApprovalSession(ConnectionState& connection) {
+DaoMcpService::PrepareApprovalSession(ConnectionState& connection,
+                                    const std::string* tab_id) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!connection.client_info || !connection.target_contexts.empty() ||
       connection.approval_state != ApprovalState::kNotRequested) {
@@ -1383,6 +1409,37 @@ DaoMcpService::PrepareApprovalSession(ConnectionState& connection) {
       browser_window ? browser_window->GetBrowserForMigrationOnly() : nullptr;
   tabs::TabInterface* active_tab =
       browser_window ? browser_window->GetActiveTabInterface() : nullptr;
+  if (tab_id) {
+    browser_window = nullptr;
+    active_tab = nullptr;
+    bool ambiguous = false;
+    ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
+        [&](BrowserWindowInterface* candidate) {
+          auto* tab_list = TabListInterface::From(candidate);
+          if (!tab_list) {
+            return true;
+          }
+          for (tabs::TabInterface* tab : tab_list->GetAllTabs()) {
+            if (GetSidebarTabId(tab->GetContents()) != *tab_id) {
+              continue;
+            }
+            if (active_tab) {
+              ambiguous = true;
+              return false;
+            }
+            browser_window = candidate;
+            active_tab = tab;
+          }
+          return true;
+        });
+    if (ambiguous) {
+      return base::unexpected(
+          InvalidRequest("The requested tab id is ambiguous."));
+    }
+    browser = browser_window
+                  ? browser_window->GetBrowserForMigrationOnly()
+                  : nullptr;
+  }
   content::WebContents* target =
       active_tab ? active_tab->GetContents() : nullptr;
   Profile* profile = browser ? browser->profile() : nullptr;
@@ -1396,6 +1453,10 @@ DaoMcpService::PrepareApprovalSession(ConnectionState& connection) {
     return base::unexpected(std::move(target_id).error());
   }
   connection.default_target_id = std::move(target_id).value();
+  if (tab_id) {
+    connection.authorized_tab = active_tab->GetHandle();
+    GetDefaultTargetContext(connection)->session->set_tab_scoped(true);
+  }
   return browser;
 }
 
@@ -1403,9 +1464,8 @@ void DaoMcpService::RequestApproval(ConnectionState& connection,
                                     Browser* browser,
                                     std::string reason) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  DaoMcpApprovalRequest request{.client = *connection.client_info,
-                                .reason = std::move(reason),
-                                .requested_at = base::Time::Now()};
+  DaoMcpApprovalRequest request(*connection.client_info, std::move(reason),
+                                base::Time::Now());
   connection.approval_state = ApprovalState::kPending;
   connection.approval_deadline = base::TimeTicks::Now() + approval_timeout_;
   UpdateStatus();
@@ -1423,6 +1483,17 @@ void DaoMcpService::RequestApproval(ConnectionState& connection,
         DaoToolErrorCode::kTargetGone,
         "The browser selected for MCP approval is no longer available."));
     return;
+  }
+  if (connection.authorized_tab) {
+    auto target = context->session->ResolveTarget();
+    if (!target.has_value()) {
+      RejectConnection(connection, std::move(target).error());
+      return;
+    }
+    request.tab_target = DaoToolTarget{
+        .tab_id = connection.default_target_id,
+        .url = (*target)->GetLastCommittedURL().spec()};
+    request.tab_title = (*target)->GetTitle();
   }
   const uint64_t connection_generation = connection.generation;
   const std::string connection_id = connection.connection_id;
@@ -1548,6 +1619,14 @@ base::expected<std::string, DaoToolError> DaoMcpService::AddTargetContext(
     BrowserWindowInterface* browser_window,
     content::WebContents* target,
     bool allow_uncommitted_url) {
+  if (connection.authorized_tab &&
+      (!connection.authorized_tab->Get() ||
+       connection.authorized_tab->Get()->GetContents() != target)) {
+    return base::unexpected(MakeDaoToolError(
+        DaoToolErrorCode::kAuthorizationDenied,
+        "This connection is authorized for only one tab. Reconnect with the "
+        "other tab_id to request access."));
+  }
   Browser* browser =
       browser_window ? browser_window->GetBrowserForMigrationOnly() : nullptr;
   Profile* profile = browser ? browser->profile() : nullptr;
@@ -1810,6 +1889,7 @@ void DaoMcpService::DispatchToolCall(ConnectionState& connection,
     const bool allow_uncommitted_url = pending.call.name == "open_tab";
     auto session = std::make_unique<DaoBrowserAutomationSession>(
         context->second->session->browser_window(), *target);
+    session->set_tab_scoped(connection.authorized_tab.has_value());
     DaoBrowserAutomationSession* session_ptr = session.get();
     connection.tab_tool_sessions.emplace(request_id, std::move(session));
     Profile* profile = context->second->session->profile();
@@ -1882,8 +1962,13 @@ void DaoMcpService::OnToolCallComplete(uint64_t connection_generation,
   bool target_set_changed = false;
   auto tab_session = connection->tab_tool_sessions.find(request_id);
   if (tab_session != connection->tab_tool_sessions.end()) {
-    if (result.ok && !connection->closing &&
-        connection->approval_state == ApprovalState::kAllowed) {
+    if (result.ok && result.data.is_dict() &&
+        result.data.GetDict().contains("closed_tab_id") &&
+        connection->authorized_tab) {
+      // A tab-only close must never adopt or disclose the replacement tab.
+      result.target.reset();
+    } else if (result.ok && !connection->closing &&
+               connection->approval_state == ApprovalState::kAllowed) {
       const size_t previous_target_count = connection->target_contexts.size();
       const std::string previous_default_target_id =
           connection->default_target_id;

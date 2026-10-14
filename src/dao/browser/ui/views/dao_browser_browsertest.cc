@@ -13161,14 +13161,12 @@ class DaoMcpApprovalDialogTest : public InProcessBrowserTest {};
 IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
                        UsesLocalizedDaoStyleWithoutDefaultAllow) {
   DaoMcpApprovalRequest request{
-      .client =
-          {
-              .name = "Reported Client",
-              .version = "1.2.3",
-              .verified_pid = 4242,
-          },
-      .reason = "Read the page to answer the user's question.",
-      .requested_at = base::Time::Now() - base::Minutes(5),
+      {.name = "Reported Client",
+       .version = "1.2.3",
+       .verified_pid = 4242,
+      },
+      "Read the page to answer the user's question.",
+      base::Time::Now() - base::Minutes(5),
   };
   bool resolved = false;
   bool allowed = true;
@@ -13208,19 +13206,44 @@ IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
+                       ShowsExactRequestedTabAndScope) {
+  DaoMcpApprovalRequest request{
+      {.name = "Reported Client", .version = "1.2.3"},
+      "Inspect the requested tab.",
+      base::Time::Now(),
+  };
+  request.tab_target = DaoToolTarget{.tab_id = "requested-tab",
+                                    .url = "https://example.com/requested"};
+  request.tab_title = u"Requested background tab";
+  DaoMcpApprovalDialog dialog(request, browser(), base::BindOnce([](bool) {}));
+  EXPECT_TRUE(HasDescendantLabelText(
+      dialog.GetContentsView(),
+      l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_TAB_EXPLANATION)));
+  std::u16string title = request.tab_title;
+  base::i18n::SanitizeUserSuppliedString(&title);
+  EXPECT_TRUE(HasDescendantLabelText(
+      dialog.GetContentsView(),
+      l10n_util::GetStringFUTF16(IDS_DAO_MCP_APPROVAL_TAB, title)));
+  std::u16string url = base::UTF8ToUTF16(request.tab_target->url);
+  base::i18n::SanitizeUserSuppliedString(&url);
+  EXPECT_TRUE(HasDescendantLabelText(
+      dialog.GetContentsView(),
+      l10n_util::GetStringFUTF16(IDS_DAO_MCP_APPROVAL_TAB_URL, url)));
+  dialog.DismissWithoutResult();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
                        SerializesConcurrentApprovalRequests) {
   DaoMcpApprovalDialogController* controller =
       DaoMcpApprovalDialogController::Get();
   ASSERT_EQ(0u, controller->queued_approval_count_for_testing());
   DaoMcpApprovalRequest request{
-      .client =
-          {
-              .name = "Reported Client",
-              .version = "1.0",
-              .verified_pid = 4242,
-          },
-      .reason = "Read the page to answer the user's question.",
-      .requested_at = base::Time::Now() - base::Minutes(5),
+      {.name = "Reported Client",
+       .version = "1.0",
+       .verified_pid = 4242,
+      },
+      "Read the page to answer the user's question.",
+      base::Time::Now() - base::Minutes(5),
   };
   int callback_count = 0;
   controller->RequestApproval(
@@ -13243,14 +13266,12 @@ IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
   bool allowed = true;
   {
     DaoMcpApprovalRequest request{
-        .client =
-            {
-                .name = "Reported Client",
-                .version = "1.0",
-                .verified_pid = std::nullopt,
-            },
-        .reason = "Read the page to answer the user's question.",
-        .requested_at = base::Time::Now() - base::Minutes(5),
+        {.name = "Reported Client",
+         .version = "1.0",
+         .verified_pid = std::nullopt,
+        },
+        "Read the page to answer the user's question.",
+        base::Time::Now() - base::Minutes(5),
     };
     DaoMcpApprovalDialog dialog(request, browser(),
                                 base::BindLambdaForTesting([&](bool result) {
@@ -13268,14 +13289,12 @@ IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
   int callback_count = 0;
   bool allowed = false;
   DaoMcpApprovalRequest request{
-      .client =
-          {
-              .name = "Reported Client",
-              .version = "1.0",
-              .verified_pid = 4242,
-          },
-      .reason = "Read the page to answer the user's question.",
-      .requested_at = base::Time::Now() - base::Minutes(5),
+      {.name = "Reported Client",
+       .version = "1.0",
+       .verified_pid = 4242,
+      },
+      "Read the page to answer the user's question.",
+      base::Time::Now() - base::Minutes(5),
   };
   auto dialog = std::make_unique<DaoMcpApprovalDialog>(
       request, browser(), base::BindLambdaForTesting([&](bool result) {
@@ -13306,14 +13325,12 @@ IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
   int callback_count = 0;
   bool allowed = true;
   DaoMcpApprovalRequest request{
-      .client =
-          {
-              .name = "Reported Client",
-              .version = "1.0",
-              .verified_pid = 4242,
-          },
-      .reason = "Read the page to answer the user's question.",
-      .requested_at = base::Time::Now() - base::Minutes(5),
+      {.name = "Reported Client",
+       .version = "1.0",
+       .verified_pid = 4242,
+      },
+      "Read the page to answer the user's question.",
+      base::Time::Now() - base::Minutes(5),
   };
   auto dialog = std::make_unique<DaoMcpApprovalDialog>(
       request, browser(), base::BindLambdaForTesting([&](bool result) {
@@ -13344,14 +13361,12 @@ IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
   int callback_count = 0;
   bool allowed = true;
   DaoMcpApprovalRequest request{
-      .client =
-          {
-              .name = "Reported Client",
-              .version = "1.0",
-              .verified_pid = 4242,
-          },
-      .reason = "Read the page to answer the user's question.",
-      .requested_at = base::Time::Now() - base::Minutes(5),
+      {.name = "Reported Client",
+       .version = "1.0",
+       .verified_pid = 4242,
+      },
+      "Read the page to answer the user's question.",
+      base::Time::Now() - base::Minutes(5),
   };
   auto dialog = std::make_unique<DaoMcpApprovalDialog>(
       request, browser(), base::BindLambdaForTesting([&](bool result) {
@@ -13375,14 +13390,12 @@ IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest, CloseDeniesExactlyOnce) {
   int callback_count = 0;
   bool allowed = true;
   DaoMcpApprovalRequest request{
-      .client =
-          {
-              .name = "Reported Client",
-              .version = "1.0",
-              .verified_pid = 4242,
-          },
-      .reason = "Read the page to answer the user's question.",
-      .requested_at = base::Time::Now() - base::Minutes(5),
+      {.name = "Reported Client",
+       .version = "1.0",
+       .verified_pid = 4242,
+      },
+      "Read the page to answer the user's question.",
+      base::Time::Now() - base::Minutes(5),
   };
   auto dialog = std::make_unique<DaoMcpApprovalDialog>(
       request, browser(), base::BindLambdaForTesting([&](bool result) {
@@ -13410,14 +13423,12 @@ IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
   int callback_count = 0;
   bool allowed = true;
   DaoMcpApprovalRequest request{
-      .client =
-          {
-              .name = "Reported Client",
-              .version = "1.0",
-              .verified_pid = 4242,
-          },
-      .reason = "Read the page to answer the user's question.",
-      .requested_at = base::Time::Now() - base::Minutes(5),
+      {.name = "Reported Client",
+       .version = "1.0",
+       .verified_pid = 4242,
+      },
+      "Read the page to answer the user's question.",
+      base::Time::Now() - base::Minutes(5),
   };
   auto dialog = std::make_unique<DaoMcpApprovalDialog>(
       request, parent_browser, base::BindLambdaForTesting([&](bool result) {

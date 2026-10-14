@@ -73,8 +73,9 @@ Dao exposes the tool catalog before browser authorization. If the client starts
 while Dao Settings or another ineligible page is active, discovery still
 returns all tools. Initialization and `tools/list` do not display an approval
 dialog or start the approval timeout, so an idle discovery connection remains
-available. The first `tools/call` snapshots the exact last-active eligible
-normal browser window and active tab and requests approval. Changing focus
+available. Without a `tab_id`, the first `tools/call` snapshots the exact
+last-active eligible normal browser window and active tab and requests window
+approval. Changing focus
 after target selection does not move the approved target. Approval is required
 before every connection can execute tools, and Allow is not the default dialog
 action.
@@ -91,11 +92,42 @@ The tool schemas and server instructions advertise this requirement. Calls on
 that connection may omit `reason` once approval has been requested. The reason
 is permission metadata and is removed before executing the browser tool.
 
-The dialog shows the reported client name/version, verified local process ID
-when available, the browser-recorded request date/time with time zone, and the
+The dialog shows the reported client name/version,
+the browser-recorded request date/time with time zone, and the
 reason labeled as client-provided, alongside the selected window and Profile.
 Queued dialogs retain each request's original time and reason. Long reasons
 scroll within the dialog so the approval controls remain accessible.
+
+### Request access only to a specific tab
+
+Copy the target's ID from its sidebar context menu, then include `tab_id` and
+`reason` in the first tool call on a new connection:
+
+```json
+{"name":"get_page_info","arguments":{"tab_id":"<copied-tab-id>","reason":"Read the specific tab selected by the user."}}
+```
+
+`list_tabs` also accepts `tab_id` for this initial request. A first `switch_tab`
+or `close_tab` call with an ID uses the same single-tab authorization. Dao finds
+that exact tab across windows, including background tabs, and displays its
+recorded title and URL with an explicit single-tab scope. Missing, ambiguous,
+or ineligible targets fail before prompting; Dao never falls back to another
+tab. The normal Profile and URL restrictions still apply.
+
+After approval, page tools can omit `tab_id` or keep passing the authorized ID.
+`list_tabs` returns only that tab. Switching to or closing another tab, including
+by index, and opening a new tab are denied. Closing the authorized tab ends the
+connection without granting access to its replacement. Access lasts for the
+connection and follows the tab across eligible page navigations, not just the
+URL displayed in the dialog. This limits MCP automation targets, not the
+approved page's web capabilities: scripts and links still follow normal browser
+rules for opening windows and interacting with same-origin pages. To access another tab, reconnect and request it
+with a new first-call `tab_id` and `reason`.
+
+First calls without `tab_id` retain the existing window authorization, which
+allows switching to and controlling additional eligible tabs in that window.
+Adding `tab_id` after window approval routes a call; it does not narrow or replace
+the existing permission.
 
 ## Tool scope
 
@@ -199,9 +231,10 @@ Ready only after the accepted socket actually closes.
   the socket and runtime metadata.
 - Denying or closing the approval dialog fails closed.
 
-Only one external connection is admitted. While MCP owns the browser lease,
-Dao Agent chat and non-browser work continue, but Agent browser tools return
-the retryable `AGENT_CONTROL_BUSY` error.
+Up to 32 external connections are admitted, with exclusive control per tab.
+Different connections can control different tabs. Dao Agent chat and
+non-browser work continue; Agent browser tools targeting an MCP-controlled tab
+return the retryable `AGENT_CONTROL_BUSY` error.
 
 ## Security model
 

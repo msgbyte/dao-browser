@@ -102,6 +102,8 @@ class DaoBrowserAutomationSession {
   BrowserWindowInterface* browser_window() const;
   Profile* profile() const;
   tabs::TabHandle target_handle() const;
+  bool tab_scoped() const { return tab_scoped_; }
+  void set_tab_scoped(bool tab_scoped) { tab_scoped_ = tab_scoped; }
   void SetTarget(content::WebContents* target);
   bool RefreshTargetDocumentSnapshot(content::WebContents* target);
   base::expected<content::WebContents*, DaoToolError> ResolveTarget() const;
@@ -129,6 +131,7 @@ class DaoBrowserAutomationSession {
   tabs::TabHandle target_handle_;
   mutable base::WeakPtr<content::WebContents> resolved_contents_;
   const TargetPolicy target_policy_;
+  bool tab_scoped_ = false;
   std::string expected_domain_;
   mutable url::Origin committed_origin_;
   mutable int64_t document_sequence_number_ = -1;

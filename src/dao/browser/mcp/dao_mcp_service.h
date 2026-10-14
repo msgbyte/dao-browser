@@ -71,9 +71,19 @@ struct DaoMcpClientInfo {
 };
 
 struct DaoMcpApprovalRequest {
+  DaoMcpApprovalRequest();
+  DaoMcpApprovalRequest(DaoMcpClientInfo client,
+                        std::string reason,
+                        base::Time requested_at);
+  ~DaoMcpApprovalRequest();
+  DaoMcpApprovalRequest(const DaoMcpApprovalRequest&);
+  DaoMcpApprovalRequest& operator=(const DaoMcpApprovalRequest&);
+
   DaoMcpClientInfo client;
   std::string reason;
   base::Time requested_at;
+  std::optional<DaoToolTarget> tab_target;
+  std::u16string tab_title;
 };
 
 struct DaoMcpServiceStatus {
@@ -223,7 +233,8 @@ class DaoMcpService {
   void CloseConnectionAfterWrites(ConnectionState& connection);
 
   base::expected<Browser*, DaoToolError> PrepareApprovalSession(
-      ConnectionState& connection);
+      ConnectionState& connection,
+      const std::string* tab_id);
   void RequestApproval(ConnectionState& connection,
                        Browser* browser,
                        std::string reason);

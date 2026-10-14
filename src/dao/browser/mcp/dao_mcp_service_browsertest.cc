@@ -1061,6 +1061,10 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
     return nullptr;
   };
   const base::DictValue* page_tool = find_tool(*tools, "get_page_info");
+  const base::DictValue* list_tool = find_tool(*tools, "list_tabs");
+  ASSERT_TRUE(list_tool);
+  EXPECT_EQ("string", *list_tool->FindStringByDottedPath(
+                          "inputSchema.properties.tab_id.type"));
   ASSERT_NE(nullptr, page_tool);
   EXPECT_EQ("string", *page_tool->FindStringByDottedPath(
                           "inputSchema.properties.tab_id.type"));
@@ -2293,6 +2297,191 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
                          ->TryAcquire({DaoToolClient::kDaoAgent,
                                        "agent-after-disconnect", "Dao Agent"});
   EXPECT_TRUE(agent_lease.has_value());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
+                       ExplicitTabApprovalIsLimitedToThatTab) {
+  FakeApprovalDelegate approval;
+  service_->SetApprovalDelegate(&approval);
+  EnableService();
+  auto client = ConnectClient();
+  ASSERT_TRUE(client);
+  ASSERT_TRUE(client->Send(HelloRequest(nonce())));
+  ASSERT_TRUE(client->Read());
+
+  TabStripModel* tabs = browser()->tab_strip_model();
+  content::WebContents* first = tabs->GetActiveWebContents();
+  const std::string first_id = GetOrCreateSidebarTabId(first);
+  content::WebContents* target = chrome::AddAndReturnTabAt(
+      browser(), embedded_test_server()->GetURL("/title2.html"), -1, false);
+  ASSERT_TRUE(content::WaitForLoadStop(target));
+  const std::string target_id = GetOrCreateSidebarTabId(target);
+  Browser* other_browser = CreateBrowser(browser()->profile());
+  other_browser->window()->Activate();
+
+  ASSERT_TRUE(client->Send(ToolCall(
+      "authorize-tab", "get_page_info",
+      base::DictValue().Set("tab_id", target_id))));
+  WaitForApprovalRequestCount(&approval, 1u);
+  EXPECT_EQ(browser(), approval.browser());
+  ASSERT_TRUE(approval.request().tab_target);
+  EXPECT_EQ(target_id, approval.request().tab_target->tab_id);
+  EXPECT_EQ(target->GetLastCommittedURL().spec(),
+            approval.request().tab_target->url);
+  EXPECT_EQ(target->GetTitle(), approval.request().tab_title);
+  EXPECT_EQ(first, tabs->GetActiveWebContents());
+  approval.Resolve(true);
+  auto response = client->Read();
+  ASSERT_TRUE(response);
+  EXPECT_TRUE(response->FindBoolByDottedPath("result.ok").value_or(false));
+  EXPECT_EQ(target, service_->GetAuthorizedTarget());
+  EXPECT_FALSE(service_->IsTargetControlled(first));
+
+  ASSERT_TRUE(client->Send(ToolCall("list", "list_tabs")));
+  response = client->Read();
+  ASSERT_TRUE(response);
+  const base::ListValue* listed =
+      response->FindListByDottedPath("result.data.tabs");
+  ASSERT_TRUE(listed);
+  ASSERT_EQ(1u, listed->size());
+  EXPECT_EQ(target_id, *listed->front().GetDict().FindString("tab_id"));
+
+  for (const char* name : {"switch_tab", "close_tab"}) {
+    for (bool use_index : {false, true}) {
+      base::DictValue arguments;
+      if (use_index) {
+        arguments.Set("index", tabs->GetIndexOfWebContents(first));
+      } else {
+        arguments.Set("tab_id", first_id);
+      }
+      ASSERT_TRUE(client->Send(
+          ToolCall("outside-tab", name, std::move(arguments))));
+      response = client->Read();
+      ASSERT_TRUE(response);
+      ASSERT_TRUE(response->FindStringByDottedPath("result.error.code"));
+      EXPECT_EQ("AUTHORIZATION_DENIED",
+                *response->FindStringByDottedPath("result.error.code"));
+      EXPECT_EQ(first, tabs->GetActiveWebContents());
+      EXPECT_EQ(2, tabs->count());
+    }
+  }
+  ASSERT_TRUE(client->Send(ToolCall(
+      "open", "open_tab", base::DictValue().Set("url", "about:blank"))));
+  response = client->Read();
+  ASSERT_TRUE(response);
+  ASSERT_TRUE(response->FindStringByDottedPath("result.error.code"));
+  EXPECT_EQ("AUTHORIZATION_DENIED",
+            *response->FindStringByDottedPath("result.error.code"));
+  EXPECT_EQ(2, tabs->count());
+
+  ASSERT_TRUE(client->Send(ToolCall(
+      "other-page", "execute_script",
+      base::DictValue().Set("tab_id", first_id).Set("code", "document.title"))));
+  response = client->Read();
+  ASSERT_TRUE(response);
+  ASSERT_TRUE(response->FindStringByDottedPath("error.code"));
+  EXPECT_EQ("AUTHORIZATION_DENIED",
+            *response->FindStringByDottedPath("error.code"));
+
+  ASSERT_TRUE(client->Send(ToolCall("default-page")));
+  response = client->Read();
+  ASSERT_TRUE(response);
+  ASSERT_TRUE(response->FindStringByDottedPath("result.target.tab_id"));
+  EXPECT_EQ(target_id, *response->FindStringByDottedPath("result.target.tab_id"));
+  EXPECT_EQ(1u, approval.request_count());
+
+  ASSERT_TRUE(client->Send(ToolCall("close-authorized", "close_tab")));
+  response = client->Read();
+  ASSERT_TRUE(response);
+  EXPECT_TRUE(response->FindBoolByDottedPath("result.ok").value_or(false));
+  ASSERT_TRUE(response->FindStringByDottedPath("result.data.closed_tab_id"));
+  EXPECT_EQ(target_id,
+            *response->FindStringByDottedPath("result.data.closed_tab_id"));
+  EXPECT_FALSE(response->FindDictByDottedPath("result.target"));
+  WaitUntilListeningWithoutClient();
+  EXPECT_FALSE(service_->IsTargetControlled(first));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
+                       ExplicitListTabsLosesApprovalWithItsTarget) {
+  FakeApprovalDelegate approval;
+  service_->SetApprovalDelegate(&approval);
+  EnableService();
+  auto client = ConnectClient();
+  ASSERT_TRUE(client);
+  ASSERT_TRUE(client->Send(HelloRequest(nonce())));
+  ASSERT_TRUE(client->Read());
+  TabStripModel* tabs = browser()->tab_strip_model();
+  content::WebContents* keeper = tabs->GetActiveWebContents();
+  content::WebContents* target = chrome::AddAndReturnTabAt(
+      browser(), embedded_test_server()->GetURL("/title2.html"), -1, false);
+  ASSERT_TRUE(content::WaitForLoadStop(target));
+  ASSERT_TRUE(client->Send(ToolCall(
+      "list-target", "list_tabs",
+      base::DictValue().Set("tab_id", GetOrCreateSidebarTabId(target)))));
+  WaitForApprovalRequestCount(&approval, 1u);
+  ASSERT_TRUE(approval.request().tab_target);
+  tabs->DetachAndDeleteWebContentsAt(tabs->GetIndexOfWebContents(target));
+  approval.Resolve(true);
+  auto response = client->Read();
+  ASSERT_TRUE(response);
+  ASSERT_TRUE(response->FindStringByDottedPath("error.code"));
+  EXPECT_EQ("TARGET_GONE", *response->FindStringByDottedPath("error.code"));
+  WaitUntilListeningWithoutClient();
+  EXPECT_FALSE(service_->IsTargetControlled(keeper));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
+                       InvalidExplicitTabNeverFallsBackOrPrompts) {
+  FakeApprovalDelegate approval;
+  service_->SetApprovalDelegate(&approval);
+  EnableService();
+  auto client = ConnectClient();
+  ASSERT_TRUE(client);
+  ASSERT_TRUE(client->Send(HelloRequest(nonce())));
+  ASSERT_TRUE(client->Read());
+  base::ListValue invalid_ids;
+  invalid_ids.Append("");
+  invalid_ids.Append(7);
+  invalid_ids.Append("missing-tab");
+  for (const auto& id : invalid_ids) {
+    ASSERT_TRUE(client->Send(ToolCall(
+        "invalid-tab", "get_page_info",
+        base::DictValue().Set("tab_id", id.Clone()))));
+    auto response = client->Read();
+    ASSERT_TRUE(response);
+    ASSERT_TRUE(response->FindStringByDottedPath("error.code"));
+    EXPECT_EQ(id.is_string() && !id.GetString().empty() ? "TARGET_GONE"
+                                                      : "INVALID_ARGUMENT",
+              *response->FindStringByDottedPath("error.code"));
+    EXPECT_EQ(0u, approval.request_count());
+  }
+
+  Browser* other = CreateBrowser(browser()->profile());
+  content::WebContents* first =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  content::WebContents* second = other->tab_strip_model()->GetActiveWebContents();
+  SetSidebarTabId(first, "duplicate-tab");
+  SetSidebarTabId(second, "duplicate-tab");
+  ASSERT_TRUE(client->Send(ToolCall(
+      "ambiguous-tab", "get_page_info",
+      base::DictValue().Set("tab_id", "duplicate-tab"))));
+  auto response = client->Read();
+  ASSERT_TRUE(response);
+  ASSERT_TRUE(response->FindStringByDottedPath("error.code"));
+  EXPECT_EQ("INVALID_ARGUMENT", *response->FindStringByDottedPath("error.code"));
+  EXPECT_EQ(0u, approval.request_count());
+
+  SetSidebarTabId(second, "forbidden-tab");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(other, GURL("dao://settings/")));
+  ASSERT_TRUE(client->Send(ToolCall(
+      "forbidden-tab", "get_page_info",
+      base::DictValue().Set("tab_id", GetOrCreateSidebarTabId(second)))));
+  response = client->Read();
+  ASSERT_TRUE(response);
+  ASSERT_TRUE(response->FindStringByDottedPath("error.code"));
+  EXPECT_EQ("TARGET_FORBIDDEN", *response->FindStringByDottedPath("error.code"));
+  EXPECT_EQ(0u, approval.request_count());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
