@@ -9,6 +9,7 @@ dist/
 .gstack/
 .superpowers/
 .dao/
+.orca/drops
 
 # Patch paths mirror Chromium and can legitimately contain otherwise ignored
 # directory names. Keep these canonical patch files visible to Git.
