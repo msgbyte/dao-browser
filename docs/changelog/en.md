@@ -4,6 +4,10 @@
 
 ### [Unreleased] Unreleased
 
+- Building the Windows installer no longer prints missing-field-initializer warnings for process and startup structures.
+
+### [1.0.112] - 2026-10-14
+
 - Request MCP access to one specific tab by ID, including a background tab in another window; the approval dialog identifies it, and MCP tools on that connection cannot target other tabs or use open_tab.
 - Avoid a browser crash when MCP is disabled while a browser tool is starting; pending calls stop as soon as their connection is destroyed.
 - Remove redundant type assertions in tab-category settings tests that blocked the desktop browser-test build.

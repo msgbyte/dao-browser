@@ -462,7 +462,8 @@ class Installer {
       return;
     }
     std::wstring command = L"\"" + installer_ + L"\" /S /D=" + directory;
-    STARTUPINFOW startup{sizeof(startup)};
+    STARTUPINFOW startup{};
+    startup.cb = sizeof(startup);
     PROCESS_INFORMATION process{};
     if (!CreateProcessW(installer_.c_str(), command.data(), nullptr, nullptr, FALSE,
                         CREATE_NO_WINDOW, nullptr, nullptr, &startup, &process)) {
@@ -510,7 +511,8 @@ class Installer {
   void Launch() {
     fs::path browser = fs::path(directory_) / L"Application" / L"chrome.exe";
     std::wstring command = L"\"" + browser.wstring() + L"\"";
-    STARTUPINFOW startup{sizeof(startup)};
+    STARTUPINFOW startup{};
+    startup.cb = sizeof(startup);
     PROCESS_INFORMATION process{};
     if (!CreateProcessW(browser.c_str(), command.data(), nullptr, nullptr, FALSE, 0,
                         nullptr, browser.parent_path().c_str(), &startup, &process)) {

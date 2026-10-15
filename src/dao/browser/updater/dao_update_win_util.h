@@ -162,7 +162,8 @@ inline bool SameFile(const std::wstring& first, const std::wstring& second) {
 
 inline DWORD ParentPid(DWORD pid) {
   Handle snapshot(CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0));
-  PROCESSENTRY32W entry{sizeof(entry)};
+  PROCESSENTRY32W entry{};
+  entry.dwSize = sizeof(entry);
   if (!snapshot.valid() || !Process32FirstW(snapshot.get(), &entry))
     return 0;
   do {
@@ -174,7 +175,8 @@ inline DWORD ParentPid(DWORD pid) {
 
 inline bool AnotherBrowserRunning(const std::wstring& browser) {
   Handle snapshot(CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0));
-  PROCESSENTRY32W entry{sizeof(entry)};
+  PROCESSENTRY32W entry{};
+  entry.dwSize = sizeof(entry);
   if (!snapshot.valid() || !Process32FirstW(snapshot.get(), &entry))
     return true;
   do {

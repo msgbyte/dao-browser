@@ -64,7 +64,8 @@ inline int RunUpdate(const std::wstring& token, const std::wstring& installer) {
   if (root.size() > 180 || !NoReparsePoints(root))
     return 10;
   std::wstring command = L"\"" + installer + L"\" /S /D=" + root;
-  STARTUPINFOW startup{sizeof(startup)};
+  STARTUPINFOW startup{};
+  startup.cb = sizeof(startup);
   PROCESS_INFORMATION process{};
   if (!CreateProcessW(installer.c_str(), command.data(), nullptr, nullptr,
                       FALSE, CREATE_NO_WINDOW, nullptr, nullptr, &startup,

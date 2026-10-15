@@ -374,7 +374,8 @@ std::unique_ptr<DaoWindowsUpdater::Handoff> DaoWindowsUpdater::PrepareHandoff(
   ConnectNamedPipe(handoff->pipe.get(), &connect);
   std::wstring command =
       L"\"" + installer.value() + L"\" /DAOUPDATE=" + base::UTF8ToWide(token);
-  STARTUPINFOW startup{sizeof(startup)};
+  STARTUPINFOW startup{};
+  startup.cb = sizeof(startup);
   PROCESS_INFORMATION process{};
   const bool launched = CreateProcessW(
       installer.value().c_str(), command.data(), nullptr, nullptr, FALSE,
