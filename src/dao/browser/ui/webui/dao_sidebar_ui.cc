@@ -3077,18 +3077,12 @@ void DaoSidebarUIHandler::HandleShowTabContextMenu(
 
   // Build the menu model.
   tab_context_menu_model_ = std::make_unique<ui::SimpleMenuModel>(this);
+  organize_tabs_menu_model_ = std::make_unique<ui::SimpleMenuModel>(this);
+  close_multiple_tabs_menu_model_ = std::make_unique<ui::SimpleMenuModel>(this);
 
   tab_context_menu_model_->AddItem(
       kDuplicateTab,
       l10n_util::GetStringUTF16(IDS_DAO_TAB_CONTEXT_DUPLICATE_TAB));
-  tab_context_menu_model_->AddItem(
-      kMoveTabToNewWindow,
-      l10n_util::GetStringUTF16(IDS_MOVE_TAB_TO_NEW_WINDOW));
-  if (!model->IsTabPinned(tab_index)) {
-    tab_context_menu_model_->AddItem(
-        kMoveTabToTop,
-        l10n_util::GetStringUTF16(IDS_DAO_TAB_CONTEXT_MOVE_TO_TOP));
-  }
   tab_context_menu_model_->AddItem(
       kCopyLink, l10n_util::GetStringUTF16(IDS_DAO_TAB_CONTEXT_COPY_LINK));
   PrefService* local_state = g_browser_process->local_state();
@@ -3100,25 +3094,11 @@ void DaoSidebarUIHandler::HandleShowTabContextMenu(
         kCopyTabId,
         l10n_util::GetStringUTF16(IDS_DAO_TAB_CONTEXT_COPY_TAB_ID));
   }
+  tab_context_menu_model_->AddSeparator(ui::NORMAL_SEPARATOR);
   if (!model->IsTabPinned(tab_index)) {
     tab_context_menu_model_->AddItem(
         kPinTab, l10n_util::GetStringUTF16(IDS_DAO_TAB_CONTEXT_PIN_TAB));
   }
-  tab_context_menu_model_->AddItem(
-      kMoveStaleTabsToFolder,
-      l10n_util::GetStringUTF16(IDS_DAO_SIDEBAR_CONTEXT_MOVE_STALE_TABS));
-  if (!browser_->profile()->IsOffTheRecord() &&
-      !browser_->profile()->IsGuestSession() &&
-      IsDaoTabClassificationConfigured(browser_->profile()->GetPrefs())) {
-    tab_context_menu_model_->AddItem(
-        kClassifyTabs, l10n_util::GetStringUTF16(IDS_DAO_CLASSIFY_TABS));
-    if (context_menu_tab_index_ >= 0) {
-      tab_context_menu_model_->AddItem(
-          kClassifyTabsBelow,
-          l10n_util::GetStringUTF16(IDS_DAO_CLASSIFY_TABS_BELOW));
-    }
-  }
-
   bool is_muted = contents->IsAudioMuted();
   if (is_muted) {
     tab_context_menu_model_->AddItem(
@@ -3130,23 +3110,55 @@ void DaoSidebarUIHandler::HandleShowTabContextMenu(
         l10n_util::GetStringUTF16(IDS_DAO_TAB_CONTEXT_MUTE_SITE));
   }
 
+  tab_context_menu_model_->AddItem(
+      kMoveTabToNewWindow,
+      l10n_util::GetStringUTF16(IDS_DAO_TAB_CONTEXT_MOVE_TO_NEW_WINDOW));
+
+  if (!model->IsTabPinned(tab_index)) {
+    organize_tabs_menu_model_->AddItem(
+        kMoveTabToTop,
+        l10n_util::GetStringUTF16(IDS_DAO_TAB_CONTEXT_MOVE_TO_TOP));
+  }
+  organize_tabs_menu_model_->AddItem(
+      kMoveStaleTabsToFolder,
+      l10n_util::GetStringUTF16(IDS_DAO_SIDEBAR_CONTEXT_MOVE_STALE_TABS));
+  if (!browser_->profile()->IsOffTheRecord() &&
+      !browser_->profile()->IsGuestSession() &&
+      IsDaoTabClassificationConfigured(browser_->profile()->GetPrefs())) {
+    organize_tabs_menu_model_->AddSeparator(ui::NORMAL_SEPARATOR);
+    organize_tabs_menu_model_->AddItem(
+        kClassifyTabs, l10n_util::GetStringUTF16(IDS_DAO_CLASSIFY_TABS));
+    organize_tabs_menu_model_->AddItem(
+        kClassifyTabsBelow,
+        l10n_util::GetStringUTF16(IDS_DAO_CLASSIFY_TABS_BELOW));
+  }
+  tab_context_menu_model_->AddSubMenu(
+      kOrganizeTabs,
+      l10n_util::GetStringUTF16(IDS_DAO_TAB_CONTEXT_ORGANIZE_TABS),
+      organize_tabs_menu_model_.get());
+
   tab_context_menu_model_->AddSeparator(ui::NORMAL_SEPARATOR);
 
   tab_context_menu_model_->AddItem(
       kCloseTab, l10n_util::GetStringUTF16(IDS_DAO_TAB_CONTEXT_CLOSE_TAB));
-  tab_context_menu_model_->AddItem(
+  close_multiple_tabs_menu_model_->AddItem(
       kCloseDuplicateTabs,
       l10n_util::GetStringUTF16(
           IDS_DAO_TAB_CONTEXT_CLOSE_DUPLICATE_TABS));
-  tab_context_menu_model_->AddItem(
+  close_multiple_tabs_menu_model_->AddItem(
       kCloseOtherTabs,
       l10n_util::GetStringUTF16(IDS_DAO_TAB_CONTEXT_CLOSE_OTHER_TABS));
-  tab_context_menu_model_->AddItem(
+  close_multiple_tabs_menu_model_->AddSeparator(ui::NORMAL_SEPARATOR);
+  close_multiple_tabs_menu_model_->AddItem(
       kCloseTabsAbove,
       l10n_util::GetStringUTF16(IDS_DAO_TAB_CONTEXT_CLOSE_TABS_ABOVE));
-  tab_context_menu_model_->AddItem(
+  close_multiple_tabs_menu_model_->AddItem(
       kCloseTabsBelow,
       l10n_util::GetStringUTF16(IDS_DAO_TAB_CONTEXT_CLOSE_TABS_BELOW));
+  tab_context_menu_model_->AddSubMenu(
+      kCloseMultipleTabs,
+      l10n_util::GetStringUTF16(IDS_DAO_TAB_CONTEXT_CLOSE_MULTIPLE_TABS),
+      close_multiple_tabs_menu_model_.get());
 
   // Cocoa context menus hide accelerators unless each item explicitly opts in.
   for (int command_id : {kDuplicateTab, kCopyLink, kCloseTab}) {
@@ -4082,6 +4094,8 @@ bool DaoSidebarUIHandler::IsCommandIdEnabled(int command_id) const {
     case kCopyTabId:
     case kToggleMute:
     case kCloseTab:
+    case kOrganizeTabs:
+    case kCloseMultipleTabs:
       return true;
     case kCloseDuplicateTabs:
       return CountDuplicateTabsToClose() > 0;
@@ -4331,7 +4345,9 @@ void DaoSidebarUIHandler::ExecuteCommand(int command_id, int event_flags) {
 }
 
 void DaoSidebarUIHandler::MenuClosed(ui::SimpleMenuModel* source) {
-  ClearContextMenuState();
+  if (source == tab_context_menu_model_.get()) {
+    ClearContextMenuState();
+  }
 }
 
 // ---- DaoSidebarUI ----

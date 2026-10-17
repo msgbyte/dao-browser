@@ -164,6 +164,8 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   int CloseDuplicateTabsForTesting();
 
  private:
+  friend class DaoSidebarContextMenuTestApi;
+
   // Returns the split view for this browser, or nullptr.
   DaoSplitView* GetSplitView() const;
 
@@ -325,6 +327,8 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
     kMoveTabToTop,
     kClassifyTabs,
     kClassifyTabsBelow,
+    kOrganizeTabs,
+    kCloseMultipleTabs,
   };
 
   bool classification_in_progress_ = false;
@@ -374,6 +378,8 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   std::set<int> folder_tab_indices_;
   std::vector<int>
       visual_tab_order_;  // Tab model indices in visual order (top to bottom)
+  std::unique_ptr<ui::SimpleMenuModel> organize_tabs_menu_model_;
+  std::unique_ptr<ui::SimpleMenuModel> close_multiple_tabs_menu_model_;
   std::unique_ptr<ui::SimpleMenuModel> tab_context_menu_model_;
   std::unique_ptr<views::MenuRunner> tab_context_menu_runner_;
 

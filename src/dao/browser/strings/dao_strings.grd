@@ -286,6 +286,15 @@
       <message name="IDS_DAO_TAB_CONTEXT_MOVE_TO_TOP" desc="Context menu item that moves the selected regular tab to the top of its current sidebar list or folder.">
         Move to Top
       </message>
+      <message name="IDS_DAO_TAB_CONTEXT_MOVE_TO_NEW_WINDOW" desc="Context menu item that moves the selected sidebar tab into a new window.">
+        Move to New Window
+      </message>
+      <message name="IDS_DAO_TAB_CONTEXT_ORGANIZE_TABS" desc="Sidebar tab context submenu containing tab ordering, stale-tab archiving, and AI classification actions.">
+        Organize Tabs
+      </message>
+      <message name="IDS_DAO_TAB_CONTEXT_CLOSE_MULTIPLE_TABS" desc="Sidebar tab context submenu containing actions that close duplicate, other, above, or below tabs.">
+        Close Multiple Tabs
+      </message>
       <message name="IDS_DAO_TAB_CONTEXT_COPY_LINK" desc="Context menu item that copies the URL of the selected regular tab in the Dao sidebar.">
         Copy Link
       </message>

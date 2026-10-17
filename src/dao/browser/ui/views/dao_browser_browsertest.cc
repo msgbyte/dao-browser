@@ -251,6 +251,20 @@
 #include "url/url_constants.h"
 
 namespace dao {
+
+class DaoSidebarContextMenuTestApi {
+ public:
+  static ui::SimpleMenuModel* BuildMenu(DaoSidebarUIHandler& handler) {
+    handler.HandleShowTabContextMenu(base::ListValue()
+                                        .Append(0)
+                                        .Append(0)
+                                        .Append(0)
+                                        .Append(base::ListValue())
+                                        .Append(base::ListValue().Append(0)));
+    return handler.tab_context_menu_model_.get();
+  }
+};
+
 namespace {
 
 BrowserView* GetBrowserView(Browser* browser) {
@@ -1507,6 +1521,45 @@ class ReentrantApplyObserver : public dao::DaoUpdaterServiceObserver {
 // =============================================================================
 
 class DaoSidebarBrowserTest : public InProcessBrowserTest {};
+
+IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
+                       ClosingSubmenuPreservesTabContext) {
+  Browser* popup = CreateBrowserForPopup(browser()->profile());
+  chrome::AddTabAt(popup, GURL(url::kAboutBlankURL), -1, true);
+  ASSERT_EQ(nullptr, GetBrowserView(popup)->dao_sidebar());
+
+  DaoSidebarUIHandler handler;
+  AttachSidebarHandlerForTesting(popup, &handler);
+  ui::SimpleMenuModel* menu = DaoSidebarContextMenuTestApi::BuildMenu(handler);
+  ASSERT_NE(nullptr, menu);
+  size_t submenu_count = 0;
+  std::optional<size_t> mute_index;
+  for (size_t i = 0; i < menu->GetItemCount(); ++i) {
+    if (menu->GetTypeAt(i) == ui::MenuModel::TYPE_SUBMENU) {
+      ASSERT_TRUE(menu->IsEnabledAt(i));
+      menu->GetSubmenuModelAt(i)->MenuWillClose();
+      base::RunLoop().RunUntilIdle();
+      EXPECT_TRUE(menu->IsEnabledAt(i));
+      ++submenu_count;
+    }
+    if (menu->GetLabelAt(i) ==
+        l10n_util::GetStringUTF16(IDS_DAO_TAB_CONTEXT_MUTE_SITE)) {
+      mute_index = i;
+    }
+  }
+  EXPECT_EQ(2u, submenu_count);
+  ASSERT_TRUE(mute_index.has_value());
+  ASSERT_TRUE(menu->IsEnabledAt(*mute_index));
+  auto* contents = popup->tab_strip_model()->GetWebContentsAt(0);
+  EXPECT_FALSE(contents->IsAudioMuted());
+  menu->ActivatedAt(*mute_index);
+  EXPECT_TRUE(contents->IsAudioMuted());
+
+  menu = DaoSidebarContextMenuTestApi::BuildMenu(handler);
+  menu->MenuWillClose();
+  base::RunLoop().RunUntilIdle();
+  EXPECT_FALSE(menu->IsEnabledAt(*mute_index));
+}
 
 IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
                        SettingsSharesDaoLoadTimeDataWithLegacyModules) {
