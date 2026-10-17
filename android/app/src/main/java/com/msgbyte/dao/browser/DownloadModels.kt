@@ -19,6 +19,12 @@ data class DownloadRequestData(
         get() = isHttpUrl(url)
 }
 
+internal class PendingDownload(
+    val request: DownloadRequestData,
+    val tabId: String,
+    val response: Response?,
+)
+
 enum class DownloadStatus {
     PENDING,
     RUNNING,

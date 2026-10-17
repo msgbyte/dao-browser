@@ -3,7 +3,9 @@ package com.msgbyte.dao.browser
 import android.util.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import mozilla.components.browser.session.storage.RecoverableBrowserState
 import mozilla.components.browser.state.action.EngineAction
@@ -39,6 +41,8 @@ class BrowserTabsController(
     private val sessionObservers = mutableMapOf<EngineSession, EngineSession.Observer>()
     private val tabsThatHadSessions = mutableSetOf<String>()
     private val tabsToReloadOnRecreate = mutableSetOf<String>()
+    private val mutablePendingDownloads = MutableStateFlow<List<PendingDownload>>(emptyList())
+    internal val pendingDownloads = mutablePendingDownloads.asStateFlow()
     val state: StateFlow<BrowserState> = store.stateFlow
 
     init {
@@ -188,7 +192,21 @@ class BrowserTabsController(
 
     fun selectedSession(): EngineSession? = selectedTab()?.engineState?.engineSession
 
+    internal fun confirmDownload(download: PendingDownload) {
+        // A stale or repeated tap must never approve the next request in the queue.
+        if (mutablePendingDownloads.value.firstOrNull() !== download) return
+        mutablePendingDownloads.value = mutablePendingDownloads.value.drop(1)
+        onDownloadRequested(download.request, download.response)
+    }
+
+    internal fun cancelDownload(download: PendingDownload) {
+        if (download !in mutablePendingDownloads.value) return
+        mutablePendingDownloads.value = mutablePendingDownloads.value.filterNot { it === download }
+        runCatching { download.response?.close() }
+    }
+
     fun close() {
+        mutablePendingDownloads.value.forEach(::cancelDownload)
         sessionObservers.forEach { (session, observer) ->
             session.unregister(observer)
             session.close()
@@ -204,6 +222,7 @@ class BrowserTabsController(
             sessionObservers.remove(session)?.let(session::unregister)
         }
         val tabIds = browserState.tabs.mapTo(mutableSetOf()) { it.id }
+        mutablePendingDownloads.value.filterNot { it.tabId in tabIds }.forEach(::cancelDownload)
         tabsThatHadSessions.retainAll(tabIds)
         tabsToReloadOnRecreate.retainAll(tabIds)
         browserState.tabs.forEach { tab ->
@@ -233,8 +252,8 @@ class BrowserTabsController(
                     openInApp: Boolean,
                     response: Response?,
                 ) {
-                    onDownloadRequested(
-                        DownloadRequestData(
+                    mutablePendingDownloads.value += PendingDownload(
+                        request = DownloadRequestData(
                             url = url,
                             fileName = fileName.orEmpty(),
                             contentLength = contentLength,
@@ -243,7 +262,8 @@ class BrowserTabsController(
                             userAgent = userAgent,
                             isPrivate = isPrivate,
                         ),
-                        response,
+                        tabId = tab.id,
+                        response = response,
                     )
                 }
             }

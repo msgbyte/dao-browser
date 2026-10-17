@@ -32,6 +32,7 @@ import com.msgbyte.dao.browser.BrowserPreferenceState
 import com.msgbyte.dao.browser.BrowserSessionViewModel
 import com.msgbyte.dao.browser.NavigationTargetResolver
 import com.msgbyte.dao.ui.BrowserScreen
+import com.msgbyte.dao.ui.DownloadConfirmationDialog
 import com.msgbyte.dao.ui.theme.DaoTheme
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -95,6 +96,7 @@ class MainActivity : FragmentActivity() {
             )
             val darkTheme = preferenceState.darkTheme ?: isSystemInDarkTheme()
             val browserState by browserSessionViewModel.controller.state.collectAsStateWithLifecycle()
+            val pendingDownloads by browserSessionViewModel.controller.pendingDownloads.collectAsStateWithLifecycle()
             val resolver = remember(preferenceState.searchEngine) {
                 NavigationTargetResolver(preferenceState.searchEngine.searchUrl)
             }
@@ -166,6 +168,13 @@ class MainActivity : FragmentActivity() {
                     externalNavigationUrl = externalNavigationUrl,
                     onExternalNavigationConsumed = { externalNavigationUrl = null },
                 )
+                pendingDownloads.firstOrNull()?.let { download ->
+                    DownloadConfirmationDialog(
+                        request = download.request,
+                        onConfirm = { browserSessionViewModel.controller.confirmDownload(download) },
+                        onDismiss = { browserSessionViewModel.controller.cancelDownload(download) },
+                    )
+                }
             }
         }
     }

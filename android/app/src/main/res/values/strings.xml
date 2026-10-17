@@ -152,6 +152,8 @@
     <string name="no_downloads">No downloads yet</string>
     <string name="retry">Retry</string>
     <string name="cancel_download">Cancel download</string>
+    <string name="download_confirmation_title" tools:ignore="MissingTranslation">Download this file?</string>
+    <string name="download" tools:ignore="MissingTranslation">Download</string>
     <string name="download_pending">Pending</string>
     <string name="downloading">Downloading</string>
     <string name="download_speed" tools:ignore="MissingTranslation">%1$s/s</string>

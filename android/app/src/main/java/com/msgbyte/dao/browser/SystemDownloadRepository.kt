@@ -319,7 +319,7 @@ private fun DownloadRequestData.toPendingDownload(id: Long) = BrowserDownload(
 internal fun isHttpUrl(url: String): Boolean =
     runCatching { URI(url).scheme?.lowercase() in setOf("http", "https") }.getOrDefault(false)
 
-private fun sanitizeFileName(fileName: String, url: String): String {
+internal fun sanitizeFileName(fileName: String, url: String): String {
     val fallback = runCatching { URI(url).path.substringAfterLast('/').takeIf(String::isNotBlank) }.getOrNull()
         ?: "download"
     return fileName.trim().ifEmpty { fallback }

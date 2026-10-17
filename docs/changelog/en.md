@@ -578,6 +578,8 @@
 
 ### [Unreleased] Unreleased
 
+- Webpage downloads now ask for confirmation before saving, with a prominent file name, available size, and a clearly marked Download button. Cancel or dismiss the dialog to leave no download task or file.
+
 ### [0.1.11] - 2026-10-14
 
 - Enlarge the QR scanner guide so codes are easier to frame from both the new-tab page and browser menu.
