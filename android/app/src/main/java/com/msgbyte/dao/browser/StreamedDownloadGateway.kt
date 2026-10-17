@@ -235,11 +235,23 @@ internal class StreamedDownloadGateway(
  * when the name has none; blob: and data: URLs carry no usable name of their own.
  */
 internal fun guessDownloadFileName(contentDisposition: String?, url: String?, mimeType: String?): String {
+    // Mozilla expects filename immediately after the disposition, followed by filename*.
+    val disposition = contentDisposition?.let { value ->
+        val parameters = CONTENT_DISPOSITION_PARAMETERS.findAll(value)
+            .associate { it.groupValues[1].lowercase() to it.groupValues[2] }
+        listOfNotNull(
+            value.substringBefore(';'),
+            parameters["filename"]?.let { "filename=$it" },
+            parameters["filename*"]?.let { "filename*=$it" },
+        ).joinToString("; ")
+    }
     val pageOnly = url == null || url.startsWith("blob:", ignoreCase = true) || url.startsWith("data:", ignoreCase = true)
-    val name = if (pageOnly && contentDisposition == null) "download" else DownloadUtils.extractFileNameFromUrl(contentDisposition, url)
+    val name = if (pageOnly && disposition == null) "download" else DownloadUtils.extractFileNameFromUrl(disposition, url)
     val extension = mimeType?.substringBefore(';')?.trim()?.let(MimeTypeMap.getSingleton()::getExtensionFromMimeType)
     return if ('.' in name || extension == null) name else "$name.$extension"
 }
+
+private val CONTENT_DISPOSITION_PARAMETERS = Regex("""(?:^|;)\s*([^=;\s]+)\s*=\s*("(?:[^"\\]|\\.)*"|[^;]*)""")
 
 internal interface DownloadSink {
     fun create(fileName: String): DownloadTarget

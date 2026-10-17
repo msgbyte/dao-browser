@@ -579,6 +579,7 @@
 ### [Unreleased] Unreleased
 
 - Webpage downloads now ask for confirmation before saving, with a prominent file name, available size, and a clearly marked Download button. Cancel or dismiss the dialog to leave no download task or file.
+- Fixed some downloads being named `down` instead of the server-provided file name when extra response-header parameters appeared before the file name.
 
 ### [0.1.11] - 2026-10-14
 
