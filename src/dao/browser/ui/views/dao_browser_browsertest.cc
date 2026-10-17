@@ -6054,6 +6054,69 @@ IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest,
   }
 }
 
+IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest, ExtensionCreatedTabsRespectPlacement) {
+  extensions::TestExtensionDir extension_dir;
+  extension_dir.WriteFile(FILE_PATH_LITERAL("tabs.html"),
+                          "<!doctype html><title>Tab placement</title>");
+  auto extension = LoadActionExtension(browser()->profile(), &extension_dir);
+  ASSERT_TRUE(extension);
+
+  TabStripModel* model = browser()->tab_strip_model();
+  model->SetTabPinned(0, true);
+  chrome::AddTabAt(browser(), GURL("about:blank"), 1, false);
+  chrome::AddTabAt(browser(), extension->GetResourceURL("tabs.html"), 2, true);
+  content::WebContents* source = model->GetActiveWebContents();
+  ASSERT_TRUE(content::WaitForLoadStop(source));
+  model->AddToNewGroup({2});
+  ASSERT_EQ(3, model->count());
+
+  const struct {
+    const char* properties;
+    int expected_index;
+    bool active;
+    bool pinned;
+  } cases[] = {
+      {R"({})", 1, true, false},
+      {R"({"active":false})", 1, false, false},
+      {R"({"index":0})", 1, true, false},
+      {R"({"index":2})", 2, true, false},
+      {R"({"index":999})", 3, true, false},
+      {R"({"pinned":true})", 0, true, true},
+      {R"({"pinned":true,"index":1})", 1, true, true},
+  };
+  for (const auto& test_case : cases) {
+    SCOPED_TRACE(test_case.properties);
+    model->ActivateTabAt(model->GetIndexOfWebContents(source));
+    auto result = content::EvalJs(source, content::JsReplace(R"(
+      chrome.tabs.create({url: 'about:blank', ...JSON.parse($1)})
+          .then(tab => tab.index)
+    )", test_case.properties));
+    ASSERT_TRUE(result.is_ok()) << result;
+    const int index = result.ExtractInt();
+    EXPECT_EQ(test_case.expected_index, index);
+    ASSERT_EQ(4, model->count());
+    ASSERT_TRUE(model->ContainsIndex(index));
+    auto* added = model->GetWebContentsAt(index);
+    EXPECT_EQ(test_case.pinned, model->IsTabPinned(index));
+    EXPECT_EQ(test_case.active ? added : source, model->GetActiveWebContents());
+    EXPECT_EQ(nullptr, model->GetOpenerOfTabAt(index));
+    EXPECT_FALSE(model->GetTabGroupForTab(index).has_value());
+    model->CloseWebContentsAt(index, TabCloseTypes::CLOSE_NONE);
+  }
+
+  model->ActivateTabAt(model->GetIndexOfWebContents(source));
+  auto result = content::EvalJs(source, R"(
+    chrome.tabs.getCurrent().then(opener => chrome.tabs.create({
+      url: 'about:blank', openerTabId: opener.id
+    })).then(tab => tab.index)
+  )");
+  ASSERT_TRUE(result.is_ok()) << result;
+  const int index = result.ExtractInt();
+  EXPECT_EQ(1, index);
+  EXPECT_EQ(model->GetTabForWebContents(source), model->GetOpenerOfTabAt(index));
+  EXPECT_FALSE(model->GetTabGroupForTab(index).has_value());
+}
+
 // =============================================================================
 // DaoSplitViewBrowserTest
 // =============================================================================

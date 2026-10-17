@@ -282,8 +282,11 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
 ### 1.3 Tab System Foundations
 - **New-tab placement** — Ordinary new tabs default to the top of the unpinned
   list, including foreground/background links and navigation into another
-  window. Link tabs retain their opener without automatically joining its
-  native group. Explicit insertion positions and groups, session restoration,
+  window. Extension-created tabs and tabs opened from the bookmark manager
+  also default to the top, below pinned tabs, when no position is specified.
+  Explicit extension positions and opener relationships remain intact.
+  Link tabs retain their opener without automatically joining its native group.
+  Explicit insertion positions and groups, session restoration,
   duplication, drag placement, and Split View retain their intended positions.
 - **DaoTabIdentity** (`dao_tab_identity.h`) — Stable cross-window tab IDs decoupled from `TabStripModel` indices, migrated across WebContents replacement and persisted in session extra data
 - **DaoTabCommands** (`dao_tab_commands.h`) — Tab action vocabulary (duplicate, pin, copy URL, close, etc.)

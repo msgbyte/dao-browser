@@ -4,6 +4,7 @@
 
 ### [Unreleased] Unreleased
 
+- Tabs opened by extensions such as Bitwarden or from the bookmark manager now appear at the top below pinned tabs by default, while explicitly requested positions are preserved.
 - Building the Windows installer no longer prints missing-field-initializer warnings for process and startup structures.
 - Clicking the Mini Dao address bar no longer leaves its background stuck in the pressed color after opening or dismissing the command bar.
 
