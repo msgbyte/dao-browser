@@ -1146,6 +1146,7 @@ macOS-style floating control center panel bundling extensions and utilities.
 Lightweight window form factor for popups / mini-tools.
 
 - **DaoLittleDaoController** / **DaoLittleDaoView** (`little_dao/`) — Top bar (48px) with hostname display + "Open in Dao" button
+- **Address click feedback** — Clicking the address opens the command bar and fades out the pressed highlight, so the address does not stay dark after the command bar closes
 - **Browser::Create timing control** — Static-flag pattern (`IsCreatingLittleDao()`) to pass state into BrowserView during construction
 - **Permanently windowed** — Mini Dao disables browser fullscreen commands and macOS native maximize/fullscreen eligibility, including when an external link creates it while the main Dao window is fullscreen
 - macOS traffic-light repositioning

@@ -5,6 +5,7 @@
 ### [Unreleased] Unreleased
 
 - Building the Windows installer no longer prints missing-field-initializer warnings for process and startup structures.
+- Clicking the Mini Dao address bar no longer leaves its background stuck in the pressed color after opening or dismissing the command bar.
 
 ### [1.0.112] - 2026-10-14
 

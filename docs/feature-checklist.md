@@ -489,6 +489,7 @@ Lightweight popup window form factor.
 | ✔ | Feature | Patch(es) / Source | Risk | Verify after upgrade |
 |---|---------|--------------------|------|----------------------|
 | ☐ | Little Dao popup layout (48px header, URL pill, "Open in Dao") | `views/frame/layout/browser_view_popup_layout_impl.cc.patch` | 🟡 | Popup shows 48px header, no Chrome toolbar |
+| ☐ | Mini Dao address click feedback | `dao_little_dao_view.cc` | — | Click the address, dismiss the command bar, and move the pointer away; the pressed highlight fades out without leaving a dark address background |
 | ☐ | External URLs route into Little Dao (startup path) | `ui/startup/startup_browser_creator_impl_little_dao.cc.patch` | 🔴 | With Little Dao enabled + running, OS-opened URL lands in Little Dao |
 | ☐ | External URLs route into Little Dao (macOS app-controller path) | `app_controller_mac_little_dao_external.mm.patch` | 🔴 | Same as above via native open-URL event |
 | ☐ | Fullscreen disabled in Little Dao windows | `dao_little_dao_controller.cc`, `ui/browser_command_controller.cc.patch` | 🔴 | From a fullscreen Dao window, open an external link; Mini Dao stays windowed and has no native or command fullscreen eligibility |

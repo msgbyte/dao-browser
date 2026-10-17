@@ -228,6 +228,7 @@
 #include "ui/gfx/range/range.h"
 #include "ui/gfx/text_utils.h"
 #include "ui/native_theme/native_theme.h"
+#include "ui/views/animation/ink_drop.h"
 #include "ui/views/controls/button/checkbox.h"
 #include "ui/views/controls/button/image_button.h"
 #include "ui/views/controls/button/label_button.h"
@@ -9448,6 +9449,51 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
   EXPECT_EQ(base::StrCat({ExpectedAddressBarHostText(url),
                           u"/mini-address/path?foo=bar#section"}),
             label_button->GetText());
+
+  BrowserRemovedWaiter removed(little_dao_browser);
+  little_dao_browser->window()->Close();
+  removed.Wait();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
+                       AddressClickClearsPressedInkDrop) {
+  Browser* little_dao_browser = dao::DaoLittleDaoController::OpenInLittleDao(
+      browser()->profile(), GURL("data:text/html,mini-address-click"));
+  ASSERT_NE(nullptr, little_dao_browser);
+  ASSERT_TRUE(content::WaitForLoadStop(
+      little_dao_browser->tab_strip_model()->GetActiveWebContents()));
+
+  BrowserView* little_browser_view = GetBrowserView(little_dao_browser);
+  ASSERT_NE(nullptr, little_browser_view);
+  little_browser_view->DeprecatedLayoutImmediately();
+  auto* little_view = little_browser_view->dao_little_dao_view();
+  ASSERT_NE(nullptr, little_view);
+  auto* address_button = FindLabelButtonExceptText(
+      little_view, l10n_util::GetStringUTF16(
+                       IDS_DAO_LITTLE_DAO_OPEN_IN_DAO_ACCESSIBLE_NAME));
+  ASSERT_NE(nullptr, address_button);
+  auto* command_bar = little_browser_view->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+  ASSERT_FALSE(command_bar->GetVisible());
+
+  auto* ink_drop = views::InkDrop::Get(address_button)->GetInkDrop();
+  const gfx::Point center = address_button->GetLocalBounds().CenterPoint();
+  address_button->OnMousePressed(ui::MouseEvent(
+      ui::EventType::kMousePressed, center, center, ui::EventTimeForNow(),
+      ui::EF_LEFT_MOUSE_BUTTON, ui::EF_LEFT_MOUSE_BUTTON));
+  EXPECT_EQ(views::InkDropState::ACTION_PENDING,
+            ink_drop->GetTargetInkDropState());
+
+  address_button->OnMouseReleased(ui::MouseEvent(
+      ui::EventType::kMouseReleased, center, center, ui::EventTimeForNow(),
+      ui::EF_LEFT_MOUSE_BUTTON, ui::EF_LEFT_MOUSE_BUTTON));
+  EXPECT_TRUE(command_bar->GetVisible());
+  EXPECT_TRUE(base::test::RunUntil([&] {
+    return ink_drop->GetTargetInkDropState() == views::InkDropState::HIDDEN;
+  }));
+
+  command_bar->Hide();
+  EXPECT_EQ(views::InkDropState::HIDDEN, ink_drop->GetTargetInkDropState());
 
   BrowserRemovedWaiter removed(little_dao_browser);
   little_dao_browser->window()->Close();

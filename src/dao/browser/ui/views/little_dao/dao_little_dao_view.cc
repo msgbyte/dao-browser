@@ -185,6 +185,7 @@ DaoLittleDaoView::DaoLittleDaoView(Browser* browser)
       url_text_button_, gfx::Insets(), kDisplayCornerRadius);
   views::InstallRoundRectHighlightPathGenerator(
       site_center_button_, gfx::Insets(), kDisplayCornerRadius);
+  url_text_button_->SetHasInkDropActionOnClick(true);
   views::InkDrop::Get(url_text_button_)->SetMode(
       views::InkDropHost::InkDropMode::ON_NO_GESTURE_HANDLER);
   views::InkDrop::Get(url_text_button_)->SetBaseColor(SK_ColorBLACK);
