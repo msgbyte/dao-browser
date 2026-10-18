@@ -32,7 +32,6 @@ class TabInterface;
 
 namespace views {
 class Button;
-class ImageView;
 class Label;
 }
 
@@ -135,6 +134,7 @@ class DaoAddressBarView : public views::View,
   void UpdateStopRefreshButton();
   void UpdateMcpControlButton();
   void UpdateHighPerformanceIndicator(bool enabled);
+  void CloseHighPerformancePopup();
   void CloseMcpControlPopup();
   void UpdateUrlContainerHover(bool hovered);
   void ObserveActiveWebContents();
@@ -145,6 +145,7 @@ class DaoAddressBarView : public views::View,
   void OnForwardButtonPressed();
   void OnStopRefreshButtonPressed();
   void OnSecurityButtonPressed();
+  void OnHighPerformanceIndicatorPressed();
   void OnMcpControlButtonPressed();
   void OnMcpServiceStatusChanged(const DaoMcpServiceStatus& status);
   void OnChatButtonPressed();
@@ -160,16 +161,16 @@ class DaoAddressBarView : public views::View,
   raw_ptr<DaoPinnedExtensionsContainer> pinned_extensions_ = nullptr;
   raw_ptr<views::Button> chat_button_ = nullptr;
   raw_ptr<views::Button> security_button_ = nullptr;
-  raw_ptr<views::ImageView> high_performance_indicator_ = nullptr;
+  raw_ptr<views::Button> high_performance_indicator_ = nullptr;
   raw_ptr<views::Button> mcp_control_button_ = nullptr;
   raw_ptr<views::View> url_container_ = nullptr;
   raw_ptr<views::Label> host_label_ = nullptr;
   raw_ptr<views::Label> path_label_ = nullptr;
   raw_ptr<DaoControlCenterButton> control_center_button_ = nullptr;
+  views::ViewTracker high_performance_popup_tracker_;
   views::ViewTracker mcp_control_popup_tracker_;
   base::CallbackListSubscription mcp_service_subscription_;
   base::CallbackListSubscription high_performance_subscription_;
-  SkColor high_performance_indicator_color_ = SK_ColorTRANSPARENT;
   base::RepeatingClosure toggle_callback_;
   bool sidebar_collapsed_ = false;
   bool url_hovered_ = false;

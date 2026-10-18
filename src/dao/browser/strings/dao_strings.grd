@@ -508,6 +508,15 @@
       <message name="IDS_DAO_HIGH_PERFORMANCE_MODE_ENABLED" desc="Tooltip and accessible name for the address bar lightning icon shown while the current tab has high performance mode enabled.">
         High Performance Mode is on
       </message>
+      <message name="IDS_DAO_HIGH_PERFORMANCE_MODE_DESCRIPTION" desc="Description in the high performance mode popup explaining background execution and protection from freezing and discarding.">
+        This tab keeps running and updating in the background, even when its window is minimized. The browser will not freeze or discard it.
+      </message>
+      <message name="IDS_DAO_HIGH_PERFORMANCE_MODE_RESOURCE_USAGE" desc="Resource usage note in the high performance mode popup.">
+        May use more CPU, memory, and battery.
+      </message>
+      <message name="IDS_DAO_HIGH_PERFORMANCE_MODE_TURN_OFF" desc="Button in the high performance mode popup that disables the mode for the current tab.">
+        Turn off High Performance Mode
+      </message>
       <message name="IDS_DAO_CONTROL_CENTER_CLEARING" desc="Transient label shown on a Clear Cache or Clear Cookies button while the operation is in progress.">
         Clearing...
       </message>

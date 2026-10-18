@@ -40,12 +40,14 @@
 #include "dao/browser/ui/views/dao_lucide_icons.h"
 #include "dao/browser/ui/views/dao_mcp_control_banner_view.h"
 #include "dao/browser/ui/views/dao_pinned_extensions_container.h"
+#include "dao/browser/ui/views/dao_system_dialog.h"
 #include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/accelerators/accelerator.h"
 #include "ui/base/menu_source_utils.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/menu_model.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/base/mojom/menu_source_type.mojom-forward.h"
 #include "ui/compositor/layer.h"
 #include "ui/gfx/animation/linear_animation.h"
@@ -54,12 +56,14 @@
 #include "ui/gfx/geometry/transform.h"
 #include "ui/views/background.h"
 #include "ui/views/border.h"
+#include "ui/views/bubble/bubble_dialog_delegate_view.h"
 #include "ui/views/controls/button/button.h"
-#include "ui/views/controls/image_view.h"
+#include "ui/views/controls/button/button_controller.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/controls/menu/menu_item_view.h"
 #include "ui/views/controls/menu/menu_model_adapter.h"
 #include "ui/views/controls/menu/menu_runner.h"
+#include "ui/views/layout/box_layout.h"
 #include "ui/views/layout/flex_layout.h"
 #include "ui/views/layout/flex_layout_types.h"
 #include "ui/views/style/typography.h"
@@ -458,15 +462,20 @@ DaoAddressBarView::DaoAddressBarView(Browser* browser)
   security_btn->SetVisible(false);
   security_button_ = AddChildView(std::move(security_btn));
 
-  auto high_performance_indicator = std::make_unique<views::ImageView>();
-  high_performance_indicator->SetPreferredSize(
-      gfx::Size(kNavButtonSize, kNavButtonSize));
+  auto high_performance_indicator = std::make_unique<NavIconButton>(
+      base::BindRepeating(&DaoAddressBarView::OnHighPerformanceIndicatorPressed,
+                          base::Unretained(this)),
+      LucideIcon::kZap,
+      l10n_util::GetStringUTF16(IDS_DAO_HIGH_PERFORMANCE_MODE_ENABLED));
   high_performance_indicator->SetProperty(
       views::kFlexBehaviorKey,
       views::FlexSpecification(views::MinimumFlexSizeRule::kPreferredSnapToZero,
                                views::MaximumFlexSizeRule::kPreferred));
   high_performance_indicator->SetTooltipText(
       l10n_util::GetStringUTF16(IDS_DAO_HIGH_PERFORMANCE_MODE_ENABLED));
+  // Toggle before Cocoa asynchronously destroys a bubble closed by this press.
+  high_performance_indicator->button_controller()->set_notify_action(
+      views::ButtonController::NotifyAction::kOnPress);
   high_performance_indicator->SetVisible(false);
   high_performance_indicator_ =
       AddChildView(std::move(high_performance_indicator));
@@ -561,6 +570,7 @@ DaoAddressBarView::DaoAddressBarView(Browser* browser)
 }
 
 DaoAddressBarView::~DaoAddressBarView() {
+  CloseHighPerformancePopup();
   CloseMcpControlPopup();
   if (tab_strip_model_) {
     tab_strip_model_->RemoveObserver(this);
@@ -685,6 +695,7 @@ bool DaoAddressBarView::OnMousePressed(const ui::MouseEvent& event) {
   // If the click lands on any nav button, let it handle it
   for (views::Button* btn : {back_button_.get(), forward_button_.get(),
                               stop_refresh_button_.get(), security_button_.get(),
+                              high_performance_indicator_.get(),
                               mcp_control_button_.get(), chat_button_.get()}) {
     if (btn && btn->GetVisible()) {
       gfx::Point pt = event.location();
@@ -852,6 +863,7 @@ void DaoAddressBarView::ObserveActiveWebContents() {
   }
   auto* web_contents = tab_strip_model_->GetActiveWebContents();
   if (web_contents != content::WebContentsObserver::web_contents()) {
+    CloseHighPerformancePopup();
     high_performance_subscription_ = {};
     content::WebContentsObserver::Observe(web_contents);
     if (web_contents) {
@@ -1030,6 +1042,76 @@ void DaoAddressBarView::UpdateMcpControlButton() {
 
 void DaoAddressBarView::UpdateHighPerformanceIndicator(bool enabled) {
   high_performance_indicator_->SetVisible(enabled);
+  if (!enabled) {
+    CloseHighPerformancePopup();
+  }
+}
+
+void DaoAddressBarView::OnHighPerformanceIndicatorPressed() {
+  if (auto* popup = high_performance_popup_tracker_.view();
+      popup && popup->GetWidget() &&
+      (!popup->GetWidget()->IsClosed() ||
+       popup->GetWidget()->closed_reason() ==
+           views::Widget::ClosedReason::kLostFocus)) {
+    CloseHighPerformancePopup();
+    return;
+  }
+
+  auto* contents = web_contents();
+  if (!DaoHighPerformanceMode::IsEnabled(contents)) {
+    return;
+  }
+
+  auto bubble = std::make_unique<views::BubbleDialogDelegate>(
+      high_performance_indicator_, views::BubbleBorder::TOP_LEFT);
+  bubble->SetTitle(
+      l10n_util::GetStringUTF16(IDS_DAO_HIGH_PERFORMANCE_MODE_ENABLED));
+  bubble->SetShowCloseButton(true);
+  bubble->SetButtons(static_cast<int>(ui::mojom::DialogButton::kNone));
+  bubble->set_fixed_width(320);
+
+  auto body = std::make_unique<views::View>();
+  auto* layout = body->SetLayoutManager(std::make_unique<views::BoxLayout>(
+      views::BoxLayout::Orientation::kVertical, gfx::Insets(), 8));
+  layout->set_cross_axis_alignment(
+      views::BoxLayout::CrossAxisAlignment::kStretch);
+  for (const auto& [message_id, color] :
+       {std::pair(IDS_DAO_HIGH_PERFORMANCE_MODE_DESCRIPTION, TextPrimary()),
+        std::pair(IDS_DAO_HIGH_PERFORMANCE_MODE_RESOURCE_USAGE,
+                  TextSecondary())}) {
+    auto label =
+        std::make_unique<views::Label>(l10n_util::GetStringUTF16(message_id));
+    label->SetHorizontalAlignment(gfx::ALIGN_LEFT);
+    label->SetMultiLine(true);
+    label->SetAutoColorReadabilityEnabled(false);
+    label->SetEnabledColor(color);
+    body->AddChildView(std::move(label));
+  }
+  body->AddChildView(CreateDaoDialogButton(
+      base::BindRepeating(
+          [](base::WeakPtr<content::WebContents> target) {
+            if (target) {
+              DaoHighPerformanceMode::SetEnabled(target.get(), false);
+            }
+          },
+          contents->GetWeakPtr()),
+      l10n_util::GetStringUTF16(IDS_DAO_HIGH_PERFORMANCE_MODE_TURN_OFF),
+      std::nullopt, ui::ButtonStyle::kTonal));
+
+  auto* popup = body.get();
+  bubble->SetContentsView(std::move(body));
+  auto* widget = views::BubbleDialogDelegate::CreateBubbleDeprecated(
+      std::move(bubble), views::Widget::InitParams::NATIVE_WIDGET_OWNS_WIDGET);
+  high_performance_popup_tracker_.SetView(popup);
+  widget->Show();
+}
+
+void DaoAddressBarView::CloseHighPerformancePopup() {
+  auto* popup = high_performance_popup_tracker_.view();
+  high_performance_popup_tracker_.SetView(nullptr);
+  if (popup && popup->GetWidget()) {
+    popup->GetWidget()->Close();
+  }
 }
 
 void DaoAddressBarView::OnMcpControlButtonPressed() {
@@ -1171,6 +1253,7 @@ void DaoAddressBarView::UpdateNavButtonColors() {
 
   for (views::Button* btn : {back_button_.get(), forward_button_.get(),
                               stop_refresh_button_.get(),
+                              high_performance_indicator_.get(),
                               mcp_control_button_.get(), chat_button_.get()}) {
     if (btn) {
       auto* nav_btn = static_cast<NavIconButton*>(btn);
@@ -1184,11 +1267,6 @@ void DaoAddressBarView::UpdateNavButtonColors() {
   }
   if (control_center_button_) {
     control_center_button_->SetIconColor(icon_color);
-  }
-  if (high_performance_indicator_color_ != icon_color) {
-    high_performance_indicator_color_ = icon_color;
-    high_performance_indicator_->SetImage(ui::ImageModel::FromImageSkia(
-        CreateLucideImageSkia(LucideIcon::kZap, kNavIconSize, icon_color)));
   }
   if (pinned_extensions_) {
     pinned_extensions_->SetHoverBackgroundColor(hover_bg);
@@ -1224,13 +1302,10 @@ std::vector<gfx::Rect> DaoAddressBarView::interactive_rects() const {
   if (url_container_ && url_container_->GetVisible()) {
     rects.push_back(url_container_->GetMirroredBounds());
   }
-  // Keep the status tooltip reachable in Windows caption hit testing.
-  if (high_performance_indicator_->GetVisible()) {
-    rects.push_back(high_performance_indicator_->GetMirroredBounds());
-  }
   // Navigation buttons
   for (views::Button* btn : {back_button_.get(), forward_button_.get(),
                               stop_refresh_button_.get(), security_button_.get(),
+                              high_performance_indicator_.get(),
                               mcp_control_button_.get(), chat_button_.get()}) {
     if (btn && btn->GetVisible()) {
       rects.push_back(btn->GetMirroredBounds());

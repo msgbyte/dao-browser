@@ -658,6 +658,12 @@ actively removing MV2 infrastructure, so these flags/enums may vanish entirely o
   narrow address bars, and keyboard/accessibility checked state. Toggle via the
   menu and the mode API: indicators must update immediately without waiting for
   navigation or loading notifications.
+- [ ] Click the lightning indicator: a native popup explains background
+  execution, freeze/discard protection, and resource usage. Its Turn off button
+  disables the mode, hides the indicator, and clears the More menu checkmark.
+  Clicking the icon again, pressing Escape, or clicking outside dismisses the
+  popup without disabling the mode. Switching or closing tabs and disabling the
+  mode elsewhere closes the popup without affecting another tab's setting.
 - [ ] Keep a protected tab in the background and minimize its window for at least
   a minute without screen capture: timers, animation, and WebGL continue; browser
   freeze and discard requests are rejected.

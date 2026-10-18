@@ -1,6 +1,9 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="zh-CN">
+<translation id="4706528291577969196">此标签页在后台或窗口最小化时仍会持续运行并更新画面，浏览器不会主动冻结或丢弃页面。</translation>
+<translation id="5830070340575388907">可能增加处理器、内存和电量消耗。</translation>
+<translation id="5398304128330173584">关闭高性能模式</translation>
 <translation id="3535802758063921735">高性能模式</translation>
 <translation id="6995099171138955408">高性能模式已开启</translation>
 <translation id="477174734357019331">移至新窗口</translation>

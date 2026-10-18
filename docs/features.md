@@ -1046,7 +1046,11 @@ macOS-style floating control center panel bundling extensions and utilities.
 
 - **Per-tab High Performance Mode** — Control Center > More has a checked
   toggle for the current tab. A localized lightning indicator appears immediately
-  to the left of the address bar's MCP control indicator while enabled. The mode
+  to the left of the address bar's MCP control indicator while enabled. Clicking
+  it opens a native popup matching the MCP control popup, with an explanation of
+  background protection, a resource-usage note, and a button to turn the mode
+  off. The popup closes when switching tabs, closing the tab, or disabling the
+  mode; dismissing the popup alone leaves the mode enabled. The mode
   follows the tab through reloads, navigation, and window moves, and ends when
   the tab closes; it is not restored across browser restarts. Chromium treats
   the current page as visible for scheduling and painting, rejects browser
