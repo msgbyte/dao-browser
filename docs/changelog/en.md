@@ -4,6 +4,8 @@
 
 ### [Unreleased] Unreleased
 
+- Add explicit frame-scheduling exemptions for selected frame sinks and their descendants, retaining protection across GPU reconnects and shared parent chains without changing normal capture or unresponsive-client throttling.
+
 ### [1.0.113] - 2026-10-18
 
 - Shorten the sidebar tab menu by grouping organization and bulk-close actions into submenus, while keeping common actions and their shortcuts directly accessible.

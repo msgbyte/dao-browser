@@ -1,0 +1,23 @@
+diff --git a/components/viz/host/host_frame_sink_manager.h b/components/viz/host/host_frame_sink_manager.h
+--- a/components/viz/host/host_frame_sink_manager.h
++++ b/components/viz/host/host_frame_sink_manager.h
+@@ -288,6 +288,9 @@
+   void Throttle(const std::vector<FrameSinkId>& ids, base::TimeDelta interval);
+   void StartThrottlingAllFrameSinks(base::TimeDelta interval);
+   void StopThrottlingAllFrameSinks();
++  // Exempts a registered frame sink and its descendants from throttling.
++  void SetFrameSinkThrottlingExempt(const FrameSinkId& frame_sink_id,
++                                    bool exempt);
+ 
+   // HitTestDataProvider implementation.
+   void AddHitTestRegionObserver(HitTestRegionObserver* observer) override;
+@@ -361,6 +364,9 @@
+ 
+     // If the frame sink is a root that corresponds to a Display.
+     bool is_root = false;
++
++    // Retained across Viz reconnects until this frame sink is invalidated.
++    bool throttling_exempt = false;
+ 
+     // If we should wait on synchronous destruction.
+     bool wait_on_destruction = false;

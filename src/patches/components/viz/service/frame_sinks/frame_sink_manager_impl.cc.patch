@@ -1,0 +1,106 @@
+diff --git a/components/viz/service/frame_sinks/frame_sink_manager_impl.cc b/components/viz/service/frame_sinks/frame_sink_manager_impl.cc
+--- a/components/viz/service/frame_sinks/frame_sink_manager_impl.cc
++++ b/components/viz/service/frame_sinks/frame_sink_manager_impl.cc
+@@ -231,6 +231,9 @@
+   root_sink_map_.erase(frame_sink_id);
+ 
+   frame_sink_data_.erase(frame_sink_id);
++  if (throttling_exempt_frame_sink_ids_.erase(frame_sink_id)) {
++    UpdateThrottlingRecursively(frame_sink_id);
++  }
+ }
+ 
+ void FrameSinkManagerImpl::SetFrameSinkDebugLabel(
+@@ -1162,6 +1165,7 @@
+                     if (auto* support = GetFrameSinkForId(child_id)) {
+                       support->SetThrottleInterval(default_throttle);
+                       support->SetAllowThrottling(true);
++                      support->SetUndrawnFrameThrottlingExempt(false);
+                       if (features::ShouldThrottleWhenInteractiveFrameSinks()) {
+                         support->SetThrottledDueToInteraction(
+                             !interactive_frame_sink_ids_.empty());
+@@ -1171,11 +1175,13 @@
+ 
+   bool check_throttles = ThrottleIntervalHasEffect();
+   bool check_captures = !captured_frame_sink_ids_.empty();
++  bool check_exemptions = !throttling_exempt_frame_sink_ids_.empty();
+   bool check_interactions = base::FeatureList::IsEnabled(
+                                 features::kThrottleFrameSinksOnInteraction) &&
+                             !interactive_frame_sink_ids_.empty();
+ 
+-  if (!check_throttles && !check_captures && !check_interactions) {
++  if (!check_throttles && !check_captures && !check_exemptions &&
++      !check_interactions) {
+     return;
+   }
+ 
+@@ -1216,8 +1222,9 @@
+     collect_roots(child, /*is_ancestor=*/false);
+   });
+ 
+-  // Apply the identified rules.
+-  ApplyThrottlingRules(throttles, captures, interactions);
++  // Shared descendants may inherit exemptions from outside this subtree.
++  ApplyThrottlingRules(throttles, captures, throttling_exempt_frame_sink_ids_,
++                       interactions);
+ }
+ 
+ void FrameSinkManagerImpl::Throttle(const std::vector<FrameSinkId>& ids,
+@@ -1238,9 +1245,24 @@
+   UpdateThrottling();
+ }
+ 
++void FrameSinkManagerImpl::SetFrameSinkThrottlingExempt(
++    const FrameSinkId& frame_sink_id,
++    bool exempt) {
++  if (!frame_sink_data_.contains(frame_sink_id)) {
++    return;
++  }
++  if (exempt) {
++    throttling_exempt_frame_sink_ids_.insert(frame_sink_id);
++  } else {
++    throttling_exempt_frame_sink_ids_.erase(frame_sink_id);
++  }
++  UpdateThrottlingRecursively(frame_sink_id);
++}
++
+ void FrameSinkManagerImpl::ApplyThrottlingRules(
+     const base::flat_set<FrameSinkId>& throttled_roots,
+     const base::flat_set<FrameSinkId>& captured_roots,
++    const base::flat_set<FrameSinkId>& exempt_roots,
+     const base::flat_set<FrameSinkId>& interacting_roots) {
+   // Apply throttling
+   if (ThrottleIntervalHasEffect()) {
+@@ -1262,6 +1284,16 @@
+     });
+   }
+ 
++  // Explicit exemptions also bypass throttling for undrawn frames.
++  for (const auto& id : exempt_roots) {
++    RecurseChildren(id, [this](const FrameSinkId& frame_sink_id) {
++      if (auto* support = GetFrameSinkForId(frame_sink_id)) {
++        support->SetAllowThrottling(false);
++        support->SetUndrawnFrameThrottlingExempt(true);
++      }
++    });
++  }
++
+   // Interacting clients should not be throttled.
+   for (const FrameSinkId& id : interacting_roots) {
+     if (auto* support = GetFrameSinkForId(id)) {
+@@ -1279,6 +1311,7 @@
+   for (auto& [id, support] : support_map_) {
+     support->SetThrottleInterval(gloabl_throttle);
+     support->SetAllowThrottling(true);
++    support->SetUndrawnFrameThrottlingExempt(false);
+     if (features::ShouldThrottleWhenInteractiveFrameSinks()) {
+       support->SetThrottledDueToInteraction(
+           !interactive_frame_sink_ids_.empty());
+@@ -1286,6 +1319,7 @@
+   }
+ 
+   ApplyThrottlingRules(frame_sink_ids_to_throttle_, captured_frame_sink_ids_,
++                       throttling_exempt_frame_sink_ids_,
+                        interactive_frame_sink_ids_);
+ }
+ 

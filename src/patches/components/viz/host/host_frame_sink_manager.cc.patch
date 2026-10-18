@@ -1,0 +1,43 @@
+diff --git a/components/viz/host/host_frame_sink_manager.cc b/components/viz/host/host_frame_sink_manager.cc
+--- a/components/viz/host/host_frame_sink_manager.cc
++++ b/components/viz/host/host_frame_sink_manager.cc
+@@ -126,6 +126,7 @@
+ 
+   data.has_created_compositor_frame_sink = false;
+   data.client = nullptr;
++  data.throttling_exempt = false;
+ 
+   // There may be frame sink hierarchy information left in FrameSinkData.
+   if (data.IsEmpty()) {
+@@ -423,6 +424,21 @@
+   frame_sink_manager_->StopThrottlingAllFrameSinks();
+ }
+ 
++void HostFrameSinkManager::SetFrameSinkThrottlingExempt(
++    const FrameSinkId& frame_sink_id,
++    bool exempt) {
++  auto it = frame_sink_data_map_.find(frame_sink_id);
++  CHECK(it != frame_sink_data_map_.end() && it->second.IsFrameSinkRegistered());
++  FrameSinkData& data = it->second;
++  if (data.throttling_exempt == exempt) {
++    return;
++  }
++  data.throttling_exempt = exempt;
++  if (frame_sink_manager_) {
++    frame_sink_manager_->SetFrameSinkThrottlingExempt(frame_sink_id, exempt);
++  }
++}
++
+ void HostFrameSinkManager::AddHitTestRegionObserver(
+     HitTestRegionObserver* observer) {
+   observers_.AddObserver(observer);
+@@ -484,6 +500,9 @@
+       frame_sink_manager_->RegisterFrameSinkId(
+           frame_sink_id,
+           data.report_activation == ReportFirstSurfaceActivation::kYes);
++      if (data.throttling_exempt) {
++        frame_sink_manager_->SetFrameSinkThrottlingExempt(frame_sink_id, true);
++      }
+     }
+     if (!data.debug_label.empty()) {
+       frame_sink_manager_->SetFrameSinkDebugLabel(frame_sink_id,

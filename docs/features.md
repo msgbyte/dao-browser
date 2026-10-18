@@ -1040,6 +1040,10 @@ Built on Chromium's native PiP, adds a Document-PiP interception layer plus seve
 
 macOS-style floating control center panel bundling extensions and utilities.
 
+- **Frame throttling exemptions** — Viz supports explicit exemptions for frame
+  sinks and their descendants, preserving them across GPU reconnects and shared
+  parent chains. Capture alone retains undrawn-frame throttling, and
+  unresponsive clients remain throttled in both modes.
 - **DaoControlCenterButton** — Trigger button
 - **DaoControlCenterPopup** — Floating popup with transparent overlay click-to-close
 - **DaoControlCenterExtensionsSection** — Extensions grid

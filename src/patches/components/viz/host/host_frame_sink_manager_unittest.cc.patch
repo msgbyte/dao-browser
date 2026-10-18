@@ -1,0 +1,70 @@
+diff --git a/components/viz/host/host_frame_sink_manager_unittest.cc b/components/viz/host/host_frame_sink_manager_unittest.cc
+--- a/components/viz/host/host_frame_sink_manager_unittest.cc
++++ b/components/viz/host/host_frame_sink_manager_unittest.cc
+@@ -114,6 +114,11 @@
+               (const std::vector<FrameSinkId>& ids, base::TimeDelta interval),
+               (override));
+ 
++  MOCK_METHOD(void,
++              SetFrameSinkThrottlingExempt,
++              (const FrameSinkId& frame_sink_id, bool exempt),
++              (override));
++
+   void set_run_invalidate_frame_sink_callback(bool run) {
+     run_invalidate_frame_sink_callback_ = run;
+   }
+@@ -381,6 +386,8 @@
+       compositor_frame_sink_client.BindInterfaceRemote());
+ 
+   EXPECT_TRUE(IsBoundToFrameSinkManager());
++  EXPECT_CALL(impl(), SetFrameSinkThrottlingExempt(kFrameSinkChild1, true));
++  host().SetFrameSinkThrottlingExempt(kFrameSinkChild1, true);
+ 
+   // Verify registration and CompositorFrameSink creation happened.
+   FlushHostAndVerifyExpectations();
+@@ -405,6 +412,7 @@
+                                           true /* report_activation */));
+   EXPECT_CALL(impl(),
+               RegisterFrameSinkHierarchy(kFrameSinkParent1, kFrameSinkChild1));
++  EXPECT_CALL(impl(), SetFrameSinkThrottlingExempt(kFrameSinkChild1, true));
+   FlushHostAndVerifyExpectations();
+ 
+   EXPECT_TRUE(IsBoundToFrameSinkManager());
+@@ -559,6 +567,37 @@
+   FlushHostAndVerifyExpectations();
+ }
+ 
++TEST_F(HostFrameSinkManagerTest, ThrottlingExemptionResetOnInvalidation) {
++  EXPECT_CALL(impl(), RegisterFrameSinkId(kFrameSinkParent1, true));
++  RegisterFrameSinkIdWithFakeClient(kFrameSinkParent1,
++                                    ReportFirstSurfaceActivation::kYes);
++  EXPECT_CALL(impl(), RegisterFrameSinkId(kFrameSinkChild1, true));
++  RegisterFrameSinkIdWithFakeClient(kFrameSinkChild1,
++                                    ReportFirstSurfaceActivation::kYes);
++  EXPECT_CALL(impl(),
++              RegisterFrameSinkHierarchy(kFrameSinkParent1, kFrameSinkChild1));
++  host().RegisterFrameSinkHierarchy(kFrameSinkParent1, kFrameSinkChild1);
++  EXPECT_CALL(impl(), SetFrameSinkThrottlingExempt(kFrameSinkParent1, true));
++  host().SetFrameSinkThrottlingExempt(kFrameSinkParent1, true);
++  host().SetFrameSinkThrottlingExempt(kFrameSinkParent1, true);
++  FlushHostAndVerifyExpectations();
++
++  EXPECT_CALL(impl(), MockInvalidateFrameSinkId(kFrameSinkParent1));
++  host().InvalidateFrameSinkId(kFrameSinkParent1, &host_client_, {});
++  EXPECT_TRUE(FrameSinkDataExists(kFrameSinkParent1));
++  FlushHostAndVerifyExpectations();
++
++  EXPECT_CALL(impl(), RegisterFrameSinkId(kFrameSinkParent1, true));
++  RegisterFrameSinkIdWithFakeClient(kFrameSinkParent1,
++                                    ReportFirstSurfaceActivation::kYes);
++  // The retained hierarchy must not retain the invalidated sink's exemption.
++  EXPECT_CALL(impl(), SetFrameSinkThrottlingExempt(kFrameSinkParent1, true));
++  host().SetFrameSinkThrottlingExempt(kFrameSinkParent1, true);
++  EXPECT_CALL(impl(), SetFrameSinkThrottlingExempt(kFrameSinkParent1, false));
++  host().SetFrameSinkThrottlingExempt(kFrameSinkParent1, false);
++  FlushHostAndVerifyExpectations();
++}
++
+ TEST_F(HostFrameSinkManagerTest, RegisterWithExistingClient) {
+   // Register the first client, bound immediately.
+   EXPECT_CALL(impl(), RegisterFrameSinkId(kFrameSinkChild1,

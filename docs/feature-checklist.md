@@ -650,6 +650,14 @@ actively removing MV2 infrastructure, so these flags/enums may vanish entirely o
 
 ## 12. Control Center, Welcome, Webstore Branding
 
+- [ ] Run the Viz capture/explicit-exemption regressions: capture alone still
+  throttles excessive undrawn frames; removing an explicit exemption restores
+  the limit even during capture. Verify inheritance across nested/shared frame
+  sinks, support recreation, and GPU reconnect. Disabling, destroying, or
+  disconnecting one exempt ancestor must retain another ancestor's protection.
+  Removing the last exemption restores normal limits; unresponsive clients
+  remain protected by Chromium's existing throttling in both modes.
+
 | ✔ | Feature | Patch(es) / Source | Risk | Verify |
 |---|---------|--------------------|------|--------|
 | ☐ | Control Center shell + utility actions | `src/dao/browser/ui/views/dao_control_center_*`, `dao_native_share_mac.*`, `widget_delegate.h.patch` (QR dialog friend) | 🟢 | Popup opens anchored to sidebar/control button, outside click closes it, Share/QR/Lock/More actions render and execute; More menu clears only the current site's cache/cookies, then closes with toast feedback; while the system appearance is light, Dark stays visually unavailable but clicking it leaves the preference unchanged and shows the localized system-dark requirement through `DaoToastView` |

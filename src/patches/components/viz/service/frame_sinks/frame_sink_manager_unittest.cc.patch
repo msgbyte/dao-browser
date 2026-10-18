@@ -1,0 +1,88 @@
+diff --git a/components/viz/service/frame_sinks/frame_sink_manager_unittest.cc b/components/viz/service/frame_sinks/frame_sink_manager_unittest.cc
+--- a/components/viz/service/frame_sinks/frame_sink_manager_unittest.cc
++++ b/components/viz/service/frame_sinks/frame_sink_manager_unittest.cc
+@@ -12,6 +12,7 @@
+ #include "base/test/tracing/test_trace_processor.h"
+ #include "components/input/features.h"
+ #include "components/viz/common/constants.h"
++#include "components/viz/common/features.h"
+ #include "components/viz/common/frame_sinks/begin_frame_source.h"
+ #include "components/viz/common/surfaces/parent_local_surface_id_allocator.h"
+ #include "components/viz/service/frame_sinks/compositor_frame_sink_support.h"
+@@ -887,6 +888,76 @@
+                                          client_f->frame_sink_id());
+ }
+ 
++TEST_F(FrameSinkManagerTest, ThrottlingExemption) {
++  scoped_feature_list_.InitAndEnableFeature(
++      features::kThrottleFrameSinksOnInteraction);
++  const std::vector<FrameSinkId> ids{kFrameSinkIdRoot, kFrameSinkIdA,
++                                     kFrameSinkIdB, kFrameSinkIdC,
++                                     kFrameSinkIdD};
++  for (const auto& id : ids) {
++    manager_->RegisterFrameSinkId(id, true);
++  }
++  auto root = CreateCompositorFrameSinkSupport(kFrameSinkIdRoot);
++  auto client_a = CreateCompositorFrameSinkSupport(kFrameSinkIdA);
++  auto client_b = CreateCompositorFrameSinkSupport(kFrameSinkIdB);
++  auto client_c = CreateCompositorFrameSinkSupport(kFrameSinkIdC);
++  manager_->RegisterFrameSinkHierarchy(kFrameSinkIdRoot, kFrameSinkIdA);
++  manager_->RegisterFrameSinkHierarchy(kFrameSinkIdRoot, kFrameSinkIdC);
++  manager_->RegisterFrameSinkHierarchy(kFrameSinkIdA, kFrameSinkIdB);
++
++  constexpr base::TimeDelta global_interval = base::Hertz(20);
++  constexpr base::TimeDelta interval = base::Hertz(10);
++  manager_->StartThrottlingAllFrameSinks(global_interval);
++  manager_->Throttle({kFrameSinkIdA}, interval);
++  SetInteractive(root, true);
++  manager_->SetFrameSinkThrottlingExempt(kFrameSinkIdA, true);
++  VerifyThrottling(base::TimeDelta(), {kFrameSinkIdA, kFrameSinkIdB});
++  VerifyAllowThrottling(false, {kFrameSinkIdA, kFrameSinkIdB});
++  VerifyThrottling(global_interval, {kFrameSinkIdRoot, kFrameSinkIdC});
++
++  // New supports inherit the exemption, including through a missing support.
++  client_a.reset();
++  manager_->RegisterFrameSinkHierarchy(kFrameSinkIdA, kFrameSinkIdD);
++  auto client_d = CreateCompositorFrameSinkSupport(kFrameSinkIdD);
++  client_a = CreateCompositorFrameSinkSupport(kFrameSinkIdA);
++  VerifyThrottling(base::TimeDelta(),
++                   {kFrameSinkIdA, kFrameSinkIdB, kFrameSinkIdD});
++
++  // Full recomputations must keep the exemption and unrelated throttling.
++  manager_->Throttle({kFrameSinkIdA}, interval);
++  VerifyThrottling(base::TimeDelta(),
++                   {kFrameSinkIdA, kFrameSinkIdB, kFrameSinkIdD});
++  VerifyThrottling(global_interval, {kFrameSinkIdRoot, kFrameSinkIdC});
++
++  manager_->SetFrameSinkThrottlingExempt(kFrameSinkIdA, false);
++  VerifyThrottling(interval, {kFrameSinkIdA, kFrameSinkIdB, kFrameSinkIdD});
++  VerifyAllowThrottling(true, ids);
++
++  // Removing an exemption must leave real capture exemptions intact.
++  manager_->OnCaptureStarted(kFrameSinkIdB);
++  manager_->SetFrameSinkThrottlingExempt(kFrameSinkIdA, true);
++  manager_->SetFrameSinkThrottlingExempt(kFrameSinkIdA, false);
++  VerifyThrottling(base::TimeDelta(), {kFrameSinkIdB});
++  VerifyThrottling(interval, {kFrameSinkIdA, kFrameSinkIdD});
++  manager_->OnCaptureStopped(kFrameSinkIdB);
++  VerifyThrottling(interval, {kFrameSinkIdB});
++
++  // Invalidating the root clears its exemption even while hierarchy survives.
++  manager_->SetFrameSinkThrottlingExempt(kFrameSinkIdA, true);
++  manager_->InvalidateFrameSinkId(kFrameSinkIdA, {});
++  VerifyThrottling(interval, {kFrameSinkIdB, kFrameSinkIdD});
++  manager_->RegisterFrameSinkId(kFrameSinkIdA, true);
++  VerifyAllowThrottling(true, ids);
++
++  manager_->UnregisterFrameSinkHierarchy(kFrameSinkIdA, kFrameSinkIdD);
++  manager_->UnregisterFrameSinkHierarchy(kFrameSinkIdA, kFrameSinkIdB);
++  manager_->UnregisterFrameSinkHierarchy(kFrameSinkIdRoot, kFrameSinkIdC);
++  manager_->UnregisterFrameSinkHierarchy(kFrameSinkIdRoot, kFrameSinkIdA);
++  for (const auto& id : ids) {
++    manager_->InvalidateFrameSinkId(id, {});
++  }
++}
++
+ // Verifies if a frame sink is being captured, it should not be throttled.
+ TEST_F(FrameSinkManagerTest, NoThrottleOnFrameSinksBeingCaptured) {
+   // root -> A -> B -> C

@@ -1,0 +1,272 @@
+diff --git a/components/viz/service/frame_sinks/compositor_frame_sink_support_unittest.cc b/components/viz/service/frame_sinks/compositor_frame_sink_support_unittest.cc
+--- a/components/viz/service/frame_sinks/compositor_frame_sink_support_unittest.cc
++++ b/components/viz/service/frame_sinks/compositor_frame_sink_support_unittest.cc
+@@ -1883,6 +1883,268 @@
+   manager_->InvalidateFrameSinkId(frame_sink_id, {});
+ }
+ 
++TEST_P(CompositorFrameSinkSupportTest, ThrottlingExemptionKeepsUndrawnFrames) {
++  support_->SetNeedsBeginFrame(true);
++  manager_->SetFrameSinkThrottlingExempt(kArbitraryFrameSinkId, true);
++  constexpr base::TimeDelta interval = BeginFrameArgs::DefaultInterval();
++  base::TimeTicks frame_time;
++  uint64_t sequence_number = 1;
++  int received_frames = 0;
++  BeginFrameArgs args;
++  const SurfaceId surface_id(kArbitraryFrameSinkId, local_surface_id_);
++
++  // Respond to each BeginFrame without ever drawing the submitted surface.
++  for (uint32_t i = 0; i < CompositorFrameSinkSupport::kUndrawnFrameLimit + 2;
++       ++i) {
++    frame_time += interval;
++    args = CreateBeginFrameArgsForTesting(BEGINFRAME_FROM_HERE, 0,
++                                          sequence_number++, frame_time);
++    begin_frame_source_.TestOnBeginFrame(args);
++    ASSERT_EQ(++received_frames, fake_support_client_.begin_frame_count());
++    auto frame = MakeDefaultCompositorFrame();
++    frame.metadata.begin_frame_ack = BeginFrameAck(args, true);
++    support_->SubmitCompositorFrame(local_surface_id_, std::move(frame));
++    GetSurfaceForId(surface_id)->SendAckToClient();
++  }
++
++  // Capture still bypasses interval throttling when the explicit exemption
++  // ends.
++  support_->OnClientCaptureStarted();
++  manager_->SetFrameSinkThrottlingExempt(kArbitraryFrameSinkId, false);
++  EXPECT_FALSE(support_->GetThrottlerForTesting().throttling_allowed());
++  frame_time += interval;
++  args = CreateBeginFrameArgsForTesting(BEGINFRAME_FROM_HERE, 0,
++                                        sequence_number++, frame_time);
++  begin_frame_source_.TestOnBeginFrame(args);
++  EXPECT_EQ(received_frames, fake_support_client_.begin_frame_count());
++
++  manager_->SetFrameSinkThrottlingExempt(kArbitraryFrameSinkId, true);
++  frame_time += interval;
++  args = CreateBeginFrameArgsForTesting(BEGINFRAME_FROM_HERE, 0,
++                                        sequence_number++, frame_time);
++  begin_frame_source_.TestOnBeginFrame(args);
++  EXPECT_EQ(++received_frames, fake_support_client_.begin_frame_count());
++  support_->DidNotProduceFrame(BeginFrameAck(args, false));
++  support_->SetNeedsBeginFrame(false);
++  support_->OnClientCaptureStopped();
++}
++
++TEST_P(CompositorFrameSinkSupportTest, CaptureKeepsUndrawnFrameThrottling) {
++  support_->OnClientCaptureStarted();
++  support_->SetNeedsBeginFrame(true);
++  constexpr base::TimeDelta interval = BeginFrameArgs::DefaultInterval();
++  base::TimeTicks frame_time;
++  uint64_t sequence_number = 1;
++  int received_frames = 0;
++  BeginFrameArgs args;
++  const SurfaceId surface_id(kArbitraryFrameSinkId, local_surface_id_);
++
++  for (uint32_t i = 0; i <= CompositorFrameSinkSupport::kUndrawnFrameLimit;
++       ++i) {
++    frame_time += interval;
++    args = CreateBeginFrameArgsForTesting(BEGINFRAME_FROM_HERE, 0,
++                                          sequence_number++, frame_time);
++    begin_frame_source_.TestOnBeginFrame(args);
++    ASSERT_EQ(++received_frames, fake_support_client_.begin_frame_count());
++    auto frame = MakeDefaultCompositorFrame();
++    frame.metadata.begin_frame_ack = BeginFrameAck(args, true);
++    support_->SubmitCompositorFrame(local_surface_id_, std::move(frame));
++    GetSurfaceForId(surface_id)->SendAckToClient();
++  }
++
++  frame_time += interval;
++  args = CreateBeginFrameArgsForTesting(BEGINFRAME_FROM_HERE, 0,
++                                        sequence_number++, frame_time);
++  begin_frame_source_.TestOnBeginFrame(args);
++  EXPECT_EQ(received_frames, fake_support_client_.begin_frame_count());
++  support_->SetNeedsBeginFrame(false);
++  support_->OnClientCaptureStopped();
++}
++
++TEST_P(CompositorFrameSinkSupportTest,
++       InheritedUndrawnFrameExemptionSurvivesSupportRecreation) {
++  manager_->RegisterFrameSinkId(kAnotherArbitraryFrameSinkId, true);
++  auto ancestor = std::make_unique<CompositorFrameSinkSupport>(
++      nullptr, manager_.get(), kAnotherArbitraryFrameSinkId, kIsRoot);
++  manager_->RegisterFrameSinkHierarchy(kAnotherArbitraryFrameSinkId,
++                                       kArbitraryFrameSinkId);
++  manager_->SetFrameSinkThrottlingExempt(kAnotherArbitraryFrameSinkId, true);
++  constexpr base::TimeDelta interval = BeginFrameArgs::DefaultInterval();
++  base::TimeTicks frame_time;
++  uint64_t sequence_number = 1;
++  BeginFrameArgs args;
++
++  auto submit_undrawn_frames = [&] {
++    support_->SetBeginFrameSource(&begin_frame_source_);
++    support_->SetNeedsBeginFrame(true);
++    int received_frames = fake_support_client_.begin_frame_count();
++    for (uint32_t i = 0; i < CompositorFrameSinkSupport::kUndrawnFrameLimit + 2;
++         ++i) {
++      frame_time += interval;
++      args = CreateBeginFrameArgsForTesting(BEGINFRAME_FROM_HERE, 0,
++                                            sequence_number++, frame_time);
++      begin_frame_source_.TestOnBeginFrame(args);
++      ASSERT_EQ(++received_frames, fake_support_client_.begin_frame_count());
++      auto frame = MakeDefaultCompositorFrame();
++      frame.metadata.begin_frame_ack = BeginFrameAck(args, true);
++      support_->SubmitCompositorFrame(local_surface_id_, std::move(frame));
++      GetSurfaceForId(SurfaceId(kArbitraryFrameSinkId, local_surface_id_))
++          ->SendAckToClient();
++    }
++  };
++
++  submit_undrawn_frames();
++  ancestor.reset();
++  submit_undrawn_frames();
++  ancestor = std::make_unique<CompositorFrameSinkSupport>(
++      nullptr, manager_.get(), kAnotherArbitraryFrameSinkId, kIsRoot);
++  submit_undrawn_frames();
++  support_.reset();
++  local_surface_id_ = LocalSurfaceId(4, base::UnguessableToken::Create());
++  support_ = std::make_unique<CompositorFrameSinkSupport>(
++      &fake_support_client_, manager_.get(), kArbitraryFrameSinkId, kIsRoot);
++  submit_undrawn_frames();
++
++  // Recompute all rules, then clear the explicit ancestor exemption while
++  // retaining capture's interval exemption for its descendant.
++  ancestor->OnClientCaptureStarted();
++  manager_->StartThrottlingAllFrameSinks(base::Hertz(10));
++  submit_undrawn_frames();
++  manager_->SetFrameSinkThrottlingExempt(kAnotherArbitraryFrameSinkId, false);
++  EXPECT_FALSE(support_->GetThrottlerForTesting().throttling_allowed());
++  const int received_frames = fake_support_client_.begin_frame_count();
++  frame_time += interval;
++  args = CreateBeginFrameArgsForTesting(BEGINFRAME_FROM_HERE, 0,
++                                        sequence_number++, frame_time);
++  begin_frame_source_.TestOnBeginFrame(args);
++  EXPECT_EQ(received_frames, fake_support_client_.begin_frame_count());
++
++  support_->SetNeedsBeginFrame(false);
++  ancestor->OnClientCaptureStopped();
++  manager_->UnregisterFrameSinkHierarchy(kAnotherArbitraryFrameSinkId,
++                                         kArbitraryFrameSinkId);
++  manager_->InvalidateFrameSinkId(kAnotherArbitraryFrameSinkId, {});
++}
++
++TEST_P(CompositorFrameSinkSupportTest,
++       SharedDescendantRetainsOtherAncestorsThrottlingExemption) {
++  constexpr FrameSinkId other_parent_id(7, 7);
++  for (const auto& id : {kAnotherArbitraryFrameSinkId, other_parent_id}) {
++    manager_->RegisterFrameSinkId(id, true);
++    manager_->RegisterFrameSinkHierarchy(id, kArbitraryFrameSinkId);
++    manager_->SetFrameSinkThrottlingExempt(id, true);
++  }
++  auto parent = std::make_unique<CompositorFrameSinkSupport>(
++      nullptr, manager_.get(), kAnotherArbitraryFrameSinkId, kIsRoot);
++  auto other_parent = std::make_unique<CompositorFrameSinkSupport>(
++      nullptr, manager_.get(), other_parent_id, kIsRoot);
++  support_->SetBeginFrameSource(&begin_frame_source_);
++  support_->SetNeedsBeginFrame(true);
++  constexpr base::TimeDelta interval = BeginFrameArgs::DefaultInterval();
++  base::TimeTicks frame_time;
++  uint64_t sequence_number = 1;
++  BeginFrameArgs args;
++
++  // Exceed the undrawn-frame limit so each check exercises both exemptions.
++  for (uint32_t i = 0; i < CompositorFrameSinkSupport::kUndrawnFrameLimit + 2;
++       ++i) {
++    frame_time += interval;
++    args = CreateBeginFrameArgsForTesting(BEGINFRAME_FROM_HERE, 0,
++                                          sequence_number++, frame_time);
++    const int received_frames = fake_support_client_.begin_frame_count();
++    begin_frame_source_.TestOnBeginFrame(args);
++    ASSERT_EQ(received_frames + 1, fake_support_client_.begin_frame_count());
++    auto frame = MakeDefaultCompositorFrame();
++    frame.metadata.begin_frame_ack = BeginFrameAck(args, true);
++    support_->SubmitCompositorFrame(local_surface_id_, std::move(frame));
++    GetSurfaceForId(SurfaceId(kArbitraryFrameSinkId, local_surface_id_))
++        ->SendAckToClient();
++  }
++
++  auto expect_exemption = [&](bool exempt) {
++    EXPECT_EQ(!exempt, support_->GetThrottlerForTesting().throttling_allowed());
++    const int received_frames = fake_support_client_.begin_frame_count();
++    frame_time += interval;
++    args = CreateBeginFrameArgsForTesting(BEGINFRAME_FROM_HERE, 0,
++                                          sequence_number++, frame_time);
++    begin_frame_source_.TestOnBeginFrame(args);
++    EXPECT_EQ(received_frames + (exempt ? 1 : 0),
++              fake_support_client_.begin_frame_count());
++    if (fake_support_client_.begin_frame_count() > received_frames) {
++      support_->DidNotProduceFrame(BeginFrameAck(args, false));
++    }
++  };
++
++  manager_->SetFrameSinkThrottlingExempt(kAnotherArbitraryFrameSinkId, false);
++  expect_exemption(true);
++  parent.reset();
++  expect_exemption(true);
++  parent = std::make_unique<CompositorFrameSinkSupport>(
++      nullptr, manager_.get(), kAnotherArbitraryFrameSinkId, kIsRoot);
++  expect_exemption(true);
++  manager_->SetFrameSinkThrottlingExempt(kAnotherArbitraryFrameSinkId, true);
++  manager_->InvalidateFrameSinkId(kAnotherArbitraryFrameSinkId, {});
++  expect_exemption(true);
++  manager_->RegisterFrameSinkId(kAnotherArbitraryFrameSinkId, true);
++  manager_->UnregisterFrameSinkHierarchy(kAnotherArbitraryFrameSinkId,
++                                         kArbitraryFrameSinkId);
++  expect_exemption(true);
++
++  manager_->SetFrameSinkThrottlingExempt(other_parent_id, false);
++  expect_exemption(false);
++  manager_->SetFrameSinkThrottlingExempt(other_parent_id, true);
++  expect_exemption(true);
++  manager_->UnregisterFrameSinkHierarchy(other_parent_id,
++                                         kArbitraryFrameSinkId);
++  expect_exemption(false);
++
++  support_->SetNeedsBeginFrame(false);
++  manager_->InvalidateFrameSinkId(kAnotherArbitraryFrameSinkId, {});
++  manager_->InvalidateFrameSinkId(other_parent_id, {});
++}
++
++TEST_P(CompositorFrameSinkSupportTest,
++       ThrottlingExemptionStillThrottlesUnresponsiveClient) {
++  manager_->SetFrameSinkThrottlingExempt(kArbitraryFrameSinkId, true);
++  support_->SetNeedsBeginFrame(true);
++  constexpr base::TimeDelta interval = BeginFrameArgs::DefaultInterval();
++  base::TimeTicks frame_time;
++  uint64_t sequence_number = 1;
++  BeginFrameArgs args;
++
++  auto send_begin_frame = [&](base::TimeDelta elapsed) {
++    frame_time += elapsed;
++    args = CreateBeginFrameArgsForTesting(BEGINFRAME_FROM_HERE, 0,
++                                          sequence_number++, frame_time);
++    begin_frame_source_.TestOnBeginFrame(args);
++  };
++
++  for (int i = 0; i < BeginFrameTracker::kLimitThrottle; ++i) {
++    send_begin_frame(interval);
++    ASSERT_EQ(i + 1, fake_support_client_.begin_frame_count());
++  }
++  send_begin_frame(interval);
++  EXPECT_EQ(BeginFrameTracker::kLimitThrottle,
++            fake_support_client_.begin_frame_count());
++
++  for (int i = BeginFrameTracker::kLimitThrottle;
++       i < BeginFrameTracker::kLimitStop; ++i) {
++    send_begin_frame(base::Seconds(1));
++    ASSERT_EQ(i + 1, fake_support_client_.begin_frame_count());
++  }
++  const BeginFrameArgs last_sent_args = args;
++  send_begin_frame(base::Minutes(1));
++  EXPECT_EQ(BeginFrameTracker::kLimitStop,
++            fake_support_client_.begin_frame_count());
++
++  support_->DidNotProduceFrame(BeginFrameAck(last_sent_args, false));
++  send_begin_frame(interval);
++  EXPECT_EQ(BeginFrameTracker::kLimitStop + 1,
++            fake_support_client_.begin_frame_count());
++  support_->DidNotProduceFrame(BeginFrameAck(args, false));
++  support_->SetNeedsBeginFrame(false);
++}
++
+ // Verifies that an unresponsive client has OnBeginFrame() messages throttled
+ // and then stopped until it becomes responsive again.
+ TEST_P(CompositorFrameSinkSupportTest, ThrottleUnresponsiveClient) {

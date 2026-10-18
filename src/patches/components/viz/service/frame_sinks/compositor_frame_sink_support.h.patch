@@ -1,0 +1,22 @@
+diff --git a/components/viz/service/frame_sinks/compositor_frame_sink_support.h b/components/viz/service/frame_sinks/compositor_frame_sink_support.h
+--- a/components/viz/service/frame_sinks/compositor_frame_sink_support.h
++++ b/components/viz/service/frame_sinks/compositor_frame_sink_support.h
+@@ -159,6 +159,10 @@
+   // regardless of any other throttling.
+   void SetAllowThrottling(bool allowed);
+ 
++  // Explicit exemptions bypass the undrawn-frame limiter independently of
++  // capture's interval exemption and unresponsive-client protection.
++  void SetUndrawnFrameThrottlingExempt(bool exempt);
++
+   // If other clients are interactive, reduce frame cadence if `throttled`.
+   void SetThrottledDueToInteraction(bool throttled);
+ 
+@@ -537,6 +541,7 @@
+   uint32_t last_drawn_frame_index_ = kFrameIndexStart - 1;
+ 
+   FrameSinkThrottler throttler_;
++  bool undrawn_frame_throttling_exempt_ = false;
+ 
+   // The set of surfaces owned by this frame sink that have pending frame.
+   base::flat_set<raw_ptr<Surface, CtnExperimental>> pending_surfaces_;

@@ -1,0 +1,14 @@
+diff --git a/services/viz/privileged/mojom/compositing/frame_sink_manager.mojom b/services/viz/privileged/mojom/compositing/frame_sink_manager.mojom
+--- a/services/viz/privileged/mojom/compositing/frame_sink_manager.mojom
++++ b/services/viz/privileged/mojom/compositing/frame_sink_manager.mojom
+@@ -192,6 +192,10 @@
+   // If throttling is already disabled, this has no effect.
+   StopThrottlingAllFrameSinks();
+ 
++  // Exempts a registered frame sink and all its current and future descendants
++  // from throttling until disabled or the frame sink is invalidated.
++  SetFrameSinkThrottlingExempt(FrameSinkId frame_sink_id, bool exempt);
++
+   // Takes a snapshot of |surface_id| or a newer surface with the same
+   // FrameSinkId. The request will be queued up until such surface exists and is
+   // reachable from the root surface.

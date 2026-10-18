@@ -1,0 +1,47 @@
+diff --git a/components/viz/service/frame_sinks/frame_sink_manager_impl.h b/components/viz/service/frame_sinks/frame_sink_manager_impl.h
+--- a/components/viz/service/frame_sinks/frame_sink_manager_impl.h
++++ b/components/viz/service/frame_sinks/frame_sink_manager_impl.h
+@@ -194,6 +194,8 @@
+                 base::TimeDelta interval) override;
+   void StartThrottlingAllFrameSinks(base::TimeDelta interval) override;
+   void StopThrottlingAllFrameSinks() override;
++  void SetFrameSinkThrottlingExempt(const FrameSinkId& frame_sink_id,
++                                    bool exempt) override;
+   void ClearUnclaimedViewTransitionResources(
+       const blink::ViewTransitionToken& transition_token) override;
+   void CreateMetricsRecorderForTest(
+@@ -534,7 +536,7 @@
+   // Updates the throttling state for the hierarchy containing `frame_sink_id`.
+   // This ensures that `frame_sink_id` and its descendants are correctly
+   // throttled based on global settings, explicit throttle requests, and active
+-  // video capture, while accounting for the current hierarchy.
++  // video capture or exemptions, while accounting for the current hierarchy.
+   void UpdateThrottlingRecursively(FrameSinkId frame_sink_id);
+ 
+   // Called when throttling needs to be updated. Some examples can trigger such
+@@ -543,12 +545,13 @@
+   // requires throttling on affected frame sinks to be started or stopped.
+   void UpdateThrottling();
+ 
+-  // Applies throttling to all descendants of `throttled_roots`, and disables
+-  // throttling for all descendants of `captured_roots` (e.g. during video
+-  // capture).
++  // Applies throttling to descendants of `throttled_roots`, and disables
++  // interval throttling for descendants of `captured_roots` and `exempt_roots`.
++  // Only `exempt_roots` also bypass undrawn-frame throttling.
+   void ApplyThrottlingRules(
+       const base::flat_set<FrameSinkId>& throttled_roots,
+       const base::flat_set<FrameSinkId>& captured_roots,
++      const base::flat_set<FrameSinkId>& exempt_roots,
+       const base::flat_set<FrameSinkId>& interacting_roots);
+ 
+   // Check to see if |throttle_interval_| has any effect. For example if
+@@ -646,6 +649,8 @@
+   // The ids of the frame sinks that are currently being captured.
+   // These frame sinks should not be throttled.
+   base::flat_set<FrameSinkId> captured_frame_sink_ids_;
++  // Explicit exemptions survive support recreation without implying capture.
++  base::flat_set<FrameSinkId> throttling_exempt_frame_sink_ids_;
+   // The ids of the frame sinks that are currently handling interaction.
+   // These frame sinks should not be throttled, and other frame sinks may be
+   // throttled when this set is not empty.
