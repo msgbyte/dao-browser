@@ -6060,33 +6060,109 @@ IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest,
   EXPECT_EQ(params.url, model->GetWebContentsAt(0)->GetVisibleURL());
 }
 
-IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest, ForegroundAndBackgroundLinksOpenAtTop) {
+IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest,
+                       ForegroundAndBackgroundLinksOpenAfterSource) {
   TabStripModel* model = browser()->tab_strip_model();
   chrome::AddTabAt(browser(), GURL("about:blank"), -1, true);
   model->SetTabPinned(0, true);
-  content::WebContents* opener = model->GetWebContentsAt(1);
-  model->AddToNewGroup({1});
+  chrome::AddTabAt(browser(), GURL("about:blank"), -1, true);
+  content::WebContents* opener = model->GetWebContentsAt(2);
+  const auto group = model->AddToNewGroup({2});
+  chrome::AddTabAt(browser(), GURL("about:blank"), 3, false);
 
-  for (bool foreground : {false, true}) {
+  const struct {
+    bool foreground;
+    bool grouped_neighbor;
+  } cases[] = {{false, false}, {false, false}, {true, false}, {true, true}};
+  for (const auto& test_case : cases) {
+    const bool foreground = test_case.foreground;
+    if (test_case.grouped_neighbor) {
+      model->AddToExistingGroup({3}, group);
+    }
     model->ActivateTabAt(model->GetIndexOfWebContents(opener));
     NavigateParams params(browser(), GURL("about:blank"),
                           ui::PAGE_TRANSITION_LINK);
     params.source_contents = opener;
+    params.started_from_context_menu = true;
     params.disposition = foreground ? WindowOpenDisposition::NEW_FOREGROUND_TAB
                                     : WindowOpenDisposition::NEW_BACKGROUND_TAB;
     chrome::ConfigureTabGroupForNavigation(&params);
     EXPECT_FALSE(params.group.has_value());
-    auto contents = content::WebContents::Create(
-        content::WebContents::CreateParams(browser()->profile()));
-    content::WebContents* added = contents.get();
-    model->AddWebContents(std::move(contents), -1, ui::PAGE_TRANSITION_LINK,
-                          foreground ? AddTabTypes::ADD_ACTIVE
-                                     : AddTabTypes::ADD_NONE,
-                          params.group);
-    EXPECT_EQ(1, model->GetIndexOfWebContents(added));
-    EXPECT_EQ(model->GetTabForWebContents(opener), model->GetOpenerOfTabAt(1));
-    EXPECT_FALSE(model->GetTabGroupForTab(1).has_value());
+    Navigate(&params);
+    content::WebContents* added = params.navigated_or_inserted_contents;
+    ASSERT_NE(nullptr, added);
+    EXPECT_EQ(2, model->GetIndexOfWebContents(opener));
+    EXPECT_EQ(3, model->GetIndexOfWebContents(added));
+    EXPECT_EQ(model->GetTabForWebContents(opener), model->GetOpenerOfTabAt(3));
+    EXPECT_EQ(test_case.grouped_neighbor, model->GetTabGroupForTab(3).has_value());
+    if (test_case.grouped_neighbor) {
+      EXPECT_EQ(group, model->GetTabGroupForTab(3));
+    }
     EXPECT_EQ(foreground ? added : opener, model->GetActiveWebContents());
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest, NonLinkTabsStillOpenAtTop) {
+  TabStripModel* model = browser()->tab_strip_model();
+  model->SetTabPinned(0, true);
+  chrome::AddTabAt(browser(), GURL("about:blank"), 1, false);
+  chrome::AddTabAt(browser(), GURL("about:blank"), 2, true);
+  content::WebContents* source = model->GetActiveWebContents();
+
+  for (ui::PageTransition transition :
+       {ui::PAGE_TRANSITION_TYPED, ui::PAGE_TRANSITION_AUTO_BOOKMARK,
+        ui::PAGE_TRANSITION_AUTO_TOPLEVEL, ui::PAGE_TRANSITION_GENERATED}) {
+    SCOPED_TRACE(transition);
+    for (bool foreground : {false, true}) {
+      model->ActivateTabAt(model->GetIndexOfWebContents(source));
+      auto contents = content::WebContents::Create(
+          content::WebContents::CreateParams(browser()->profile()));
+      content::WebContents* added = contents.get();
+      model->AddWebContents(std::move(contents), -1, transition,
+                            foreground ? AddTabTypes::ADD_ACTIVE
+                                       : AddTabTypes::ADD_NONE);
+      EXPECT_EQ(1, model->GetIndexOfWebContents(added));
+      EXPECT_EQ(foreground ? added : source, model->GetActiveWebContents());
+      model->CloseWebContentsAt(1, TabCloseTypes::CLOSE_NONE);
+    }
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest, BrowserUiLinkNavigationStillOpensAtTop) {
+  TabStripModel* model = browser()->tab_strip_model();
+  model->SetTabPinned(0, true);
+  chrome::AddTabAt(browser(), GURL("about:blank"), 1, false);
+  chrome::AddTabAt(browser(), GURL("about:blank"), 2, true);
+  content::WebContents* source = model->GetActiveWebContents();
+
+  const struct {
+    bool foreground;
+    bool through_web_contents;
+  } cases[] = {{false, false}, {true, false}, {false, true}, {true, true}};
+  for (const auto& test_case : cases) {
+    const bool foreground = test_case.foreground;
+    model->ActivateTabAt(model->GetIndexOfWebContents(source));
+    const auto disposition = foreground
+                                 ? WindowOpenDisposition::NEW_FOREGROUND_TAB
+                                 : WindowOpenDisposition::NEW_BACKGROUND_TAB;
+    content::WebContents* added = nullptr;
+    // Browser UI can use LINK directly or through the active WebContents.
+    if (test_case.through_web_contents) {
+      content::OpenURLParams params(GURL("about:blank"), content::Referrer(),
+                                    disposition, ui::PAGE_TRANSITION_LINK,
+                                    /*is_renderer_initiated=*/false);
+      added = source->OpenURL(params, {});
+    } else {
+      NavigateParams params(browser(), GURL("about:blank"),
+                            ui::PAGE_TRANSITION_LINK);
+      params.disposition = disposition;
+      Navigate(&params);
+      added = params.navigated_or_inserted_contents;
+    }
+    ASSERT_NE(nullptr, added);
+    EXPECT_EQ(1, model->GetIndexOfWebContents(added));
+    EXPECT_EQ(foreground ? added : source, model->GetActiveWebContents());
+    model->CloseWebContentsAt(1, TabCloseTypes::CLOSE_NONE);
   }
 }
 

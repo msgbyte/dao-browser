@@ -1,7 +1,23 @@
 diff --git a/chrome/browser/ui/navigator/browser_navigator.cc b/chrome/browser/ui/navigator/browser_navigator.cc
 --- a/chrome/browser/ui/navigator/browser_navigator.cc
 +++ b/chrome/browser/ui/navigator/browser_navigator.cc
-@@ -871,10 +871,10 @@
+@@ -621,6 +621,15 @@
+     }
+   }
+ 
++  // Dao: browser UI can also use LINK and the active WebContents as a source.
++  // Identify webpage requests before the active-tab fallback below.
++  const bool is_webpage_link =
++      params->source_contents &&
++      ui::PageTransitionTypeIncludingQualifiersIs(params->transition,
++                                                  ui::PAGE_TRANSITION_LINK) &&
++      (params->is_renderer_initiated || params->started_from_context_menu ||
++       params->contents_to_insert);
++
+   // If no source WebContents was specified, we use the selected one from the
+   // target browser. This must happen before GetBrowserAndTabForDisposition()
+   // has a chance to replace |params->browser| with another one, but after the
+@@ -871,10 +880,11 @@
          contents_to_navigate_or_insert, params->transition,
          params->window_action, user_initiated);
    } else if (singleton_index == -1) {
@@ -9,9 +25,10 @@ diff --git a/chrome/browser/ui/navigator/browser_navigator.cc b/chrome/browser/u
 -      params->tabstrip_index = params->browser->GetBrowserForMigrationOnly()
 -                                   ->tab_strip_model()
 -                                   ->count();
-+    if (source_browser != params->browser && params->tabstrip_index == -1) {
-+      // Dao: default to the top in the destination window too. Force the index
-+      // so this navigation does not inherit an unrelated destination opener.
++    if ((!is_webpage_link || source_browser != params->browser) &&
++        params->tabstrip_index == -1) {
++      // Dao: browser UI and cross-window navigation default to the top,
++      // without inheriting an unrelated active tab as their opener.
 +      params->tabstrip_index = 0;
      }
  

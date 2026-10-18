@@ -226,11 +226,11 @@ try {
   assert.equal(folders(await stored()).length, 2, 'Stale creation snapshots merge');
   await expectProjection(connections, plans.map(p => p.tabId));
 
-  // A link opened from a bottom folder must precede that folder, both in the
-  // native strip and the rendered sidebar. Use a real page navigation.
+  // Link tabs follow their source in the native strip and appear below its
+  // folder in the sidebar without changing folder membership.
   const source = await connect(page.webSocketDebuggerUrl);
   for (const background of [false, true]) {
-    const url = `about:blank#new-link-at-top-${background}`;
+    const url = `about:blank#new-link-after-source-${background}`;
     await browser.send('Target.activateTarget', {targetId: page.id});
     if (background) {
       await source('Runtime.evaluate', {expression: `
@@ -243,7 +243,10 @@ try {
       }
     } else {
       await source('Runtime.evaluate', {
-        expression: `window.open(${JSON.stringify(url)}, '_blank')`,
+        expression: `
+          document.body.innerHTML = '<a id="link" href="${url}" target="_blank">Link</a>';
+          document.querySelector('#link').click();
+        `,
         userGesture: true,
       });
     }
@@ -254,14 +257,15 @@ try {
         if (tab) return {send, tab};
       }
     }, 'new link tab');
-    assert.equal(linkOwner.tab.index, 0, 'Link from a folder opens at native index zero');
+    assert.equal(linkOwner.tab.index, 1, 'Link opens immediately after its source');
     assert.equal(linkOwner.tab.isSessionRestored, false, 'New tabs are not restore candidates');
-    assert.equal(await evaluate(linkOwner.send, `
+    assert.deepEqual(await evaluate(linkOwner.send, `
       await app.updateComplete;
       const list = app.shadowRoot.querySelector('dao-tab-list');
       await list.updateComplete;
-      return list.shadowRoot.querySelector('dao-tab-item, dao-folder-item')?.tabData?.tabId;
-    `), linkOwner.tab.tabId, 'New link renders above the folder');
+      return [...list.shadowRoot.querySelectorAll('dao-tab-item, dao-folder-item')]
+          .map(item => item.tabData?.tabId ?? 'folder');
+    `), ['folder', linkOwner.tab.tabId], 'New link renders below the source folder');
     await evaluate(linkOwner.send, `chrome.send('closeTab', [${linkOwner.tab.index}]);`);
     await expectProjection(connections, plans.map(p => p.tabId));
   }
@@ -417,7 +421,7 @@ try {
   await save(connections[0], good, good);
   assert.equal(await readFile(folderPath, 'utf8'), '{corrupt', 'Invalid files are never overwritten');
   await stop(browser);
-  console.log('PASS: foreground/background links above folders; restore-only legacy matching; legacy migration without load-time writes; incognito isolation and sidebar reload; multiwindow stale saves; concurrent folder fields and membership; per-window rendering; stable identities after restart; cross-window move and detach; reopened pin identity; tab closure; deletion; corrupt-file protection');
+  console.log('PASS: foreground/background links below source folders; restore-only legacy matching; legacy migration without load-time writes; incognito isolation and sidebar reload; multiwindow stale saves; concurrent folder fields and membership; per-window rendering; stable identities after restart; cross-window move and detach; reopened pin identity; tab closure; deletion; corrupt-file protection');
 } finally {
   sockets.forEach(socket => socket.close());
   if (child && child.exitCode === null) {
