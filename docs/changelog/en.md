@@ -4,6 +4,8 @@
 
 ### [Unreleased] Unreleased
 
+### [1.0.114] - 2026-10-18
+
 - Open webpage links in new tabs immediately below their source tab, including background tabs, while keeping other new tabs at the top by default.
 - Enable High Performance Mode for an individual tab from Control Center > More, directly below Share on macOS, to keep the page and its embedded content running in the background, prevent browser-initiated discarding and freezing, and bypass Energy Saver's frame limit without changing normal capture throttling; a checkmark and address-bar lightning icon update immediately, clicking the icon explains the protection and resource usage with a quick turn-off button, and a divider separates cache and cookie cleanup.
 - Add browser regression checks for the High Performance Mode popup to catch incorrect tab state when dismissing the popup, switching tabs, or turning the mode off, including macOS mouse-click ordering.
