@@ -502,6 +502,12 @@
       <message name="IDS_DAO_CONTROL_CENTER_CLEAR_COOKIES" desc="Label on the button in the Control Center 'More' submenu that clears the current site's browser cookies. Idle state.">
         Clear Cookies
       </message>
+      <message name="IDS_DAO_HIGH_PERFORMANCE_MODE" desc="Label for the per-tab high performance mode toggle in the Control Center More submenu. Keeps the tab running at full speed in the background.">
+        High Performance Mode
+      </message>
+      <message name="IDS_DAO_HIGH_PERFORMANCE_MODE_ENABLED" desc="Tooltip and accessible name for the address bar lightning icon shown while the current tab has high performance mode enabled.">
+        High Performance Mode is on
+      </message>
       <message name="IDS_DAO_CONTROL_CENTER_CLEARING" desc="Transient label shown on a Clear Cache or Clear Cookies button while the operation is in progress.">
         Clearing...
       </message>

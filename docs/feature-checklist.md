@@ -650,7 +650,15 @@ actively removing MV2 infrastructure, so these flags/enums may vanish entirely o
 
 ## 12. Control Center, Welcome, Webstore Branding
 
-- [ ] Run `DaoHighPerformance*BrowserTest.*`. Keep a protected tab in the background and minimize its window for at least
+- [ ] Run `DaoHighPerformance*BrowserTest.*`: More > High Performance Mode toggles
+  its trailing checkmark and the lightning indicator left of the MCP icon;
+  switching tabs shows each tab's own state. On macOS, verify the toggle sits
+  directly below Share and a divider separates it from Clear Cache and Clear
+  Cookies. Verify English/Chinese, light/dark,
+  narrow address bars, and keyboard/accessibility checked state. Toggle via the
+  menu and the mode API: indicators must update immediately without waiting for
+  navigation or loading notifications.
+- [ ] Keep a protected tab in the background and minimize its window for at least
   a minute without screen capture: timers, animation, and WebGL continue; browser
   freeze and discard requests are rejected.
   Reload, cross-site navigation, iframe navigation, window moves, and renderer

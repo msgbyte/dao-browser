@@ -31,6 +31,7 @@
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
 #include "dao/browser/mcp/dao_mcp_service.h"
+#include "dao/browser/performance/dao_high_performance_mode.h"
 #include "dao/browser/strings/grit/dao_strings.h"
 #include "dao/browser/ui/views/dao_agent_sidebar_view.h"
 #include "dao/browser/ui/views/dao_colors.h"
@@ -54,6 +55,7 @@
 #include "ui/views/background.h"
 #include "ui/views/border.h"
 #include "ui/views/controls/button/button.h"
+#include "ui/views/controls/image_view.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/controls/menu/menu_item_view.h"
 #include "ui/views/controls/menu/menu_model_adapter.h"
@@ -456,6 +458,19 @@ DaoAddressBarView::DaoAddressBarView(Browser* browser)
   security_btn->SetVisible(false);
   security_button_ = AddChildView(std::move(security_btn));
 
+  auto high_performance_indicator = std::make_unique<views::ImageView>();
+  high_performance_indicator->SetPreferredSize(
+      gfx::Size(kNavButtonSize, kNavButtonSize));
+  high_performance_indicator->SetProperty(
+      views::kFlexBehaviorKey,
+      views::FlexSpecification(views::MinimumFlexSizeRule::kPreferredSnapToZero,
+                               views::MaximumFlexSizeRule::kPreferred));
+  high_performance_indicator->SetTooltipText(
+      l10n_util::GetStringUTF16(IDS_DAO_HIGH_PERFORMANCE_MODE_ENABLED));
+  high_performance_indicator->SetVisible(false);
+  high_performance_indicator_ =
+      AddChildView(std::move(high_performance_indicator));
+
   auto mcp_control_btn = std::make_unique<NavIconButton>(
       base::BindRepeating(&DaoAddressBarView::OnMcpControlButtonPressed,
                           base::Unretained(this)),
@@ -837,12 +852,26 @@ void DaoAddressBarView::ObserveActiveWebContents() {
   }
   auto* web_contents = tab_strip_model_->GetActiveWebContents();
   if (web_contents != content::WebContentsObserver::web_contents()) {
+    high_performance_subscription_ = {};
     content::WebContentsObserver::Observe(web_contents);
+    if (web_contents) {
+      high_performance_subscription_ = DaoHighPerformanceMode::AddObserver(
+          web_contents,
+          base::BindRepeating(&DaoAddressBarView::UpdateHighPerformanceIndicator,
+                              base::Unretained(this)));
+    }
   }
   UpdateNavButtonEnabled();
   UpdateStopRefreshButton();
   UpdateSecurityButton();
   UpdateMcpControlButton();
+  UpdateHighPerformanceIndicator(DaoHighPerformanceMode::IsEnabled(web_contents));
+}
+
+void DaoAddressBarView::WebContentsDestroyed() {
+  high_performance_subscription_ = {};
+  content::WebContentsObserver::Observe(nullptr);
+  UpdateHighPerformanceIndicator(false);
 }
 
 std::unique_ptr<ui::MenuModel> DaoAddressBarView::CreateHistoryMenuModel(
@@ -999,6 +1028,10 @@ void DaoAddressBarView::UpdateMcpControlButton() {
   }
 }
 
+void DaoAddressBarView::UpdateHighPerformanceIndicator(bool enabled) {
+  high_performance_indicator_->SetVisible(enabled);
+}
+
 void DaoAddressBarView::OnMcpControlButtonPressed() {
   if (mcp_control_popup_tracker_.view()) {
     CloseMcpControlPopup();
@@ -1152,6 +1185,11 @@ void DaoAddressBarView::UpdateNavButtonColors() {
   if (control_center_button_) {
     control_center_button_->SetIconColor(icon_color);
   }
+  if (high_performance_indicator_color_ != icon_color) {
+    high_performance_indicator_color_ = icon_color;
+    high_performance_indicator_->SetImage(ui::ImageModel::FromImageSkia(
+        CreateLucideImageSkia(LucideIcon::kZap, kNavIconSize, icon_color)));
+  }
   if (pinned_extensions_) {
     pinned_extensions_->SetHoverBackgroundColor(hover_bg);
   }
@@ -1185,6 +1223,10 @@ std::vector<gfx::Rect> DaoAddressBarView::interactive_rects() const {
   // URL pill
   if (url_container_ && url_container_->GetVisible()) {
     rects.push_back(url_container_->GetMirroredBounds());
+  }
+  // Keep the status tooltip reachable in Windows caption hit testing.
+  if (high_performance_indicator_->GetVisible()) {
+    rects.push_back(high_performance_indicator_->GetMirroredBounds());
   }
   // Navigation buttons
   for (views::Button* btn : {back_button_.get(), forward_button_.get(),

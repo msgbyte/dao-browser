@@ -1040,26 +1040,30 @@ Built on Chromium's native PiP, adds a Document-PiP interception layer plus seve
 
 macOS-style floating control center panel bundling extensions and utilities.
 
-- **Per-tab High Performance Mode** — Browser-side state follows the tab through
-  reloads, navigation, and window moves, and ends when the tab closes; it is not
-  restored across browser restarts. Chromium treats protected pages as visible
-  for scheduling and painting, rejects browser discard and freeze requests,
-  maintains foreground renderer priority, and exempts their frame sinks and
-  descendants from Energy Saver and other frame throttling. Turning it off
-  restores normal policies without changing other tabs' settings. Fenced frames
-  and MPArch guest pages inherit renderer priority; inner and guest WebContents
-  inherit the owning tab's mode through attachment, navigation, and detachment.
-  Shared frame sinks remain protected while any ancestor is exempt. Capture
-  alone retains Chromium's undrawn-frame protection. Shared renderer processes
-  may also benefit from the priority boost. Normal garbage collection, OS memory
-  management, system sleep, hardware limits, crashes, and websites' own
-  focus-based behavior remain unchanged.
+- **Per-tab High Performance Mode** — Control Center > More has a checked
+  toggle for the current tab. A localized lightning indicator appears immediately
+  to the left of the address bar's MCP control indicator while enabled. The mode
+  follows the tab through reloads, navigation, and window moves, and ends when
+  the tab closes; it is not restored across browser restarts. Chromium treats
+  the current page as visible for scheduling and painting, rejects browser
+  discard and freeze requests, maintains foreground renderer priority, and
+  exempts its frame sinks and descendants from Energy Saver and other frame
+  throttling. Turning it off restores normal policies without changing other
+  tabs' settings. Fenced frames and MPArch guest pages inherit renderer
+  priority; inner and guest WebContents inherit the owning tab's mode through
+  attachment, navigation, and detachment. Shared frame sinks remain protected
+  while any ancestor is exempt. Capture alone retains Chromium's undrawn-frame
+  protection.
+  Native indicators subscribe directly to mode changes without delayed tab UI
+  invalidation. Shared renderer processes may also benefit from the priority
+  boost. Normal garbage collection, OS memory management, system sleep, hardware
+  limits, crashes, and websites' own focus-based behavior remain unchanged.
 - **DaoControlCenterButton** — Trigger button
 - **DaoControlCenterPopup** — Floating popup with transparent overlay click-to-close
 - **DaoControlCenterExtensionsSection** — Extensions grid
 - **DaoControlCenterUtilitySection** — Utility buttons (share, QR, lock, more)
 - **DaoControlCenterQrView** — QR code generation
-- **DaoControlCenterMoreMenu** — More menu, including cache and cookie cleanup scoped to the active page's current site with completion toast feedback
+- **DaoControlCenterMoreMenu** — High Performance Mode appears directly below Share on macOS. A divider separates cache and cookie cleanup from the other actions; cleanup stays scoped to the active page's current site with completion toast feedback.
 - **DaoPinnedExtensionsContainer** — Pinned extension icon container
 - **Extension action badges** — Pinned and Control Center extension icons render
   the active tab's badge text and extension-defined badge colors using Chromium's

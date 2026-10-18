@@ -34,13 +34,38 @@
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/fenced_frame_test_util.h"
 #include "dao/browser/performance/dao_high_performance_mode.h"
+#include "dao/browser/strings/grit/dao_strings.h"
+#include "dao/browser/ui/views/dao_address_bar_view.h"
+#include "dao/browser/ui/views/dao_control_center_popup.h"
 #include "net/dns/mock_host_resolver.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
+#include "ui/accessibility/ax_node_data.h"
+#include "ui/base/l10n/l10n_util.h"
+#include "ui/events/base_event_utils.h"
+#include "ui/events/event.h"
+#include "ui/views/accessibility/view_accessibility.h"
+#include "ui/views/controls/button/label_button.h"
+#include "ui/views/test/button_test_api.h"
+#include "ui/views/view_utils.h"
 #include "ui/views/widget/widget.h"
 
 namespace dao {
 
 namespace {
+
+views::LabelButton* FindModeButton(views::View* view) {
+  if (auto* button = views::AsViewClass<views::LabelButton>(view);
+      button && button->GetText() ==
+                    l10n_util::GetStringUTF16(IDS_DAO_HIGH_PERFORMANCE_MODE)) {
+    return button;
+  }
+  for (views::View* child : view->children()) {
+    if (auto* button = FindModeButton(child)) {
+      return button;
+    }
+  }
+  return nullptr;
+}
 
 class TestGuestView : public guest_view::GuestViewBase {
  public:
@@ -256,6 +281,60 @@ IN_PROC_BROWSER_TEST_F(DaoHighPerformanceBrowserTest,
   DaoHighPerformanceMode::SetEnabled(contents, false);
   EXPECT_EQ(base::Process::Priority::kBestEffort, process->GetPriority());
   process->ClearPriorityOverride();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoHighPerformanceBrowserTest,
+                       MenuToggleUpdatesCheckedStateAndAddressIndicator) {
+  auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
+  auto* popup = browser_view->dao_control_center_popup();
+  auto* address_bar = browser_view->dao_address_bar();
+  ASSERT_TRUE(popup);
+  ASSERT_TRUE(address_bar);
+  views::View* indicator = nullptr;
+  for (views::View* child : address_bar->children()) {
+    if (child->GetTooltipText() ==
+        l10n_util::GetStringUTF16(IDS_DAO_HIGH_PERFORMANCE_MODE_ENABLED)) {
+      indicator = child;
+      break;
+    }
+  }
+  ASSERT_TRUE(indicator);
+  EXPECT_FALSE(indicator->GetVisible());
+  popup->ShowAt(gfx::Point(100, 100));
+  popup->ShowMoreMenu();
+  auto* button = FindModeButton(popup);
+  ASSERT_TRUE(button);
+  ui::MouseEvent click(ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
+                       ui::EventTimeForNow(), ui::EF_LEFT_MOUSE_BUTTON,
+                       ui::EF_LEFT_MOUSE_BUTTON);
+  views::test::ButtonTestApi(button).NotifyClick(click);
+  EXPECT_TRUE(DaoHighPerformanceMode::IsEnabled(
+      browser()->tab_strip_model()->GetActiveWebContents()));
+  EXPECT_TRUE(indicator->GetVisible());
+  ui::AXNodeData data;
+  button->GetViewAccessibility().GetAccessibleNodeData(&data);
+  EXPECT_EQ(ax::mojom::CheckedState::kTrue, data.GetCheckedState());
+
+  views::test::ButtonTestApi(button).NotifyClick(click);
+  EXPECT_FALSE(DaoHighPerformanceMode::IsEnabled(
+      browser()->tab_strip_model()->GetActiveWebContents()));
+  EXPECT_FALSE(indicator->GetVisible());
+  button->GetViewAccessibility().GetAccessibleNodeData(&data);
+  EXPECT_EQ(ax::mojom::CheckedState::kFalse, data.GetCheckedState());
+
+  auto* contents = browser()->tab_strip_model()->GetActiveWebContents();
+  DaoHighPerformanceMode::SetEnabled(contents, true);
+  EXPECT_TRUE(indicator->GetVisible());
+  button->GetViewAccessibility().GetAccessibleNodeData(&data);
+  EXPECT_EQ(ax::mojom::CheckedState::kTrue, data.GetCheckedState());
+  chrome::NewTab(browser(), NewTabTypes::kNoUserAction);
+  EXPECT_FALSE(indicator->GetVisible());
+  browser()->tab_strip_model()->ActivateTabAt(
+      browser()->tab_strip_model()->GetIndexOfWebContents(contents));
+  EXPECT_TRUE(indicator->GetVisible());
+  DaoHighPerformanceMode::SetEnabled(contents, false);
+  EXPECT_FALSE(indicator->GetVisible());
+  popup->Hide();
 }
 
 class DaoHighPerformanceFencedFrameBrowserTest

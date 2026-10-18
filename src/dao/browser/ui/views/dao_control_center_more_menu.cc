@@ -19,20 +19,25 @@
 #include "content/public/browser/browsing_data_filter_builder.h"
 #include "content/public/browser/browsing_data_remover.h"
 #include "content/public/browser/web_contents.h"
+#include "dao/browser/performance/dao_high_performance_mode.h"
 #include "dao/browser/strings/grit/dao_strings.h"
 #include "dao/browser/ui/views/dao_colors.h"
 #include "dao/browser/ui/views/dao_control_center_popup.h"
+#include "dao/browser/ui/views/dao_lucide_icons.h"
 #include "dao/browser/ui/views/dao_toast_view.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
+#include "ui/accessibility/ax_enums.mojom.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/color/color_variant.h"
 #include "ui/gfx/canvas.h"
-#include "ui/gfx/geometry/point_f.h"
+#include "ui/gfx/geometry/rect_f.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/background.h"
 #include "ui/views/controls/button/label_button.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/layout/box_layout.h"
+#include "ui/views/view_class_properties.h"
 #include "ui/views/view_utils.h"
 #include "url/gurl.h"
 
@@ -142,6 +147,44 @@ class MenuItemButton : public views::LabelButton {
   }
 };
 
+class HighPerformanceMenuItemButton : public MenuItemButton {
+ public:
+  explicit HighPerformanceMenuItemButton(PressedCallback callback)
+      : MenuItemButton(l10n_util::GetStringUTF16(IDS_DAO_HIGH_PERFORMANCE_MODE),
+                       std::move(callback)) {
+    SetBorder(views::CreateEmptyBorder(gfx::Insets::TLBR(8, 12, 8, 36)));
+    GetViewAccessibility().SetRole(ax::mojom::Role::kCheckBox);
+    GetViewAccessibility().SetCheckedState(ax::mojom::CheckedState::kFalse);
+  }
+
+  void SetChecked(bool checked) {
+    if (checked_ == checked) {
+      return;
+    }
+    checked_ = checked;
+    GetViewAccessibility().SetCheckedState(
+        checked ? ax::mojom::CheckedState::kTrue
+                : ax::mojom::CheckedState::kFalse);
+    SchedulePaint();
+  }
+
+  void PaintButtonContents(gfx::Canvas* canvas) override {
+    MenuItemButton::PaintButtonContents(canvas);
+    if (checked_) {
+      constexpr int kCheckSize = 16;
+      const int x =
+          GetMirroredXWithWidthInView(width() - 12 - kCheckSize, kCheckSize);
+      DrawLucideIcon(
+          canvas, LucideIcon::kCheck,
+          gfx::RectF(x, (height() - kCheckSize) / 2.0f, kCheckSize, kCheckSize),
+          ControlCenterLabelColor());
+    }
+  }
+
+ private:
+  bool checked_ = false;
+};
+
 }  // namespace
 
 BEGIN_METADATA(DaoControlCenterMoreMenu)
@@ -179,6 +222,15 @@ DaoControlCenterMoreMenu::DaoControlCenterMoreMenu(
   }
 
 #endif
+  high_performance_button_ = AddChildView<views::LabelButton>(
+      std::make_unique<HighPerformanceMenuItemButton>(base::BindRepeating(
+          &DaoControlCenterMoreMenu::OnHighPerformanceModeClicked,
+          base::Unretained(this))));
+
+  cleanup_separator_ = AddChildView(std::make_unique<views::View>());
+  cleanup_separator_->SetPreferredSize(gfx::Size(0, 1));
+  cleanup_separator_->SetProperty(views::kMarginsKey, gfx::Insets::VH(6, 12));
+
   // Clear Cache button
   {
     auto btn = std::make_unique<MenuItemButton>(
@@ -198,11 +250,16 @@ DaoControlCenterMoreMenu::DaoControlCenterMoreMenu(
     clear_cookies_button_ = btn.get();
     AddChildView(static_cast<views::View*>(btn.release()));
   }
+
+  popup_->browser()->tab_strip_model()->AddObserver(this);
+  ObserveActiveWebContents();
 }
 
 DaoControlCenterMoreMenu::~DaoControlCenterMoreMenu() = default;
 
 void DaoControlCenterMoreMenu::ApplyTheme() {
+  cleanup_separator_->SetBackground(
+      views::CreateSolidBackground(SeparatorColor()));
   for (views::View* child : children()) {
     if (auto* button = views::AsViewClass<views::LabelButton>(child)) {
       button->SetEnabledTextColors(ControlCenterLabelColor());
@@ -238,6 +295,48 @@ void DaoControlCenterMoreMenu::OnClearCookiesClicked() {
       content::BrowsingDataRemover::DATA_TYPE_COOKIES,
       clear_cookies_button_, IDS_DAO_CONTROL_CENTER_CLEAR_COOKIES,
       IDS_DAO_CONTROL_CENTER_COOKIES_CLEARED_TOAST);
+}
+
+void DaoControlCenterMoreMenu::OnTabStripModelChanged(
+    TabStripModel* tab_strip_model,
+    const TabStripModelChange& change,
+    const TabStripSelectionChange& selection) {
+  if (selection.active_tab_changed()) {
+    ObserveActiveWebContents();
+  }
+}
+
+void DaoControlCenterMoreMenu::WebContentsDestroyed() {
+  high_performance_subscription_ = {};
+  Observe(nullptr);
+  UpdateHighPerformanceMode(false);
+}
+
+void DaoControlCenterMoreMenu::OnHighPerformanceModeClicked() {
+  auto* contents = popup_->browser()->tab_strip_model()->GetActiveWebContents();
+  if (contents) {
+    DaoHighPerformanceMode::SetEnabled(
+        contents, !DaoHighPerformanceMode::IsEnabled(contents));
+  }
+}
+
+void DaoControlCenterMoreMenu::ObserveActiveWebContents() {
+  auto* contents = popup_->browser()->tab_strip_model()->GetActiveWebContents();
+  high_performance_subscription_ = {};
+  Observe(contents);
+  if (contents) {
+    high_performance_subscription_ = DaoHighPerformanceMode::AddObserver(
+        contents,
+        base::BindRepeating(&DaoControlCenterMoreMenu::UpdateHighPerformanceMode,
+                            base::Unretained(this)));
+  }
+  UpdateHighPerformanceMode(DaoHighPerformanceMode::IsEnabled(contents));
+}
+
+void DaoControlCenterMoreMenu::UpdateHighPerformanceMode(bool enabled) {
+  high_performance_button_->SetEnabled(web_contents() != nullptr);
+  static_cast<HighPerformanceMenuItemButton*>(high_performance_button_.get())
+      ->SetChecked(enabled);
 }
 
 void DaoControlCenterMoreMenu::ClearActiveSiteBrowsingData(
