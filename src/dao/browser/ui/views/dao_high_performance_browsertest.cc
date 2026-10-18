@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <string_view>
+
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/process/process.h"
@@ -44,7 +46,9 @@
 #include "ui/events/base_event_utils.h"
 #include "ui/events/event.h"
 #include "ui/views/accessibility/view_accessibility.h"
+#include "ui/views/bubble/bubble_dialog_delegate_view.h"
 #include "ui/views/controls/button/label_button.h"
+#include "ui/views/controls/label.h"
 #include "ui/views/test/button_test_api.h"
 #include "ui/views/view_utils.h"
 #include "ui/views/widget/widget.h"
@@ -53,18 +57,61 @@ namespace dao {
 
 namespace {
 
-views::LabelButton* FindModeButton(views::View* view) {
+views::LabelButton* FindModeButton(
+    views::View* view,
+    int message_id = IDS_DAO_HIGH_PERFORMANCE_MODE) {
   if (auto* button = views::AsViewClass<views::LabelButton>(view);
-      button && button->GetText() ==
-                    l10n_util::GetStringUTF16(IDS_DAO_HIGH_PERFORMANCE_MODE)) {
+      button && button->GetText() == l10n_util::GetStringUTF16(message_id)) {
     return button;
   }
   for (views::View* child : view->children()) {
-    if (auto* button = FindModeButton(child)) {
+    if (auto* button = FindModeButton(child, message_id)) {
       return button;
     }
   }
   return nullptr;
+}
+
+views::Button* FindHighPerformanceIndicator(DaoAddressBarView* address_bar) {
+  for (views::View* child : address_bar->children()) {
+    if (child->GetTooltipText() ==
+        l10n_util::GetStringUTF16(IDS_DAO_HIGH_PERFORMANCE_MODE_ENABLED)) {
+      return views::AsViewClass<views::Button>(child);
+    }
+  }
+  return nullptr;
+}
+
+views::Widget* FindIndicatorPopup(views::View* indicator) {
+  for (views::Widget* widget : views::Widget::GetAllOwnedWidgets(
+           indicator->GetWidget()->GetNativeView())) {
+    auto* delegate = widget->widget_delegate()->AsBubbleDialogDelegate();
+    if (!widget->IsClosed() && delegate &&
+        delegate->GetAnchorView() == indicator) {
+      return widget;
+    }
+  }
+  return nullptr;
+}
+
+void ClickButton(views::Button* button) {
+  ui::MouseEvent click(ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
+                       ui::EventTimeForNow(), ui::EF_LEFT_MOUSE_BUTTON,
+                       ui::EF_LEFT_MOUSE_BUTTON);
+  views::test::ButtonTestApi(button).NotifyClick(click);
+}
+
+bool HasLabelText(views::View* view, std::u16string_view text) {
+  if (auto* label = views::AsViewClass<views::Label>(view);
+      label && label->GetText() == text) {
+    return true;
+  }
+  for (views::View* child : view->children()) {
+    if (HasLabelText(child, text)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 class TestGuestView : public guest_view::GuestViewBase {
@@ -335,6 +382,125 @@ IN_PROC_BROWSER_TEST_F(DaoHighPerformanceBrowserTest,
   DaoHighPerformanceMode::SetEnabled(contents, false);
   EXPECT_FALSE(indicator->GetVisible());
   popup->Hide();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoHighPerformanceBrowserTest,
+                       IndicatorPopupExplainsModeAndTurnsItOff) {
+  auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
+  auto* address_bar = browser_view->dao_address_bar();
+  auto* contents = browser()->tab_strip_model()->GetActiveWebContents();
+  DaoHighPerformanceMode::SetEnabled(contents, true);
+  auto* indicator = FindHighPerformanceIndicator(address_bar);
+  ASSERT_TRUE(indicator);
+  ClickButton(indicator);
+  auto* popup = FindIndicatorPopup(indicator);
+  ASSERT_TRUE(popup);
+  EXPECT_TRUE(popup->IsVisible());
+  EXPECT_EQ(l10n_util::GetStringUTF16(IDS_DAO_HIGH_PERFORMANCE_MODE_ENABLED),
+            popup->widget_delegate()->GetWindowTitle());
+  EXPECT_TRUE(HasLabelText(
+      popup->GetContentsView(),
+      l10n_util::GetStringUTF16(IDS_DAO_HIGH_PERFORMANCE_MODE_DESCRIPTION)));
+  EXPECT_TRUE(HasLabelText(
+      popup->GetContentsView(),
+      l10n_util::GetStringUTF16(IDS_DAO_HIGH_PERFORMANCE_MODE_RESOURCE_USAGE)));
+  auto* turn_off = FindModeButton(popup->GetContentsView(),
+                                  IDS_DAO_HIGH_PERFORMANCE_MODE_TURN_OFF);
+  ASSERT_TRUE(turn_off);
+  ClickButton(turn_off);
+  EXPECT_FALSE(DaoHighPerformanceMode::IsEnabled(contents));
+  EXPECT_FALSE(indicator->GetVisible());
+  EXPECT_FALSE(FindIndicatorPopup(indicator));
+
+  auto* control_center = browser_view->dao_control_center_popup();
+  control_center->ShowAt(gfx::Point(100, 100));
+  control_center->ShowMoreMenu();
+  auto* menu_button = FindModeButton(control_center);
+  ASSERT_TRUE(menu_button);
+  ui::AXNodeData data;
+  menu_button->GetViewAccessibility().GetAccessibleNodeData(&data);
+  EXPECT_EQ(ax::mojom::CheckedState::kFalse, data.GetCheckedState());
+  control_center->Hide();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoHighPerformanceBrowserTest,
+                       IndicatorPopupDoesNotReopenAfterAnchorDeactivation) {
+  auto* address_bar =
+      BrowserView::GetBrowserViewForBrowser(browser())->dao_address_bar();
+  auto* contents = browser()->tab_strip_model()->GetActiveWebContents();
+  DaoHighPerformanceMode::SetEnabled(contents, true);
+  auto* indicator = FindHighPerformanceIndicator(address_bar);
+  ASSERT_TRUE(indicator);
+  ClickButton(indicator);
+  auto* popup = FindIndicatorPopup(indicator);
+  ASSERT_TRUE(popup);
+  views::ViewTracker popup_tracker(popup->GetContentsView());
+
+  // Cocoa closes the bubble before dispatching the anchor's mouse press.
+  popup->CloseWithReason(views::Widget::ClosedReason::kLostFocus);
+  const gfx::Point point = indicator->GetLocalBounds().CenterPoint();
+  ui::MouseEvent press(ui::EventType::kMousePressed, point, point,
+                       ui::EventTimeForNow(), ui::EF_LEFT_MOUSE_BUTTON,
+                       ui::EF_LEFT_MOUSE_BUTTON);
+  ui::MouseEvent release(ui::EventType::kMouseReleased, point, point,
+                         ui::EventTimeForNow(), ui::EF_LEFT_MOUSE_BUTTON,
+                         ui::EF_LEFT_MOUSE_BUTTON);
+  auto* view = static_cast<views::View*>(indicator);
+  view->OnMousePressed(press);
+  ASSERT_TRUE(base::test::RunUntil([&] { return !popup_tracker.view(); }));
+  view->OnMouseReleased(release);
+  EXPECT_FALSE(FindIndicatorPopup(indicator));
+  EXPECT_TRUE(DaoHighPerformanceMode::IsEnabled(contents));
+
+  view->OnMousePressed(press);
+  view->OnMouseReleased(release);
+  EXPECT_TRUE(FindIndicatorPopup(indicator));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoHighPerformanceBrowserTest,
+                       IndicatorPopupClosesWithoutAffectingOtherTabs) {
+  auto* address_bar =
+      BrowserView::GetBrowserViewForBrowser(browser())->dao_address_bar();
+  auto* tabs = browser()->tab_strip_model();
+  auto* original = tabs->GetActiveWebContents();
+  DaoHighPerformanceMode::SetEnabled(original, true);
+  auto* indicator = FindHighPerformanceIndicator(address_bar);
+  ASSERT_TRUE(indicator);
+  ClickButton(indicator);
+  ASSERT_TRUE(FindIndicatorPopup(indicator));
+  ClickButton(indicator);
+  EXPECT_FALSE(FindIndicatorPopup(indicator));
+  EXPECT_TRUE(DaoHighPerformanceMode::IsEnabled(original));
+
+  ClickButton(indicator);
+  auto* popup = FindIndicatorPopup(indicator);
+  ASSERT_TRUE(popup);
+  ui::KeyEvent escape(ui::EventType::kKeyPressed, ui::VKEY_ESCAPE, ui::EF_NONE);
+  popup->OnKeyEvent(&escape);
+  EXPECT_TRUE(
+      base::test::RunUntil([&] { return !FindIndicatorPopup(indicator); }));
+  EXPECT_TRUE(DaoHighPerformanceMode::IsEnabled(original));
+
+  ClickButton(indicator);
+  ASSERT_TRUE(FindIndicatorPopup(indicator));
+  chrome::NewTab(browser(), NewTabTypes::kNoUserAction);
+  EXPECT_FALSE(FindIndicatorPopup(indicator));
+  EXPECT_TRUE(DaoHighPerformanceMode::IsEnabled(original));
+  EXPECT_FALSE(DaoHighPerformanceMode::IsEnabled(tabs->GetActiveWebContents()));
+
+  DaoHighPerformanceMode::SetEnabled(tabs->GetActiveWebContents(), true);
+  ClickButton(indicator);
+  ASSERT_TRUE(FindIndicatorPopup(indicator));
+  DaoHighPerformanceMode::SetEnabled(tabs->GetActiveWebContents(), false);
+  EXPECT_FALSE(FindIndicatorPopup(indicator));
+  EXPECT_TRUE(DaoHighPerformanceMode::IsEnabled(original));
+
+  tabs->ActivateTabAt(tabs->GetIndexOfWebContents(original));
+  ClickButton(indicator);
+  ASSERT_TRUE(FindIndicatorPopup(indicator));
+  tabs->CloseWebContentsAt(tabs->active_index(), TabCloseTypes::CLOSE_NONE);
+  EXPECT_FALSE(FindIndicatorPopup(indicator));
+  EXPECT_FALSE(indicator->GetVisible());
 }
 
 class DaoHighPerformanceFencedFrameBrowserTest

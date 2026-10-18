@@ -664,6 +664,7 @@ actively removing MV2 infrastructure, so these flags/enums may vanish entirely o
   Clicking the icon again, pressing Escape, or clicking outside dismisses the
   popup without disabling the mode. Switching or closing tabs and disabling the
   mode elsewhere closes the popup without affecting another tab's setting.
+  Focused tests: `DaoHighPerformanceBrowserTest.IndicatorPopup*`.
 - [ ] Keep a protected tab in the background and minimize its window for at least
   a minute without screen capture: timers, animation, and WebGL continue; browser
   freeze and discard requests are rejected.
