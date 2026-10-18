@@ -4,6 +4,8 @@
 
 ### [Unreleased] Unreleased
 
+- Move Close Tab to the bottom of the sidebar tab context menu, below Close Multiple Tabs.
+
 ### [1.0.114] - 2026-10-18
 
 - Open webpage links in new tabs immediately below their source tab, including background tabs, while keeping other new tabs at the top by default.

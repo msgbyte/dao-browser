@@ -163,8 +163,9 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
   Regular tab menus keep copy, pin, mute, move-to-new-window, and close-tab
   actions at the top level. **Organize Tabs** groups move-to-top, stale-tab
   archiving, and configured AI classification actions; **Close Multiple Tabs**
-  groups duplicate, other, above, and below closures. Each submenu has only one
-  level, and closing it preserves the target tab until the whole menu closes.
+  groups duplicate, other, above, and below closures. **Close Tab** is the last
+  menu item, below **Close Multiple Tabs**. Each submenu has only one level,
+  and closing it preserves the target tab until the whole menu closes.
 - **Move tab to top** — The regular tab context menu moves a tab to the top
   of the sidebar list, or to the top of its current folder without changing
   membership. Loose split tabs move together in their existing order. The

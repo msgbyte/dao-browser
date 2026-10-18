@@ -3139,8 +3139,6 @@ void DaoSidebarUIHandler::HandleShowTabContextMenu(
 
   tab_context_menu_model_->AddSeparator(ui::NORMAL_SEPARATOR);
 
-  tab_context_menu_model_->AddItem(
-      kCloseTab, l10n_util::GetStringUTF16(IDS_DAO_TAB_CONTEXT_CLOSE_TAB));
   close_multiple_tabs_menu_model_->AddItem(
       kCloseDuplicateTabs,
       l10n_util::GetStringUTF16(
@@ -3159,6 +3157,8 @@ void DaoSidebarUIHandler::HandleShowTabContextMenu(
       kCloseMultipleTabs,
       l10n_util::GetStringUTF16(IDS_DAO_TAB_CONTEXT_CLOSE_MULTIPLE_TABS),
       close_multiple_tabs_menu_model_.get());
+  tab_context_menu_model_->AddItem(
+      kCloseTab, l10n_util::GetStringUTF16(IDS_DAO_TAB_CONTEXT_CLOSE_TAB));
 
   // Cocoa context menus hide accelerators unless each item explicitly opts in.
   for (int command_id : {kDuplicateTab, kCopyLink, kCloseTab}) {
