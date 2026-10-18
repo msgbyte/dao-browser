@@ -15,11 +15,24 @@ calendar date for lightweight tags. These dates describe Git history, not verifi
 artifact publication times. Tags pointing to the same commit and metadata-only
 releases are identified explicitly. Missing version numbers are not invented.
 
-For every change, add a concise, human-readable bullet under the affected platform's
-`Unreleased` section in both `en.md` and `zh-CN.md`. Explain the visible outcome or
-maintenance impact, not just file names or commit hashes. Keep one matching bullet
-per change in the same order. Shared tooling changes belong to the platforms they
-affect; website and repository-wide changes default to desktop.
+Release notes are for ordinary browser users. Use plain language and focus on what
+changes for them. Do not mention added regression tests, test coverage, or
+verification work, even alongside a user-facing fix; describe the problem users
+encountered and the resulting behavior instead.
+
+For changes that affect users, add a concise, human-readable bullet under the
+affected platform's `Unreleased` section in both `en.md` and `zh-CN.md`. This includes
+features, behavior changes, bug fixes, performance, security, compatibility,
+installation, and updates. Explain the user-facing outcome, not just file names or
+commit hashes. Keep matching entries in the same order. Shared user-facing changes
+belong to the platforms they affect; website and repository-wide changes default
+to desktop when an entry is needed.
+
+Skip entries for development-only work with no user-facing impact, such as tests,
+internal refactors, CI, local build tooling, developer documentation, or agent
+instructions. If such work also changes the shipped product or users' installation
+or update experience, describe only that user-facing outcome. Do not add an entry
+merely to record a development change or explain why no entry was needed.
 
 Write in natural, concrete language: describe what someone can now do, or the
 situation that failed and what has been fixed. Give substantial features enough
