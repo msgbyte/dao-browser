@@ -1,0 +1,21 @@
+diff --git a/chrome/browser/resource_coordinator/tab_lifecycle_unit.cc b/chrome/browser/resource_coordinator/tab_lifecycle_unit.cc
+--- a/chrome/browser/resource_coordinator/tab_lifecycle_unit.cc
++++ b/chrome/browser/resource_coordinator/tab_lifecycle_unit.cc
+@@ -44,6 +44,7 @@
+ #include "content/public/browser/navigation_entry.h"
+ #include "content/public/browser/web_contents.h"
+ #include "content/public/common/content_features.h"
++#include "dao/browser/performance/dao_high_performance_mode.h"
+ #include "third_party/abseil-cpp/absl/cleanup/cleanup.h"
+ #include "url/gurl.h"
+ 
+@@ -347,7 +348,8 @@
+ bool TabLifecycleUnitSource::TabLifecycleUnit::Discard(
+     LifecycleUnitDiscardReason reason,
+     uint64_t tab_memory_footprint_estimate) {
+-  if (IsDiscardBlockedByFeature(reason)) {
++  if (dao::DaoHighPerformanceMode::IsEnabled(web_contents()) ||
++      IsDiscardBlockedByFeature(reason)) {
+     return false;
+   }
+ 

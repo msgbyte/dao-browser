@@ -1,0 +1,53 @@
+diff --git a/components/performance_manager/performance_manager_tab_helper.cc b/components/performance_manager/performance_manager_tab_helper.cc
+--- a/components/performance_manager/performance_manager_tab_helper.cc
++++ b/components/performance_manager/performance_manager_tab_helper.cc
+@@ -29,6 +29,7 @@
+ #include "content/public/browser/site_instance.h"
+ #include "content/public/browser/web_contents.h"
+ #include "content/public/common/content_features.h"
++#include "dao/browser/performance/dao_high_performance_mode.h"
+ #include "mojo/public/cpp/bindings/pending_receiver.h"
+ #include "third_party/blink/public/common/features.h"
+ #include "third_party/blink/public/common/permissions/permission_utils.h"
+@@ -100,7 +101,8 @@
+ #endif
+ 
+   PagePropertyFlags initial_property_flags;
+-  if (web_contents->GetVisibility() == content::Visibility::VISIBLE) {
++  if (web_contents->GetVisibility() == content::Visibility::VISIBLE ||
++      dao::DaoHighPerformanceMode::IsEnabled(web_contents)) {
+     initial_property_flags.Put(PagePropertyFlag::kIsVisible);
+   }
+   if (web_contents->IsCurrentlyAudible()) {
+@@ -129,6 +131,11 @@
+     RenderFrameCreated(main_rfh);
+   }
+ 
++  high_performance_subscription_ = dao::DaoHighPerformanceMode::AddObserver(
++      web_contents,
++      base::BindRepeating(
++          &PerformanceManagerTabHelper::HighPerformanceModeChanged,
++          base::Unretained(this)));
+   ConnectWindowOpenRelationshipIfExists(this, web_contents);
+ }
+ 
+@@ -331,8 +338,17 @@
+     content::Visibility visibility) {
+   if (visibility != content::Visibility::VISIBLE ||
+       !base::FeatureList::IsEnabled(kEarlyPMVisibilityUpdate)) {
+-    page_node_->SetIsVisible(visibility == content::Visibility::VISIBLE);
+-  }
++    page_node_->SetIsVisible(
++        visibility == content::Visibility::VISIBLE ||
++        dao::DaoHighPerformanceMode::IsEnabled(web_contents()));
++  }
++}
++
++void PerformanceManagerTabHelper::HighPerformanceModeChanged(bool enabled) {
++  // Use effective visibility so freezing votes and connected pages stay in
++  // sync.
++  page_node_->SetIsVisible(enabled || web_contents()->GetVisibility() ==
++                                          content::Visibility::VISIBLE);
+ }
+ 
+ void PerformanceManagerTabHelper::OnAudioStateChanged(bool audible) {

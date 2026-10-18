@@ -1,0 +1,11 @@
+diff --git a/content/public/browser/BUILD.gn b/content/public/browser/BUILD.gn
+--- a/content/public/browser/BUILD.gn
++++ b/content/public/browser/BUILD.gn
+@@ -27,6 +27,7 @@
+   # External code should depend on via ":browser" above.
+   visibility = [ "//content/*" ]
+   sources = [
++    "//dao/browser/performance/dao_high_performance_mode.h",
+     "active_url_message_filter.cc",
+     "active_url_message_filter.h",
+     "allow_service_worker_result.cc",

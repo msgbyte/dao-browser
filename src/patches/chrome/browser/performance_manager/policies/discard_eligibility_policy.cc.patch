@@ -1,0 +1,24 @@
+diff --git a/chrome/browser/performance_manager/policies/discard_eligibility_policy.cc b/chrome/browser/performance_manager/policies/discard_eligibility_policy.cc
+--- a/chrome/browser/performance_manager/policies/discard_eligibility_policy.cc
++++ b/chrome/browser/performance_manager/policies/discard_eligibility_policy.cc
+@@ -17,6 +17,7 @@
+ #include "components/url_matcher/url_matcher.h"
+ #include "components/url_matcher/url_util.h"
+ #include "content/public/browser/web_contents.h"
++#include "dao/browser/performance/dao_high_performance_mode.h"
+ 
+ #if !BUILDFLAG(IS_ANDROID)
+ #include "chrome/browser/web_applications/web_app_tab_helper.h"
+@@ -184,6 +185,12 @@
+       cannot_discard_reasons->push_back(reason);
+     }
+   };
++
++  if (auto* contents = page_node->GetWebContents().get();
++      contents && dao::DaoHighPerformanceMode::IsEnabled(contents)) {
++    add_reason(CannotDiscardReason::kOptedOut);
++    return CanDiscardResult::kDisallowed;
++  }
+ 
+   // Don't discard pages which aren't tabs.
+   if (page_node->GetType() != PageType::kTab) {

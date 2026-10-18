@@ -1,0 +1,19 @@
+diff --git a/content/browser/renderer_host/render_widget_host_impl.h b/content/browser/renderer_host/render_widget_host_impl.h
+--- a/content/browser/renderer_host/render_widget_host_impl.h
++++ b/content/browser/renderer_host/render_widget_host_impl.h
+@@ -1076,6 +1076,7 @@
+   // Indicates the page is discarding. The renderer process will get
+   // cpu-priority boosted to run discard logic.
+   void SetIsDiscarding(bool is_discarding);
++  void SetHighPerformanceMode(bool enabled);
+ 
+   SyntheticGestureController* SyntheticGestureControllerForTesting() {
+     return synthetic_gesture_controller_.get();
+@@ -1357,6 +1358,7 @@
+   // Indicates whether the page is hidden or not. Need to call
+   // process_->UpdateClientPriority when this value changes.
+   bool is_hidden_ = true;
++  bool high_performance_mode_ = false;
+ 
+   // Records the latest time when |this| widget's visibility state changes from
+   // hidden to shown.

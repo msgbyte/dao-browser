@@ -4,7 +4,7 @@
 
 ### [Unreleased] Unreleased
 
-- Add explicit frame-scheduling exemptions for selected frame sinks and their descendants, retaining protection across GPU reconnects and shared parent chains without changing normal capture or unresponsive-client throttling.
+- Add tab-scoped High Performance Mode to keep protected pages and embedded content running in the background, prevent browser-initiated discarding and freezing, and bypass Energy Saver frame limits while retaining normal capture throttling.
 
 ### [1.0.113] - 2026-10-18
 

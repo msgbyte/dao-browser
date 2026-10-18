@@ -1,0 +1,28 @@
+diff --git a/components/performance_manager/performance_manager_tab_helper.h b/components/performance_manager/performance_manager_tab_helper.h
+--- a/components/performance_manager/performance_manager_tab_helper.h
++++ b/components/performance_manager/performance_manager_tab_helper.h
+@@ -10,6 +10,7 @@
+ #include <optional>
+ #include <vector>
+ 
++#include "base/callback_list.h"
+ #include "base/gtest_prod_util.h"
+ #include "base/memory/raw_ptr.h"
+ #include "base/observer_list.h"
+@@ -76,6 +77,7 @@
+       content::RenderFrameHost::LifecycleState new_state) override;
+   void OnVisibilityWillChange(content::Visibility visibility) override;
+   void OnVisibilityChanged(content::Visibility visibility) override;
++  void HighPerformanceModeChanged(bool enabled);
+   void OnAudioStateChanged(bool audible) override;
+   void OnFrameAudioStateChanged(content::RenderFrameHost* render_frame_host,
+                                 bool is_audible) override;
+@@ -194,6 +196,8 @@
+                      base::ObserverListReentrancyPolicy::kDisallowReentrancy>
+       observers_;
+ 
++  base::CallbackListSubscription high_performance_subscription_;
++
+   WEB_CONTENTS_USER_DATA_KEY_DECL();
+ };
+ 

@@ -1,0 +1,11 @@
+diff --git a/content/browser/BUILD.gn b/content/browser/BUILD.gn
+--- a/content/browser/BUILD.gn
++++ b/content/browser/BUILD.gn
+@@ -383,6 +383,7 @@
+   ]
+ 
+   sources = [
++    "//dao/browser/performance/dao_high_performance_mode.cc",
+     "$target_gen_dir/devtools/protocol/audits.cc",
+     "$target_gen_dir/devtools/protocol/audits.h",
+     "$target_gen_dir/devtools/protocol/background_service.cc",

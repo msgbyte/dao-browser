@@ -1,0 +1,12 @@
+diff --git a/content/browser/web_contents/web_contents_impl.h b/content/browser/web_contents/web_contents_impl.h
+--- a/content/browser/web_contents/web_contents_impl.h
++++ b/content/browser/web_contents/web_contents_impl.h
+@@ -516,6 +516,8 @@
+   void SyncRendererPrefs() override;
+   void Stop() override;
+   void SetPageFrozen(bool frozen) override;
++  void OnHighPerformanceModeChanged();
++  void UpdateHighPerformanceWidgets();
+   std::unique_ptr<WebContents> Clone() override;
+   void ReloadFocusedFrame() override;
+   void Undo() override;

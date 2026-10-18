@@ -1,0 +1,48 @@
+diff --git a/content/browser/renderer_host/render_process_host_impl.cc b/content/browser/renderer_host/render_process_host_impl.cc
+--- a/content/browser/renderer_host/render_process_host_impl.cc
++++ b/content/browser/renderer_host/render_process_host_impl.cc
+@@ -5824,6 +5824,7 @@
+ 
+ void RenderProcessHostImpl::UpdateProcessPriorityInputs() {
+   int32_t new_visible_widgets_count = 0;
++  bool new_high_performance_clients = false;
+   unsigned int new_frame_depth = kMaxFrameDepthForPriority;
+   bool new_intersects_viewport = false;
+   bool new_is_discarding = false;
+@@ -5834,6 +5835,7 @@
+ #endif
+   for (RenderProcessHostPriorityClient* client : priority_clients_) {
+     RenderProcessHostPriorityClient::Priority priority = client->GetPriority();
++    new_high_performance_clients |= priority.high_performance;
+ 
+     // Compute the lowest depth of widgets with highest visibility priority.
+     // See comment on |frame_depth_| for more details.
+@@ -5864,11 +5866,14 @@
+ #endif
+   }
+ 
+-  bool inputs_changed = new_visible_widgets_count != visible_clients_ ||
+-                        frame_depth_ != new_frame_depth ||
+-                        intersects_viewport_ != new_intersects_viewport ||
+-                        new_is_discarding != is_discarding_;
++  bool inputs_changed =
++      new_high_performance_clients != has_high_performance_clients_ ||
++      new_visible_widgets_count != visible_clients_ ||
++      frame_depth_ != new_frame_depth ||
++      intersects_viewport_ != new_intersects_viewport ||
++      new_is_discarding != is_discarding_;
+   visible_clients_ = new_visible_widgets_count;
++  has_high_performance_clients_ = new_high_performance_clients;
+   frame_depth_ = new_frame_depth;
+   intersects_viewport_ = new_intersects_viewport;
+   is_discarding_ = new_is_discarding;
+@@ -5904,7 +5909,8 @@
+       spare_renderer_priority_status_ == SpareRendererPriorityStatus::kSpare,
+       GetEffectiveImportance(), has_active_clients_
+ #else
+-      priority_override_
++      has_high_performance_clients_ ? base::Process::Priority::kUserBlocking
++                                    : priority_override_
+ #endif
+   );
+ 

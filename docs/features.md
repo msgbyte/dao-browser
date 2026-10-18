@@ -1040,10 +1040,20 @@ Built on Chromium's native PiP, adds a Document-PiP interception layer plus seve
 
 macOS-style floating control center panel bundling extensions and utilities.
 
-- **Frame throttling exemptions** — Viz supports explicit exemptions for frame
-  sinks and their descendants, preserving them across GPU reconnects and shared
-  parent chains. Capture alone retains undrawn-frame throttling, and
-  unresponsive clients remain throttled in both modes.
+- **Per-tab High Performance Mode** — Browser-side state follows the tab through
+  reloads, navigation, and window moves, and ends when the tab closes; it is not
+  restored across browser restarts. Chromium treats protected pages as visible
+  for scheduling and painting, rejects browser discard and freeze requests,
+  maintains foreground renderer priority, and exempts their frame sinks and
+  descendants from Energy Saver and other frame throttling. Turning it off
+  restores normal policies without changing other tabs' settings. Fenced frames
+  and MPArch guest pages inherit renderer priority; inner and guest WebContents
+  inherit the owning tab's mode through attachment, navigation, and detachment.
+  Shared frame sinks remain protected while any ancestor is exempt. Capture
+  alone retains Chromium's undrawn-frame protection. Shared renderer processes
+  may also benefit from the priority boost. Normal garbage collection, OS memory
+  management, system sleep, hardware limits, crashes, and websites' own
+  focus-based behavior remain unchanged.
 - **DaoControlCenterButton** — Trigger button
 - **DaoControlCenterPopup** — Floating popup with transparent overlay click-to-close
 - **DaoControlCenterExtensionsSection** — Extensions grid

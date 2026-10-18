@@ -1,0 +1,132 @@
+diff --git a/content/browser/web_contents/web_contents_impl.cc b/content/browser/web_contents/web_contents_impl.cc
+--- a/content/browser/web_contents/web_contents_impl.cc
++++ b/content/browser/web_contents/web_contents_impl.cc
+@@ -182,6 +182,7 @@
+ #include "content/public/common/referrer_type_converters.h"
+ #include "content/public/common/url_constants.h"
+ #include "content/public/common/widget_type.h"
++#include "dao/browser/performance/dao_high_performance_mode.h"
+ #include "ipc/constants.mojom.h"
+ #include "media/base/media_switches.h"
+ #include "net/base/url_util.h"
+@@ -313,6 +314,18 @@
+ base::LazyInstance<base::RepeatingCallbackList<void(WebContents*)>>::
+     DestructorAtExit g_created_callbacks = LAZY_INSTANCE_INITIALIZER;
+ 
++bool IsInPrimaryPageTree(RenderFrameHostImpl* frame) {
++  auto* main_frame = frame->GetOutermostMainFrame();
++  if (main_frame->IsInPrimaryMainFrame()) {
++    return true;
++  }
++  // Guest main frames are not primary, including during cross-site swaps.
++  return main_frame->frame_tree()->is_guest() &&
++         !main_frame->IsPendingDeletion() &&
++         !main_frame->IsInBackForwardCache() &&
++         main_frame->GetOutermostMainFrameOrEmbedder()->IsInPrimaryMainFrame();
++}
++
+ bool HasMatchingWidgetHost(FrameTree* tree, RenderWidgetHostImpl* host) {
+   // This method scans the frame tree rather than checking whether
+   // host->delegate() == this, which allows it to return false when the host
+@@ -2636,7 +2649,7 @@
+   if (!base::FeatureList::IsEnabled(features::kWebContentsDiscard)) {
+     NOTREACHED();
+   }
+-  if (WasDiscarded()) {
++  if (dao::DaoHighPerformanceMode::IsEnabled(this) || WasDiscarded()) {
+     // TODO(crbug.com/441841249): Consider updating `on_discarded_cb` to return
+     // a bool to indicate whether the operation completed successfully.
+     return;
+@@ -3387,6 +3400,7 @@
+   // Make sure that the inner web contents and its outer delegate get properly
+   // linked via the embedding token now that inner web contents are attached.
+   inner_main_frame->PropagateEmbeddingTokenToParentFrame();
++  dao::DaoHighPerformanceMode::Refresh(inner_web_contents);
+ }
+ 
+ void WebContentsImpl::DetachUnownedInnerWebContents(
+@@ -3463,6 +3477,7 @@
+   }
+ 
+   inner_main_frame->UpdateAXTreeData();
++  dao::DaoHighPerformanceMode::Refresh(inner_web_contents);
+ }
+ 
+ SurfaceEmbedConnector* WebContentsImpl::GetSurfaceEmbedConnector() const {
+@@ -3671,6 +3686,7 @@
+ 
+   outer_render_manager->set_attach_inner_delegate_complete();
+   inner_main_frame->PropagateEmbeddingTokenToParentFrame();
++  UpdateHighPerformanceWidgets();
+   // TODO(crbug.com/40202416): Determine if anything else is needed here.
+ }
+ 
+@@ -4204,11 +4220,36 @@
+ void WebContentsImpl::SetPageFrozen(bool frozen) {
+   TRACE_EVENT1("content", "WebContentsImpl::SetPageFrozen", "frozen", frozen);
+ 
++  if (frozen && dao::DaoHighPerformanceMode::IsEnabled(this)) {
++    return;
++  }
++
+   // A visible page is never frozen.
+   DCHECK_NE(Visibility::VISIBLE, GetVisibility());
+ 
+   primary_frame_tree_.ForEachRenderViewHost(
+       [&frozen](RenderViewHostImpl* rvh) { rvh->SetIsFrozen(frozen); });
++}
++
++void WebContentsImpl::OnHighPerformanceModeChanged() {
++  const bool enabled = dao::DaoHighPerformanceMode::IsEnabled(this);
++  if (enabled) {
++    primary_frame_tree_.ForEachRenderViewHost(
++        [](RenderViewHostImpl* host) { host->SetIsFrozen(false); });
++  }
++  UpdateVisibilityAndNotifyPageAndView(GetVisibility(), /*is_activity=*/false);
++  UpdateHighPerformanceWidgets();
++}
++
++void WebContentsImpl::UpdateHighPerformanceWidgets() {
++  ForEachRenderFrameHostImplIncludingSpeculative(
++      [this](RenderFrameHostImpl* frame) {
++        if (auto* widget = frame->GetLocalRenderWidgetHost()) {
++          widget->SetHighPerformanceMode(
++              dao::DaoHighPerformanceMode::IsEnabled(this) &&
++              IsInPrimaryPageTree(frame));
++        }
++      });
+ }
+ 
+ std::unique_ptr<WebContents> WebContentsImpl::Clone() {
+@@ -5011,8 +5052,9 @@
+   // "disable rendering" optimization, since it still needs to drive the video,
+   // and possibly other elements on the page like canvas, to keep the picture in
+   // picture window up to date.
+-  if (visibility == Visibility::VISIBLE || visible_capturer_count_ > 0 ||
+-      web_contents_visible_in_vr) {
++  if (visibility == Visibility::VISIBLE ||
++      dao::DaoHighPerformanceMode::IsEnabled(this) ||
++      visible_capturer_count_ > 0 || web_contents_visible_in_vr) {
+     return PageVisibilityState::kVisible;
+   } else if (hidden_capturer_count_ > 0 || has_picture_in_picture_video_ ||
+              has_picture_in_picture_document_) {
+@@ -8990,6 +9032,11 @@
+                                render_frame_host);
+   }
+   render_frame_host->UpdateAccessibilityMode();
++  if (auto* widget = render_frame_host->GetLocalRenderWidgetHost()) {
++    widget->SetHighPerformanceMode(
++        dao::DaoHighPerformanceMode::IsEnabled(this) &&
++        IsInPrimaryPageTree(render_frame_host));
++  }
+ 
+   if (safe_area_insets_host_) {
+     safe_area_insets_host_->RenderFrameCreated(render_frame_host);
+@@ -12176,6 +12223,7 @@
+   OPTIONAL_TRACE_EVENT0("content", "WebContentsImpl::PrimaryPageChanged");
+ 
+   DCHECK_EQ(&page, &GetPrimaryPage());
++  UpdateHighPerformanceWidgets();
+ 
+ #if BUILDFLAG(IS_ANDROID)
+   // Apply the cached subframe importance if it is set. This is needed for

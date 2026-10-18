@@ -650,13 +650,25 @@ actively removing MV2 infrastructure, so these flags/enums may vanish entirely o
 
 ## 12. Control Center, Welcome, Webstore Branding
 
+- [ ] Run `DaoHighPerformance*BrowserTest.*`. Keep a protected tab in the background and minimize its window for at least
+  a minute without screen capture: timers, animation, and WebGL continue; browser
+  freeze and discard requests are rejected.
+  Reload, cross-site navigation, iframe navigation, window moves, and renderer
+  recovery retain the setting. Cover existing/new cross-site fenced frames and
+  inner/guest WebContents: attachment and navigation inherit protection, mode
+  changes update nested contents, and detachment restores independent behavior.
+  With MPArch guests enabled, check existing and newly navigated guest pages.
+  Unprotected tabs keep their normal behavior.
+- [ ] With Energy Saver enabled, verify protected content is exempt from its
+  frame limit, including nested frames and after Viz reconnect. Turning the mode
+  off restores throttling and normal process priority. Closing the tab releases
+  protection; reopening it or restarting the browser leaves the mode off.
 - [ ] Run the Viz capture/explicit-exemption regressions: capture alone still
-  throttles excessive undrawn frames; removing an explicit exemption restores
-  the limit even during capture. Verify inheritance across nested/shared frame
-  sinks, support recreation, and GPU reconnect. Disabling, destroying, or
-  disconnecting one exempt ancestor must retain another ancestor's protection.
-  Removing the last exemption restores normal limits; unresponsive clients
-  remain protected by Chromium's existing throttling in both modes.
+  throttles excessive undrawn frames; turning off the explicit exemption
+  restores that limit even during capture. Check inherited exemptions after
+  support recreation and retain unresponsive-client protection in both modes.
+  A shared descendant must stay protected when one exempt ancestor is disabled
+  or destroyed while another remains exempt.
 
 | ✔ | Feature | Patch(es) / Source | Risk | Verify |
 |---|---------|--------------------|------|--------|

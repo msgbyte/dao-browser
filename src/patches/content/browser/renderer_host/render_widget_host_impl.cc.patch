@@ -1,0 +1,35 @@
+diff --git a/content/browser/renderer_host/render_widget_host_impl.cc b/content/browser/renderer_host/render_widget_host_impl.cc
+--- a/content/browser/renderer_host/render_widget_host_impl.cc
++++ b/content/browser/renderer_host/render_widget_host_impl.cc
+@@ -2171,6 +2171,7 @@
+     priority.importance = ChildProcessImportance::NORMAL;
+ #endif
+   }
++  priority.high_performance = high_performance_mode_ && should_contribute;
+   return priority;
+ }
+ 
+@@ -3883,6 +3884,7 @@
+   // If we are creating a new frame sink (e.g. after context loss), discard
+   // any pending initial pipes that were not used.
+   initial_frame_sink_pipes_.reset();
++  SetHighPerformanceMode(high_performance_mode_);
+   // Connects the viz process end of CompositorFrameSink message pipes. The
+   // renderer compositor may request a new CompositorFrameSink on context
+   // loss, which will destroy the existing CompositorFrameSink.
+@@ -4301,6 +4303,15 @@
+   blink_widget_->ForceRedraw(base::DoNothing());
+ }
+ 
++void RenderWidgetHostImpl::SetHighPerformanceMode(bool enabled) {
++  high_performance_mode_ = enabled;
++  auto* manager = GetHostFrameSinkManager();
++  if (manager && manager->IsFrameSinkIdRegistered(GetFrameSinkId())) {
++    manager->SetFrameSinkThrottlingExempt(GetFrameSinkId(), enabled);
++  }
++  UpdatePriority();
++}
++
+ void RenderWidgetHostImpl::SetIsDiscarding(bool is_discarding) {
+   if (is_discarding_ == is_discarding) {
+     return;

@@ -269,6 +269,7 @@ dao_browser_ui_test_sources = [
   "//dao/browser/automation/dao_page_tools_browsertest.cc",
   "//dao/browser/automation/dao_tab_tools_browsertest.cc",
   "//dao/browser/ui/views/dao_browser_browsertest.cc",
+  "//dao/browser/ui/views/dao_high_performance_browsertest.cc",
   "//dao/browser/ui/webui/dao_folder_storage_unittest.cc",
   "//dao/browser/ui/webui/dao_pinned_tab_model_unittest.cc",
 ]
