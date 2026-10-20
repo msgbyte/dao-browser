@@ -1,0 +1,23 @@
+diff --git a/ui/gl/init/gl_initializer_angle.cc b/ui/gl/init/gl_initializer_angle.cc
+--- a/ui/gl/init/gl_initializer_angle.cc
++++ b/ui/gl/init/gl_initializer_angle.cc
+@@ -5,6 +5,8 @@
+ #include "ui/gl/init/gl_initializer.h"
+ 
+ #include <EGL/egl.h>
++
++#include "ui/gl/init/gl_factory.h"
+ 
+ extern "C" {
+ // The ANGLE internal eglGetProcAddress
+@@ -15,6 +17,10 @@
+ namespace gl {
+ namespace init {
+ 
++GLGetProcAddressProc GetStaticANGLEGetProcAddress() {
++  return &EGL_GetProcAddress;
++}
++
+ bool InitializeStaticANGLEEGL() {
+   SetGLGetProcAddressProc(&EGL_GetProcAddress);
+   return true;

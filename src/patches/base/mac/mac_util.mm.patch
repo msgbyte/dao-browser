@@ -1,0 +1,19 @@
+diff --git a/base/mac/mac_util.mm b/base/mac/mac_util.mm
+--- a/base/mac/mac_util.mm
++++ b/base/mac/mac_util.mm
+@@ -289,7 +289,14 @@
+ 
+   const char kQuarantineAttrName[] = "com.apple.quarantine";
+   int status = removexattr(file_path.value().c_str(), kQuarantineAttrName, 0);
+-  return status == 0 || errno == ENOATTR;
++  if (status == 0 || errno == ENOATTR) {
++    return true;
++  }
++
++  // Protected directories can reject removal even when the attribute is absent.
++  return getxattr(file_path.value().c_str(), kQuarantineAttrName, nullptr, 0, 0,
++                  0) == -1 &&
++         errno == ENOATTR;
+ }
+ 
+ void SetFileTags(const FilePath& file_path,

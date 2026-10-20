@@ -1,0 +1,12 @@
+diff --git a/third_party/blink/renderer/modules/webgl/BUILD.gn b/third_party/blink/renderer/modules/webgl/BUILD.gn
+--- a/third_party/blink/renderer/modules/webgl/BUILD.gn
++++ b/third_party/blink/renderer/modules/webgl/BUILD.gn
+@@ -203,7 +203,7 @@
+     "//ui/gl",
+   ]
+   if (use_static_angle) {
+-    deps += [ "//third_party/angle:libGLESv2_thin_static" ]
++    deps += [ "//ui/gl/init" ]
+   }
+   allow_circular_includes_from = deps
+ }

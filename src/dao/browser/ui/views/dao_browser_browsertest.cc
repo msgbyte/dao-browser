@@ -258,6 +258,14 @@
 #include "url/origin.h"
 #include "url/url_constants.h"
 
+#if BUILDFLAG(IS_MAC)
+#include <errno.h>
+#include <sys/stat.h>
+#include <sys/xattr.h>
+
+#include "base/mac/mac_util.h"
+#endif
+
 namespace dao {
 
 class DaoSidebarContextMenuTestApi {
@@ -954,6 +962,48 @@ class WidgetCloseRequestObserver : public views::WidgetObserver {
 };
 
 #if BUILDFLAG(IS_MAC)
+TEST(DaoMacQuarantineTest,
+     ProtectedDirectoryDistinguishesAbsentAndPresentAttribute) {
+  base::ScopedTempDir directory;
+  ASSERT_TRUE(directory.CreateUniqueTempDir());
+  const char* path = directory.GetPath().value().c_str();
+  constexpr char kAttribute[] = "com.apple.quarantine";
+  constexpr char kValue[] = "0081;00000000;DaoTest;";
+  ASSERT_EQ(-1, getxattr(path, kAttribute, nullptr, 0, 0, 0));
+  ASSERT_EQ(ENOATTR, errno);
+
+  ASSERT_EQ(0, chflags(path, UF_IMMUTABLE));
+  base::ScopedClosureRunner restore_flags(base::BindLambdaForTesting([path] {
+    EXPECT_EQ(0, chflags(path, 0));
+  }));
+  ASSERT_EQ(-1, removexattr(path, kAttribute, 0));
+  ASSERT_EQ(EPERM, errno);
+  EXPECT_TRUE(base::mac::RemoveQuarantineAttribute(directory.GetPath()));
+
+  ASSERT_EQ(0, chflags(path, 0));
+  ASSERT_EQ(0, setxattr(path, kAttribute, kValue, sizeof(kValue) - 1, 0, 0));
+  ASSERT_EQ(0, chflags(path, UF_IMMUTABLE));
+  EXPECT_FALSE(base::mac::RemoveQuarantineAttribute(directory.GetPath()));
+  EXPECT_EQ(static_cast<ssize_t>(sizeof(kValue) - 1),
+            getxattr(path, kAttribute, nullptr, 0, 0, 0));
+}
+
+TEST(DaoMacQuarantineTest, RemovesExistingAttributeAndRejectsMissingPath) {
+  base::ScopedTempDir directory;
+  ASSERT_TRUE(directory.CreateUniqueTempDir());
+  const char* path = directory.GetPath().value().c_str();
+  constexpr char kAttribute[] = "com.apple.quarantine";
+  constexpr char kValue[] = "0081;00000000;DaoTest;";
+  ASSERT_EQ(0, setxattr(path, kAttribute, kValue, sizeof(kValue) - 1, 0, 0));
+
+  EXPECT_TRUE(base::mac::RemoveQuarantineAttribute(directory.GetPath()));
+  EXPECT_TRUE(base::mac::RemoveQuarantineAttribute(directory.GetPath()));
+  EXPECT_EQ(-1, getxattr(path, kAttribute, nullptr, 0, 0, 0));
+  EXPECT_EQ(ENOATTR, errno);
+  EXPECT_FALSE(base::mac::RemoveQuarantineAttribute(
+      directory.GetPath().AppendASCII("missing")));
+}
+
 TEST(DaoSparkleUpdateSessionStateTest,
      BackgroundInstallOnQuitUsesDaoReadyButton) {
   dao::DaoSparkleUpdateSessionState state;

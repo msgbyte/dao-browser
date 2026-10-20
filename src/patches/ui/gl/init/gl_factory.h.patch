@@ -1,0 +1,15 @@
+diff --git a/ui/gl/init/gl_factory.h b/ui/gl/init/gl_factory.h
+--- a/ui/gl/init/gl_factory.h
++++ b/ui/gl/init/gl_factory.h
+@@ -30,6 +30,11 @@
+ struct GLVersionInfo;
+ 
+ namespace init {
++
++#if BUILDFLAG(USE_STATIC_ANGLE)
++// Returns the static ANGLE procedure resolver without initializing GL.
++GL_INIT_EXPORT GLGetProcAddressProc GetStaticANGLEGetProcAddress();
++#endif  // BUILDFLAG(USE_STATIC_ANGLE)
+ 
+ // Returns a list of allowed GL implementations. The default implementation will
+ // be the first item.

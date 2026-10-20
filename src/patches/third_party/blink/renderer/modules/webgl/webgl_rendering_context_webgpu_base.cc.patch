@@ -1,0 +1,21 @@
+diff --git a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_webgpu_base.cc b/third_party/blink/renderer/modules/webgl/webgl_rendering_context_webgpu_base.cc
+--- a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_webgpu_base.cc
++++ b/third_party/blink/renderer/modules/webgl/webgl_rendering_context_webgpu_base.cc
+@@ -55,14 +55,11 @@
+ #include "ui/gl/gl_version_info.h"
+ 
+ #if BUILDFLAG(USE_STATIC_ANGLE)
+-extern "C" {
+-// The ANGLE internal eglGetProcAddress
+-EGLAPI __eglMustCastToProperFunctionPointerType EGLAPIENTRY
+-EGL_GetProcAddress(const char* procname);
+-}
++#include "ui/gl/init/gl_factory.h"
++
+ namespace {
+ GLGetProcAddressProc GetStaticANGLEGetProcAddressFunction() {
+-  return EGL_GetProcAddress;
++  return gl::init::GetStaticANGLEGetProcAddress();
+ }
+ }  // namespace
+ #else

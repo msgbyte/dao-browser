@@ -1,0 +1,9 @@
+diff --git a/third_party/blink/renderer/modules/webgl/DEPS b/third_party/blink/renderer/modules/webgl/DEPS
+--- a/third_party/blink/renderer/modules/webgl/DEPS
++++ b/third_party/blink/renderer/modules/webgl/DEPS
+@@ -34,4 +34,5 @@
+     "+ui/gl/gl_utils.h",
+     "+ui/gl/gl_version_info.h",
+     "+ui/gl/gpu_preference.h",
++    "+ui/gl/init/gl_factory.h",
+ ]
