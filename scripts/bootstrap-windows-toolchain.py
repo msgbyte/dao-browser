@@ -219,6 +219,14 @@ def main():
                       downloader, DOWNLOADER_SHA256)
     manifest = cache / 'visual-studio.manifest'
     download_verified(VS_MANIFEST_URL, manifest, VS_MANIFEST_SHA256)
+    # SDK 28000 URLs contain spaces; keep the pinned manifest and payload hashes intact.
+    contents = json.loads(manifest.read_text())
+    for package in contents['packages']:
+        for payload in package.get('payloads', []):
+            if 'url' in payload:
+                payload['url'] = payload['url'].replace(' ', '%20')
+    manifest = cache / 'visual-studio-download.manifest'
+    manifest.write_text(json.dumps(contents))
     source = workspace / 'vs'
     subprocess.run([sys.executable, str(downloader), '--accept-license', '--manifest', str(manifest),
                     '--host-arch', 'x64', '--architecture', 'x86', 'x64', 'arm64',

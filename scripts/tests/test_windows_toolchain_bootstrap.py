@@ -53,8 +53,21 @@ class WindowsToolchainBootstrapTest(unittest.TestCase):
         file.write_bytes(b'fixture')
 
     def test_bootstraps_m154_sdk_with_matching_downloader_and_archive_versions(self):
+        manifest = self.root / '.dao/windows-sdk/cache/visual-studio.manifest'
+        manifest.parent.mkdir(parents=True)
+        manifest.write_text(json.dumps({'packages': [{'payloads': [{
+            'url': 'https://example.test/w kits2/Windows%20SDK.msi',
+            'sha256': 'a' * 64,
+        }]}, {'id': 'component-without-payloads'}]}))
+        manifest_hash = BOOTSTRAP.file_hash(manifest)
+
         def download_packages(command, **kwargs):
             self.assertEqual(command[command.index('--sdk-version') + 1], '10.0.28000')
+            downloaded_manifest = Path(command[command.index('--manifest') + 1])
+            payload = json.loads(downloaded_manifest.read_text())['packages'][0]['payloads'][0]
+            self.assertEqual(payload['url'], 'https://example.test/w%20kits2/Windows%20SDK.msi')
+            self.assertEqual(payload['sha256'], 'a' * 64)
+            self.assertEqual(BOOTSTRAP.file_hash(manifest), manifest_hash)
             shutil.copytree(self.source, command[command.index('--dest') + 1])
 
         path_exists = Path.exists
