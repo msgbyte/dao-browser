@@ -294,6 +294,10 @@ export async function applyPatchWithAlreadyAppliedFallback(
   srcDir: string,
   patchPath: string
 ): Promise<PatchApplyResult> {
+  // A failed batch can leave earlier patches applied, including insertions.
+  if (await isPatchAlreadyApplied(srcDir, patchPath)) {
+    return "already-applied";
+  }
   try {
     await execFileAsync("git", ["apply", patchPath], { cwd: srcDir });
     return "applied";

@@ -671,6 +671,33 @@ describe('import helpers', () => {
         .resolves.toBe('already-applied');
   });
 
+  it('does not repeat an insertion applied before batch fallback', async () => {
+    const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'dao-import-test-'));
+    const repoDir = path.join(tempRoot, 'engine/src');
+    mkdirSync(repoDir, {recursive: true});
+    execFileSync('git', ['init'], {cwd: repoDir, stdio: 'ignore'});
+    const targetPath = path.join(repoDir, 'example.txt');
+    writeFileSync(targetPath, 'prefix\nhead\ntail\nsuffix\n');
+    const patchPath = path.join(tempRoot, 'example.patch');
+    writeFileSync(patchPath, [
+      'diff --git a/example.txt b/example.txt',
+      '--- a/example.txt',
+      '+++ b/example.txt',
+      '@@ -2,2 +2,3 @@',
+      ' head',
+      '+head',
+      ' tail',
+      '',
+    ].join('\n'));
+
+    await expect(applyPatchWithAlreadyAppliedFallback(repoDir, patchPath))
+        .resolves.toBe('applied');
+    await expect(applyPatchWithAlreadyAppliedFallback(repoDir, patchPath))
+        .resolves.toBe('already-applied');
+    expect(readFileSync(targetPath, 'utf-8'))
+        .toBe('prefix\nhead\nhead\ntail\nsuffix\n');
+  });
+
   it('repairs patch files whose names do not match the target path', () => {
     const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'dao-import-test-'));
     mkdirSync(path.join(tempRoot, 'scripts'), {recursive: true});
