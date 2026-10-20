@@ -1,12 +1,11 @@
 diff --git a/chrome/browser/resources/settings/route.ts b/chrome/browser/resources/settings/route.ts
-index f3473b12d1..0000000001 100644
+index 51af5ee..e4e7de3 100644
 --- a/chrome/browser/resources/settings/route.ts
 +++ b/chrome/browser/resources/settings/route.ts
-@@ -200,6 +200,15 @@ function createRoutes(): SettingsRoutes {
+@@ -189,6 +189,15 @@ function createRoutes(): SettingsRoutes {
      r.SYNC_ADVANCED = r.SYNC.createChild('/syncSetup/advanced');
    }
--
-+
+ 
 +  if (visibility.dao !== false) {
 +    r.DAO = r.BASIC.createSection(
 +        '/dao', 'dao', loadTimeData.getString('daoPageTitle'));
@@ -18,4 +17,4 @@ index f3473b12d1..0000000001 100644
 +
    if (visibility.ai !== false && loadTimeData.getBoolean('showAiPage')) {
      r.AI = r.BASIC.createSection(
-         '/ai', 'ai', loadTimeData.getString('aiInnovationsPageTitle'));
+         '/ai', 'ai', loadTimeData.getString('aiPageTitle'));

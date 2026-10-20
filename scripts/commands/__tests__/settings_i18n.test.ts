@@ -393,12 +393,12 @@ describe('settings i18n patches', () => {
     }
   });
 
-  it('does not repeat translation IDs inside the zh-CN patch', () => {
+  it('does not repeat translation IDs on the resulting side of the zh-CN patch', () => {
     const patch = readFileSync(path.join(
         process.cwd(),
         'src/patches/chrome/app/resources/generated_resources_zh-CN.xtb.patch'),
     'utf-8');
-    const ids = [...patch.matchAll(/translation id="(\d+)"/g)]
+    const ids = [...patch.matchAll(/^[+ ]<translation id="(\d+)"/gm)]
                     .map(match => match[1]);
     expect(new Set(ids).size).toBe(ids.length);
   });

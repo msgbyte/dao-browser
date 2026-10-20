@@ -23,7 +23,7 @@
 #include "ui/views/controls/webview/unhandled_keyboard_event_handler.h"
 #include "ui/views/view.h"
 
-class Browser;
+class BrowserWindowInterface;
 
 namespace views {
 class WebView;
@@ -44,7 +44,7 @@ class DaoAgentSidebarView : public views::View,
   static constexpr int kMaxWidth = 600;
   static constexpr int kResizeAreaWidth = 6;
 
-  explicit DaoAgentSidebarView(Browser* browser);
+  explicit DaoAgentSidebarView(BrowserWindowInterface* browser);
   ~DaoAgentSidebarView() override;
 
   // Toggle visibility; returns new expanded state.
@@ -136,7 +136,7 @@ class DaoAgentSidebarView : public views::View,
   // animation on macOS.
   void StartWidthAnimation(int from, int to);
 
-  raw_ptr<Browser> browser_;
+  raw_ptr<BrowserWindowInterface> browser_;
   raw_ptr<views::WebView> web_view_ = nullptr;
   raw_ptr<views::ResizeArea> resize_area_ = nullptr;
 

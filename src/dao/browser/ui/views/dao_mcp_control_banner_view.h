@@ -10,7 +10,7 @@
 #include "base/memory/raw_ptr.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
 
-class Browser;
+class BrowserWindowInterface;
 
 namespace content {
 class WebContents;
@@ -33,8 +33,8 @@ class DaoMcpControlBannerView final
 
  public:
   DaoMcpControlBannerView(views::View* anchor_view,
-                         Browser* browser,
-                         content::WebContents* target);
+                          BrowserWindowInterface* browser,
+                          content::WebContents* target);
   ~DaoMcpControlBannerView() override;
 
   DaoMcpControlBannerView(const DaoMcpControlBannerView&) = delete;
@@ -53,7 +53,7 @@ class DaoMcpControlBannerView final
  private:
   void OnStopPressed();
 
-  raw_ptr<Browser> browser_;
+  raw_ptr<BrowserWindowInterface> browser_;
   raw_ptr<views::Label> latest_tool_label_ = nullptr;
   uint64_t latest_tool_call_serial_ = 0;
   raw_ptr<views::MdTextButton> stop_button_ = nullptr;

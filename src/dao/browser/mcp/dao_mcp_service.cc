@@ -33,12 +33,11 @@
 #include "base/uuid.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/tab_list/tab_list_interface.h"
-#include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/frame/multi_contents_view.h"
 #include "chrome/common/chrome_paths.h"
 #include "components/prefs/pref_service.h"
 #include "components/tabs/public/tab_interface.h"
@@ -247,7 +246,10 @@ class DaoMcpPageUiDelegate final : public DaoPageTools::UiDelegate {
                   double x,
                   double y,
                   base::OnceCallback<void(bool)> callback) override {
-    Browser* browser = target ? chrome::FindBrowserWithTab(target) : nullptr;
+    BrowserWindowInterface* browser =
+        target ? GlobalBrowserCollection::GetInstance()
+                 ->FindBrowserWithTab(target)
+               : nullptr;
     BrowserView* browser_view =
         browser ? BrowserView::GetBrowserViewForBrowser(browser) : nullptr;
     auto* cursor_view =
@@ -266,7 +268,8 @@ class DaoMcpPageUiDelegate final : public DaoPageTools::UiDelegate {
     if (target->GetRenderWidgetHostView()) {
       viewport_screen = target->GetRenderWidgetHostView()->GetViewBounds();
     } else {
-      viewport_screen = browser_view->contents_container()->GetBoundsInScreen();
+      viewport_screen =
+          browser_view->multi_contents_view()->GetBoundsInScreen();
     }
     const gfx::Rect cursor_bounds = cursor_view->GetBoundsInScreen();
     const float view_x =
@@ -290,7 +293,10 @@ class DaoMcpPageUiDelegate final : public DaoPageTools::UiDelegate {
   }
 
   void PlayClickRipple(content::WebContents* target) override {
-    Browser* browser = target ? chrome::FindBrowserWithTab(target) : nullptr;
+    BrowserWindowInterface* browser =
+        target ? GlobalBrowserCollection::GetInstance()
+                 ->FindBrowserWithTab(target)
+               : nullptr;
     BrowserView* browser_view =
         browser ? BrowserView::GetBrowserViewForBrowser(browser) : nullptr;
     auto* cursor_view =
@@ -311,10 +317,8 @@ class DaoMcpPageUiDelegate final : public DaoPageTools::UiDelegate {
     }
     for (BrowserWindowInterface* browser_window :
          GetAllBrowserWindowInterfaces()) {
-      Browser* browser = browser_window
-                             ? browser_window->GetBrowserForMigrationOnly()
-                             : nullptr;
-      if (!browser || browser->profile() != target->GetBrowserContext()) {
+      BrowserWindowInterface* browser = browser_window;
+      if (!browser || browser->GetProfile() != target->GetBrowserContext()) {
         continue;
       }
       BrowserView* browser_view =
@@ -467,7 +471,7 @@ std::string DaoMcpService::GetMcpConfiguration() const {
   return BuildDaoMcpConfigurationForBundle(base::apple::OuterBundlePath());
 }
 
-Browser* DaoMcpService::GetAuthorizedBrowser() const {
+BrowserWindowInterface* DaoMcpService::GetAuthorizedBrowser() const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   const ConnectionState* connection = GetDisplayConnection();
   const TargetContext* context =
@@ -476,8 +480,7 @@ Browser* DaoMcpService::GetAuthorizedBrowser() const {
     return nullptr;
   }
   BrowserWindowInterface* browser_window = context->session->browser_window();
-  return browser_window ? browser_window->GetBrowserForMigrationOnly()
-                        : nullptr;
+  return browser_window;
 }
 
 content::WebContents* DaoMcpService::GetAuthorizedTarget() const {
@@ -1112,10 +1115,9 @@ void DaoMcpService::HandleToolsList(ConnectionState& connection,
   const TargetContext* context = GetDefaultTargetContext(connection);
   BrowserWindowInterface* browser_window =
       GlobalBrowserCollection::GetInstance()->GetLastActiveBrowser();
-  Browser* browser =
-      browser_window ? browser_window->GetBrowserForMigrationOnly() : nullptr;
+  BrowserWindowInterface* browser = browser_window;
   Profile* profile = context ? context->session->profile()
-                            : (browser ? browser->profile() : nullptr);
+                            : (browser ? browser->GetProfile() : nullptr);
   const base::DictValue* settings =
       profile && !profile->IsOffTheRecord() && !profile->IsGuestSession()
           ? &profile->GetPrefs()->GetDict(prefs::kDaoAgentSettings)
@@ -1393,9 +1395,9 @@ void DaoMcpService::CloseConnectionAfterWrites(ConnectionState& connection) {
   }
 }
 
-base::expected<Browser*, DaoToolError>
+base::expected<BrowserWindowInterface*, DaoToolError>
 DaoMcpService::PrepareApprovalSession(ConnectionState& connection,
-                                    const std::string* tab_id) {
+                                      const std::string* tab_id) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!connection.client_info || !connection.target_contexts.empty() ||
       connection.approval_state != ApprovalState::kNotRequested) {
@@ -1405,8 +1407,7 @@ DaoMcpService::PrepareApprovalSession(ConnectionState& connection,
 
   BrowserWindowInterface* browser_window =
       GlobalBrowserCollection::GetInstance()->GetLastActiveBrowser();
-  Browser* browser =
-      browser_window ? browser_window->GetBrowserForMigrationOnly() : nullptr;
+  BrowserWindowInterface* browser = browser_window;
   tabs::TabInterface* active_tab =
       browser_window ? browser_window->GetActiveTabInterface() : nullptr;
   if (tab_id) {
@@ -1436,13 +1437,11 @@ DaoMcpService::PrepareApprovalSession(ConnectionState& connection,
       return base::unexpected(
           InvalidRequest("The requested tab id is ambiguous."));
     }
-    browser = browser_window
-                  ? browser_window->GetBrowserForMigrationOnly()
-                  : nullptr;
+    browser = browser_window;
   }
   content::WebContents* target =
       active_tab ? active_tab->GetContents() : nullptr;
-  Profile* profile = browser ? browser->profile() : nullptr;
+  Profile* profile = browser ? browser->GetProfile() : nullptr;
   auto target_policy = ValidateExternalTarget(browser, profile, target);
   if (!target_policy.has_value()) {
     return base::unexpected(std::move(target_policy).error());
@@ -1461,7 +1460,7 @@ DaoMcpService::PrepareApprovalSession(ConnectionState& connection,
 }
 
 void DaoMcpService::RequestApproval(ConnectionState& connection,
-                                    Browser* browser,
+                                    BrowserWindowInterface* browser,
                                     std::string reason) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DaoMcpApprovalRequest request(*connection.client_info, std::move(reason),
@@ -1476,8 +1475,7 @@ void DaoMcpService::RequestApproval(ConnectionState& connection,
     return;
   }
   BrowserWindowInterface* browser_window = context->session->browser_window();
-  Browser* approval_browser =
-      browser_window ? browser_window->GetBrowserForMigrationOnly() : nullptr;
+  BrowserWindowInterface* approval_browser = browser_window;
   if (!approval_browser || approval_browser != browser) {
     RejectConnection(connection, MakeDaoToolError(
         DaoToolErrorCode::kTargetGone,
@@ -1627,9 +1625,8 @@ base::expected<std::string, DaoToolError> DaoMcpService::AddTargetContext(
         "This connection is authorized for only one tab. Reconnect with the "
         "other tab_id to request access."));
   }
-  Browser* browser =
-      browser_window ? browser_window->GetBrowserForMigrationOnly() : nullptr;
-  Profile* profile = browser ? browser->profile() : nullptr;
+  BrowserWindowInterface* browser = browser_window;
+  Profile* profile = browser ? browser->GetProfile() : nullptr;
   auto target_policy = ValidateExternalTarget(
       browser, profile, target, allow_uncommitted_url);
   if (!target_policy.has_value()) {
@@ -1640,12 +1637,9 @@ base::expected<std::string, DaoToolError> DaoMcpService::AddTargetContext(
           GetDefaultTargetContext(connection)) {
     BrowserWindowInterface* authorized_window =
         default_context->session->browser_window();
-    Browser* authorized_browser =
-        authorized_window
-            ? authorized_window->GetBrowserForMigrationOnly()
-            : nullptr;
+    BrowserWindowInterface* authorized_browser = authorized_window;
     if (!authorized_browser || authorized_window != browser_window ||
-        authorized_browser->profile() != profile) {
+        authorized_browser->GetProfile() != profile) {
       return base::unexpected(MakeDaoToolError(
           DaoToolErrorCode::kInvalidArgument,
           "MCP tab targets must remain in the approved browser window."));
@@ -1705,8 +1699,7 @@ base::expected<void, DaoToolError> DaoMcpService::AcquireTargetLease(
     return base::unexpected(std::move(target).error());
   }
   BrowserWindowInterface* browser_window = context.session->browser_window();
-  Browser* browser =
-      browser_window ? browser_window->GetBrowserForMigrationOnly() : nullptr;
+  BrowserWindowInterface* browser = browser_window;
   auto target_policy = ValidateExternalTarget(
       browser, context.session->profile(), *target, allow_uncommitted_url);
   if (!target_policy.has_value()) {
@@ -2077,7 +2070,9 @@ void DaoMcpService::SetEnabled(bool enabled) {
 
 DaoMcpServiceStatus DaoMcpService::GetStatus() const { return {}; }
 std::string DaoMcpService::GetMcpConfiguration() const { return {}; }
-Browser* DaoMcpService::GetAuthorizedBrowser() const { return nullptr; }
+BrowserWindowInterface* DaoMcpService::GetAuthorizedBrowser() const {
+  return nullptr;
+}
 content::WebContents* DaoMcpService::GetAuthorizedTarget() const {
   return nullptr;
 }

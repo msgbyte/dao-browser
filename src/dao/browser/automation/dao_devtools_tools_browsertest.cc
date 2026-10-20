@@ -1773,14 +1773,15 @@ IN_PROC_BROWSER_TEST_F(
   auto session = MakeSession(target_tab->GetContents());
 
   auto replacement = content::WebContents::Create(
-      content::WebContents::CreateParams(browser()->profile()));
+      content::WebContents::CreateParams(browser()->GetProfile()));
   content::WebContents* replacement_contents = replacement.get();
   const int target_index =
       TabListInterface::From(browser())->GetIndexOfTab(target_tab->GetHandle());
   ASSERT_GE(target_index, 0);
   std::unique_ptr<content::WebContents> discarded =
-      browser()->tab_strip_model()->DiscardWebContentsAt(
-          target_index, std::move(replacement));
+      browser()->tab_strip_model()->DiscardWebContents(
+          browser()->tab_strip_model()->GetWebContentsAt(target_index),
+          std::move(replacement));
   ASSERT_TRUE(content::NavigateToURL(replacement_contents, second_url()));
   session->SetTargetChangedCallback(base::BindRepeating(
       [](std::unique_ptr<DaoBrowserAutomationSession>* owned_session,
@@ -1804,14 +1805,15 @@ IN_PROC_BROWSER_TEST_F(
   auto session = MakeSession(target_tab->GetContents());
 
   auto replacement = content::WebContents::Create(
-      content::WebContents::CreateParams(browser()->profile()));
+      content::WebContents::CreateParams(browser()->GetProfile()));
   content::WebContents* replacement_contents = replacement.get();
   const int target_index =
       TabListInterface::From(browser())->GetIndexOfTab(target_tab->GetHandle());
   ASSERT_GE(target_index, 0);
   std::unique_ptr<content::WebContents> discarded =
-      browser()->tab_strip_model()->DiscardWebContentsAt(
-          target_index, std::move(replacement));
+      browser()->tab_strip_model()->DiscardWebContents(
+          browser()->tab_strip_model()->GetWebContentsAt(target_index),
+          std::move(replacement));
   ASSERT_TRUE(content::NavigateToURL(replacement_contents, second_url()));
   session->SetTargetChangedCallback(base::BindRepeating(
       [](std::unique_ptr<DaoBrowserToolExecutor>* owned_executor,
@@ -1984,14 +1986,15 @@ IN_PROC_BROWSER_TEST_F(DaoMcpDevToolsBrowserTest,
   ASSERT_TRUE(Execute(session.get(), "enable_console_tracking").ok);
 
   auto replacement = content::WebContents::Create(
-      content::WebContents::CreateParams(browser()->profile()));
+      content::WebContents::CreateParams(browser()->GetProfile()));
   content::WebContents* replacement_contents = replacement.get();
   const int target_index =
       TabListInterface::From(browser())->GetIndexOfTab(target_tab->GetHandle());
   ASSERT_GE(target_index, 0);
   std::unique_ptr<content::WebContents> discarded =
-      browser()->tab_strip_model()->DiscardWebContentsAt(
-          target_index, std::move(replacement));
+      browser()->tab_strip_model()->DiscardWebContents(
+          browser()->tab_strip_model()->GetWebContentsAt(target_index),
+          std::move(replacement));
   ASSERT_TRUE(content::NavigateToURL(replacement_contents, second_url()));
   ASSERT_EQ(replacement_contents, session->ResolveTarget().value());
   base::RunLoop().RunUntilIdle();

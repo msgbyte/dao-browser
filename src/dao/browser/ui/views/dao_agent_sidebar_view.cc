@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "dao/browser/ui/views/dao_agent_sidebar_view.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
 
 #include <algorithm>
@@ -15,7 +16,6 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/values.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_widget_host_view.h"
@@ -35,9 +35,8 @@ namespace dao {
 BEGIN_METADATA(DaoAgentSidebarView)
 END_METADATA
 
-DaoAgentSidebarView::DaoAgentSidebarView(Browser* browser)
-    : browser_(browser),
-      slide_animation_(base::Milliseconds(180), 60, this) {
+DaoAgentSidebarView::DaoAgentSidebarView(BrowserWindowInterface* browser)
+    : browser_(browser), slide_animation_(base::Milliseconds(180), 60, this) {
   // Resize handle on the left edge (drag to resize).
   resize_area_ = AddChildView(std::make_unique<views::ResizeArea>(this));
 
@@ -46,7 +45,7 @@ DaoAgentSidebarView::DaoAgentSidebarView(Browser* browser)
   // opens the panel before the timer fires, Toggle() will call EnsureLoaded()
   // directly (it is idempotent).
   web_view_ = AddChildView(
-      std::make_unique<views::WebView>(browser->profile()));
+      std::make_unique<views::WebView>(browser->GetProfile()));
 
   native_theme_observation_.Observe(ui::NativeTheme::GetInstanceForNativeUi());
   ApplyTheme();

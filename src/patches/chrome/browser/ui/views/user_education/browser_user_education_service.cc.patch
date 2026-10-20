@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/views/user_education/browser_user_education_service.cc b/chrome/browser/ui/views/user_education/browser_user_education_service.cc
-index 865c12b3e5..8d805c8eff 100644
 --- a/chrome/browser/ui/views/user_education/browser_user_education_service.cc
 +++ b/chrome/browser/ui/views/user_education/browser_user_education_service.cc
-@@ -152,12 +152,15 @@
+@@ -175,15 +175,16 @@
+ 
  namespace {
  
  using Platforms = user_education::Metadata::Platforms;
@@ -14,15 +14,17 @@ index 865c12b3e5..8d805c8eff 100644
 -constexpr char kTabGroupHeaderElementName[] = "TabGroupHeader";
 -constexpr char kChromeThemeBackElementName[] = "ChromeThemeBackElement";
 -constexpr char kLastInactiveTabElementName[] = "LastInactiveTab";
-+// Dao: marked maybe_unused — only referenced by the disabled upstream IPHs/tutorials.
+-constexpr char kSendTabToSelfActiveTabElementName[] =
 +[[maybe_unused]] constexpr char kTabGroupHeaderElementName[] = "TabGroupHeader";
-+[[maybe_unused]] constexpr char kChromeThemeBackElementName[] =
-+    "ChromeThemeBackElement";
++[[maybe_unused]] constexpr char kChromeThemeBackElementName[] = "ChromeThemeBackElement";
 +[[maybe_unused]] constexpr char kLastInactiveTabElementName[] = "LastInactiveTab";
++[[maybe_unused]] constexpr char kSendTabToSelfActiveTabElementName[] =
+     "SendTabToSelfActiveTabElement";
  
  class IfView : public user_education::TutorialDescription::If {
   public:
-@@ -229,7 +232,8 @@ class ConditionalStep : public IfView {
+@@ -254,21 +255,24 @@
+         element, if_condition, build_step);
    }
  };
  
@@ -30,9 +32,9 @@ index 865c12b3e5..8d805c8eff 100644
 +// Dao: marked maybe_unused — only referenced by the disabled upstream tutorials.
 +[[maybe_unused]] bool HasTabGroups(const BrowserView* browser_view) {
    return !browser_view->browser()
-               ->tab_strip_model()
+               ->GetTabStripModel()
                ->group_model()
-@@ -237,7 +241,8 @@ bool HasTabGroups(const BrowserView* browser_view) {
+               ->ListTabGroups()
                .empty();
  }
  
@@ -42,7 +44,15 @@ index 865c12b3e5..8d805c8eff 100644
    return browser_view->ShouldDrawVerticalTabStrip();
  }
  
-@@ -256,7 +261,8 @@ Browser* GetBrowser(ContextPtr context) {
+-ui::TrackedElement* FilterToActiveTab(
++// Dao: only referenced by the disabled upstream IPHs and tutorials.
++[[maybe_unused]] ui::TrackedElement* FilterToActiveTab(
+     const ui::ElementTracker::ElementList& elements) {
+   for (ui::TrackedElement* const element : elements) {
+     if (const auto* const tracked_views =
+             element->AsA<views::TrackedElementViews>()) {
+@@ -302,9 +306,10 @@
+   return GetBrowserView(context).browser();
  }
  
  // Returns a `CustomActionCallback` that navigates to `target` in a new tab.
@@ -52,7 +62,24 @@ index 865c12b3e5..8d805c8eff 100644
  CreateNavigationAction(GURL target) {
    return base::BindRepeating(
        [](GURL url, ContextPtr ctx,
-@@ -304,6 +310,12 @@ void RegisterChromeHelpBubbleFactories(
+          user_education::FeaturePromoHandle promo_handle) {
+@@ -317,10 +322,12 @@
+ }
+ 
+ #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+     BUILDFLAG(IS_CHROMEOS)
+-void NavigateToSettingsPage(ContextPtr ctx,
+-                            user_education::FeaturePromoHandle promo_handle) {
++// Dao: only referenced by the disabled upstream IPHs.
++[[maybe_unused]] void NavigateToSettingsPage(
++    ContextPtr ctx,
++    user_education::FeaturePromoHandle promo_handle) {
+   BrowserWindowInterface* const browser = GetBrowser(ctx);
+   TabStripModel* const tab_strip_model = browser->GetTabStripModel();
+   if (!tab_strip_model) {
+     return;
+@@ -371,8 +378,14 @@
+ 
  void MaybeRegisterChromeFeaturePromos(
      user_education::FeaturePromoRegistry& registry,
      Profile* profile) {
@@ -65,15 +92,19 @@ index 865c12b3e5..8d805c8eff 100644
    using user_education::FeaturePromoSpecification;
    using user_education::HelpBubbleArrow;
    using user_education::Metadata;
-@@ -1829,6 +1841,7 @@ void MaybeRegisterChromeFeaturePromos(
-           .SetMetadata(148, "charlesmeng@chromium.org",
-                        "Triggered when the vertical tabs is enabled and the "
-                        "user has not enabled expand on hover before.")));
+   using AdditionalCondition =
+@@ -2189,8 +2202,9 @@
+                          "Triggered when the split view horizontal feature is "
+                          "enabled with the direct access feature param off, "
+                          "and the user creates a side by side split.")));
+   }
 +#endif  // Dao: upstream IPH registrations disabled.
  }
  
  void MaybeRegisterChromeFeaturePromos(
-@@ -1838,6 +1851,10 @@ void MaybeRegisterChromeFeaturePromos(
+     user_education::FeaturePromoRegistry& registry) {
+@@ -2198,8 +2212,12 @@
+ }
  
  void MaybeRegisterChromeTutorials(
      user_education::TutorialRegistry& tutorial_registry) {
@@ -84,11 +115,14 @@ index 865c12b3e5..8d805c8eff 100644
    using user_education::HelpBubbleArrow;
    using user_education::TutorialDescription;
    using BubbleStep = user_education::TutorialDescription::BubbleStep;
-@@ -2179,6 +2196,7 @@ void MaybeRegisterChromeTutorials(
-     tutorial_registry.AddTutorial(kVerticalTabsTutorialId,
-                                   std::move(vertical_tabs_tutorial));
+   using EventStep = user_education::TutorialDescription::EventStep;
+@@ -2662,8 +2680,9 @@
+ 
+     tutorial_registry.AddTutorial(kSendTabToSelfTutorialId,
+                                   std::move(send_tab_to_self_tutorial));
    }
 +#endif  // Dao: upstream tutorial registrations disabled.
  }
  
  // NOTES FOR FEATURE TEAMS:
+ //

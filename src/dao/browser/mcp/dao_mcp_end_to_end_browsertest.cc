@@ -8,7 +8,8 @@
 #include "base/test/test_future.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/tab_list/tab_list_interface.h"
-#include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/tabs/public/tab_interface.h"
@@ -42,17 +43,17 @@ IN_PROC_BROWSER_TEST_F(DaoMcpEndToEndBrowserTest,
 
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("about:blank")));
   EXPECT_TRUE(
-      ValidateExternalTarget(browser(), browser()->profile(), contents).has_value());
+      ValidateExternalTarget(browser(), browser()->GetProfile(), contents).has_value());
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), embedded_test_server()->GetURL("/title1.html")));
   EXPECT_TRUE(
-      ValidateExternalTarget(browser(), browser()->profile(), contents).has_value());
+      ValidateExternalTarget(browser(), browser()->GetProfile(), contents).has_value());
   EXPECT_TRUE(ValidateExternalTargetUrl(GURL("https://secure.example.test/page"))
                   .has_value());
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), embedded_test_server()->GetURL("/pdf/test.pdf")));
   EXPECT_TRUE(
-      ValidateExternalTarget(browser(), browser()->profile(), contents).has_value());
+      ValidateExternalTarget(browser(), browser()->GetProfile(), contents).has_value());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpEndToEndBrowserTest,
@@ -76,33 +77,34 @@ IN_PROC_BROWSER_TEST_F(DaoMcpEndToEndBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoMcpEndToEndBrowserTest,
                        RejectsPopupOffTheRecordAndGuestProfiles) {
-  Browser* popup = CreateBrowserForPopup(browser()->profile());
+  BrowserWindowInterface* popup =
+      CreateBrowserForPopup(browser()->GetProfile());
   ASSERT_NE(nullptr, popup);
   content::WebContents* popup_contents =
       popup->tab_strip_model()->GetActiveWebContents();
   ASSERT_NE(nullptr, popup_contents);
   auto popup_result =
-      ValidateExternalTarget(popup, popup->profile(), popup_contents);
+      ValidateExternalTarget(popup, popup->GetProfile(), popup_contents);
   ASSERT_FALSE(popup_result.has_value());
   EXPECT_EQ(DaoToolErrorCode::kTargetForbidden, popup_result.error().code);
 
-  Browser* incognito = CreateIncognitoBrowser();
+  BrowserWindowInterface* incognito = CreateIncognitoBrowser();
   ASSERT_NE(nullptr, incognito);
   content::WebContents* incognito_contents =
       incognito->tab_strip_model()->GetActiveWebContents();
   ASSERT_NE(nullptr, incognito_contents);
   auto incognito_result =
-      ValidateExternalTarget(incognito, incognito->profile(), incognito_contents);
+      ValidateExternalTarget(incognito, incognito->GetProfile(), incognito_contents);
   ASSERT_FALSE(incognito_result.has_value());
   EXPECT_EQ(DaoToolErrorCode::kTargetForbidden, incognito_result.error().code);
 
-  Browser* guest = CreateGuestBrowser();
+  BrowserWindowInterface* guest = CreateGuestBrowser();
   ASSERT_NE(nullptr, guest);
   content::WebContents* guest_contents =
       guest->tab_strip_model()->GetActiveWebContents();
   ASSERT_NE(nullptr, guest_contents);
   auto guest_result =
-      ValidateExternalTarget(guest, guest->profile(), guest_contents);
+      ValidateExternalTarget(guest, guest->GetProfile(), guest_contents);
   ASSERT_FALSE(guest_result.has_value());
   EXPECT_EQ(DaoToolErrorCode::kTargetForbidden, guest_result.error().code);
 }
@@ -112,10 +114,10 @@ IN_PROC_BROWSER_TEST_F(DaoMcpEndToEndBrowserTest, TreatsMismatchedOwnerAsGone) {
   content::WebContents* contents =
       browser()->tab_strip_model()->GetActiveWebContents();
   ASSERT_NE(nullptr, contents);
-  Browser* other_window = CreateBrowser(browser()->profile());
+  BrowserWindowInterface* other_window = CreateBrowser(browser()->GetProfile());
   ASSERT_NE(nullptr, other_window);
 
-  auto result = ValidateExternalTarget(other_window, browser()->profile(), contents);
+  auto result = ValidateExternalTarget(other_window, browser()->GetProfile(), contents);
 
   ASSERT_FALSE(result.has_value());
   EXPECT_EQ(DaoToolErrorCode::kTargetGone, result.error().code);

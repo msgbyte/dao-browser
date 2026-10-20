@@ -1,29 +1,35 @@
 diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.cc b/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.cc
-index 64e203c67d..7898abcd73 100644
 --- a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.cc
 +++ b/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.cc
-@@ -10,6 +10,7 @@
- #include "base/metrics/histogram_functions.h"
- #include "base/notreached.h"
- #include "chrome/app/vector_icons/vector_icons.h"
+@@ -20,6 +20,7 @@
+ #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
+ #include "chrome/browser/ui/color/chrome_color_id.h"
+ #include "chrome/browser/ui/layout_constants.h"
++#include "chrome/browser/ui/views/chrome_layout_provider.h"
+ #include "chrome/browser/ui/views/chrome_typography.h"
+ #include "chrome/browser/ui/views/frame/browser_view.h"
+ #include "chrome/browser/ui/views/frame/top_container_view.h"
+@@ -37,6 +38,7 @@
+ #include "content/public/browser/document_picture_in_picture_window_controller.h"
+ #include "content/public/browser/web_contents.h"
+ #include "content/public/common/content_constants.h"
 +#include "dao/browser/pip/dao_pip_resize_utils.h"
- #include "chrome/browser/picture_in_picture/picture_in_picture_occlusion_tracker.h"
- #include "chrome/browser/picture_in_picture/picture_in_picture_window_manager.h"
- #include "chrome/browser/ui/browser_content_setting_bubble_model_delegate.h"
-@@ -45,10 +46,12 @@
+ #include "extensions/buildflags/buildflags.h"
+ #include "media/base/media_switches.h"
+ #include "ui/base/hit_test.h"
+@@ -46,9 +48,11 @@
  #include "ui/base/ui_base_features.h"
  #include "ui/compositor/layer.h"
  #include "ui/display/screen.h"
 +#include "ui/events/event_handler.h"
  #include "ui/events/event_observer.h"
  #include "ui/gfx/animation/animation.h"
- #include "ui/gfx/animation/animation_container.h"
  #include "ui/gfx/geometry/insets.h"
 +#include "ui/gfx/geometry/rounded_corners_f.h"
  #include "ui/gfx/text_constants.h"
  #include "ui/views/accessibility/view_accessibility.h"
- #include "ui/views/animation/animation_builder.h"
-@@ -59,6 +62,7 @@
+ #include "ui/views/event_monitor.h"
+@@ -57,6 +61,7 @@
  #include "ui/views/metadata/view_factory.h"
  #include "ui/views/style/typography.h"
  #include "ui/views/style/typography_provider.h"
@@ -31,7 +37,7 @@ index 64e203c67d..7898abcd73 100644
  #include "ui/views/widget/widget_delegate.h"
  #include "ui/views/window/frame_background.h"
  #include "ui/views/window/window_shape.h"
-@@ -149,6 +154,16 @@ class WindowEventObserver : public ui::EventObserver {
+@@ -123,6 +128,16 @@
          this, pip_browser_frame_view_->GetWidget()->GetNativeWindow(),
          {ui::EventType::kMouseMoved, ui::EventType::kMouseExited,
           ui::EventType::kKeyPressed, ui::EventType::kKeyReleased});
@@ -48,7 +54,7 @@ index 64e203c67d..7898abcd73 100644
    }
  
    WindowEventObserver(const WindowEventObserver&) = delete;
-@@ -175,6 +190,13 @@ class WindowEventObserver : public ui::EventObserver {
+@@ -149,6 +164,13 @@
   private:
    bool IsMouseInBounds() {
      gfx::Point point = event_monitor_->GetLastMouseLocation();
@@ -62,7 +68,7 @@ index 64e203c67d..7898abcd73 100644
      views::View::ConvertPointFromScreen(pip_browser_frame_view_, &point);
  
      gfx::Rect hit_region = pip_browser_frame_view_->GetHitRegion();
-@@ -183,6 +205,9 @@ class WindowEventObserver : public ui::EventObserver {
+@@ -157,6 +179,9 @@
  
    raw_ptr<PictureInPictureBrowserFrameView> pip_browser_frame_view_;
    std::unique_ptr<views::EventMonitor> event_monitor_;
@@ -72,7 +78,7 @@ index 64e203c67d..7898abcd73 100644
  };
  
  void DefinitelyExitPictureInPicture(
-@@ -209,6 +234,140 @@ void DefinitelyExitPictureInPicture(
+@@ -183,6 +208,140 @@
    }
  }
  
@@ -212,8 +218,8 @@ index 64e203c67d..7898abcd73 100644
 +
  }  // namespace
  
- PictureInPictureBrowserFrameView::ChildDialogObserverHelper::
-@@ -553,12 +618,40 @@ PictureInPictureBrowserFrameView::PictureInPictureBrowserFrameView(
+ PictureInPictureBrowserFrameView::PictureInPictureBrowserFrameView(
+@@ -199,12 +358,40 @@
    location_bar_model_ = std::make_unique<LocationBarModelImpl>(
        this, content::kMaxURLDisplayChars);
  
@@ -238,7 +244,7 @@ index 64e203c67d..7898abcd73 100644
 +
 +  // Dao: Paint the top bar to its own compositor layer so the whole container
 +  // (including its solid background) can be faded in/out via layer opacity in
-+  // AnimationProgressed(). Without this, only the text/icon foreground colors
++  // ApplyTopBarOpacity(). Without this, only the text/icon foreground colors
 +  // animate and the background stays fully visible when unhovered.
 +  top_bar_container_view_->SetPaintToLayer();
 +  top_bar_container_view_->layer()->SetFillsBoundsOpaquely(false);
@@ -260,19 +266,20 @@ index 64e203c67d..7898abcd73 100644
  
    top_bar_container_view_->SetBackground(
        views::CreateSolidBackground(kColorPipWindowTopBarBackground));
-@@ -686,9 +800,10 @@ PictureInPictureBrowserFrameView::PictureInPictureBrowserFrameView(
+@@ -325,9 +512,10 @@
+   // Creates the controller that owns and drives the top-bar hover animations,
+   // now that the buttons and content-setting views it references exist. It
+   // paints the window-control buttons to layers so their opacity can be
+-  // animated, and starts in the active state. Mirrors DocumentPipFrameView.
++  // animated. Dao starts inactive so the overlay remains hidden until hover.
+   animation_controller_ = std::make_unique<PipTopBarAnimationController>(
+-      this, back_to_tab_button_, close_image_button_, content_setting_views_);
++      this, back_to_tab_button_, close_image_button_, content_setting_views_,
++      /*initially_active=*/false);
  
-   // Creates the top bar title color and camera icon color animation. Set the
-   // initial state to 1.0 because the window is active when first shown.
-+  // Dao: Start at 0.0 so the top bar is hidden initially.
-   top_bar_color_animation_.SetSlideDuration(kAnimationDuration);
-   top_bar_color_animation_.SetTweenType(gfx::Tween::LINEAR);
--  top_bar_color_animation_.Reset(1.0);
-+  top_bar_color_animation_.Reset(0.0);
- 
-   // Creates the camera icon movement animations with the default EASE_OUT type.
-   move_camera_button_to_left_animation_.SetSlideDuration(kAnimationDuration);
-@@ -905,7 +1020,10 @@ void PictureInPictureBrowserFrameView::Layout(PassKey) {
+   // If the window manager wants us to display an overlay, get it.  In practice,
+   // this is the auto-pip Allow / Block content setting UI.
+@@ -528,7 +716,10 @@
    content_area.Inset(FrameBorderInsets());
    gfx::Rect top_bar = content_area;
    top_bar.set_height(kTopControlsHeight);
@@ -284,7 +291,7 @@ index 64e203c67d..7898abcd73 100644
  #if !BUILDFLAG(IS_ANDROID)
    if (auto_pip_setting_overlay_) {
      auto_pip_setting_overlay_->SetBoundsRect(
-@@ -918,6 +1036,9 @@ void PictureInPictureBrowserFrameView::Layout(PassKey) {
+@@ -541,6 +732,9 @@
  
  void PictureInPictureBrowserFrameView::AddedToWidget() {
    widget_observation_.Observe(GetWidget());
@@ -293,8 +300,8 @@ index 64e203c67d..7898abcd73 100644
 +  DaoInitializeTopBarOverlay();
    window_event_observer_ = std::make_unique<WindowEventObserver>(this);
    child_dialog_observer_helper_ =
-       std::make_unique<ChildDialogObserverHelper>(this, GetBrowserView());
-@@ -989,6 +1110,23 @@ void PictureInPictureBrowserFrameView::RemovedFromWidget() {
+       std::make_unique<PipChildDialogObserverHelper>(this);
+@@ -596,6 +790,23 @@
    window_event_observer_.reset();
    child_dialog_observer_helper_.reset();
  
@@ -318,7 +325,7 @@ index 64e203c67d..7898abcd73 100644
    // Clear the AutoPiP setting overlay view.
    if (auto_pip_setting_overlay_) {
      auto_pip_setting_overlay_ = nullptr;
-@@ -1204,6 +1349,11 @@ PictureInPictureBrowserFrameView::GetContentSettingBubbleModelDelegate() {
+@@ -823,6 +1034,11 @@
  void PictureInPictureBrowserFrameView::OnWidgetActivationChanged(
      views::Widget* widget,
      bool active) {
@@ -330,25 +337,22 @@ index 64e203c67d..7898abcd73 100644
    // The window may become inactive when a popup modal shows, so we need to
    // check if the mouse is still inside the window.
    UpdateTopBarView(active || mouse_inside_window_ || IsOverlayViewVisible());
-@@ -1298,6 +1448,17 @@ void PictureInPictureBrowserFrameView::AnimationProgressed(
-     }
-     current_foreground_color_ = color;
-     location_icon_view_->Update(/*suppress_animations=*/false);
-+
-+    // Dao: Animate the entire top-bar container's opacity so the background
-+    // (not just the text/icon foreground colors) fades in/out. At 0.0 the
-+    // top bar is completely invisible; the web contents remain anchored at
-+    // their original position because the top bar still consumes layout
-+    // space via GetTopAreaHeight().
-+    if (top_bar_container_view_->layer()) {
-+      top_bar_container_view_->layer()->SetOpacity(
-+          static_cast<float>(animation->GetCurrentValue()));
-+    }
-+
-     return;
-   }
+@@ -916,6 +1132,14 @@
+   location_icon_view_->Update(/*suppress_animations=*/false);
+ }
  
-@@ -1362,6 +1523,21 @@ gfx::Rect PictureInPictureBrowserFrameView::GetHitRegion() const {
++void PictureInPictureBrowserFrameView::ApplyTopBarOpacity(float opacity) {
++  // Dao: Fade the entire overlay, including its background, without reserving
++  // space in the main window's web contents.
++  if (top_bar_container_view_ && top_bar_container_view_->layer()) {
++    top_bar_container_view_->layer()->SetOpacity(opacity);
++  }
++}
++
+ const ui::ColorProvider*
+ PictureInPictureBrowserFrameView::GetTopBarColorProvider() const {
+   return GetColorProvider();
+@@ -931,6 +1155,21 @@
  gfx::Rect PictureInPictureBrowserFrameView::ConvertTopBarControlViewBounds(
      views::View* control_view,
      views::View* source_view) const {
@@ -370,7 +374,7 @@ index 64e203c67d..7898abcd73 100644
    gfx::RectF bounds(control_view->GetMirroredBounds());
    views::View::ConvertRectToTarget(source_view, this, &bounds);
    return gfx::ToEnclosingRect(bounds);
-@@ -1490,7 +1666,10 @@ gfx::Insets PictureInPictureBrowserFrameView::FrameBorderInsets() const {
+@@ -1003,7 +1242,10 @@
  }
  
  int PictureInPictureBrowserFrameView::GetTopAreaHeight() const {
@@ -382,7 +386,7 @@ index 64e203c67d..7898abcd73 100644
  }
  
  gfx::Size PictureInPictureBrowserFrameView::GetNonClientViewAreaSize() const {
-@@ -1591,6 +1770,82 @@ bool PictureInPictureBrowserFrameView::IsOverlayViewVisible() const {
+@@ -1094,6 +1336,82 @@
    return auto_pip_setting_overlay_ && auto_pip_setting_overlay_->GetVisible();
  }
  

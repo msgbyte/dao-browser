@@ -7,9 +7,9 @@
 #include <algorithm>
 
 #include "base/functional/bind.h"
+#include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "components/input/native_web_keyboard_event.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
@@ -18,6 +18,7 @@
 #include "chrome/browser/ui/navigator/browser_navigator.h"
 #include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/frame/multi_contents_view.h"
 #include "chrome/browser/ui/views/frame/contents_web_view.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui.h"
@@ -72,7 +73,8 @@ constexpr base::TimeDelta kCommandSInterceptToastDelay =
 constexpr base::TimeDelta kCommandSConfirmationDuration =
     base::Milliseconds(2500);
 
-void SynchronizeSplitContentLayoutForSidebarChange(Browser* browser) {
+void SynchronizeSplitContentLayoutForSidebarChange(
+    BrowserWindowInterface* browser) {
   BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
   if (!browser_view || !browser_view->dao_split_view() ||
       !browser_view->dao_split_view()->IsSplitActive()) {
@@ -81,9 +83,9 @@ void SynchronizeSplitContentLayoutForSidebarChange(Browser* browser) {
 
   browser_view->InvalidateLayout();
   browser_view->DeprecatedLayoutImmediately();
-  if (browser_view->contents_container()) {
-    browser_view->contents_container()->InvalidateLayout();
-    browser_view->contents_container()->DeprecatedLayoutImmediately();
+  if (browser_view->multi_contents_view()) {
+    browser_view->multi_contents_view()->InvalidateLayout();
+    browser_view->multi_contents_view()->DeprecatedLayoutImmediately();
   }
   browser_view->dao_split_view()->InvalidateLayout();
   browser_view->dao_split_view()->DeprecatedLayoutImmediately();
@@ -170,7 +172,8 @@ class DaoIncognitoIndicatorView : public views::View {
   METADATA_HEADER(DaoIncognitoIndicatorView, views::View)
 
  public:
-  explicit DaoIncognitoIndicatorView(Browser* browser) : browser_(browser) {
+  explicit DaoIncognitoIndicatorView(BrowserWindowInterface* browser)
+      : browser_(browser) {
     SetPreferredSize(gfx::Size(32, 32));
     const std::u16string message =
         l10n_util::GetStringUTF16(IDS_DAO_INCOGNITO_SIDEBAR_INDICATOR);
@@ -189,7 +192,7 @@ class DaoIncognitoIndicatorView : public views::View {
   }
 
  private:
-  raw_ptr<Browser> browser_;
+  raw_ptr<BrowserWindowInterface> browser_;
 };
 
 BEGIN_METADATA(DaoIncognitoIndicatorView)
@@ -199,7 +202,7 @@ class DaoToggleButton : public views::Button {
   METADATA_HEADER(DaoToggleButton, views::Button)
 
  public:
-  DaoToggleButton(Browser* browser, PressedCallback callback)
+  DaoToggleButton(BrowserWindowInterface* browser, PressedCallback callback)
       : Button(std::move(callback)), browser_(browser) {
     SetPreferredSize(gfx::Size(32, 32));
     SetInstallFocusRingOnFocus(false);
@@ -244,7 +247,7 @@ class DaoToggleButton : public views::Button {
   }
 
  private:
-  raw_ptr<Browser> browser_;
+  raw_ptr<BrowserWindowInterface> browser_;
   bool hovered_ = false;
 };
 
@@ -254,9 +257,8 @@ END_METADATA
 BEGIN_METADATA(DaoSidebarView)
 END_METADATA
 
-DaoSidebarView::DaoSidebarView(Browser* browser)
-    : browser_(browser),
-      collapse_animation_(base::Milliseconds(50), 60, this) {
+DaoSidebarView::DaoSidebarView(BrowserWindowInterface* browser)
+    : browser_(browser), collapse_animation_(base::Milliseconds(50), 60, this) {
   SetPaintToLayer();
   layer()->SetMasksToBounds(true);
   // Children (inner container, WebUI) cover the whole sidebar, so hover
@@ -288,7 +290,7 @@ DaoSidebarView::DaoSidebarView(Browser* browser)
                                views::MaximumFlexSizeRule::kUnbounded));
   header_row->AddChildView(std::move(spacer));
 
-  if (browser_->profile()->IsIncognitoProfile()) {
+  if (browser_->GetProfile()->IsIncognitoProfile()) {
     incognito_indicator_ = header_row->AddChildView(
         std::make_unique<DaoIncognitoIndicatorView>(browser_));
   }
@@ -499,7 +501,8 @@ content::WebContents* DaoSidebarView::sidebar_web_contents() const {
   return sidebar_web_view_ ? sidebar_web_view_->GetWebContents() : nullptr;
 }
 
-Browser* GetBrowserForSidebarWebContents(content::WebContents* web_contents) {
+BrowserWindowInterface* GetBrowserForSidebarWebContents(
+    content::WebContents* web_contents) {
   if (!web_contents) {
     return nullptr;
   }
@@ -510,10 +513,10 @@ Browser* GetBrowserForSidebarWebContents(content::WebContents* web_contents) {
   if (!collection) {
     return nullptr;
   }
-  Browser* found = nullptr;
+  BrowserWindowInterface* found = nullptr;
   collection->ForEach(
       [&found, web_contents](BrowserWindowInterface* browser_window) {
-        Browser* browser = browser_window->GetBrowserForMigrationOnly();
+        BrowserWindowInterface* browser = browser_window;
         BrowserView* browser_view =
             BrowserView::GetBrowserViewForBrowser(browser);
         if (browser_view && browser_view->dao_sidebar() &&
@@ -721,12 +724,12 @@ void DaoSidebarView::AnimateLayerSlide(int old_width, int new_width) {
   if (bv->dao_corner_overlay() && bv->dao_corner_overlay()->layer()) {
     slide_layers.push_back(bv->dao_corner_overlay()->layer());
   }
-  if (bv->contents_container() && bv->contents_container()->layer()) {
+  if (bv->multi_contents_view() && bv->multi_contents_view()->layer()) {
     if (split_active) {
-      bv->contents_container()->layer()->GetAnimator()->StopAnimating();
-      bv->contents_container()->layer()->SetTransform(gfx::Transform());
+      bv->multi_contents_view()->layer()->GetAnimator()->StopAnimating();
+      bv->multi_contents_view()->layer()->SetTransform(gfx::Transform());
     } else {
-      slide_layers.push_back(bv->contents_container()->layer());
+      slide_layers.push_back(bv->multi_contents_view()->layer());
     }
   }
 
@@ -782,14 +785,14 @@ void DaoSidebarView::OnImplicitAnimationsCompleted() {
     if (bv->dao_corner_overlay() && bv->dao_corner_overlay()->layer()) {
       bv->dao_corner_overlay()->layer()->SetTransform(gfx::Transform());
     }
-    if (bv->contents_container() && bv->contents_container()->layer()) {
-      bv->contents_container()->layer()->SetTransform(gfx::Transform());
+    if (bv->multi_contents_view() && bv->multi_contents_view()->layer()) {
+      bv->multi_contents_view()->layer()->SetTransform(gfx::Transform());
     }
     bv->InvalidateLayout();
     bv->DeprecatedLayoutImmediately();
-    if (bv->contents_container()) {
-      bv->contents_container()->InvalidateLayout();
-      bv->contents_container()->DeprecatedLayoutImmediately();
+    if (bv->multi_contents_view()) {
+      bv->multi_contents_view()->InvalidateLayout();
+      bv->multi_contents_view()->DeprecatedLayoutImmediately();
     }
     if (bv->contents_web_view()) {
       bv->contents_web_view()->InvalidateLayout();
@@ -830,7 +833,7 @@ void DaoSidebarView::AddedToWidget() {
   // WebContents too early during BrowserView construction.
   if (!sidebar_web_view_) {
     sidebar_web_view_ = inner_container_->AddChildView(
-        std::make_unique<DaoNonDropWebView>(browser_->profile()));
+        std::make_unique<DaoNonDropWebView>(browser_->GetProfile()));
     auto* layout = static_cast<views::BoxLayout*>(
         inner_container_->GetLayoutManager());
     layout->SetFlexForView(sidebar_web_view_, 1);
@@ -1108,9 +1111,9 @@ views::View::DropCallback DaoSidebarView::GetDropCallback(
   overlay->SetActive(false);
   overlay->SetIndicatorY(-1);
 
-  Browser* browser = browser_;
+  BrowserWindowInterface* browser = browser_;
   return base::BindOnce(
-      [](Browser* browser, int insert_index,
+      [](BrowserWindowInterface* browser, int insert_index,
          const ui::DropTargetEvent& event,
          ui::mojom::DragOperation& output_drag_op,
          std::unique_ptr<ui::LayerTreeOwner> drag_image_layer_owner) {

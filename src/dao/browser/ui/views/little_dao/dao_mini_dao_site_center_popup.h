@@ -16,7 +16,7 @@
 #include "ui/native_theme/native_theme_observer.h"
 #include "ui/views/view.h"
 
-class Browser;
+class BrowserWindowInterface;
 
 namespace views {
 class ImageView;
@@ -38,7 +38,7 @@ class DaoMiniDaoSiteCenterPopup : public views::View,
 
  public:
   DaoMiniDaoSiteCenterPopup(
-      Browser* browser,
+      BrowserWindowInterface* browser,
       base::RepeatingCallback<views::View*()> anchor_view_callback);
   DaoMiniDaoSiteCenterPopup(const DaoMiniDaoSiteCenterPopup&) = delete;
   DaoMiniDaoSiteCenterPopup& operator=(
@@ -50,7 +50,7 @@ class DaoMiniDaoSiteCenterPopup : public views::View,
   void ShowMainPanel();
   void ShowQrPanel();
 
-  Browser* browser() const { return browser_; }
+  BrowserWindowInterface* browser() const { return browser_; }
   views::View* GetAnchorViewForExtensions() const;
 
   // TabStripModelObserver:
@@ -86,7 +86,7 @@ class DaoMiniDaoSiteCenterPopup : public views::View,
   void OnBackClicked();
   std::string GetActiveUrlSpec() const;
 
-  raw_ptr<Browser> browser_;
+  raw_ptr<BrowserWindowInterface> browser_;
   base::RepeatingCallback<views::View*()> anchor_view_callback_;
   gfx::Point anchor_;
   raw_ptr<views::View> card_ = nullptr;

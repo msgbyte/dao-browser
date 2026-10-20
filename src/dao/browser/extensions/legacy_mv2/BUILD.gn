@@ -26,6 +26,7 @@ source_set("dao_legacy_mv2") {
 
   deps = [
     "//base",
+    "//components/prefs",
     "//extensions/common",
     "//ui/base",
   ]
@@ -37,7 +38,10 @@ source_set("dao_legacy_mv2") {
 
 source_set("dao_legacy_mv2_tests") {
   testonly = true
-  sources = [ "dao_mv2_browsertest.cc" ]
+  sources = [
+    "dao_mv2_browsertest.cc",
+    "dao_mv2_handler_unittest.cc",
+  ]
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
 
   data = [
@@ -53,15 +57,24 @@ source_set("dao_legacy_mv2_tests") {
     "//base",
     "//chrome/browser",
     "//chrome/browser/extensions",
+    "//chrome/browser/extensions:test_support",
     "//chrome/browser/profiles",
     "//chrome/browser/ui:ui",
     "//chrome/browser/ui/browser_window",
     "//chrome/test:test_support",
     "//chrome/test:test_support_ui",
+    "//components/policy/core/browser",
+    "//components/policy/core/common",
+    "//components/policy/core/common:test_support",
+    "//components/prefs:test_support",
+    "//components/sync_preferences:test_support",
     "//content/test:test_support",
     "//extensions/browser",
     "//extensions/common",
+    "//net",
+    "//testing/gmock",
     "//testing/gtest",
+    "//third_party/blink/public/mojom/service_worker:storage",
     "//ui/views",
   ]
 }

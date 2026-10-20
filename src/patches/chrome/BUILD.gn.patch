@@ -1,8 +1,6 @@
-diff --git a/chrome/BUILD.gn b/chrome/BUILD.gn
-index c8c10cdab0..de4c0ef37f 100644
 --- a/chrome/BUILD.gn
 +++ b/chrome/BUILD.gn
-@@ -51,6 +51,7 @@ if (is_android) {
+@@ -52,6 +52,7 @@
    import("//chrome/browser/buildflags.gni")
    import("//chrome/updater/branding.gni")
    import("//chrome/version.gni")
@@ -10,7 +8,7 @@ index c8c10cdab0..de4c0ef37f 100644
    import("//content/public/app/mac_helpers.gni")
    import("//media/cdm/library_cdm/cdm_paths.gni")
    import("//services/on_device_model/on_device_model.gni")
-@@ -491,6 +492,11 @@ if (is_win) {
+@@ -536,6 +537,11 @@
        "--scm=1",
        "--bundle_id=$chrome_mac_bundle_id",
      ]
@@ -22,15 +20,15 @@ index c8c10cdab0..de4c0ef37f 100644
      if (enable_updater) {
        args += [ "--privileged_helper_id=$privileged_helper_name" ]
        if (is_chrome_branded) {
-@@ -528,6 +534,7 @@ if (is_win) {
-       "//build:branding_buildflags",
+@@ -579,6 +585,7 @@
+       "//build/config/compiler:compiler_buildflags",
        "//chrome/common:buildflags",
        "//chrome/common:version_header",
 +      "//dao/browser/updater:dao_sparkle_framework_bundle_data",
      ]
  
      if (enable_updater) {
-@@ -574,6 +581,8 @@ if (is_win) {
+@@ -625,6 +632,8 @@
          rebase_path(inputs[0], root_out_dir),
          "--allow",
          "/usr/lib/libSystem.B.dylib",

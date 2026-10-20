@@ -1,5 +1,4 @@
 diff --git a/content/app_shim_remote_cocoa/web_contents_view_cocoa.mm b/content/app_shim_remote_cocoa/web_contents_view_cocoa.mm
-index da2786e0c5..6fc8a28b91 100644
 --- a/content/app_shim_remote_cocoa/web_contents_view_cocoa.mm
 +++ b/content/app_shim_remote_cocoa/web_contents_view_cocoa.mm
 @@ -5,6 +5,7 @@
@@ -10,7 +9,7 @@ index da2786e0c5..6fc8a28b91 100644
  
  #include "base/files/file_util.h"
  #include "base/files/scoped_temp_dir.h"
-@@ -121,6 +122,9 @@
+@@ -131,6 +132,9 @@
    // Drag variables.
    WebDragSource* __strong _dragSource;
    NSDragOperation _dragOperation;
@@ -20,7 +19,7 @@ index da2786e0c5..6fc8a28b91 100644
  
    BOOL _willSetWebContentsOccludedAfterDelay;
  }
-@@ -151,6 +155,7 @@
+@@ -161,6 +165,7 @@
  
    [[NSNotificationCenter defaultCenter] removeObserver:self];
    [self cancelDelayedSetWebContentsOccluded];
@@ -28,7 +27,7 @@ index da2786e0c5..6fc8a28b91 100644
  }
  
  - (void)enableDroppedScreenShotCopier {
-@@ -221,6 +226,36 @@
+@@ -231,6 +236,36 @@
    // saves us the effort of overriding this method in every possible
    // subview.
    return _mouseDownCanMoveWindow;
@@ -65,17 +64,17 @@ index da2786e0c5..6fc8a28b91 100644
  }
  
  - (void)startDragWithDropData:(const DropData&)dropData
-@@ -273,6 +308,9 @@
+@@ -306,6 +341,9 @@
  
    _dragOperation = operationMask;
  
 +  // Observe termination in the process that owns the AppKit drag session.
 +  [self startDragTerminationEventMonitor];
 +
-   // Run the drag operation.
-   [self beginDraggingSessionWithItems:@[ draggingItem ]
-                                 event:dragEvent
-@@ -290,6 +328,9 @@
+   // Start the drag session. This hands control to AppKit, which queries each
+   // item's pasteboard writer (the primary WebDragSource and the URL-only
+   // NSPasteboardItems) via the NSPasteboardWriting protocol. AppKit calls
+@@ -329,6 +367,9 @@
  - (void)draggingSession:(NSDraggingSession*)session
             endedAtPoint:(NSPoint)screenPoint
                operation:(NSDragOperation)operation {
@@ -85,22 +84,29 @@ index da2786e0c5..6fc8a28b91 100644
    if (!_host) {
      return;
    }
-@@ -303,10 +344,12 @@
+@@ -341,15 +382,15 @@
+ 
    // Flip the two points as per Cocoa's coordinate system.
    NSRect viewFrame = self.frame;
 -  NSRect screenFrame = self.window.screen.frame;
+-
+   gfx::PointF local_point_f =
+       GetSanitizedFlippedPoint(localPoint, viewFrame.size.height);
+ 
+-  gfx::PointF screen_point_f =
+-      GetSanitizedFlippedPoint(screenPoint, screenFrame.size.height);
+-
+-  _host->EndDrag(operation, local_point_f, screen_point_f);
 +  // Global screen coordinates use the primary display's top edge.
-   _host->EndDrag(
-       operation,
-       gfx::PointF(localPoint.x, viewFrame.size.height - localPoint.y),
--      gfx::PointF(screenPoint.x, screenFrame.size.height - screenPoint.y));
-+      gfx::PointF(screenPoint.x,
-+                  NSMaxY(NSScreen.screens.firstObject.frame) - screenPoint.y),
-+      endedByMouseRelease);
++  gfx::PointF screen_point_f = GetSanitizedFlippedPoint(
++      screenPoint, NSMaxY(NSScreen.screens.firstObject.frame));
++
++  _host->EndDrag(operation, local_point_f, screen_point_f,
++                 endedByMouseRelease);
  
    // The drag is complete. Disconnect the drag source.
    [_dragSource webContentsIsGone];
-@@ -369,6 +412,7 @@
+@@ -412,6 +453,7 @@
  
  - (void)setHost:(remote_cocoa::mojom::WebContentsNSViewHost*)host {
    if (!host) {

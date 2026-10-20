@@ -18,7 +18,7 @@ diff --git a/chrome/browser/resources/settings/settings_menu/settings_menu.ts b/
  
  import {getTemplate} from './settings_menu.html.js';
  
-@@ -99,19 +98,7 @@
+@@ -101,19 +100,7 @@
    }
  
    override currentRouteChanged(newRoute: Route) {
@@ -39,7 +39,7 @@ diff --git a/chrome/browser/resources/settings/settings_menu/settings_menu.ts b/
    }
  
    focusFirstItem() {
-@@ -122,33 +109,61 @@
+@@ -124,38 +111,65 @@
      }
    }
  
@@ -78,14 +78,10 @@ diff --git a/chrome/browser/resources/settings/settings_menu/settings_menu.ts b/
     */
    private onLinkClick_(event: Event) {
 -    if ((event.target as HTMLElement).matches('a:not(#extensionsLink)')) {
-+    const sectionLink = event.composedPath().find(
-+        node => node instanceof HTMLAnchorElement &&
-+            node.hasAttribute('data-section'));
-+    if (sectionLink) {
-       event.preventDefault();
-     }
-   }
- 
+-      event.preventDefault();
+-    }
+-  }
+-
 -  /**
 -   * Keeps both menus in sync. `path` needs to come from
 -   * `element.getAttribute('href')`. Using `element.href` will not work as it
@@ -93,18 +89,35 @@ diff --git a/chrome/browser/resources/settings/settings_menu/settings_menu.ts b/
 -   */
 -  private setSelectedPath_(path: string) {
 -    this.$.menu.selected = path;
-+  private getAutofillSection_(): string {
-+    return this.enableYourSavedInfoSettingsPage_ ? 'yourSavedInfo' : 'autofill';
-   }
- 
-   private onSelectorActivate_(event: CustomEvent<{selected: string}>) {
+-  }
+-
+-  private onSelectorActivate_(event: CustomEvent<{selected: string}>) {
 -    const path = event.detail.selected;
 -    this.setSelectedPath_(path);
+-
+-    const action = pathToActionMap.get(path);
++    const link = event.composedPath().find(
++        (node): node is HTMLAnchorElement =>
++            node instanceof HTMLAnchorElement);
++    if (!link) {
++      return;
++    }
++
++    const action = pathToActionMap.get(link.getAttribute('href') || '');
+     if (action) {
+       this.metricsBrowserProxy_.recordAction(action);
+     }
 -
 -    const route = Router.getInstance().getRouteForPath(path);
 -    assert(route, `settings-menu encountered invalid path '${path}'`);
 -    Router.getInstance().navigateTo(
 -        route, /* dynamicParams */ undefined, /* removeSearch */ true);
++    if (link.hasAttribute('data-section')) {
++      event.preventDefault();
++    }
++  }
++
++  private onSelectorActivate_(event: CustomEvent<{selected: string}>) {
 +    const section = event.detail.selected;
 +    this.setActiveSection(section);
 +    this.dispatchEvent(new CustomEvent('settings-section-activate', {

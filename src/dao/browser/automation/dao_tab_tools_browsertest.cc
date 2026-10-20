@@ -22,7 +22,7 @@
 #include "base/values.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/tab_list/tab_list_interface.h"
-#include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/test/base/in_process_browser_test.h"
@@ -516,7 +516,7 @@ IN_PROC_BROWSER_TEST_F(
   tabs::TabInterface* pinned_reopen = OpenTab(browser(), first_url(), true);
   SetSidebarTabId(pinned_reopen->GetContents(), historical_id);
   auto historical_restore = content::WebContents::Create(
-      content::WebContents::CreateParams(browser()->profile()));
+      content::WebContents::CreateParams(browser()->GetProfile()));
   content::WebContents* historical_restore_contents = historical_restore.get();
   RestoreSidebarTabIdentityFromExtraData(historical_restore_contents,
                                          historical_extra_data);
@@ -549,7 +549,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpTabToolsBrowserTest,
                        ListTabsOnlyReturnsAuthorizedWindow) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
   auto session = MakeSession();
-  Browser* other_window = CreateBrowser(browser()->profile());
+  BrowserWindowInterface* other_window = CreateBrowser(browser()->GetProfile());
   ASSERT_TRUE(ui_test_utils::NavigateToURL(other_window, third_url()));
 
   DaoBrowserToolResult result = Execute(session.get(), "list_tabs");
@@ -710,7 +710,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpTabToolsBrowserTest,
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
   tabs::TabInterface* authorized_active = tabs()->GetActiveTab();
   auto session = MakeSession();
-  Browser* other_window = CreateBrowser(browser()->profile());
+  BrowserWindowInterface* other_window = CreateBrowser(browser()->GetProfile());
   ASSERT_TRUE(ui_test_utils::NavigateToURL(other_window, third_url()));
   TabListInterface* other_tabs = tabs(other_window);
   tabs::TabInterface* other_active = other_tabs->GetActiveTab();
@@ -734,7 +734,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpTabToolsBrowserTest,
                        OpenTabStaysInWindowAndUpdatesTarget) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
   auto session = MakeSession();
-  Browser* other_window = CreateBrowser(browser()->profile());
+  BrowserWindowInterface* other_window = CreateBrowser(browser()->GetProfile());
   const int source_count = tabs()->GetTabCount();
   const int other_count = tabs(other_window)->GetTabCount();
 
@@ -907,7 +907,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpTabToolsBrowserTest,
   auto session = MakeSession(browser(), pinned->GetContents());
   base::WeakPtr<content::WebContents> pinned_contents =
       pinned->GetContents()->GetWeakPtr();
-  Browser* other_window = CreateBrowser(browser()->profile());
+  BrowserWindowInterface* other_window = CreateBrowser(browser()->GetProfile());
   ASSERT_TRUE(ui_test_utils::NavigateToURL(other_window, third_url()));
   content::WebContents* other_contents =
       tabs(other_window)->GetActiveTab()->GetContents();
@@ -1121,7 +1121,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpTabToolsBrowserTest,
   tabs::TabInterface* target = tabs()->GetActiveTab();
   OpenTab(browser(), second_url());
   auto session = MakeSession(browser(), target->GetContents());
-  Browser* other_window = CreateBrowser(browser()->profile());
+  BrowserWindowInterface* other_window = CreateBrowser(browser()->GetProfile());
   TabListInterface* other_tabs = tabs(other_window);
   tabs()->MoveTabToWindow(target->GetHandle(), other_window->GetSessionID(), 0);
   ASSERT_TRUE(ContainsContents(other_tabs, target->GetContents()));
@@ -1162,13 +1162,14 @@ IN_PROC_BROWSER_TEST_F(DaoMcpTabToolsBrowserTest,
   OpenTab(browser(), second_url(), true);
 
   auto replacement = content::WebContents::Create(
-      content::WebContents::CreateParams(browser()->profile()));
+      content::WebContents::CreateParams(browser()->GetProfile()));
   content::WebContents* replacement_contents = replacement.get();
   const int target_index = tabs()->GetIndexOfTab(target_handle);
   ASSERT_GE(target_index, 0);
   std::unique_ptr<content::WebContents> discarded =
-      browser()->tab_strip_model()->DiscardWebContentsAt(
-          target_index, std::move(replacement));
+      browser()->tab_strip_model()->DiscardWebContents(
+          browser()->tab_strip_model()->GetWebContentsAt(target_index),
+          std::move(replacement));
   ASSERT_EQ(original_contents, discarded.get());
   ASSERT_TRUE(content::NavigateToURL(replacement_contents, first_url()));
 

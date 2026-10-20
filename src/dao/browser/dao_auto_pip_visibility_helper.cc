@@ -8,7 +8,8 @@
 #include "chrome/browser/picture_in_picture/picture_in_picture_window_manager.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/content_settings/core/common/content_settings.h"
@@ -42,13 +43,15 @@ void DaoAutoPipVisibilityHelper::OnVisibilityChanged(
       visibility == content::Visibility::OCCLUDED) {
     // Only trigger if this is the active tab (tab switch is handled by
     // AutoPictureInPictureTabHelper already).
-    Browser* browser = chrome::FindBrowserWithTab(web_contents());
+    BrowserWindowInterface* browser =
+        GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
+            web_contents());
     if (!browser) {
       return;
     }
-    int active_index = browser->tab_strip_model()->active_index();
+    int active_index = browser->GetTabStripModel()->active_index();
     int our_index =
-        browser->tab_strip_model()->GetIndexOfWebContents(web_contents());
+        browser->GetTabStripModel()->GetIndexOfWebContents(web_contents());
     if (active_index != our_index) {
       return;  // Not the active tab, skip (tab switch handled elsewhere).
     }

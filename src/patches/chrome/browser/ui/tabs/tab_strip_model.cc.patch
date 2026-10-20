@@ -1,7 +1,7 @@
 diff --git a/chrome/browser/ui/tabs/tab_strip_model.cc b/chrome/browser/ui/tabs/tab_strip_model.cc
 --- a/chrome/browser/ui/tabs/tab_strip_model.cc
 +++ b/chrome/browser/ui/tabs/tab_strip_model.cc
-@@ -109,6 +109,7 @@
+@@ -111,6 +111,7 @@
  #include "content/public/browser/render_widget_host_view.h"
  #include "content/public/browser/web_contents.h"
  #include "content/public/common/url_constants.h"
@@ -9,7 +9,7 @@ diff --git a/chrome/browser/ui/tabs/tab_strip_model.cc b/chrome/browser/ui/tabs/
  #include "media/base/media_switches.h"
  #include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
  #include "third_party/perfetto/include/perfetto/tracing/traced_value.h"
-@@ -1738,16 +1739,15 @@ void TabStripModel::AddTab(std::unique_ptr<tabs::TabModel> tab,
+@@ -1832,16 +1833,15 @@
      index = DetermineInsertionIndex(transition, add_types & ADD_ACTIVE);
      inherit_opener = true;
  
@@ -31,16 +31,16 @@ diff --git a/chrome/browser/ui/tabs/tab_strip_model.cc b/chrome/browser/ui/tabs/
      }
    }
  
-@@ -5262,7 +5262,7 @@ void TabStripModel::OnActiveTabChanged(
+@@ -5613,7 +5613,7 @@
        // and modify the WebContents, so for now, do it here.
        auto* const thumbnail_helper =
-           ThumbnailTabHelper::FromWebContents(old_tab->GetContents());
+           ThumbnailTabHelper::From(GetTabModelAtIndex(index));
 -      if (thumbnail_helper) {
 +      if (thumbnail_helper && dao::IsTabHoverPreviewEnabled(profile_)) {
          thumbnail_helper->CaptureThumbnailOnTabBackgrounded();
        }
  
-@@ -5310,43 +5310,14 @@ bool TabStripModel::PolicyAllowsTabClosing(
+@@ -5661,43 +5661,14 @@
  
  int TabStripModel::DetermineInsertionIndex(ui::PageTransition transition,
                                             bool foreground) {
@@ -50,7 +50,10 @@ diff --git a/chrome/browser/ui/tabs/tab_strip_model.cc b/chrome/browser/ui/tabs/
 -  }
 -
 -  if (ui::PageTransitionCoreTypeIs(transition, ui::PAGE_TRANSITION_LINK) &&
--      active_index() != -1) {
++  // Dao: only webpage links open immediately below the current tab.
++  if (ui::PageTransitionTypeIncludingQualifiersIs(
++          transition, ui::PAGE_TRANSITION_LINK) &&
+       active_index() != -1) {
 -    if (foreground) {
 -      // If the page was opened in the foreground by a link click in another
 -      // tab, insert it adjacent to the tab that opened that link.
@@ -81,10 +84,6 @@ diff --git a/chrome/browser/ui/tabs/tab_strip_model.cc b/chrome/browser/ui/tabs/
 -  }
 -  // In other cases, such as Ctrl+T, open at the end of the strip.
 -  return count();
-+  // Dao: only webpage links open immediately below the current tab.
-+  if (ui::PageTransitionTypeIncludingQualifiersIs(
-+          transition, ui::PAGE_TRANSITION_LINK) &&
-+      active_index() != -1) {
 +    return active_index() + 1;
 +  }
 +  // Other new tabs start at the top; explicit indices are handled by AddTab.

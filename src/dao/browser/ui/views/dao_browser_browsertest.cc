@@ -7,14 +7,17 @@
 #include <map>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "base/command_line.h"
 #include "base/containers/span.h"
+#include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
+#include "base/i18n/message_formatter.h"
 #include "base/functional/callback_helpers.h"
 #include "base/i18n/rtl.h"
 #include "base/i18n/time_formatting.h"
@@ -49,7 +52,6 @@
 #include "chrome/browser/sessions/session_service_factory.h"
 #include "chrome/browser/sessions/session_service_test_helper.h"
 #include "chrome/browser/sessions/tab_restore_service_factory.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_command_controller.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
@@ -57,6 +59,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_collection_observer.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/create_browser_window.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_bubble_type.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_context.h"
@@ -72,9 +75,12 @@
 #include "chrome/browser/ui/tab_contents/chrome_web_contents_view_delegate.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/thumbnails/thumbnail_tab_helper.h"
 #include "chrome/browser/ui/toolbar/back_forward_menu_model.h"
 #include "chrome/browser/ui/toolbar/toolbar_actions_model.h"
+#include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/frame/multi_contents_view.h"
 #include "chrome/browser/ui/views/frame/contents_web_view.h"
 #include "chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.h"
 #include "chrome/browser/ui/views/javascript_tab_modal_dialog_view_views.h"
@@ -83,6 +89,7 @@
 #include "chrome/browser/ui/views/side_panel/side_panel_coordinator.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_header.h"
 #include "chrome/browser/ui/views/task_manager_view.h"
+#include "chrome/browser/ui/window_feature_controller/window_feature_controller.h"
 #include "chrome/common/chrome_isolated_world_ids.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/grit/generated_resources.h"
@@ -202,6 +209,7 @@
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/accessibility/ax_node_data.h"
 #include "ui/base/accelerators/accelerator.h"
+#include "ui/base/base_window.h"
 #include "ui/base/clipboard/clipboard.h"
 #include "ui/base/clipboard/scoped_clipboard_writer.h"
 #include "ui/base/clipboard/test/clipboard_test_util.h"
@@ -267,7 +275,7 @@ class DaoSidebarContextMenuTestApi {
 
 namespace {
 
-BrowserView* GetBrowserView(Browser* browser) {
+BrowserView* GetBrowserView(BrowserWindowInterface* browser) {
   return BrowserView::GetBrowserViewForBrowser(browser);
 }
 
@@ -285,23 +293,25 @@ class BrowserAddedRecorder : public BrowserCollectionObserver {
 
   size_t added_count() const { return added_browsers_.size(); }
 
-  Browser* added_browser_at(size_t index) const {
+  BrowserWindowInterface* added_browser_at(size_t index) const {
     return added_browsers_.at(index);
   }
 
   void OnBrowserCreated(BrowserWindowInterface* browser) override {
-    added_browsers_.push_back(browser->GetBrowserForMigrationOnly());
+    added_browsers_.push_back(browser);
   }
 
  private:
-  std::vector<raw_ptr<Browser, VectorExperimental>> added_browsers_;
+  std::vector<raw_ptr<BrowserWindowInterface, VectorExperimental>>
+      added_browsers_;
   base::ScopedObservation<GlobalBrowserCollection, BrowserCollectionObserver>
       browser_collection_observation_{this};
 };
 
 class BrowserRemovedWaiter : public BrowserCollectionObserver {
  public:
-  explicit BrowserRemovedWaiter(Browser* browser) : browser_(browser) {
+  explicit BrowserRemovedWaiter(BrowserWindowInterface* browser)
+      : browser_(browser) {
     browser_collection_observation_.Observe(
         GlobalBrowserCollection::GetInstance());
   }
@@ -314,13 +324,13 @@ class BrowserRemovedWaiter : public BrowserCollectionObserver {
   void Wait() { run_loop_.Run(); }
 
   void OnBrowserClosed(BrowserWindowInterface* browser) override {
-    if (browser->GetBrowserForMigrationOnly() == browser_) {
+    if (browser == browser_) {
       run_loop_.Quit();
     }
   }
 
  private:
-  raw_ptr<Browser> browser_;
+  raw_ptr<BrowserWindowInterface> browser_;
   base::RunLoop run_loop_;
   base::ScopedObservation<GlobalBrowserCollection, BrowserCollectionObserver>
       browser_collection_observation_{this};
@@ -656,14 +666,14 @@ scoped_refptr<const extensions::Extension> LoadActionExtension(
   return loader.LoadExtension(extension_dir->UnpackedPath());
 }
 
-void SetActionIconForActiveTab(Browser* browser,
+void SetActionIconForActiveTab(BrowserWindowInterface* browser,
                                const extensions::Extension& extension,
                                SkColor color) {
   content::WebContents* web_contents =
       browser->tab_strip_model()->GetActiveWebContents();
   ASSERT_NE(nullptr, web_contents);
 
-  Profile* profile = browser->profile();
+  Profile* profile = browser->GetProfile();
   auto* action =
       extensions::ExtensionActionManager::Get(profile)->GetExtensionAction(
           extension);
@@ -675,7 +685,7 @@ void SetActionIconForActiveTab(Browser* browser,
       action, web_contents, profile);
 }
 
-void SetActionBadgeForActiveTab(Browser* browser,
+void SetActionBadgeForActiveTab(BrowserWindowInterface* browser,
                                 const extensions::Extension& extension,
                                 const std::string& text,
                                 SkColor text_color,
@@ -684,7 +694,7 @@ void SetActionBadgeForActiveTab(Browser* browser,
       browser->tab_strip_model()->GetActiveWebContents();
   ASSERT_NE(nullptr, web_contents);
 
-  Profile* profile = browser->profile();
+  Profile* profile = browser->GetProfile();
   auto* action =
       extensions::ExtensionActionManager::Get(profile)->GetExtensionAction(
           extension);
@@ -812,7 +822,7 @@ double GetDoubleField(const base::DictValue& dict, const char* key) {
   return value && value->is_double() ? value->GetDouble() : -1.0;
 }
 
-int FindTabIndexByUrl(Browser* browser, const GURL& url) {
+int FindTabIndexByUrl(BrowserWindowInterface* browser, const GURL& url) {
   TabStripModel* model = browser->tab_strip_model();
   for (int i = 0; i < model->count(); ++i) {
     content::WebContents* contents = model->GetWebContentsAt(i);
@@ -823,13 +833,14 @@ int FindTabIndexByUrl(Browser* browser, const GURL& url) {
   return TabStripModel::kNoTab;
 }
 
-void AttachSidebarHandlerForTesting(Browser* browser,
+void AttachSidebarHandlerForTesting(BrowserWindowInterface* browser,
                                     DaoSidebarUIHandler* handler) {
-  browser->profile()->GetPrefs()->SetBoolean(prefs::kDaoWelcomeShown, true);
+  browser->GetProfile()->GetPrefs()->SetBoolean(prefs::kDaoWelcomeShown, true);
   handler->SetBrowser(browser);
 }
 
-DaoSidebarUIHandler* GetLiveSidebarHandlerForTesting(Browser* browser) {
+DaoSidebarUIHandler* GetLiveSidebarHandlerForTesting(
+    BrowserWindowInterface* browser) {
   BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
   DaoSidebarView* sidebar = browser_view ? browser_view->dao_sidebar() : nullptr;
   content::WebContents* contents =
@@ -840,7 +851,7 @@ DaoSidebarUIHandler* GetLiveSidebarHandlerForTesting(Browser* browser) {
   return controller ? controller->handler_for_testing() : nullptr;
 }
 
-bool DetachLiveSidebarHandlerForTesting(Browser* browser) {
+bool DetachLiveSidebarHandlerForTesting(BrowserWindowInterface* browser) {
   DaoSidebarUIHandler* handler = GetLiveSidebarHandlerForTesting(browser);
   if (!handler) {
     return false;
@@ -885,10 +896,10 @@ class CountingDialogDelegate : public views::DialogDelegate {
   int cancelled_count_ = 0;
 };
 
-views::Widget* ShowCountingDialog(Browser* browser,
+views::Widget* ShowCountingDialog(BrowserWindowInterface* browser,
                                   CountingDialogDelegate* dialog) {
   return constrained_window::CreateBrowserModalDialogViews(
-      dialog, browser->window()->GetNativeWindow());
+      dialog, browser->GetWindow()->GetNativeWindow());
 }
 
 class ScopedWidgetCloser {
@@ -1129,7 +1140,7 @@ class TestPictureInPictureWindowController
 };
 
 IN_PROC_BROWSER_TEST_F(DaoPipBoundsPrefsBrowserTest, RegistersDictionaryPref) {
-  PrefService* prefs = browser()->profile()->GetPrefs();
+  PrefService* prefs = browser()->GetProfile()->GetPrefs();
   ASSERT_TRUE(prefs->FindPreference(dao::prefs::kDaoPipWindowBoundsByOrigin));
   EXPECT_TRUE(prefs->GetDict(dao::prefs::kDaoPipWindowBoundsByOrigin).empty());
 }
@@ -1143,8 +1154,8 @@ IN_PROC_BROWSER_TEST_F(DaoPipBoundsPrefsBrowserTest,
   content::WebContents* contents =
       browser()->tab_strip_model()->GetActiveWebContents();
   ASSERT_NE(nullptr, contents);
-  ASSERT_FALSE(browser()->profile()->IsOffTheRecord());
-  ASSERT_TRUE(browser()->profile()->GetPrefs()->FindPreference(
+  ASSERT_FALSE(browser()->GetProfile()->IsOffTheRecord());
+  ASSERT_TRUE(browser()->GetProfile()->GetPrefs()->FindPreference(
       dao::prefs::kDaoPipWindowBoundsByOrigin));
   const url::Origin current_origin =
       contents->GetPrimaryMainFrame()->GetLastCommittedOrigin();
@@ -1161,7 +1172,7 @@ IN_PROC_BROWSER_TEST_F(DaoPipBoundsPrefsBrowserTest,
   const gfx::Rect stored_bounds(700, 420, 640, 360);
   const gfx::Size requested_size(800, 450);
   ASSERT_TRUE(stored_bounds.Intersects(pip_display.work_area()));
-  dao::UpdatePersistedPipBoundsForSite(browser()->profile(), contents,
+  dao::UpdatePersistedPipBoundsForSite(browser()->GetProfile(), contents,
                                        stored_bounds, opener_display,
                                        pip_display, requested_size);
 
@@ -1169,13 +1180,13 @@ IN_PROC_BROWSER_TEST_F(DaoPipBoundsPrefsBrowserTest,
   ASSERT_EQ(origin_key,
             current_origin.GetTupleOrPrecursorTupleIfOpaque().Serialize());
   EXPECT_FALSE(browser()
-                   ->profile()
+                   ->GetProfile()
                    ->GetPrefs()
                    ->GetDict(dao::prefs::kDaoPipWindowBoundsByOrigin)
                    .empty());
   const base::DictValue* entry =
       browser()
-          ->profile()
+          ->GetProfile()
           ->GetPrefs()
           ->GetDict(dao::prefs::kDaoPipWindowBoundsByOrigin)
           .FindDict(origin_key);
@@ -1186,7 +1197,7 @@ IN_PROC_BROWSER_TEST_F(DaoPipBoundsPrefsBrowserTest,
   EXPECT_EQ(stored_bounds.height(), entry->FindInt("height"));
 
   std::optional<gfx::Rect> restored = dao::GetPersistedPipBoundsForSite(
-      browser()->profile(), contents, opener_display, requested_size);
+      browser()->GetProfile(), contents, opener_display, requested_size);
 
   ASSERT_TRUE(restored.has_value());
   EXPECT_EQ(stored_bounds, restored.value());
@@ -1207,12 +1218,12 @@ IN_PROC_BROWSER_TEST_F(DaoPipBoundsPrefsBrowserTest,
   opener_display.set_work_area(gfx::Rect(0, 0, 1440, 900));
 
   const gfx::Rect stored_bounds(700, 420, 640, 360);
-  dao::UpdatePersistedPipBoundsForSite(browser()->profile(), contents,
+  dao::UpdatePersistedPipBoundsForSite(browser()->GetProfile(), contents,
                                        stored_bounds, opener_display,
                                        opener_display, gfx::Size(800, 450));
 
   std::optional<gfx::Rect> restored = dao::GetPersistedPipBoundsForSite(
-      browser()->profile(), contents, opener_display, std::nullopt);
+      browser()->GetProfile(), contents, opener_display, std::nullopt);
 
   ASSERT_TRUE(restored.has_value());
   EXPECT_EQ(stored_bounds, restored.value());
@@ -1238,12 +1249,12 @@ IN_PROC_BROWSER_TEST_F(DaoPipBoundsPrefsBrowserTest,
 
   const gfx::Rect stored_bounds(1500, 420, 640, 360);
   const gfx::Size requested_size(800, 450);
-  dao::UpdatePersistedPipBoundsForSite(browser()->profile(), contents,
+  dao::UpdatePersistedPipBoundsForSite(browser()->GetProfile(), contents,
                                        stored_bounds, opener_display,
                                        pip_display, requested_size);
 
   std::optional<gfx::Rect> restored = dao::GetPersistedPipBoundsForSite(
-      browser()->profile(), contents, opener_display, requested_size);
+      browser()->GetProfile(), contents, opener_display, requested_size);
 
   ASSERT_TRUE(restored.has_value());
   EXPECT_EQ(stored_bounds, restored.value());
@@ -1269,13 +1280,13 @@ IN_PROC_BROWSER_TEST_F(DaoPipBoundsPrefsBrowserTest,
 
   const gfx::Rect stored_bounds(1500, 420, 640, 360);
   const gfx::Size requested_size(800, 450);
-  dao::UpdatePersistedPipBoundsForSite(browser()->profile(), contents,
+  dao::UpdatePersistedPipBoundsForSite(browser()->GetProfile(), contents,
                                        stored_bounds, opener_display,
                                        pip_display, requested_size);
   RemoveSecondaryDisplayForTesting();
 
   std::optional<gfx::Rect> restored = dao::GetPersistedPipBoundsForSite(
-      browser()->profile(), contents, opener_display, requested_size);
+      browser()->GetProfile(), contents, opener_display, requested_size);
 
   EXPECT_FALSE(restored.has_value());
 }
@@ -1296,7 +1307,7 @@ IN_PROC_BROWSER_TEST_F(DaoPipBoundsPrefsBrowserTest,
 
   const gfx::Rect stored_bounds(700, 420, 640, 360);
   const gfx::Size requested_size(800, 450);
-  dao::UpdatePersistedPipBoundsForSite(browser()->profile(), contents,
+  dao::UpdatePersistedPipBoundsForSite(browser()->GetProfile(), contents,
                                        stored_bounds, opener_display,
                                        opener_display, requested_size);
 
@@ -1331,7 +1342,7 @@ IN_PROC_BROWSER_TEST_F(DaoPipBoundsPrefsBrowserTest,
 
   const gfx::Rect stored_bounds(700, 420, 640, 360);
   const gfx::Size requested_size(800, 450);
-  dao::UpdatePersistedPipBoundsForSite(browser()->profile(), contents,
+  dao::UpdatePersistedPipBoundsForSite(browser()->GetProfile(), contents,
                                        stored_bounds, opener_display,
                                        opener_display, requested_size);
 
@@ -1367,7 +1378,7 @@ IN_PROC_BROWSER_TEST_F(DaoPipBoundsPrefsBrowserTest,
 
   const gfx::Size requested_size(800, 450);
   dao::UpdatePersistedPipBoundsForSite(
-      browser()->profile(), contents, gfx::Rect(700, 420, 640, 360),
+      browser()->GetProfile(), contents, gfx::Rect(700, 420, 640, 360),
       opener_display, opener_display, requested_size);
 
   const GURL example_url =
@@ -1375,7 +1386,7 @@ IN_PROC_BROWSER_TEST_F(DaoPipBoundsPrefsBrowserTest,
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), example_url));
 
   std::optional<gfx::Rect> restored = dao::GetPersistedPipBoundsForSite(
-      browser()->profile(), contents, opener_display, requested_size);
+      browser()->GetProfile(), contents, opener_display, requested_size);
 
   EXPECT_FALSE(restored.has_value());
 }
@@ -1395,11 +1406,11 @@ IN_PROC_BROWSER_TEST_F(DaoPipBoundsPrefsBrowserTest,
   opener_display.set_work_area(gfx::Rect(0, 0, 1440, 900));
 
   dao::UpdatePersistedPipBoundsForSite(
-      browser()->profile(), contents, gfx::Rect(700, 420, 640, 360),
+      browser()->GetProfile(), contents, gfx::Rect(700, 420, 640, 360),
       opener_display, opener_display, gfx::Size(800, 450));
 
   std::optional<gfx::Rect> restored = dao::GetPersistedPipBoundsForSite(
-      browser()->profile(), contents, opener_display, gfx::Size(1024, 576));
+      browser()->GetProfile(), contents, opener_display, gfx::Size(1024, 576));
 
   EXPECT_FALSE(restored.has_value());
 }
@@ -1434,11 +1445,11 @@ IN_PROC_BROWSER_TEST_F(DaoPipBoundsPrefsBrowserTest,
   base::DictValue bounds_by_origin;
   bounds_by_origin.Set(url::Origin::Create(url).Serialize(),
                        std::move(stored_bounds));
-  browser()->profile()->GetPrefs()->SetDict(
+  browser()->GetProfile()->GetPrefs()->SetDict(
       dao::prefs::kDaoPipWindowBoundsByOrigin, std::move(bounds_by_origin));
 
   std::optional<gfx::Rect> restored = dao::GetPersistedPipBoundsForSite(
-      browser()->profile(), contents, opener_display, requested_size);
+      browser()->GetProfile(), contents, opener_display, requested_size);
 
   EXPECT_FALSE(restored.has_value());
 }
@@ -1522,9 +1533,46 @@ class ReentrantApplyObserver : public dao::DaoUpdaterServiceObserver {
 
 class DaoSidebarBrowserTest : public InProcessBrowserTest {};
 
+class DaoSidebarThumbnailBrowserTest : public DaoSidebarBrowserTest {
+ public:
+  DaoSidebarThumbnailBrowserTest() {
+    scoped_feature_list_.InitAndDisableFeature(features::kTabHoverCardImages);
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(DaoSidebarThumbnailBrowserTest,
+                       HelperSurvivesDiscardWithoutUpstreamHoverImages) {
+  EXPECT_FALSE(base::FeatureList::IsEnabled(features::kTabHoverCardImages));
+  TabStripModel* model = browser()->GetTabStripModel();
+  const int index = model->count();
+  chrome::AddTabAt(browser(), GURL(url::kAboutBlankURL), index, false);
+  ASSERT_TRUE(model->ContainsIndex(index));
+  ASSERT_NE(model->active_index(), index);
+  tabs::TabInterface* tab = model->GetTabAtIndex(index);
+  content::WebContents* original = tab->GetContents();
+  auto* helper = ThumbnailTabHelper::From(tab);
+  ASSERT_NE(nullptr, helper);
+  EXPECT_EQ(original, helper->web_contents());
+
+  auto replacement = content::WebContents::Create(
+      content::WebContents::CreateParams(browser()->GetProfile()));
+  content::WebContents* replacement_ptr = replacement.get();
+  model->DiscardWebContents(original, std::move(replacement));
+
+  ASSERT_EQ(tab, model->GetTabAtIndex(index));
+  EXPECT_EQ(replacement_ptr, tab->GetContents());
+  helper = ThumbnailTabHelper::From(tab);
+  ASSERT_NE(nullptr, helper);
+  EXPECT_EQ(replacement_ptr, helper->web_contents());
+}
+
 IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
                        ClosingSubmenuPreservesTabContext) {
-  Browser* popup = CreateBrowserForPopup(browser()->profile());
+  BrowserWindowInterface* popup =
+      CreateBrowserForPopup(browser()->GetProfile());
   chrome::AddTabAt(popup, GURL(url::kAboutBlankURL), -1, true);
   ASSERT_EQ(nullptr, GetBrowserView(popup)->dao_sidebar());
 
@@ -1601,7 +1649,7 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
                        StaleTabExpirationPrefDefaultsTo24Hours) {
-  PrefService* prefs = browser()->profile()->GetPrefs();
+  PrefService* prefs = browser()->GetProfile()->GetPrefs();
   const PrefService::Preference* preference =
       prefs->FindPreference(dao::prefs::kDaoStaleTabExpirationHours);
   ASSERT_TRUE(preference);
@@ -1706,7 +1754,7 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest, CollapsedEdgeHoverAutoExpands) {
                         ui::EventTimeForNow(), ui::EF_NONE, ui::EF_NONE);
     widget->GetRootView()->OnMouseMoved(move);
   };
-  views::View* contents = browser_view->contents_container();
+  views::View* contents = browser_view->multi_contents_view();
   ASSERT_NE(nullptr, contents);
 
   sidebar->ToggleCollapsed();
@@ -1779,6 +1827,10 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarFullscreenBrowserTest,
                        BrowserFullscreenDoesNotShowExitBubble) {
   BrowserView* browser_view = GetBrowserView(browser());
   ASSERT_NE(nullptr, browser_view->dao_sidebar());
+  auto* window_features = WindowFeatureController::From(browser());
+  ASSERT_NE(nullptr, window_features);
+  EXPECT_FALSE(window_features->UsesImmersiveFullscreenMode());
+  EXPECT_FALSE(window_features->UsesImmersiveFullscreenTabbedMode());
 
   ui_test_utils::ToggleFullscreenModeAndWait(browser());
   ASSERT_TRUE(browser_view->IsFullscreen());
@@ -2373,7 +2425,7 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
   SetSidebarTabId(contents, kIdentity);
 
   SessionService* session_service =
-      SessionServiceFactory::GetForProfile(browser()->profile());
+      SessionServiceFactory::GetForProfile(browser()->GetProfile());
   ASSERT_NE(nullptr, session_service);
   session_service->ResetFromCurrentBrowsers();
   SessionServiceTestHelper session_service_helper(session_service);
@@ -2417,7 +2469,8 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
   ASSERT_NE(pinned_contents,
             browser()->tab_strip_model()->GetActiveWebContents());
 
-  Browser* second_browser = CreateBrowser(browser()->profile());
+  BrowserWindowInterface* second_browser =
+      CreateBrowser(browser()->GetProfile());
   ASSERT_NE(nullptr, second_browser);
   DaoSidebarUIHandler second_handler;
   AttachSidebarHandlerForTesting(second_browser, &second_handler);
@@ -2464,7 +2517,8 @@ IN_PROC_BROWSER_TEST_F(
   first_handler.SetSessionRestoreCompletedForTesting(true);
   ASSERT_TRUE(first_handler.LoadPinnedItemsForTesting(pinned_json));
 
-  Browser* second_browser = CreateBrowser(browser()->profile());
+  BrowserWindowInterface* second_browser =
+      CreateBrowser(browser()->GetProfile());
   ASSERT_NE(nullptr, second_browser);
   DaoSidebarUIHandler second_handler;
   AttachSidebarHandlerForTesting(second_browser, &second_handler);
@@ -2522,7 +2576,8 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
   first_handler.SetSessionRestoreCompletedForTesting(true);
   ASSERT_TRUE(first_handler.LoadPinnedItemsForTesting(pinned_json));
 
-  Browser* second_browser = CreateBrowser(browser()->profile());
+  BrowserWindowInterface* second_browser =
+      CreateBrowser(browser()->GetProfile());
   ASSERT_NE(nullptr, second_browser);
   DaoSidebarUIHandler second_handler;
   AttachSidebarHandlerForTesting(second_browser, &second_handler);
@@ -2770,9 +2825,9 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
   const std::string original_identity = GetSidebarTabId(original);
 
   auto replacement = content::WebContents::Create(
-      content::WebContents::CreateParams(browser()->profile()));
+      content::WebContents::CreateParams(browser()->GetProfile()));
   content::WebContents* replacement_ptr = replacement.get();
-  model->DiscardWebContentsAt(0, std::move(replacement));
+  model->DiscardWebContents(model->GetWebContentsAt(0), std::move(replacement));
 
   ASSERT_EQ(replacement_ptr, model->GetWebContentsAt(0));
   EXPECT_EQ(original_identity, GetSidebarTabId(replacement_ptr));
@@ -2799,9 +2854,9 @@ IN_PROC_BROWSER_TEST_F(
 
   TabStripModel* model = browser()->tab_strip_model();
   auto replacement = content::WebContents::Create(
-      content::WebContents::CreateParams(browser()->profile()));
+      content::WebContents::CreateParams(browser()->GetProfile()));
   content::WebContents* replacement_ptr = replacement.get();
-  model->DiscardWebContentsAt(0, std::move(replacement));
+  model->DiscardWebContents(model->GetWebContentsAt(0), std::move(replacement));
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), updated_url));
 
   chrome::AddTabAt(browser(), other_url, -1, true);
@@ -3186,7 +3241,7 @@ IN_PROC_BROWSER_TEST_F(DaoAddressBarBrowserTest,
   ASSERT_EQ(nullptr, url_container->background());
 
   ui::test::EventGenerator event_generator(
-      browser()->window()->GetNativeWindow());
+      browser()->GetWindow()->GetNativeWindow());
   event_generator.MoveMouseTo(
       url_container->GetBoundsInScreen().CenterPoint());
   EXPECT_NE(nullptr, url_container->background());
@@ -3719,7 +3774,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest, ShowForNewTabMultipleCycles) {
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
                        EnhancedSuggestionsPrefDefaultsOff) {
-  PrefService* prefs = browser()->profile()->GetPrefs();
+  PrefService* prefs = browser()->GetProfile()->GetPrefs();
   ASSERT_NE(nullptr, prefs->FindPreference(
                          dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled));
   EXPECT_FALSE(
@@ -3727,7 +3782,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest, AskAiPrefDefaultsOn) {
-  PrefService* prefs = browser()->profile()->GetPrefs();
+  PrefService* prefs = browser()->GetProfile()->GetPrefs();
   ASSERT_NE(nullptr, prefs->FindPreference(dao::prefs::kDaoAskAiEnabled));
   EXPECT_TRUE(prefs->GetBoolean(dao::prefs::kDaoAskAiEnabled));
 }
@@ -3737,7 +3792,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
   DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
 
-  browser()->profile()->GetPrefs()->SetBoolean(dao::prefs::kDaoAskAiEnabled,
+  browser()->GetProfile()->GetPrefs()->SetBoolean(dao::prefs::kDaoAskAiEnabled,
                                                false);
 
   AutocompleteMatch default_match(nullptr, 1000, false,
@@ -3759,7 +3814,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
   command_bar->Hide();
 
   // Enhanced suggestion mode: Ask AI must still be absent.
-  browser()->profile()->GetPrefs()->SetBoolean(
+  browser()->GetProfile()->GetPrefs()->SetBoolean(
       dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled, true);
   command_bar->ShowForNewTab();
   command_bar->SetUserInputAndInlineAutocompletionForTesting(u"new york", u"");
@@ -3779,7 +3834,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
   EXPECT_EQ(0, provider_types & AutocompleteProvider::TYPE_ZERO_SUGGEST);
   command_bar->Hide();
 
-  browser()->profile()->GetPrefs()->SetBoolean(
+  browser()->GetProfile()->GetPrefs()->SetBoolean(
       dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled, true);
 
   command_bar->ShowForNewTab();
@@ -3790,11 +3845,11 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
                        EnhancedSuggestionsReturnMatchesForTypedInput) {
-  browser()->profile()->GetPrefs()->SetBoolean(
+  browser()->GetProfile()->GetPrefs()->SetBoolean(
       dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled, true);
 
   TemplateURLService* template_url_service =
-      TemplateURLServiceFactory::GetForProfile(browser()->profile());
+      TemplateURLServiceFactory::GetForProfile(browser()->GetProfile());
   ASSERT_NE(nullptr, template_url_service);
   search_test_utils::WaitForTemplateURLServiceToLoad(template_url_service);
 
@@ -3825,7 +3880,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
   history_match.destination_url = GURL("https://github.com/");
 
   for (bool enhanced : {false, true}) {
-    browser()->profile()->GetPrefs()->SetBoolean(
+    browser()->GetProfile()->GetPrefs()->SetBoolean(
         dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled, enhanced);
     command_bar->ShowForNewTab();
     command_bar->SetUserInputAndInlineAutocompletionForTesting(u"git", u"");
@@ -3848,7 +3903,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
                        WhitespaceOnlyInputShowsNoSuggestions) {
-  browser()->profile()->GetPrefs()->SetBoolean(
+  browser()->GetProfile()->GetPrefs()->SetBoolean(
       dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled, true);
 
   DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
@@ -3878,9 +3933,9 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 IN_PROC_BROWSER_TEST_F(
     DaoCommandBarBrowserTest,
     ReservesExactSearchWhenNonSearchMatchesFillVisibleSlots) {
-  browser()->profile()->GetPrefs()->SetBoolean(
+  browser()->GetProfile()->GetPrefs()->SetBoolean(
       dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled, true);
-  browser()->profile()->GetPrefs()->SetBoolean(dao::prefs::kDaoAskAiEnabled,
+  browser()->GetProfile()->GetPrefs()->SetBoolean(dao::prefs::kDaoAskAiEnabled,
                                                false);
 
   DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
@@ -3912,7 +3967,7 @@ IN_PROC_BROWSER_TEST_F(
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
                        DoesNotDuplicateVisibleExactSearchMatch) {
-  browser()->profile()->GetPrefs()->SetBoolean(dao::prefs::kDaoAskAiEnabled,
+  browser()->GetProfile()->GetPrefs()->SetBoolean(dao::prefs::kDaoAskAiEnabled,
                                                false);
   DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
@@ -3949,7 +4004,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
                        ShowsAllMatchesInFiveRowScrollableViewport) {
-  browser()->profile()->GetPrefs()->SetBoolean(dao::prefs::kDaoAskAiEnabled,
+  browser()->GetProfile()->GetPrefs()->SetBoolean(dao::prefs::kDaoAskAiEnabled,
                                                false);
   DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
@@ -4002,14 +4057,14 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 
   // Regression coverage: this DCHECKed when layer scrolling was disabled.
   ui::test::EventGenerator event_generator(
-      browser()->window()->GetNativeWindow());
+      browser()->GetWindow()->GetNativeWindow());
   event_generator.ScrollSequence(scroll_view->GetBoundsInScreen().CenterPoint(),
                                  base::TimeDelta(), 0, 20, 1, 2);
 }
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
                        PromotesExactSearchBelowVisibleCutoff) {
-  browser()->profile()->GetPrefs()->SetBoolean(dao::prefs::kDaoAskAiEnabled,
+  browser()->GetProfile()->GetPrefs()->SetBoolean(dao::prefs::kDaoAskAiEnabled,
                                                false);
   DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
@@ -4045,7 +4100,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
                        ReservesSearchForUrlLikeInput) {
-  browser()->profile()->GetPrefs()->SetBoolean(dao::prefs::kDaoAskAiEnabled,
+  browser()->GetProfile()->GetPrefs()->SetBoolean(dao::prefs::kDaoAskAiEnabled,
                                                false);
   DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
@@ -4067,7 +4122,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
                        KeepsAskAiSecondWhileReservingSearch) {
-  browser()->profile()->GetPrefs()->SetBoolean(
+  browser()->GetProfile()->GetPrefs()->SetBoolean(
       dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled, true);
   DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
@@ -4116,7 +4171,7 @@ IN_PROC_BROWSER_TEST_F(
   ASSERT_TRUE(embedded_test_server()->Start());
 
   TemplateURLService* template_url_service =
-      TemplateURLServiceFactory::GetForProfile(browser()->profile());
+      TemplateURLServiceFactory::GetForProfile(browser()->GetProfile());
   ASSERT_NE(nullptr, template_url_service);
   search_test_utils::WaitForTemplateURLServiceToLoad(template_url_service);
   TemplateURLData data;
@@ -4128,9 +4183,9 @@ IN_PROC_BROWSER_TEST_F(
   ASSERT_NE(nullptr, template_url);
   template_url_service->SetUserSelectedDefaultSearchProvider(template_url);
 
-  browser()->profile()->GetPrefs()->SetBoolean(dao::prefs::kDaoAskAiEnabled,
+  browser()->GetProfile()->GetPrefs()->SetBoolean(dao::prefs::kDaoAskAiEnabled,
                                                false);
-  browser()->profile()->GetPrefs()->SetBoolean(
+  browser()->GetProfile()->GetPrefs()->SetBoolean(
       dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled, true);
   DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
@@ -4210,7 +4265,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 IN_PROC_BROWSER_TEST_F(
     DaoCommandBarBrowserTest,
     SelectionPreviewArrowsAndRightAcceptanceDoNotRestartOrNavigate) {
-  browser()->profile()->GetPrefs()->SetBoolean(dao::prefs::kDaoAskAiEnabled,
+  browser()->GetProfile()->GetPrefs()->SetBoolean(dao::prefs::kDaoAskAiEnabled,
                                                false);
 
   DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
@@ -4290,7 +4345,7 @@ IN_PROC_BROWSER_TEST_F(
 IN_PROC_BROWSER_TEST_F(
     DaoCommandBarBrowserTest,
     SelectionPreviewUpArrowWrapsAndUpdatesSuggestionPreview) {
-  browser()->profile()->GetPrefs()->SetBoolean(dao::prefs::kDaoAskAiEnabled,
+  browser()->GetProfile()->GetPrefs()->SetBoolean(dao::prefs::kDaoAskAiEnabled,
                                                false);
 
   DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
@@ -4327,7 +4382,7 @@ IN_PROC_BROWSER_TEST_F(
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
                        SelectionPreviewTabAcceptsWithoutMovingFocus) {
-  browser()->profile()->GetPrefs()->SetBoolean(dao::prefs::kDaoAskAiEnabled,
+  browser()->GetProfile()->GetPrefs()->SetBoolean(dao::prefs::kDaoAskAiEnabled,
                                                false);
   DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
@@ -4366,7 +4421,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 IN_PROC_BROWSER_TEST_F(
     DaoCommandBarBrowserTest,
     AutoHighlightedSuggestionDoesNotReplaceEditedInputUntilAccepted) {
-  browser()->profile()->GetPrefs()->SetBoolean(dao::prefs::kDaoAskAiEnabled,
+  browser()->GetProfile()->GetPrefs()->SetBoolean(dao::prefs::kDaoAskAiEnabled,
                                                false);
   DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
@@ -4416,7 +4471,7 @@ IN_PROC_BROWSER_TEST_F(
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
                        SelectionPreviewTypingReplacesSelectedSuffix) {
-  browser()->profile()->GetPrefs()->SetBoolean(dao::prefs::kDaoAskAiEnabled,
+  browser()->GetProfile()->GetPrefs()->SetBoolean(dao::prefs::kDaoAskAiEnabled,
                                                false);
   DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
@@ -4452,7 +4507,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 IN_PROC_BROWSER_TEST_F(
     DaoCommandBarBrowserTest,
     SelectionPreviewBackspaceRejectsAndAsyncTickDoesNotRestore) {
-  browser()->profile()->GetPrefs()->SetBoolean(dao::prefs::kDaoAskAiEnabled,
+  browser()->GetProfile()->GetPrefs()->SetBoolean(dao::prefs::kDaoAskAiEnabled,
                                                false);
   DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
@@ -4494,7 +4549,7 @@ IN_PROC_BROWSER_TEST_F(
 IN_PROC_BROWSER_TEST_F(
     DaoCommandBarBrowserTest,
     SelectionPreviewRejectionSuppressionSurvivesSubsequentTyping) {
-  browser()->profile()->GetPrefs()->SetBoolean(dao::prefs::kDaoAskAiEnabled,
+  browser()->GetProfile()->GetPrefs()->SetBoolean(dao::prefs::kDaoAskAiEnabled,
                                                false);
   DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
@@ -4555,7 +4610,7 @@ IN_PROC_BROWSER_TEST_F(
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
                        SelectionPreviewRecomputesWhenSameRowChanges) {
-  browser()->profile()->GetPrefs()->SetBoolean(dao::prefs::kDaoAskAiEnabled,
+  browser()->GetProfile()->GetPrefs()->SetBoolean(dao::prefs::kDaoAskAiEnabled,
                                                false);
   DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
@@ -4670,7 +4725,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 IN_PROC_BROWSER_TEST_F(
     DaoCommandBarBrowserTest,
     SelectionPreviewClearsOnHideAndNewTabInitialization) {
-  browser()->profile()->GetPrefs()->SetBoolean(dao::prefs::kDaoAskAiEnabled,
+  browser()->GetProfile()->GetPrefs()->SetBoolean(dao::prefs::kDaoAskAiEnabled,
                                                false);
   DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
@@ -4783,7 +4838,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
   const GURL typed_url = embedded_test_server()->GetURL("/title1.html");
   const GURL suggestion_url = embedded_test_server()->GetURL("/title2.html");
   ASSERT_NE(typed_url, suggestion_url);
-  browser()->profile()->GetPrefs()->SetBoolean(
+  browser()->GetProfile()->GetPrefs()->SetBoolean(
       dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled, true);
 
   DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
@@ -4821,7 +4876,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
                        EnhancedSuggestionsEnterWithEmptyInputDoesNotNavigate) {
-  browser()->profile()->GetPrefs()->SetBoolean(
+  browser()->GetProfile()->GetPrefs()->SetBoolean(
       dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled, true);
 
   DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
@@ -4862,7 +4917,7 @@ IN_PROC_BROWSER_TEST_F(
   const GURL typed_url = embedded_test_server()->GetURL("/title1.html");
   const GURL suggestion_url = embedded_test_server()->GetURL("/title2.html");
   ASSERT_NE(typed_url, suggestion_url);
-  browser()->profile()->GetPrefs()->SetBoolean(
+  browser()->GetProfile()->GetPrefs()->SetBoolean(
       dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled, true);
 
   DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
@@ -4926,7 +4981,7 @@ IN_PROC_BROWSER_TEST_F(
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
                        EnhancedSuggestionsShowAskAiSecondForShortInput) {
-  browser()->profile()->GetPrefs()->SetBoolean(
+  browser()->GetProfile()->GetPrefs()->SetBoolean(
       dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled, true);
 
   DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
@@ -4955,7 +5010,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
                        EnhancedSuggestionsShowAskAiSecondForSearchPhrase) {
-  browser()->profile()->GetPrefs()->SetBoolean(
+  browser()->GetProfile()->GetPrefs()->SetBoolean(
       dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled, true);
 
   DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
@@ -4986,7 +5041,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
                        EnhancedSuggestionsShowAskAiSecondForQuestion) {
-  browser()->profile()->GetPrefs()->SetBoolean(
+  browser()->GetProfile()->GetPrefs()->SetBoolean(
       dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled, true);
 
   DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
@@ -5039,7 +5094,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
                        EnhancedSuggestionsShowIntentLabels) {
-  browser()->profile()->GetPrefs()->SetBoolean(
+  browser()->GetProfile()->GetPrefs()->SetBoolean(
       dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled, true);
 
   DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
@@ -5107,7 +5162,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
   ASSERT_TRUE(embedded_test_server()->Start());
 
   TemplateURLService* template_url_service =
-      TemplateURLServiceFactory::GetForProfile(browser()->profile());
+      TemplateURLServiceFactory::GetForProfile(browser()->GetProfile());
   ASSERT_NE(nullptr, template_url_service);
   search_test_utils::WaitForTemplateURLServiceToLoad(template_url_service);
 
@@ -5125,6 +5180,8 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 
   command_bar->ShowForNewTab();
   command_bar->SetUserInputAndInlineAutocompletionForTesting(u"dao", u"");
+  ASSERT_EQ(-1, command_bar->GetSelectedIndexForTesting());
+  ASSERT_EQ(-1, command_bar->GetAskAiRowIndexForTesting());
 
   ui_test_utils::TabAddedWaiter tab_waiter(browser());
   SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_RETURN);
@@ -5294,7 +5351,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
                        SystemCommandModeDefaultsOffAndFollowsPref) {
   auto* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
-  PrefService* prefs = browser()->profile()->GetPrefs();
+  PrefService* prefs = browser()->GetProfile()->GetPrefs();
   ASSERT_NE(nullptr,
             prefs->FindPreference(dao::prefs::kDaoCommandBarCommandModeEnabled));
   EXPECT_FALSE(prefs->GetBoolean(dao::prefs::kDaoCommandBarCommandModeEnabled));
@@ -5323,13 +5380,13 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
                        SystemCommandsBypassAutocompleteProviders) {
-  browser()->profile()->GetPrefs()->SetBoolean(
+  browser()->GetProfile()->GetPrefs()->SetBoolean(
       dao::prefs::kDaoCommandBarCommandModeEnabled, true);
   auto* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
 
   for (bool enhanced : {false, true}) {
-    browser()->profile()->GetPrefs()->SetBoolean(
+    browser()->GetProfile()->GetPrefs()->SetBoolean(
         dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled, enhanced);
     command_bar->ShowForNewTab();
     const int starts = command_bar->GetAutocompleteStartCountForTesting();
@@ -5348,7 +5405,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
                        SystemCommandsMatchNormalizedExactAndPrefixOnly) {
-  browser()->profile()->GetPrefs()->SetBoolean(
+  browser()->GetProfile()->GetPrefs()->SetBoolean(
       dao::prefs::kDaoCommandBarCommandModeEnabled, true);
   auto* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
@@ -5409,7 +5466,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
                        SystemCommandAcceptanceDoesNotExecute) {
-  browser()->profile()->GetPrefs()->SetBoolean(
+  browser()->GetProfile()->GetPrefs()->SetBoolean(
       dao::prefs::kDaoCommandBarCommandModeEnabled, true);
   auto* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
@@ -5462,7 +5519,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 IN_PROC_BROWSER_TEST_F(
     DaoCommandBarBrowserTest,
     SystemCommandProviderTicksPreserveExplicitNonCommandSelection) {
-  browser()->profile()->GetPrefs()->SetBoolean(dao::prefs::kDaoAskAiEnabled,
+  browser()->GetProfile()->GetPrefs()->SetBoolean(dao::prefs::kDaoAskAiEnabled,
                                                false);
   auto* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
@@ -5523,14 +5580,15 @@ IN_PROC_BROWSER_TEST_F(
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
                        SystemCommandReopensWindowAfterTitleAcceptance) {
-  browser()->profile()->GetPrefs()->SetBoolean(
+  browser()->GetProfile()->GetPrefs()->SetBoolean(
       dao::prefs::kDaoCommandBarCommandModeEnabled, true);
   sessions::TabRestoreService* restore_service =
-      TabRestoreServiceFactory::GetForProfile(browser()->profile());
+      TabRestoreServiceFactory::GetForProfile(browser()->GetProfile());
   ASSERT_NE(nullptr, restore_service);
   restore_service->ClearEntries();
 
-  Browser* closing_browser = CreateBrowser(browser()->profile());
+  BrowserWindowInterface* closing_browser =
+      CreateBrowser(browser()->GetProfile());
   chrome::AddTabAt(closing_browser, GURL("about:blank#restore-window"), -1,
                    true);
   CloseBrowserSynchronously(closing_browser);
@@ -5559,10 +5617,10 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
                        SystemCommandReopensGroupAfterTitleAcceptance) {
-  browser()->profile()->GetPrefs()->SetBoolean(
+  browser()->GetProfile()->GetPrefs()->SetBoolean(
       dao::prefs::kDaoCommandBarCommandModeEnabled, true);
   sessions::TabRestoreService* restore_service =
-      TabRestoreServiceFactory::GetForProfile(browser()->profile());
+      TabRestoreServiceFactory::GetForProfile(browser()->GetProfile());
   ASSERT_NE(nullptr, restore_service);
   restore_service->ClearEntries();
 
@@ -5601,12 +5659,12 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
                        SystemCommandAgentSettingsUsesSettingsAvailability) {
-  browser()->profile()->GetPrefs()->SetBoolean(
+  browser()->GetProfile()->GetPrefs()->SetBoolean(
       dao::prefs::kDaoCommandBarCommandModeEnabled, true);
   auto* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
   chrome::BrowserCommandController* command_controller =
-      browser()->command_controller();
+      browser()->GetFeatures().browser_command_controller();
   ASSERT_NE(nullptr, command_controller);
   command_controller->UpdateCommandEnabled(IDC_OPTIONS, false);
 
@@ -5625,7 +5683,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
                        SystemCommandKeyboardSkipsDisabledRows) {
-  browser()->profile()->GetPrefs()->SetBoolean(
+  browser()->GetProfile()->GetPrefs()->SetBoolean(
       dao::prefs::kDaoCommandBarCommandModeEnabled, true);
   auto* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
@@ -5670,7 +5728,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
                        CopySystemCommandUsesOpeningTabAndRejectsLostTarget) {
-  browser()->profile()->GetPrefs()->SetBoolean(
+  browser()->GetProfile()->GetPrefs()->SetBoolean(
       dao::prefs::kDaoCommandBarCommandModeEnabled, true);
   content::BrowserTestClipboardScope clipboard_scope;
   auto* command_bar = GetBrowserView(browser())->dao_command_bar();
@@ -5718,7 +5776,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
                        TaskManagerSystemCommandReusesExistingWindow) {
-  browser()->profile()->GetPrefs()->SetBoolean(
+  browser()->GetProfile()->GetPrefs()->SetBoolean(
       dao::prefs::kDaoCommandBarCommandModeEnabled, true);
   auto* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
@@ -5893,17 +5951,17 @@ IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest,
   PopulateSidebarTabIdentityExtraData(original, &extra_data);
 
   auto restored = content::WebContents::Create(
-      content::WebContents::CreateParams(browser()->profile()));
+      content::WebContents::CreateParams(browser()->GetProfile()));
   RestoreSidebarTabIdentityFromExtraData(restored.get(), extra_data);
   EXPECT_EQ(identity, GetSidebarTabId(restored.get()));
   EXPECT_TRUE(IsSidebarTabSessionRestored(restored.get()));
 
   auto legacy = content::WebContents::Create(
-      content::WebContents::CreateParams(browser()->profile()));
+      content::WebContents::CreateParams(browser()->GetProfile()));
   RestoreSidebarTabIdentityFromExtraData(legacy.get(), {});
   EXPECT_TRUE(IsSidebarTabSessionRestored(legacy.get()));
   auto replacement = content::WebContents::Create(
-      content::WebContents::CreateParams(browser()->profile()));
+      content::WebContents::CreateParams(browser()->GetProfile()));
   CopySidebarTabId(legacy.get(), replacement.get());
   EXPECT_EQ(GetSidebarTabId(legacy.get()), GetSidebarTabId(replacement.get()));
   EXPECT_TRUE(IsSidebarTabSessionRestored(replacement.get()));
@@ -5927,7 +5985,7 @@ IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest,
   base::CommandLine dummy(base::CommandLine::NO_PROGRAM);
   StartupBrowserCreatorImpl launch(base::FilePath(), dummy,
                                    chrome::startup::IsFirstRun::kNo);
-  Browser* opened_browser = launch.OpenURLsInBrowser(
+  BrowserWindowInterface* opened_browser = launch.OpenURLsInBrowser(
       browser(), chrome::startup::IsProcessStartup::kNo, {url});
 
   EXPECT_EQ(initial_count, model->count());
@@ -5935,13 +5993,41 @@ IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest,
   ASSERT_NE(nullptr, opened_browser);
   EXPECT_EQ(added_recorder.added_browser_at(0), opened_browser);
   EXPECT_TRUE(dao::DaoLittleDaoController::IsLittleDaoWindow(opened_browser));
-  EXPECT_EQ(Browser::TYPE_POPUP, opened_browser->type());
+  EXPECT_EQ(BrowserWindowInterface::TYPE_POPUP, opened_browser->GetType());
   EXPECT_NE(nullptr, GetBrowserView(opened_browser)->dao_little_dao_view());
   ASSERT_EQ(1, opened_browser->tab_strip_model()->count());
   content::WebContents* contents =
       opened_browser->tab_strip_model()->GetActiveWebContents();
   ASSERT_NE(nullptr, contents);
   EXPECT_EQ(url, contents->GetVisibleURL());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest,
+                       LittleDaoPreservesExternalLaunchInitiatorTrust) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  const GURL url = embedded_test_server()->GetURL("/title1.html");
+
+  for (bool is_untrusted_launch : {false, true}) {
+    content::TestNavigationObserver navigation(url);
+    navigation.StartWatchingNewWebContents();
+    auto* little_dao = dao::DaoLittleDaoController::OpenInLittleDao(
+        browser()->GetProfile(), url, is_untrusted_launch);
+    ASSERT_NE(nullptr, little_dao);
+    navigation.Wait();
+
+    EXPECT_TRUE(navigation.last_navigation_succeeded());
+    EXPECT_EQ(url, navigation.last_navigation_url());
+    EXPECT_EQ(is_untrusted_launch,
+              navigation.last_initiator_origin().has_value());
+    if (is_untrusted_launch) {
+      ASSERT_TRUE(navigation.last_initiator_origin().has_value());
+      EXPECT_TRUE(navigation.last_initiator_origin()->opaque());
+    }
+
+    BrowserRemovedWaiter removed(little_dao);
+    little_dao->GetWindow()->Close();
+    removed.Wait();
+  }
 }
 
 IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest,
@@ -5956,7 +6042,7 @@ IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest,
   base::CommandLine dummy(base::CommandLine::NO_PROGRAM);
   StartupBrowserCreatorImpl launch(base::FilePath(), dummy,
                                    chrome::startup::IsFirstRun::kNo);
-  Browser* little_dao_browser = launch.OpenURLsInBrowser(
+  BrowserWindowInterface* little_dao_browser = launch.OpenURLsInBrowser(
       browser(), chrome::startup::IsProcessStartup::kNo,
       {GURL("data:text/plain,external-from-fullscreen")});
 
@@ -5973,7 +6059,7 @@ IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest,
   EXPECT_FALSE(chrome::IsCommandEnabled(little_dao_browser, IDC_FULLSCREEN));
 
   BrowserRemovedWaiter removed(little_dao_browser);
-  little_dao_browser->window()->Close();
+  little_dao_browser->GetWindow()->Close();
   removed.Wait();
 
   ui_test_utils::ToggleFullscreenModeAndWait(browser());
@@ -5996,7 +6082,7 @@ IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest,
       GURL("data:text/plain,b"),
       GURL("data:text/plain,c"),
   };
-  Browser* opened_browser = launch.OpenURLsInBrowser(
+  BrowserWindowInterface* opened_browser = launch.OpenURLsInBrowser(
       browser(), chrome::startup::IsProcessStartup::kNo, urls);
 
   EXPECT_EQ(initial_count, model->count());
@@ -6004,7 +6090,8 @@ IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest,
   EXPECT_EQ(added_recorder.added_browser_at(urls.size() - 1), opened_browser);
 
   for (size_t i = 0; i < urls.size(); ++i) {
-    Browser* little_dao_browser = added_recorder.added_browser_at(i);
+    BrowserWindowInterface* little_dao_browser =
+        added_recorder.added_browser_at(i);
     EXPECT_TRUE(
         dao::DaoLittleDaoController::IsLittleDaoWindow(little_dao_browser));
     ASSERT_EQ(1, little_dao_browser->tab_strip_model()->count());
@@ -6017,7 +6104,7 @@ IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest,
                        ExternalUrlUsesFullWindowWhenLittleDaoDisabled) {
-  browser()->profile()->GetPrefs()->SetBoolean(dao::prefs::kDaoLittleDaoEnabled,
+  browser()->GetProfile()->GetPrefs()->SetBoolean(dao::prefs::kDaoLittleDaoEnabled,
                                                false);
 
   TabStripModel* model = browser()->tab_strip_model();
@@ -6031,7 +6118,7 @@ IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest,
   base::CommandLine dummy(base::CommandLine::NO_PROGRAM);
   StartupBrowserCreatorImpl launch(base::FilePath(), dummy,
                                    chrome::startup::IsFirstRun::kNo);
-  Browser* opened_browser = launch.OpenURLsInBrowser(
+  BrowserWindowInterface* opened_browser = launch.OpenURLsInBrowser(
       browser(), chrome::startup::IsProcessStartup::kNo, {url});
 
   EXPECT_EQ(browser(), opened_browser);
@@ -6116,7 +6203,7 @@ IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest, NonLinkTabsStillOpenAtTop) {
     for (bool foreground : {false, true}) {
       model->ActivateTabAt(model->GetIndexOfWebContents(source));
       auto contents = content::WebContents::Create(
-          content::WebContents::CreateParams(browser()->profile()));
+          content::WebContents::CreateParams(browser()->GetProfile()));
       content::WebContents* added = contents.get();
       model->AddWebContents(std::move(contents), -1, transition,
                             foreground ? AddTabTypes::ADD_ACTIVE
@@ -6172,7 +6259,7 @@ IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest,
   chrome::AddTabAt(browser(), GURL("about:blank"), -1, true);
   for (int index : {-1, model->count()}) {
     // No source browser: navigation resolves the existing profile window.
-    NavigateParams params(browser()->profile(),
+    NavigateParams params(browser()->GetProfile(),
                           GURL("data:text/plain,profile-navigation"),
                           ui::PAGE_TRANSITION_AUTO_TOPLEVEL);
     params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
@@ -6187,7 +6274,7 @@ IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest, ExtensionCreatedTabsRespectPlacement) 
   extensions::TestExtensionDir extension_dir;
   extension_dir.WriteFile(FILE_PATH_LITERAL("tabs.html"),
                           "<!doctype html><title>Tab placement</title>");
-  auto extension = LoadActionExtension(browser()->profile(), &extension_dir);
+  auto extension = LoadActionExtension(browser()->GetProfile(), &extension_dir);
   ASSERT_TRUE(extension);
 
   TabStripModel* model = browser()->tab_strip_model();
@@ -6250,7 +6337,19 @@ IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest, ExtensionCreatedTabsRespectPlacement) 
 // DaoSplitViewBrowserTest
 // =============================================================================
 
-class DaoSplitViewBrowserTest : public InProcessBrowserTest {};
+class DaoSplitViewBrowserTest : public InProcessBrowserTest {
+ protected:
+  BrowserWindowInterface* CreateSessionRestoredBrowser(Profile* profile) {
+    BrowserWindowCreateParams params(profile, /*user_gesture=*/true);
+    params.creation_source =
+        BrowserWindowCreateParams::CreationSource::kSessionRestore;
+    BrowserWindowInterface* created_window =
+        CreateBrowserWindow(std::move(params));
+    BrowserWindowInterface* restored_browser = created_window;
+    AddBlankTabAndShow(restored_browser);
+    return restored_browser;
+  }
+};
 
 IN_PROC_BROWSER_TEST_F(DaoSplitViewBrowserTest, SplitViewExistsButInactive) {
   DaoSplitView* split_view = GetBrowserView(browser())->dao_split_view();
@@ -6264,13 +6363,14 @@ IN_PROC_BROWSER_TEST_F(DaoSplitViewBrowserTest,
   ASSERT_NE(nullptr, split_view);
   ASSERT_FALSE(split_view->IsSplitActive());
 
-  Browser* second_browser = CreateBrowser(browser()->profile());
+  BrowserWindowInterface* second_browser =
+      CreateBrowser(browser()->GetProfile());
   DaoSplitView* second_split_view =
       GetBrowserView(second_browser)->dao_split_view();
   ASSERT_NE(nullptr, second_split_view);
   ASSERT_FALSE(second_split_view->IsSplitActive());
 
-  Browser* incognito_browser = CreateIncognitoBrowser();
+  BrowserWindowInterface* incognito_browser = CreateIncognitoBrowser();
   DaoSplitView* incognito_split_view =
       GetBrowserView(incognito_browser)->dao_split_view();
   ASSERT_NE(nullptr, incognito_split_view);
@@ -6297,7 +6397,7 @@ IN_PROC_BROWSER_TEST_F(DaoSplitViewBrowserTest,
   ASSERT_FALSE(split_view->IsSplitActive());
 
   ui::test::EventGenerator event_generator(
-      browser()->window()->GetNativeWindow());
+      browser()->GetWindow()->GetNativeWindow());
   event_generator.PressLeftButton();
   split_view->SetTabDragActive(true);
   ASSERT_TRUE(split_view->GetCanProcessEventsWithinSubtree());
@@ -6332,6 +6432,59 @@ IN_PROC_BROWSER_TEST_F(DaoSplitViewBrowserTest, SplitPaneCreatesTwo) {
   EXPECT_TRUE(result);
   EXPECT_TRUE(split_view->IsSplitActive());
   EXPECT_EQ(2, split_view->PaneCount());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSplitViewBrowserTest,
+                       SplitPreservesContentCardAndRestoresPrimaryContent) {
+  BrowserView* browser_view = GetBrowserView(browser());
+  auto* host = browser_view->multi_contents_view();
+  auto* split_view = browser_view->dao_split_view();
+  ASSERT_NE(nullptr, split_view);
+  ASSERT_EQ(host, split_view->parent());
+
+  chrome::AddTabAt(browser(), GURL(url::kAboutBlankURL), -1, false);
+  TabStripModel* model = browser()->tab_strip_model();
+  content::WebContents* first = model->GetWebContentsAt(0);
+  content::WebContents* second = model->GetWebContentsAt(1);
+  model->ActivateTabAt(0);
+  browser_view->DeprecatedLayoutImmediately();
+  const gfx::Rect viewport = host->GetBoundsInScreen();
+  ASSERT_GT(viewport.width(), 3);
+  ASSERT_GT(viewport.height(), 1);
+  gfx::Rect content_card = viewport;
+  if (auto* address_bar = browser_view->dao_address_bar();
+      address_bar && address_bar->GetVisible()) {
+    content_card.Union(address_bar->GetBoundsInScreen());
+  }
+
+  ASSERT_TRUE(
+      split_view->SplitPane(first, SplitDirection::kHorizontal, false, second));
+  browser_view->DeprecatedLayoutImmediately();
+  EXPECT_EQ(content_card, host->GetBoundsInScreen());
+  EXPECT_EQ(host->GetLocalBounds(), split_view->bounds());
+  EXPECT_EQ(nullptr, browser_view->contents_web_view()->web_contents());
+  EXPECT_TRUE(split_view->GetCanProcessEventsWithinSubtree());
+  for (content::WebContents* contents : {first, second}) {
+    EXPECT_EQ(content::Visibility::VISIBLE, contents->GetVisibility());
+    ASSERT_NE(nullptr, contents->GetRenderWidgetHostView());
+    EXPECT_GT(contents->GetRenderWidgetHostView()->GetViewBounds().width(), 3);
+    EXPECT_GT(contents->GetRenderWidgetHostView()->GetViewBounds().height(), 1);
+  }
+  const gfx::Rect parked =
+      browser_view->GetActiveContentsContainerView()->bounds();
+  EXPECT_FALSE(parked.IsEmpty());
+  EXPECT_LE(parked.width(), 3);
+  EXPECT_LE(parked.height(), 1);
+
+  split_view->UnsplitKeepingPane(first);
+  browser_view->DeprecatedLayoutImmediately();
+  EXPECT_FALSE(split_view->IsSplitActive());
+  EXPECT_EQ(first, browser_view->contents_web_view()->web_contents());
+  EXPECT_FALSE(split_view->GetCanProcessEventsWithinSubtree());
+  EXPECT_EQ(viewport, host->GetBoundsInScreen());
+  EXPECT_EQ(host->GetLocalBounds(), split_view->bounds());
+  EXPECT_GT(browser_view->GetActiveContentsContainerView()->width(), 3);
+  EXPECT_GT(browser_view->GetActiveContentsContainerView()->height(), 1);
 }
 
 IN_PROC_BROWSER_TEST_F(DaoSplitViewBrowserTest,
@@ -6477,10 +6630,11 @@ IN_PROC_BROWSER_TEST_F(DaoSplitViewBrowserTest,
       split_view->SplitPane(first, SplitDirection::kHorizontal, false, second));
   ASSERT_TRUE(split_view->IsSplitActive());
 
-  Browser* restored_browser = CreateBrowser(browser()->profile());
+  BrowserWindowInterface* restored_browser =
+      CreateSessionRestoredBrowser(browser()->GetProfile());
   ASSERT_NE(nullptr, restored_browser);
   ASSERT_NE(browser(), restored_browser);
-  restored_browser->set_is_session_restore(true);
+  ASSERT_TRUE(restored_browser->CreatedBySessionRestore());
   ASSERT_TRUE(ui_test_utils::NavigateToURL(restored_browser, first_url));
   ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
       restored_browser, second_url, WindowOpenDisposition::NEW_FOREGROUND_TAB,
@@ -6511,7 +6665,8 @@ IN_PROC_BROWSER_TEST_F(DaoSplitViewBrowserTest,
   const GURL first_url("data:text/html,dao-split-close-restore-one");
   const GURL second_url("data:text/html,dao-split-close-restore-two");
 
-  Browser* source_browser = CreateBrowser(browser()->profile());
+  BrowserWindowInterface* source_browser =
+      CreateBrowser(browser()->GetProfile());
   ASSERT_NE(nullptr, source_browser);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(source_browser, first_url));
   ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
@@ -6531,7 +6686,7 @@ IN_PROC_BROWSER_TEST_F(DaoSplitViewBrowserTest,
   ASSERT_TRUE(source_split_view->SplitPane(first, SplitDirection::kHorizontal,
                                            false, second));
   ASSERT_FALSE(browser()
-                   ->profile()
+                   ->GetProfile()
                    ->GetPrefs()
                    ->GetDict(dao::prefs::kDaoSplitLayout)
                    .empty());
@@ -6540,13 +6695,16 @@ IN_PROC_BROWSER_TEST_F(DaoSplitViewBrowserTest,
   base::RunLoop().RunUntilIdle();
 
   EXPECT_FALSE(browser()
-                   ->profile()
+                   ->GetProfile()
                    ->GetPrefs()
                    ->GetDict(dao::prefs::kDaoSplitLayout)
                    .empty());
 
-  Browser* restored_browser = browser();
-  restored_browser->set_is_session_restore(true);
+  BrowserWindowInterface* restored_browser =
+      CreateSessionRestoredBrowser(browser()->GetProfile());
+  ASSERT_NE(nullptr, restored_browser);
+  ASSERT_NE(browser(), restored_browser);
+  ASSERT_TRUE(restored_browser->CreatedBySessionRestore());
   ASSERT_TRUE(ui_test_utils::NavigateToURL(restored_browser, first_url));
   ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
       restored_browser, second_url, WindowOpenDisposition::NEW_FOREGROUND_TAB,
@@ -6615,8 +6773,8 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarResizeBrowserTest,
 
   browser_view->DeprecatedLayoutImmediately();
   const int original_width = sidebar->GetPreferredSize().width();
-  ASSERT_EQ(original_width, browser_view->contents_container()->bounds().x());
-  ASSERT_EQ(browser_view->contents_container()->GetLocalBounds(),
+  ASSERT_EQ(original_width, browser_view->multi_contents_view()->bounds().x());
+  ASSERT_EQ(browser_view->multi_contents_view()->GetLocalBounds(),
             split_view->bounds());
 
   constexpr int kResizeDelta = 48;
@@ -6624,8 +6782,8 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarResizeBrowserTest,
   const int resized_width = original_width + kResizeDelta;
 
   EXPECT_EQ(resized_width, sidebar->GetPreferredSize().width());
-  EXPECT_EQ(resized_width, browser_view->contents_container()->bounds().x());
-  EXPECT_EQ(browser_view->contents_container()->GetLocalBounds(),
+  EXPECT_EQ(resized_width, browser_view->multi_contents_view()->bounds().x());
+  EXPECT_EQ(browser_view->multi_contents_view()->GetLocalBounds(),
             split_view->bounds());
 
   sidebar->OnResize(kResizeDelta, /*done_resizing=*/true);
@@ -6639,8 +6797,8 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarResizeBrowserTest,
   DaoSplitView* split_view = browser_view->dao_split_view();
   ASSERT_NE(nullptr, sidebar);
   ASSERT_NE(nullptr, split_view);
-  ASSERT_NE(nullptr, browser_view->contents_container());
-  ASSERT_NE(nullptr, browser_view->contents_container()->layer());
+  ASSERT_NE(nullptr, browser_view->multi_contents_view());
+  ASSERT_NE(nullptr, browser_view->multi_contents_view()->layer());
 
   chrome::AddTabAt(browser(), GURL(url::kAboutBlankURL), -1, true);
   TabStripModel* model = browser()->tab_strip_model();
@@ -6654,13 +6812,13 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarResizeBrowserTest,
   ASSERT_TRUE(split_view->IsSplitActive());
 
   sidebar->ToggleCollapsed();
-  EXPECT_FALSE(browser_view->contents_container()
+  EXPECT_FALSE(browser_view->multi_contents_view()
                    ->layer()
                    ->GetAnimator()
                    ->is_animating());
 
   sidebar->ToggleCollapsed();
-  EXPECT_FALSE(browser_view->contents_container()
+  EXPECT_FALSE(browser_view->multi_contents_view()
                    ->layer()
                    ->GetAnimator()
                    ->is_animating());
@@ -6726,7 +6884,7 @@ class DaoFolderPersistenceBrowserTest : public InProcessBrowserTest {};
 IN_PROC_BROWSER_TEST_F(DaoFolderPersistenceBrowserTest,
                        FolderFilePathInProfile) {
   // Verify the folder file path is within the profile directory.
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
   base::FilePath folder_path =
       profile->GetPath().AppendASCII("dao_folders.json");
   EXPECT_FALSE(folder_path.empty());
@@ -6738,7 +6896,7 @@ IN_PROC_BROWSER_TEST_F(DaoFolderPersistenceBrowserTest,
                        FolderFileWriteAndRead) {
   base::ScopedAllowBlockingForTesting allow_blocking;
 
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
   base::FilePath folder_path =
       profile->GetPath().AppendASCII("dao_folders.json");
 
@@ -6761,7 +6919,7 @@ IN_PROC_BROWSER_TEST_F(DaoFolderPersistenceBrowserTest,
   base::ScopedAllowBlockingForTesting allow_blocking;
 
   // On a fresh profile, dao_folders.json should not exist.
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
   base::FilePath folder_path =
       profile->GetPath().AppendASCII("dao_folders.json");
   EXPECT_FALSE(base::PathExists(folder_path));
@@ -6770,7 +6928,7 @@ IN_PROC_BROWSER_TEST_F(DaoFolderPersistenceBrowserTest,
 IN_PROC_BROWSER_TEST_F(DaoFolderPersistenceBrowserTest,
                        IncognitoFoldersDoNotChangeRegularProfileFile) {
   base::ScopedAllowBlockingForTesting allow_blocking;
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
   const base::FilePath folder_path =
       profile->GetPath().AppendASCII("dao_folders.json");
   constexpr char kRegularFolders[] =
@@ -6779,9 +6937,9 @@ IN_PROC_BROWSER_TEST_F(DaoFolderPersistenceBrowserTest,
   std::string regular_disk_contents;
   ASSERT_TRUE(base::ReadFileToString(folder_path, &regular_disk_contents));
 
-  Browser* incognito_browser = CreateIncognitoBrowser(profile);
+  BrowserWindowInterface* incognito_browser = CreateIncognitoBrowser(profile);
   ASSERT_NE(nullptr, incognito_browser);
-  Profile* private_profile = incognito_browser->profile();
+  Profile* private_profile = incognito_browser->GetProfile();
   ASSERT_TRUE(private_profile->IsOffTheRecord());
   ASSERT_EQ(profile->GetPath(), private_profile->GetPath());
   ASSERT_TRUE(base::test::RunUntil([&]() {
@@ -6812,13 +6970,13 @@ IN_PROC_BROWSER_TEST_F(DaoFolderPersistenceBrowserTest,
 IN_PROC_BROWSER_TEST_F(DaoFolderPersistenceBrowserTest,
                        ImportPreservesOtherWindowFolders) {
   base::ScopedAllowBlockingForTesting allow_blocking;
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
   constexpr char kFirstFolders[] =
       R"({"version":1,"items":[{"type":"folder","id":"first-folder","name":"First","collapsed":false,"children":[]}]})";
   ASSERT_TRUE(DaoSidebarUIHandler::UpdateFolderData(profile, "", kFirstFolders));
-  Browser* second_browser = CreateBrowser(profile);
+  BrowserWindowInterface* second_browser = CreateBrowser(profile);
   ASSERT_NE(nullptr, second_browser);
-  second_browser->window()->Activate();
+  second_browser->GetWindow()->Activate();
   base::RunLoop().RunUntilIdle();
   const int first_count = browser()->tab_strip_model()->count();
   const int second_count = second_browser->tab_strip_model()->count();
@@ -6837,7 +6995,7 @@ IN_PROC_BROWSER_TEST_F(DaoFolderPersistenceBrowserTest,
   ASSERT_FALSE(imported_folder_id.empty());
 
   // Changing the active window must not retarget the pending import.
-  browser()->window()->Activate();
+  browser()->GetWindow()->Activate();
   base::RunLoop().RunUntilIdle();
   base::test::TestFuture<bool> persisted;
   {
@@ -6870,18 +7028,19 @@ IN_PROC_BROWSER_TEST_F(DaoFolderPersistenceBrowserTest,
       R"({"version":1,"items":[{"type":"folder","id":"first-folder","name":"First","collapsed":false,"children":[{"type":"tab","url":"about:blank","title":"","tabId":")" +
       moving_tab_id + R"("}]}]})";
   ASSERT_TRUE(DaoSidebarUIHandler::UpdateFolderData(
-      browser()->profile(), "", folder_json));
-  Browser* second_browser = CreateBrowser(browser()->profile());
+      browser()->GetProfile(), "", folder_json));
+  BrowserWindowInterface* second_browser =
+      CreateBrowser(browser()->GetProfile());
   ASSERT_NE(nullptr, second_browser);
   const int moving_index = first_model->GetIndexOfWebContents(moving);
   ASSERT_NE(TabStripModel::kNoTab, moving_index);
   ASSERT_TRUE(ExecuteCrossWindowTabMove(second_browser,
-                                      browser()->session_id().id(),
-                                      moving_index, 0, moving_tab_id));
+                                        browser()->GetSessionID().id(),
+                                        moving_index, 0, moving_tab_id));
   ASSERT_EQ(moving, second_browser->tab_strip_model()->GetWebContentsAt(0));
   EXPECT_EQ(moving_tab_id, GetSidebarTabId(moving));
   DaoSidebarUIHandler::WaitForFolderFileTasksForTesting();
-  auto json = DaoSidebarUIHandler::ReadFolderData(browser()->profile());
+  auto json = DaoSidebarUIHandler::ReadFolderData(browser()->GetProfile());
   ASSERT_TRUE(json);
   auto data = base::JSONReader::ReadDict(*json, base::JSON_PARSE_RFC);
   ASSERT_TRUE(data);
@@ -6967,7 +7126,7 @@ class DaoPipTopBarOverlayBrowserTest : public InProcessBrowserTest {
     auto* pip_browser_view = static_cast<BrowserView*>(
         BrowserWindow::FindBrowserWindowWithWebContents(child_web_contents));
     if (!pip_browser_view || !pip_browser_view->browser() ||
-        !pip_browser_view->browser()->is_type_picture_in_picture()) {
+        !(pip_browser_view->browser()->GetType() == BrowserWindowInterface::TYPE_PICTURE_IN_PICTURE)) {
       return nullptr;
     }
     return static_cast<PictureInPictureBrowserFrameView*>(
@@ -7140,7 +7299,7 @@ IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest, ShouldInterceptNullIsFalse) {
 }
 
 IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest, EnhancedPipPrefDefaultsOn) {
-  PrefService* prefs = browser()->profile()->GetPrefs();
+  PrefService* prefs = browser()->GetProfile()->GetPrefs();
   const PrefService::Preference* pref =
       prefs->FindPreference(dao::prefs::kDaoEnhancedPipEnabled);
   ASSERT_NE(nullptr, pref);
@@ -7158,7 +7317,7 @@ IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest, ShouldInterceptMatchingHost) {
 
 IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest,
                        ShouldNotInterceptWhenEnhancedPipPrefDisabled) {
-  PrefService* prefs = browser()->profile()->GetPrefs();
+  PrefService* prefs = browser()->GetProfile()->GetPrefs();
   const PrefService::Preference* pref =
       prefs->FindPreference(dao::prefs::kDaoEnhancedPipEnabled);
   ASSERT_NE(nullptr, pref);
@@ -7184,7 +7343,7 @@ IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest,
 
 IN_PROC_BROWSER_TEST_F(DaoPipInterceptorTest,
                        ManualRequestUsesOriginalPipWhenPrefDisabled) {
-  PrefService* prefs = browser()->profile()->GetPrefs();
+  PrefService* prefs = browser()->GetProfile()->GetPrefs();
   const PrefService::Preference* pref =
       prefs->FindPreference(dao::prefs::kDaoEnhancedPipEnabled);
   ASSERT_NE(nullptr, pref);
@@ -8204,13 +8363,13 @@ class DaoAgentMemoryStoreTest : public InProcessBrowserTest {
     InProcessBrowserTest::SetUpOnMainThread();
     // The memory service factory short-circuits to nullptr when the user
     // hasn't opted in. Flip the pref before any test code calls service().
-    browser()->profile()->GetPrefs()->SetBoolean(
+    browser()->GetProfile()->GetPrefs()->SetBoolean(
         dao::prefs::kDaoAgentMemoryEnabled, true);
   }
 
   dao::DaoAgentMemoryService* service() {
     return dao::DaoAgentMemoryServiceFactory::GetForProfile(
-        browser()->profile());
+        browser()->GetProfile());
   }
 };
 
@@ -8508,7 +8667,7 @@ IN_PROC_BROWSER_TEST_F(DaoAutoPipContentSettingBrowserTest,
   ASSERT_NE(nullptr, helper);
 
   HostContentSettingsMap* settings =
-      HostContentSettingsMapFactory::GetForProfile(browser()->profile());
+      HostContentSettingsMapFactory::GetForProfile(browser()->GetProfile());
   settings->SetDefaultContentSetting(
       ContentSettingsType::AUTO_PICTURE_IN_PICTURE, CONTENT_SETTING_BLOCK);
   EXPECT_FALSE(helper->IsAutoPictureInPictureAllowed());
@@ -8657,8 +8816,11 @@ IN_PROC_BROWSER_TEST_F(DaoToastViewBrowserTest,
   ui::Accelerator accelerator;
   ASSERT_TRUE(browser_view->GetAcceleratorForCommandId(IDC_CLOSE_TAB,
                                                        &accelerator));
-  const std::u16string message = l10n_util::GetStringFUTF16(
-      IDS_CLOSE_PINNED_TAB_TOAST_BODY, accelerator.GetShortcutText());
+  const std::u16string message =
+      base::i18n::MessageFormatter::FormatWithNumberedArgs(
+          l10n_util::GetStringFUTF16(IDS_CLOSE_PINNED_TAB_TOAST_BODY,
+                                     accelerator.GetShortcutText()),
+          1);
   EXPECT_TRUE(toast->IsShowingToast(message));
 
   ui::AXNodeData accessibility_data;
@@ -8673,6 +8835,36 @@ IN_PROC_BROWSER_TEST_F(DaoToastViewBrowserTest,
   const gfx::Rect toast_bounds = toast->GetBoundsInScreen();
   EXPECT_TRUE(content_bounds.Contains(toast_bounds));
   EXPECT_GE(toast_bounds.y() - content_bounds.y(), 16);
+
+  chrome::CloseTab(browser());
+  EXPECT_EQ(1, model->count());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoToastViewBrowserTest,
+                       MultiplePinnedTabsRequireDaoToastConfirmation) {
+  TabStripModel* model = browser()->tab_strip_model();
+  chrome::AddTabAt(browser(), GURL(url::kAboutBlankURL), -1, false);
+  chrome::AddTabAt(browser(), GURL(url::kAboutBlankURL), -1, false);
+  model->SetTabPinned(0, true);
+  model->SetTabPinned(1, true);
+  model->ActivateTabAt(0);
+  model->ExtendSelectionTo(1);
+  ASSERT_EQ(2u, model->selection_model().size());
+
+  chrome::CloseTab(browser());
+  EXPECT_EQ(3, model->count());
+  BrowserView* browser_view = GetBrowserView(browser());
+  auto* toast = browser_view->dao_toast();
+  ASSERT_NE(nullptr, toast);
+  ui::Accelerator accelerator;
+  ASSERT_TRUE(
+      browser_view->GetAcceleratorForCommandId(IDC_CLOSE_TAB, &accelerator));
+  const std::u16string message =
+      base::i18n::MessageFormatter::FormatWithNumberedArgs(
+          l10n_util::GetStringFUTF16(IDS_CLOSE_PINNED_TAB_TOAST_BODY,
+                                     accelerator.GetShortcutText()),
+          2);
+  EXPECT_TRUE(toast->IsShowingToast(message));
 
   chrome::CloseTab(browser());
   EXPECT_EQ(1, model->count());
@@ -8718,7 +8910,7 @@ class DaoControlCenterPopupBrowserTest : public InProcessBrowserTest {
 
 IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
                        ForceDarkModeDefaultsOffAndRequiresSystemDark) {
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
   PrefService* prefs = profile->GetPrefs();
   ASSERT_TRUE(prefs);
   EXPECT_FALSE(prefs->GetBoolean(prefs::kDaoForceDarkModeEnabled));
@@ -8758,7 +8950,7 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
       ui::NativeTheme::PreferredColorScheme::kLight);
   theme->NotifyOnNativeThemeUpdated();
 
-  PrefService* prefs = browser()->profile()->GetPrefs();
+  PrefService* prefs = browser()->GetProfile()->GetPrefs();
   ASSERT_TRUE(prefs);
   prefs->SetBoolean(prefs::kDaoForceDarkModeEnabled, false);
 
@@ -8833,7 +9025,7 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
                        ClearCookiesOnlyRemovesCurrentDomain) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
   const GURL current_url =
       embedded_test_server()->GetURL("example.com", "/title1.html");
   const GURL other_url =
@@ -8875,7 +9067,7 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
                        ClearCookiesHidesPopupAndShowsCopyUrlToast) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
   const GURL current_url =
       embedded_test_server()->GetURL("example.com", "/title1.html");
   ASSERT_TRUE(content::SetCookie(profile, current_url, "current=value"));
@@ -9021,7 +9213,7 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
       ui::NativeTheme::PreferredColorScheme::kDark);
   theme->NotifyOnNativeThemeUpdated();
 
-  PrefService* prefs = browser()->profile()->GetPrefs();
+  PrefService* prefs = browser()->GetProfile()->GetPrefs();
   ASSERT_TRUE(prefs);
   prefs->SetBoolean(prefs::kDaoForceDarkModeEnabled, false);
 
@@ -9039,7 +9231,7 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
                      ui::EventTimeForNow(), ui::EF_LEFT_MOUSE_BUTTON,
                      ui::EF_LEFT_MOUSE_BUTTON));
   EXPECT_TRUE(prefs->GetBoolean(prefs::kDaoForceDarkModeEnabled));
-  EXPECT_TRUE(IsForceDarkModeEffective(browser()->profile()));
+  EXPECT_TRUE(IsForceDarkModeEffective(browser()->GetProfile()));
 
   views::test::ButtonTestApi(button).NotifyClick(
       ui::MouseEvent(ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
@@ -9122,7 +9314,8 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
 
   EXPECT_FALSE(popup->GetVisible());
   ASSERT_EQ(1u, added_recorder.added_count());
-  Browser* little_dao_browser = added_recorder.added_browser_at(0);
+  BrowserWindowInterface* little_dao_browser =
+      added_recorder.added_browser_at(0);
   ASSERT_NE(nullptr, little_dao_browser);
   EXPECT_TRUE(
       dao::DaoLittleDaoController::IsLittleDaoWindow(little_dao_browser));
@@ -9133,7 +9326,7 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
             source_model->GetIndexOfWebContents(original_contents));
 
   BrowserRemovedWaiter removed(little_dao_browser);
-  little_dao_browser->window()->Close();
+  little_dao_browser->GetWindow()->Close();
   removed.Wait();
 }
 
@@ -9238,10 +9431,10 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
                        ExtensionActionIconUpdatesPinnedAndPopupButtons) {
   extensions::TestExtensionDir extension_dir;
   scoped_refptr<const extensions::Extension> extension =
-      LoadActionExtension(browser()->profile(), &extension_dir);
+      LoadActionExtension(browser()->GetProfile(), &extension_dir);
   ASSERT_TRUE(extension);
 
-  auto* model = ToolbarActionsModel::Get(browser()->profile());
+  auto* model = ToolbarActionsModel::Get(browser()->GetProfile());
   ASSERT_NE(nullptr, model);
   model->SetActionVisibility(extension->id(), true);
   ASSERT_TRUE(model->IsActionPinned(extension->id()));
@@ -9317,10 +9510,10 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
 
   extensions::TestExtensionDir extension_dir;
   scoped_refptr<const extensions::Extension> extension =
-      LoadActionExtension(browser()->profile(), &extension_dir);
+      LoadActionExtension(browser()->GetProfile(), &extension_dir);
   ASSERT_TRUE(extension);
 
-  auto* model = ToolbarActionsModel::Get(browser()->profile());
+  auto* model = ToolbarActionsModel::Get(browser()->GetProfile());
   ASSERT_NE(nullptr, model);
   model->SetActionVisibility(extension->id(), true);
 
@@ -9343,10 +9536,10 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
                        UnpinnedExtensionChangesPreservePinnedHover) {
   extensions::TestExtensionDir pinned_extension_dir;
   scoped_refptr<const extensions::Extension> pinned_extension =
-      LoadActionExtension(browser()->profile(), &pinned_extension_dir);
+      LoadActionExtension(browser()->GetProfile(), &pinned_extension_dir);
   ASSERT_TRUE(pinned_extension);
 
-  auto* model = ToolbarActionsModel::Get(browser()->profile());
+  auto* model = ToolbarActionsModel::Get(browser()->GetProfile());
   ASSERT_NE(nullptr, model);
   model->SetActionVisibility(pinned_extension->id(), true);
 
@@ -9363,7 +9556,7 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
 
   extensions::TestExtensionDir unpinned_extension_dir;
   scoped_refptr<const extensions::Extension> unpinned_extension =
-      LoadActionExtension(browser()->profile(), &unpinned_extension_dir);
+      LoadActionExtension(browser()->GetProfile(), &unpinned_extension_dir);
   ASSERT_TRUE(unpinned_extension);
   ASSERT_FALSE(model->IsActionPinned(unpinned_extension->id()));
 
@@ -9386,10 +9579,10 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
                        ExtensionActionBadgeUpdatesPinnedAndPopupButtons) {
   extensions::TestExtensionDir extension_dir;
   scoped_refptr<const extensions::Extension> extension =
-      LoadActionExtension(browser()->profile(), &extension_dir);
+      LoadActionExtension(browser()->GetProfile(), &extension_dir);
   ASSERT_TRUE(extension);
 
-  auto* model = ToolbarActionsModel::Get(browser()->profile());
+  auto* model = ToolbarActionsModel::Get(browser()->GetProfile());
   ASSERT_NE(nullptr, model);
   model->SetActionVisibility(extension->id(), true);
   ASSERT_TRUE(model->IsActionPinned(extension->id()));
@@ -9504,8 +9697,9 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
                        MiniDaoCreatesDownloadCard) {
-  Browser* little_dao_browser = dao::DaoLittleDaoController::OpenInLittleDao(
-      browser()->profile(), GURL("data:text/html,mini-download-card"));
+  BrowserWindowInterface* little_dao_browser =
+      dao::DaoLittleDaoController::OpenInLittleDao(
+          browser()->GetProfile(), GURL("data:text/html,mini-download-card"));
   ASSERT_NE(nullptr, little_dao_browser);
 
   BrowserView* little_browser_view = GetBrowserView(little_dao_browser);
@@ -9514,14 +9708,15 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
   EXPECT_FALSE(little_browser_view->dao_mini_dao_download_card()->GetVisible());
 
   BrowserRemovedWaiter removed(little_dao_browser);
-  little_dao_browser->window()->Close();
+  little_dao_browser->GetWindow()->Close();
   removed.Wait();
 }
 
 IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
                        MiniDaoCreatesToastAndLaysItOut) {
-  Browser* little_dao_browser = dao::DaoLittleDaoController::OpenInLittleDao(
-      browser()->profile(), GURL("data:text/html,mini-toast"));
+  BrowserWindowInterface* little_dao_browser =
+      dao::DaoLittleDaoController::OpenInLittleDao(
+          browser()->GetProfile(), GURL("data:text/html,mini-toast"));
   ASSERT_NE(nullptr, little_dao_browser);
 
   BrowserView* little_browser_view = GetBrowserView(little_dao_browser);
@@ -9539,7 +9734,7 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
   EXPECT_GE(toast->bounds().y(), dao::DaoLittleDaoView::kBarHeight);
 
   BrowserRemovedWaiter removed(little_dao_browser);
-  little_dao_browser->window()->Close();
+  little_dao_browser->GetWindow()->Close();
   removed.Wait();
 }
 
@@ -9550,13 +9745,14 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
   ASSERT_TRUE(embedded_test_server()->Start());
 
   content::DownloadManager* manager =
-      browser()->profile()->GetDownloadManager();
+      browser()->GetProfile()->GetDownloadManager();
   content::DownloadTestObserverInProgress observer(manager, 1);
   const GURL download_url = embedded_test_server()->GetURL(
       content::SlowDownloadHttpResponse::kKnownSizeUrl);
 
-  Browser* little_dao_browser = dao::DaoLittleDaoController::OpenInLittleDao(
-      browser()->profile(), download_url);
+  BrowserWindowInterface* little_dao_browser =
+      dao::DaoLittleDaoController::OpenInLittleDao(browser()->GetProfile(),
+                                                   download_url);
   ASSERT_NE(nullptr, little_dao_browser);
 
   auto* card = GetBrowserView(little_dao_browser)->dao_mini_dao_download_card();
@@ -9590,7 +9786,7 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
   EXPECT_TRUE(base::test::RunUntil([&] { return !card->GetVisible(); }));
 
   BrowserRemovedWaiter removed(little_dao_browser);
-  little_dao_browser->window()->Close();
+  little_dao_browser->GetWindow()->Close();
   removed.Wait();
 }
 
@@ -9624,8 +9820,9 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
 
   const GURL url =
       embedded_test_server()->GetURL("/mini-address/path?foo=bar#section");
-  Browser* little_dao_browser =
-      dao::DaoLittleDaoController::OpenInLittleDao(browser()->profile(), url);
+  BrowserWindowInterface* little_dao_browser =
+      dao::DaoLittleDaoController::OpenInLittleDao(browser()->GetProfile(),
+                                                   url);
   ASSERT_NE(nullptr, little_dao_browser);
   ASSERT_TRUE(content::WaitForLoadStop(
       little_dao_browser->tab_strip_model()->GetActiveWebContents()));
@@ -9643,14 +9840,15 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
             label_button->GetText());
 
   BrowserRemovedWaiter removed(little_dao_browser);
-  little_dao_browser->window()->Close();
+  little_dao_browser->GetWindow()->Close();
   removed.Wait();
 }
 
 IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
                        AddressClickClearsPressedInkDrop) {
-  Browser* little_dao_browser = dao::DaoLittleDaoController::OpenInLittleDao(
-      browser()->profile(), GURL("data:text/html,mini-address-click"));
+  BrowserWindowInterface* little_dao_browser =
+      dao::DaoLittleDaoController::OpenInLittleDao(
+          browser()->GetProfile(), GURL("data:text/html,mini-address-click"));
   ASSERT_NE(nullptr, little_dao_browser);
   ASSERT_TRUE(content::WaitForLoadStop(
       little_dao_browser->tab_strip_model()->GetActiveWebContents()));
@@ -9688,14 +9886,15 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
   EXPECT_EQ(views::InkDropState::HIDDEN, ink_drop->GetTargetInkDropState());
 
   BrowserRemovedWaiter removed(little_dao_browser);
-  little_dao_browser->window()->Close();
+  little_dao_browser->GetWindow()->Close();
   removed.Wait();
 }
 
 IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
                        MiniDaoCreatesSiteCenterPopupButNotNormalControlCenter) {
-  Browser* little_dao_browser = dao::DaoLittleDaoController::OpenInLittleDao(
-      browser()->profile(), GURL("data:text/html,mini-site-center"));
+  BrowserWindowInterface* little_dao_browser =
+      dao::DaoLittleDaoController::OpenInLittleDao(
+          browser()->GetProfile(), GURL("data:text/html,mini-site-center"));
   ASSERT_NE(nullptr, little_dao_browser);
   ASSERT_TRUE(
       dao::DaoLittleDaoController::IsLittleDaoWindow(little_dao_browser));
@@ -9707,14 +9906,15 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
   EXPECT_EQ(nullptr, little_browser_view->dao_control_center_popup());
 
   BrowserRemovedWaiter removed(little_dao_browser);
-  little_dao_browser->window()->Close();
+  little_dao_browser->GetWindow()->Close();
   removed.Wait();
 }
 
 IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
                        SiteCenterButtonIsHitTestable) {
-  Browser* little_dao_browser = dao::DaoLittleDaoController::OpenInLittleDao(
-      browser()->profile(), GURL("data:text/html,hit-test"));
+  BrowserWindowInterface* little_dao_browser =
+      dao::DaoLittleDaoController::OpenInLittleDao(
+          browser()->GetProfile(), GURL("data:text/html,hit-test"));
   ASSERT_NE(nullptr, little_dao_browser);
 
   BrowserView* little_browser_view = GetBrowserView(little_dao_browser);
@@ -9729,14 +9929,15 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
             little_browser_view->NonClientHitTest(site_bounds.CenterPoint()));
 
   BrowserRemovedWaiter removed(little_dao_browser);
-  little_dao_browser->window()->Close();
+  little_dao_browser->GetWindow()->Close();
   removed.Wait();
 }
 
 IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
                        SiteCenterButtonKeepsPillInset) {
-  Browser* little_dao_browser = dao::DaoLittleDaoController::OpenInLittleDao(
-      browser()->profile(), GURL("data:text/html,pill-inset"));
+  BrowserWindowInterface* little_dao_browser =
+      dao::DaoLittleDaoController::OpenInLittleDao(
+          browser()->GetProfile(), GURL("data:text/html,pill-inset"));
   ASSERT_NE(nullptr, little_dao_browser);
 
   BrowserView* little_browser_view = GetBrowserView(little_dao_browser);
@@ -9758,14 +9959,15 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
   EXPECT_GE(pill_bounds.right() - button_bounds.right(), kExpectedRightInset);
 
   BrowserRemovedWaiter removed(little_dao_browser);
-  little_dao_browser->window()->Close();
+  little_dao_browser->GetWindow()->Close();
   removed.Wait();
 }
 
 IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
                        SiteCenterPopupShowsWithoutMiniDaoExtractionButton) {
-  Browser* little_dao_browser = dao::DaoLittleDaoController::OpenInLittleDao(
-      browser()->profile(), GURL("data:text/html,site-center-popup"));
+  BrowserWindowInterface* little_dao_browser =
+      dao::DaoLittleDaoController::OpenInLittleDao(
+          browser()->GetProfile(), GURL("data:text/html,site-center-popup"));
   ASSERT_NE(nullptr, little_dao_browser);
 
   BrowserView* little_browser_view = GetBrowserView(little_dao_browser);
@@ -9790,7 +9992,7 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
 
   popup->Hide();
   BrowserRemovedWaiter removed(little_dao_browser);
-  little_dao_browser->window()->Close();
+  little_dao_browser->GetWindow()->Close();
   removed.Wait();
 }
 
@@ -9801,8 +10003,10 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
       ui::NativeTheme::PreferredColorScheme::kLight);
   theme->NotifyOnNativeThemeUpdated();
 
-  Browser* little_dao_browser = dao::DaoLittleDaoController::OpenInLittleDao(
-      browser()->profile(), GURL("data:text/html,site-center-force-dark"));
+  BrowserWindowInterface* little_dao_browser =
+      dao::DaoLittleDaoController::OpenInLittleDao(
+          browser()->GetProfile(),
+          GURL("data:text/html,site-center-force-dark"));
   ASSERT_NE(nullptr, little_dao_browser);
 
   BrowserView* little_browser_view = GetBrowserView(little_dao_browser);
@@ -9822,14 +10026,15 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
   EXPECT_EQ(nullptr, FindDescendantViewOfClass<views::Checkbox>(popup));
 
   BrowserRemovedWaiter removed(little_dao_browser);
-  little_dao_browser->window()->Close();
+  little_dao_browser->GetWindow()->Close();
   removed.Wait();
 }
 
 IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
                        SiteCenterHideClearsHoveredActionBackground) {
-  Browser* little_dao_browser = dao::DaoLittleDaoController::OpenInLittleDao(
-      browser()->profile(), GURL("data:text/html,site-center-hover"));
+  BrowserWindowInterface* little_dao_browser =
+      dao::DaoLittleDaoController::OpenInLittleDao(
+          browser()->GetProfile(), GURL("data:text/html,site-center-hover"));
   ASSERT_NE(nullptr, little_dao_browser);
 
   BrowserView* little_browser_view = GetBrowserView(little_dao_browser);
@@ -9856,14 +10061,15 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
   EXPECT_EQ(nullptr, page_info_button->background());
 
   BrowserRemovedWaiter removed(little_dao_browser);
-  little_dao_browser->window()->Close();
+  little_dao_browser->GetWindow()->Close();
   removed.Wait();
 }
 
 IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
                        SiteCenterLabelsSkipSubpixelOpacityCheck) {
-  Browser* little_dao_browser = dao::DaoLittleDaoController::OpenInLittleDao(
-      browser()->profile(), GURL("data:text/html,site-center-labels"));
+  BrowserWindowInterface* little_dao_browser =
+      dao::DaoLittleDaoController::OpenInLittleDao(
+          browser()->GetProfile(), GURL("data:text/html,site-center-labels"));
   ASSERT_NE(nullptr, little_dao_browser);
 
   BrowserView* little_browser_view = GetBrowserView(little_dao_browser);
@@ -9879,14 +10085,16 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
   EXPECT_EQ(0, CountVisibleLabelsWithoutSubpixelOpacityCheck(popup));
 
   BrowserRemovedWaiter removed(little_dao_browser);
-  little_dao_browser->window()->Close();
+  little_dao_browser->GetWindow()->Close();
   removed.Wait();
 }
 
 IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
                        SiteCenterActionButtonKeepsRowInset) {
-  Browser* little_dao_browser = dao::DaoLittleDaoController::OpenInLittleDao(
-      browser()->profile(), GURL("data:text/html,site-center-button-inset"));
+  BrowserWindowInterface* little_dao_browser =
+      dao::DaoLittleDaoController::OpenInLittleDao(
+          browser()->GetProfile(),
+          GURL("data:text/html,site-center-button-inset"));
   ASSERT_NE(nullptr, little_dao_browser);
 
   BrowserView* little_browser_view = GetBrowserView(little_dao_browser);
@@ -9912,7 +10120,7 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
             page_info_button->parent()->width() - kExpectedInset);
 
   BrowserRemovedWaiter removed(little_dao_browser);
-  little_dao_browser->window()->Close();
+  little_dao_browser->GetWindow()->Close();
   removed.Wait();
 }
 
@@ -10466,9 +10674,10 @@ IN_PROC_BROWSER_TEST_F(DaoDarkModeBrowserTest,
       ui::NativeTheme::PreferredColorScheme::kLight);
   theme->NotifyOnNativeThemeUpdated();
 
-  Browser* incognito_browser = CreateIncognitoBrowser(browser()->profile());
-  ASSERT_TRUE(incognito_browser->profile()->IsOffTheRecord());
-  ASSERT_TRUE(incognito_browser->profile()->IsIncognitoProfile());
+  BrowserWindowInterface* incognito_browser =
+      CreateIncognitoBrowser(browser()->GetProfile());
+  ASSERT_TRUE(incognito_browser->GetProfile()->IsOffTheRecord());
+  ASSERT_TRUE(incognito_browser->GetProfile()->IsIncognitoProfile());
 
   EXPECT_EQ(dao::SidebarBackground(browser()), SkColorSetRGB(231, 238, 245));
   EXPECT_EQ(dao::SidebarBackground(incognito_browser),
@@ -10490,7 +10699,7 @@ IN_PROC_BROWSER_TEST_F(DaoDarkModeBrowserTest,
   ASSERT_NE(nullptr, incognito_view->background());
   EXPECT_EQ(SkColorSetRGB(54, 59, 64), incognito_view->background()->color());
 
-  incognito_browser->window()->Close();
+  incognito_browser->GetWindow()->Close();
 }
 
 IN_PROC_BROWSER_TEST_F(DaoDarkModeBrowserTest,
@@ -10504,7 +10713,8 @@ IN_PROC_BROWSER_TEST_F(DaoDarkModeBrowserTest,
   ASSERT_NE(nullptr, normal_sidebar);
   EXPECT_EQ(nullptr, normal_sidebar->incognito_indicator_for_testing());
 
-  Browser* incognito_browser = CreateIncognitoBrowser(browser()->profile());
+  BrowserWindowInterface* incognito_browser =
+      CreateIncognitoBrowser(browser()->GetProfile());
   DaoSidebarView* incognito_sidebar =
       GetBrowserView(incognito_browser)->dao_sidebar();
   ASSERT_NE(nullptr, incognito_sidebar);
@@ -10532,18 +10742,18 @@ IN_PROC_BROWSER_TEST_F(DaoDarkModeBrowserTest,
   EXPECT_EQ(HTCLIENT,
             incognito_view->NonClientHitTest(indicator_bounds.CenterPoint()));
 
-  Browser* guest_browser = CreateGuestBrowser();
-  ASSERT_TRUE(guest_browser->profile()->IsGuestSession());
-  ASSERT_TRUE(guest_browser->profile()->IsOffTheRecord());
-  ASSERT_FALSE(guest_browser->profile()->IsIncognitoProfile());
+  BrowserWindowInterface* guest_browser = CreateGuestBrowser();
+  ASSERT_TRUE(guest_browser->GetProfile()->IsGuestSession());
+  ASSERT_TRUE(guest_browser->GetProfile()->IsOffTheRecord());
+  ASSERT_FALSE(guest_browser->GetProfile()->IsIncognitoProfile());
   DaoSidebarView* guest_sidebar = GetBrowserView(guest_browser)->dao_sidebar();
   ASSERT_NE(nullptr, guest_sidebar);
   EXPECT_EQ(nullptr, guest_sidebar->incognito_indicator_for_testing());
   EXPECT_EQ(SkColorSetRGB(231, 238, 245),
             dao::SidebarBackground(guest_browser));
 
-  incognito_browser->window()->Close();
-  guest_browser->window()->Close();
+  incognito_browser->GetWindow()->Close();
+  guest_browser->GetWindow()->Close();
 }
 
 IN_PROC_BROWSER_TEST_F(DaoDarkModeBrowserTest, SidebarRepaintsOnThemeChange) {
@@ -10568,6 +10778,29 @@ IN_PROC_BROWSER_TEST_F(DaoDarkModeBrowserTest, SidebarRepaintsOnThemeChange) {
       ui::NativeTheme::PreferredColorScheme::kLight);
   theme->NotifyOnNativeThemeUpdated();
   EXPECT_EQ(inner->background()->color(), SkColorSetRGB(231, 238, 245));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoDarkModeBrowserTest, CommandBarTextTracksSystemTheme) {
+  auto* theme = ui::NativeTheme::GetInstanceForNativeUi();
+  BrowserWindowInterface* incognito_browser =
+      CreateIncognitoBrowser(browser()->GetProfile());
+  for (BrowserWindowInterface* window : {browser(), incognito_browser}) {
+    auto* command_bar = GetBrowserView(window)->dao_command_bar();
+    ASSERT_NE(nullptr, command_bar);
+    command_bar->ShowForNewTab();
+    auto* textfield = FindDescendantViewOfClass<views::Textfield>(command_bar);
+    ASSERT_NE(nullptr, textfield);
+    for (auto scheme : {ui::NativeTheme::PreferredColorScheme::kLight,
+                        ui::NativeTheme::PreferredColorScheme::kDark,
+                        ui::NativeTheme::PreferredColorScheme::kLight}) {
+      theme->set_preferred_color_scheme(scheme);
+      theme->NotifyOnNativeThemeUpdated();
+      EXPECT_EQ(dao::TextPrimary(), textfield->GetTextColor());
+      EXPECT_EQ(dao::TextMuted(), textfield->GetPlaceholderTextColor());
+    }
+    command_bar->Hide();
+  }
+  incognito_browser->GetWindow()->Close();
 }
 
 IN_PROC_BROWSER_TEST_F(DaoDarkModeBrowserTest, AccentUnchanged) {
@@ -10663,7 +10896,7 @@ IN_PROC_BROWSER_TEST_F(DaoSessionStartupBrowserTest,
                        GetSessionStartupPrefResolvesToLast) {
   base::CommandLine empty_command_line(base::CommandLine::NO_PROGRAM);
   SessionStartupPref pref = StartupBrowserCreator::GetSessionStartupPref(
-      empty_command_line, browser()->profile());
+      empty_command_line, browser()->GetProfile());
   EXPECT_EQ(SessionStartupPref::LAST, pref.type);
 }
 
@@ -10673,7 +10906,7 @@ IN_PROC_BROWSER_TEST_F(DaoSessionStartupBrowserTest,
 IN_PROC_BROWSER_TEST_F(DaoSessionStartupBrowserTest,
                        FreshProfileUsesDefaultPref) {
   EXPECT_TRUE(
-      SessionStartupPref::TypeIsDefault(browser()->profile()->GetPrefs()));
+      SessionStartupPref::TypeIsDefault(browser()->GetProfile()->GetPrefs()));
   EXPECT_EQ(SessionStartupPref::LAST,
             SessionStartupPref::GetDefaultStartupType());
 }
@@ -10687,15 +10920,15 @@ IN_PROC_BROWSER_TEST_F(DaoSessionStartupBrowserTest,
     SCOPED_TRACE(type);
     SessionStartupPref stored(type);
     stored.urls.emplace_back("https://startup.example/");
-    SessionStartupPref::SetStartupPref(browser()->profile(), stored);
+    SessionStartupPref::SetStartupPref(browser()->GetProfile(), stored);
 
     const auto effective = StartupBrowserCreator::GetSessionStartupPref(
-        command_line, browser()->profile());
+        command_line, browser()->GetProfile());
     EXPECT_TRUE(effective.ShouldRestoreLastSession());
     EXPECT_FALSE(effective.ShouldOpenUrls());
     EXPECT_TRUE(effective.urls.empty());
     EXPECT_EQ(type,
-              SessionStartupPref::GetStartupPref(browser()->profile()).type);
+              SessionStartupPref::GetStartupPref(browser()->GetProfile()).type);
   }
 }
 
@@ -10703,14 +10936,14 @@ IN_PROC_BROWSER_TEST_F(DaoSessionStartupBrowserTest,
                        IncognitoNeverRestoresRegularSession) {
   base::CommandLine command_line(base::CommandLine::NO_PROGRAM);
   Profile* incognito =
-      browser()->profile()->GetPrimaryOTRProfile(/*create_if_needed=*/true);
+      browser()->GetProfile()->GetPrimaryOTRProfile(/*create_if_needed=*/true);
   for (const auto type : {SessionStartupPref::DEFAULT, SessionStartupPref::LAST,
                           SessionStartupPref::URLS,
                           SessionStartupPref::LAST_AND_URLS}) {
     SCOPED_TRACE(type);
     SessionStartupPref stored(type);
     stored.urls.emplace_back("https://startup.example/");
-    SessionStartupPref::SetStartupPref(browser()->profile(), stored);
+    SessionStartupPref::SetStartupPref(browser()->GetProfile(), stored);
 
     const auto effective =
         StartupBrowserCreator::GetSessionStartupPref(command_line, incognito);
@@ -10721,10 +10954,10 @@ IN_PROC_BROWSER_TEST_F(DaoSessionStartupBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoSessionStartupBrowserTest,
                        GuestNeverRestoresRegularSession) {
-  Browser* guest = CreateGuestBrowser();
+  BrowserWindowInterface* guest = CreateGuestBrowser();
   base::CommandLine command_line(base::CommandLine::NO_PROGRAM);
   const auto effective =
-      StartupBrowserCreator::GetSessionStartupPref(command_line, guest->profile());
+      StartupBrowserCreator::GetSessionStartupPref(command_line, guest->GetProfile());
   EXPECT_EQ(SessionStartupPref::DEFAULT, effective.type);
   EXPECT_TRUE(effective.urls.empty());
 }
@@ -10895,8 +11128,9 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoControllerTrackerBrowserTest,
                        RestoresUserResizedWindowSize) {
   const gfx::Rect custom_bounds(120, 130, 760, 520);
 
-  Browser* first_browser = dao::DaoLittleDaoController::OpenInLittleDao(
-      browser()->profile(), GURL("data:text/plain,first"));
+  BrowserWindowInterface* first_browser =
+      dao::DaoLittleDaoController::OpenInLittleDao(
+          browser()->GetProfile(), GURL("data:text/plain,first"));
   ASSERT_NE(nullptr, first_browser);
   ASSERT_TRUE(dao::DaoLittleDaoController::IsLittleDaoWindow(first_browser));
 
@@ -10909,11 +11143,12 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoControllerTrackerBrowserTest,
             first_widget->GetWindowBoundsInScreen().size());
 
   BrowserRemovedWaiter first_removed(first_browser);
-  first_browser->window()->Close();
+  first_browser->GetWindow()->Close();
   first_removed.Wait();
 
-  Browser* second_browser = dao::DaoLittleDaoController::OpenInLittleDao(
-      browser()->profile(), GURL("data:text/plain,second"));
+  BrowserWindowInterface* second_browser =
+      dao::DaoLittleDaoController::OpenInLittleDao(
+          browser()->GetProfile(), GURL("data:text/plain,second"));
   ASSERT_NE(nullptr, second_browser);
   ASSERT_TRUE(dao::DaoLittleDaoController::IsLittleDaoWindow(second_browser));
 
@@ -10925,7 +11160,7 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoControllerTrackerBrowserTest,
             second_widget->GetWindowBoundsInScreen().size());
 
   BrowserRemovedWaiter second_removed(second_browser);
-  second_browser->window()->Close();
+  second_browser->GetWindow()->Close();
   second_removed.Wait();
 }
 
@@ -10953,7 +11188,7 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoExtractionBrowserTest,
   ASSERT_GT(source_count_before, 1);
 
   BrowserAddedRecorder added_recorder;
-  Browser* little_dao_browser =
+  BrowserWindowInterface* little_dao_browser =
       dao::DaoLittleDaoController::ExtractActiveTabToLittleDao(browser());
 
   ASSERT_NE(nullptr, little_dao_browser);
@@ -10961,7 +11196,7 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoExtractionBrowserTest,
   EXPECT_EQ(little_dao_browser, added_recorder.added_browser_at(0));
   EXPECT_TRUE(
       dao::DaoLittleDaoController::IsLittleDaoWindow(little_dao_browser));
-  EXPECT_EQ(Browser::TYPE_POPUP, little_dao_browser->type());
+  EXPECT_EQ(BrowserWindowInterface::TYPE_POPUP, little_dao_browser->GetType());
   EXPECT_NE(nullptr, GetBrowserView(little_dao_browser)->dao_little_dao_view());
 
   EXPECT_EQ(source_count_before - 1, source_model->count());
@@ -10973,7 +11208,7 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoExtractionBrowserTest,
   EXPECT_EQ(original_url, original_contents->GetVisibleURL());
 
   BrowserRemovedWaiter removed(little_dao_browser);
-  little_dao_browser->window()->Close();
+  little_dao_browser->GetWindow()->Close();
   removed.Wait();
 }
 
@@ -10989,7 +11224,7 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoExtractionBrowserTest,
   ASSERT_NE(nullptr, original_contents);
   ASSERT_TRUE(content::WaitForLoadStop(original_contents));
 
-  Browser* little_dao_browser =
+  BrowserWindowInterface* little_dao_browser =
       dao::DaoLittleDaoController::ExtractActiveTabToLittleDao(browser());
 
   ASSERT_NE(nullptr, little_dao_browser);
@@ -11004,7 +11239,7 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoExtractionBrowserTest,
   EXPECT_FALSE(chrome::IsCommandEnabled(little_dao_browser, IDC_FULLSCREEN));
 
   BrowserRemovedWaiter removed(little_dao_browser);
-  little_dao_browser->window()->Close();
+  little_dao_browser->GetWindow()->Close();
   removed.Wait();
 }
 
@@ -11021,7 +11256,7 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoExtractionBrowserTest,
   ASSERT_NE(nullptr, original_contents);
 
   BrowserAddedRecorder added_recorder;
-  Browser* little_dao_browser =
+  BrowserWindowInterface* little_dao_browser =
       dao::DaoLittleDaoController::ExtractActiveTabToLittleDao(browser());
 
   ASSERT_NE(nullptr, little_dao_browser);
@@ -11036,17 +11271,18 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoExtractionBrowserTest,
   ASSERT_EQ(1, little_dao_browser->tab_strip_model()->count());
   EXPECT_EQ(original_contents,
             little_dao_browser->tab_strip_model()->GetActiveWebContents());
-  EXPECT_TRUE(browser()->window()->IsVisible());
+  EXPECT_TRUE(browser()->GetWindow()->IsVisible());
 
   BrowserRemovedWaiter removed(little_dao_browser);
-  little_dao_browser->window()->Close();
+  little_dao_browser->GetWindow()->Close();
   removed.Wait();
 }
 
 IN_PROC_BROWSER_TEST_F(DaoLittleDaoExtractionBrowserTest,
                        ExtractFromLittleDaoWindowIsRejected) {
-  Browser* little_dao_browser = dao::DaoLittleDaoController::OpenInLittleDao(
-      browser()->profile(), GURL("data:text/html,little"));
+  BrowserWindowInterface* little_dao_browser =
+      dao::DaoLittleDaoController::OpenInLittleDao(
+          browser()->GetProfile(), GURL("data:text/html,little"));
   ASSERT_NE(nullptr, little_dao_browser);
   ASSERT_TRUE(
       dao::DaoLittleDaoController::IsLittleDaoWindow(little_dao_browser));
@@ -11058,7 +11294,7 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoExtractionBrowserTest,
   EXPECT_EQ(1, little_dao_browser->tab_strip_model()->count());
 
   BrowserRemovedWaiter removed(little_dao_browser);
-  little_dao_browser->window()->Close();
+  little_dao_browser->GetWindow()->Close();
   removed.Wait();
 }
 
@@ -11085,7 +11321,7 @@ class DaoLittleDaoBoundsBrowserTest : public InProcessBrowserTest {
     return bounds;
   }
 
-  static gfx::Rect GetLittleDaoWindowBounds(Browser* browser) {
+  static gfx::Rect GetLittleDaoWindowBounds(BrowserWindowInterface* browser) {
     BrowserView* browser_view = GetBrowserView(browser);
     CHECK(browser_view);
     views::Widget* widget = browser_view->GetWidget();
@@ -11113,8 +11349,9 @@ class DaoLittleDaoBoundsBrowserTest : public InProcessBrowserTest {
 
 IN_PROC_BROWSER_TEST_F(DaoLittleDaoBoundsBrowserTest,
                        OpensDefaultWindowCenteredInWorkArea) {
-  Browser* little_dao_browser = dao::DaoLittleDaoController::OpenInLittleDao(
-      browser()->profile(), GURL("data:text/plain,centered"));
+  BrowserWindowInterface* little_dao_browser =
+      dao::DaoLittleDaoController::OpenInLittleDao(
+          browser()->GetProfile(), GURL("data:text/plain,centered"));
   ASSERT_NE(nullptr, little_dao_browser);
   ASSERT_TRUE(
       dao::DaoLittleDaoController::IsLittleDaoWindow(little_dao_browser));
@@ -11123,7 +11360,7 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoBoundsBrowserTest,
             GetLittleDaoWindowBounds(little_dao_browser));
 
   BrowserRemovedWaiter removed(little_dao_browser);
-  little_dao_browser->window()->Close();
+  little_dao_browser->GetWindow()->Close();
   removed.Wait();
 }
 
@@ -11131,8 +11368,9 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoBoundsBrowserTest,
                        RestoresUserMovedWindowBounds) {
   const gfx::Rect custom_bounds(120, 130, 760, 520);
 
-  Browser* first_browser = dao::DaoLittleDaoController::OpenInLittleDao(
-      browser()->profile(), GURL("data:text/plain,first-bounds"));
+  BrowserWindowInterface* first_browser =
+      dao::DaoLittleDaoController::OpenInLittleDao(
+          browser()->GetProfile(), GURL("data:text/plain,first-bounds"));
   ASSERT_NE(nullptr, first_browser);
   ASSERT_TRUE(dao::DaoLittleDaoController::IsLittleDaoWindow(first_browser));
   BrowserView* first_browser_view = GetBrowserView(first_browser);
@@ -11143,17 +11381,18 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoBoundsBrowserTest,
   EXPECT_EQ(custom_bounds, first_widget->GetWindowBoundsInScreen());
 
   BrowserRemovedWaiter first_removed(first_browser);
-  first_browser->window()->Close();
+  first_browser->GetWindow()->Close();
   first_removed.Wait();
 
-  Browser* second_browser = dao::DaoLittleDaoController::OpenInLittleDao(
-      browser()->profile(), GURL("data:text/plain,second-bounds"));
+  BrowserWindowInterface* second_browser =
+      dao::DaoLittleDaoController::OpenInLittleDao(
+          browser()->GetProfile(), GURL("data:text/plain,second-bounds"));
   ASSERT_NE(nullptr, second_browser);
   ASSERT_TRUE(dao::DaoLittleDaoController::IsLittleDaoWindow(second_browser));
   EXPECT_EQ(custom_bounds, GetLittleDaoWindowBounds(second_browser));
 
   BrowserRemovedWaiter second_removed(second_browser);
-  second_browser->window()->Close();
+  second_browser->GetWindow()->Close();
   second_removed.Wait();
 }
 
@@ -11164,12 +11403,13 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoBoundsBrowserTest,
   stored_bounds.Set("y", 40);
   stored_bounds.Set("width", 760);
   stored_bounds.Set("height", 520);
-  browser()->profile()->GetPrefs()->SetDict(dao::prefs::kDaoLittleDaoWindowSize,
+  browser()->GetProfile()->GetPrefs()->SetDict(dao::prefs::kDaoLittleDaoWindowSize,
                                             std::move(stored_bounds));
   const gfx::Rect expected_adjusted_bounds(0, 40, 760, 520);
 
-  Browser* little_dao_browser = dao::DaoLittleDaoController::OpenInLittleDao(
-      browser()->profile(), GURL("data:text/plain,adjusted"));
+  BrowserWindowInterface* little_dao_browser =
+      dao::DaoLittleDaoController::OpenInLittleDao(
+          browser()->GetProfile(), GURL("data:text/plain,adjusted"));
   ASSERT_NE(nullptr, little_dao_browser);
   ASSERT_TRUE(
       dao::DaoLittleDaoController::IsLittleDaoWindow(little_dao_browser));
@@ -11180,7 +11420,7 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoBoundsBrowserTest,
       GetLittleDaoWindowBounds(little_dao_browser).origin()));
 
   BrowserRemovedWaiter removed(little_dao_browser);
-  little_dao_browser->window()->Close();
+  little_dao_browser->GetWindow()->Close();
   removed.Wait();
 }
 
@@ -11226,12 +11466,12 @@ IN_PROC_BROWSER_TEST_F(DaoCrossWindowDragBrowserTest,
   auto* moving = model->GetWebContentsAt(1);
   dao::SetSidebarTabId(moving, "dragged-tab");
   model->MoveWebContentsAt(1, 0, true);
-  Browser* target = CreateBrowser(browser()->profile());
+  BrowserWindowInterface* target = CreateBrowser(browser()->GetProfile());
   ASSERT_TRUE(dao::ExecuteCrossWindowTabMove(
-      target, browser()->session_id().id(), 1, 0, "dragged-tab"));
+      target, browser()->GetSessionID().id(), 1, 0, "dragged-tab"));
   EXPECT_EQ(moving, target->tab_strip_model()->GetWebContentsAt(0));
   EXPECT_FALSE(dao::ExecuteCrossWindowTabMove(
-      target, browser()->session_id().id(), 0, 0, "dragged-tab"));
+      target, browser()->GetSessionID().id(), 0, 0, "dragged-tab"));
   EXPECT_EQ(1, model->count());
 }
 
@@ -11250,7 +11490,7 @@ IN_PROC_BROWSER_TEST_F(DaoCrossWindowDragBrowserTest,
   ASSERT_NE(nullptr, moving);
   ASSERT_NE(original, moving);
   const std::string moving_id = dao::GetOrCreateSidebarTabId(moving);
-  Browser* target =
+  BrowserWindowInterface* target =
       dao::DetachTabToNewWindow(browser(), moving_id, gfx::Point(500, 300));
   ASSERT_NE(nullptr, target);
   ASSERT_NE(browser(), target);
@@ -11335,10 +11575,10 @@ IN_PROC_BROWSER_TEST_F(DaoCrossWindowDragBrowserTest, MoveTabToOtherBrowser) {
   const int moved_index = source_tabs_before - 1;
   content::WebContents* moving_contents =
       source_model->GetWebContentsAt(moved_index);
-  const int source_sid = browser()->session_id().id();
+  const int source_sid = browser()->GetSessionID().id();
 
   // Open a second browser window for the same profile.
-  Browser* target = CreateBrowser(browser()->profile());
+  BrowserWindowInterface* target = CreateBrowser(browser()->GetProfile());
   ASSERT_NE(nullptr, target);
   ASSERT_NE(browser(), target);
   const int target_tabs_before = target->tab_strip_model()->count();
@@ -11374,7 +11614,7 @@ IN_PROC_BROWSER_TEST_F(DaoCrossWindowDragBrowserTest,
   gfx::Point drop_point(split->width() - 8, split->height() / 2);
   views::View::ConvertPointToTarget(split, browser_view, &drop_point);
   ASSERT_TRUE(
-      browser_view->contents_container()->bounds().Contains(drop_point));
+      browser_view->multi_contents_view()->bounds().Contains(drop_point));
 
   bool split_state_changed = false;
   base::RunLoop split_run_loop;
@@ -11387,7 +11627,7 @@ IN_PROC_BROWSER_TEST_F(DaoCrossWindowDragBrowserTest,
 
   const std::string payload = base::StrCat({
       dao::kDaoTabDragPrefix,
-      base::NumberToString(browser()->session_id().id()),
+      base::NumberToString(browser()->GetSessionID().id()),
       ":1",
   });
   ASSERT_TRUE(dao::PerformSplitTabDrop(browser(), drop_point, payload));
@@ -11410,7 +11650,7 @@ IN_PROC_BROWSER_TEST_F(DaoCrossWindowDragBrowserTest,
   auto* moving = source_model->GetWebContentsAt(1);
   const std::string moving_id = dao::GetOrCreateSidebarTabId(moving);
 
-  Browser* target = CreateBrowser(browser()->profile());
+  BrowserWindowInterface* target = CreateBrowser(browser()->GetProfile());
   chrome::AddTabAt(target, GURL(url::kAboutBlankURL), -1, true);
   auto* target_model = target->tab_strip_model();
   auto* first = target_model->GetWebContentsAt(0);
@@ -11425,7 +11665,7 @@ IN_PROC_BROWSER_TEST_F(DaoCrossWindowDragBrowserTest,
 
   const std::string payload = base::StrCat(
       {dao::kDaoTabDragPrefix,
-       base::NumberToString(browser()->session_id().id()), ":1:", moving_id});
+       base::NumberToString(browser()->GetSessionID().id()), ":1:", moving_id});
   ASSERT_TRUE(split->ProcessNativeTabDrop(
       gfx::Point(split->width() / 4, split->height() / 2), payload));
   ASSERT_TRUE(
@@ -11441,7 +11681,7 @@ IN_PROC_BROWSER_TEST_F(DaoCrossWindowDragBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoCrossWindowDragBrowserTest, NullTargetReturnsFalse) {
   EXPECT_FALSE(dao::ExecuteCrossWindowTabMove(
-      nullptr, browser()->session_id().id(), 0, 0));
+      nullptr, browser()->GetSessionID().id(), 0, 0));
 }
 
 IN_PROC_BROWSER_TEST_F(DaoCrossWindowDragBrowserTest,
@@ -11450,7 +11690,7 @@ IN_PROC_BROWSER_TEST_F(DaoCrossWindowDragBrowserTest,
   // — a same-window move has its own code path (moveTab via sidebar UI).
   const int tabs_before = browser()->tab_strip_model()->count();
   EXPECT_FALSE(dao::ExecuteCrossWindowTabMove(browser(),
-                                              browser()->session_id().id(),
+                                              browser()->GetSessionID().id(),
                                               /*source_tab_index=*/0,
                                               /*target_insert_index=*/0));
   // No tab should have been detached.
@@ -11459,7 +11699,7 @@ IN_PROC_BROWSER_TEST_F(DaoCrossWindowDragBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoCrossWindowDragBrowserTest,
                        UnknownSourceSessionReturnsFalse) {
-  Browser* target = CreateBrowser(browser()->profile());
+  BrowserWindowInterface* target = CreateBrowser(browser()->GetProfile());
   ASSERT_NE(nullptr, target);
   EXPECT_FALSE(dao::ExecuteCrossWindowTabMove(target,
                                               /*source_session_id=*/999999, 0,
@@ -11468,13 +11708,13 @@ IN_PROC_BROWSER_TEST_F(DaoCrossWindowDragBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoCrossWindowDragBrowserTest,
                        OutOfRangeSourceIndexReturnsFalse) {
-  Browser* target = CreateBrowser(browser()->profile());
+  BrowserWindowInterface* target = CreateBrowser(browser()->GetProfile());
   ASSERT_NE(nullptr, target);
   const int source_tabs_before = browser()->tab_strip_model()->count();
   // Asking to detach far past the end must fail without touching either
   // model.
   EXPECT_FALSE(dao::ExecuteCrossWindowTabMove(
-      target, browser()->session_id().id(),
+      target, browser()->GetSessionID().id(),
       /*source_tab_index=*/source_tabs_before + 100, 0));
   EXPECT_EQ(source_tabs_before, browser()->tab_strip_model()->count());
 }
@@ -11483,13 +11723,13 @@ IN_PROC_BROWSER_TEST_F(DaoCrossWindowDragBrowserTest, ClampsTargetInsertIndex) {
   chrome::AddTabAt(browser(), GURL("about:blank"), -1, true);
   ASSERT_GE(browser()->tab_strip_model()->count(), 2);
   const int last_source_index = browser()->tab_strip_model()->count() - 1;
-  Browser* target = CreateBrowser(browser()->profile());
+  BrowserWindowInterface* target = CreateBrowser(browser()->GetProfile());
   ASSERT_NE(nullptr, target);
   const int target_tabs_before = target->tab_strip_model()->count();
 
   // Asking for a way-too-large insert index should be clamped to append.
   EXPECT_TRUE(
-      dao::ExecuteCrossWindowTabMove(target, browser()->session_id().id(),
+      dao::ExecuteCrossWindowTabMove(target, browser()->GetSessionID().id(),
                                      /*source_tab_index=*/last_source_index,
                                      /*target_insert_index=*/9999));
   EXPECT_EQ(target_tabs_before + 1, target->tab_strip_model()->count());
@@ -11551,7 +11791,7 @@ IN_PROC_BROWSER_TEST_F(DaoI18nBrowserTest, PlaceholderSubstitutionWorks) {
 class DaoWelcomeWebUIBrowserTest : public InProcessBrowserTest {};
 
 IN_PROC_BROWSER_TEST_F(DaoWelcomeWebUIBrowserTest, LoadsAndMarksWelcomeShown) {
-  browser()->profile()->GetPrefs()->SetBoolean(dao::prefs::kDaoWelcomeShown,
+  browser()->GetProfile()->GetPrefs()->SetBoolean(dao::prefs::kDaoWelcomeShown,
                                                false);
 
   content::WebContents* contents =
@@ -11568,7 +11808,7 @@ IN_PROC_BROWSER_TEST_F(DaoWelcomeWebUIBrowserTest, LoadsAndMarksWelcomeShown) {
     })()
   )";
   EXPECT_EQ(true, content::EvalJs(contents, kWaitForWelcome));
-  EXPECT_TRUE(browser()->profile()->GetPrefs()->GetBoolean(
+  EXPECT_TRUE(browser()->GetProfile()->GetPrefs()->GetBoolean(
       dao::prefs::kDaoWelcomeShown));
 
   std::vector<std::string> errors;
@@ -11589,7 +11829,7 @@ IN_PROC_BROWSER_TEST_F(DaoWelcomeWebUIBrowserTest,
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("dao://welcome/")));
   ASSERT_EQ(1, model->count());
 
-  browser()->profile()->GetPrefs()->SetBoolean(dao::prefs::kDaoWelcomeShown,
+  browser()->GetProfile()->GetPrefs()->SetBoolean(dao::prefs::kDaoWelcomeShown,
                                                false);
 
   dao::DaoSidebarUIHandler handler;
@@ -11643,10 +11883,10 @@ IN_PROC_BROWSER_TEST_F(DaoImportWebUIBrowserTest,
                        FailedTabFolderWriteRollsBackImportedTabs) {
   base::ScopedAllowBlockingForTesting allow_blocking;
   const base::FilePath folder_path =
-      browser()->profile()->GetPath().AppendASCII("dao_folders.json");
+      browser()->GetProfile()->GetPath().AppendASCII("dao_folders.json");
   ASSERT_TRUE(base::WriteFile(folder_path, R"({"version":1,"items":[]})"));
   const int original_tab_count = browser()->tab_strip_model()->count();
-  dao::import::DaoChromiumMigrationTarget target(browser()->profile());
+  dao::import::DaoChromiumMigrationTarget target(browser()->GetProfile());
   base::test::TestFuture<bool> prepared;
   target.PrepareTabImport(prepared.GetCallback());
   ASSERT_TRUE(prepared.Get());
@@ -12470,12 +12710,12 @@ using DaoAgentSkillServiceTest = InProcessBrowserTest;
 
 IN_PROC_BROWSER_TEST_F(DaoAgentSkillServiceTest, ServiceAvailableForProfile) {
   EXPECT_NE(nullptr, dao::DaoAgentSkillServiceFactory::GetForProfile(
-                         browser()->profile()));
+                         browser()->GetProfile()));
 }
 
 IN_PROC_BROWSER_TEST_F(DaoAgentSkillServiceTest, RegistryReturnsList) {
   auto* svc =
-      dao::DaoAgentSkillServiceFactory::GetForProfile(browser()->profile());
+      dao::DaoAgentSkillServiceFactory::GetForProfile(browser()->GetProfile());
   ASSERT_NE(nullptr, svc);
   base::test::TestFuture<std::vector<dao::SkillRegistryEntry>> future;
   svc->GetSkillRegistry(future.GetCallback());
@@ -12486,7 +12726,7 @@ IN_PROC_BROWSER_TEST_F(DaoAgentSkillServiceTest, RegistryReturnsList) {
 
 IN_PROC_BROWSER_TEST_F(DaoAgentSkillServiceTest, SaveAndLoadUserSkill) {
   auto* svc =
-      dao::DaoAgentSkillServiceFactory::GetForProfile(browser()->profile());
+      dao::DaoAgentSkillServiceFactory::GetForProfile(browser()->GetProfile());
   ASSERT_NE(nullptr, svc);
 
   static constexpr char kSkillId[] = "browsertest_user_skill";
@@ -12530,7 +12770,7 @@ class DaoAgentMemoryServiceConversationTest : public InProcessBrowserTest {
  protected:
   void SetUpOnMainThread() override {
     InProcessBrowserTest::SetUpOnMainThread();
-    browser()->profile()->GetPrefs()->SetBoolean(
+    browser()->GetProfile()->GetPrefs()->SetBoolean(
         dao::prefs::kDaoAgentMemoryEnabled, true);
   }
 };
@@ -12538,7 +12778,7 @@ class DaoAgentMemoryServiceConversationTest : public InProcessBrowserTest {
 IN_PROC_BROWSER_TEST_F(DaoAgentMemoryServiceConversationTest,
                        DISABLED_ConversationRoundTrip) {
   auto* svc =
-      dao::DaoAgentMemoryServiceFactory::GetForProfile(browser()->profile());
+      dao::DaoAgentMemoryServiceFactory::GetForProfile(browser()->GetProfile());
   ASSERT_NE(nullptr, svc);
 
   std::vector<dao::ConversationMessage> messages;
@@ -12566,7 +12806,7 @@ IN_PROC_BROWSER_TEST_F(DaoAgentMemoryServiceConversationTest,
 
 IN_PROC_BROWSER_TEST_F(DaoAgentMemoryServiceConversationTest, StatsAvailable) {
   auto* svc =
-      dao::DaoAgentMemoryServiceFactory::GetForProfile(browser()->profile());
+      dao::DaoAgentMemoryServiceFactory::GetForProfile(browser()->GetProfile());
   ASSERT_NE(nullptr, svc);
   base::test::TestFuture<dao::StorageStats> stats;
   svc->GetStorageStats(stats.GetCallback());
@@ -12578,7 +12818,7 @@ IN_PROC_BROWSER_TEST_F(DaoAgentMemoryServiceConversationTest, StatsAvailable) {
 IN_PROC_BROWSER_TEST_F(DaoAgentMemoryServiceConversationTest,
                        StatsDoesNotPoisonStore) {
   auto* svc =
-      dao::DaoAgentMemoryServiceFactory::GetForProfile(browser()->profile());
+      dao::DaoAgentMemoryServiceFactory::GetForProfile(browser()->GetProfile());
   ASSERT_NE(nullptr, svc);
 
   base::test::TestFuture<dao::StorageStats> stats;
@@ -12842,13 +13082,13 @@ class DaoAgentWorkspaceBrowserTest : public InProcessBrowserTest {};
 
 IN_PROC_BROWSER_TEST_F(DaoAgentWorkspaceBrowserTest, ServiceBoundToProfile) {
   EXPECT_NE(nullptr, DaoAgentWorkspaceServiceFactory::GetForProfile(
-                         browser()->profile()));
+                         browser()->GetProfile()));
 }
 
 IN_PROC_BROWSER_TEST_F(DaoAgentWorkspaceBrowserTest,
                        WorkspaceRootCreatedOnFirstWrite) {
   auto* svc =
-      DaoAgentWorkspaceServiceFactory::GetForProfile(browser()->profile());
+      DaoAgentWorkspaceServiceFactory::GetForProfile(browser()->GetProfile());
   ASSERT_TRUE(svc);
 
   base::RunLoop loop;
@@ -12867,7 +13107,7 @@ IN_PROC_BROWSER_TEST_F(DaoAgentWorkspaceBrowserTest,
 IN_PROC_BROWSER_TEST_F(DaoAgentWorkspaceBrowserTest,
                        StagingDirClearedOnStartup) {
   auto* svc =
-      DaoAgentWorkspaceServiceFactory::GetForProfile(browser()->profile());
+      DaoAgentWorkspaceServiceFactory::GetForProfile(browser()->GetProfile());
   ASSERT_TRUE(svc);
 
   base::FilePath stage = svc->workspace_root().AppendASCII(".workspace_tmp");
@@ -13541,7 +13781,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
       }));
   DaoMcpApprovalDialog* raw_dialog = dialog.get();
   views::Widget* widget = constrained_window::CreateBrowserModalDialogViews(
-      std::move(dialog), browser()->window()->GetNativeWindow());
+      std::move(dialog), browser()->GetWindow()->GetNativeWindow());
   ASSERT_NE(nullptr, widget);
   widget->Show();
   raw_dialog->ResetViewShownTimeStampForTesting();
@@ -13577,7 +13817,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
       }));
   DaoMcpApprovalDialog* raw_dialog = dialog.get();
   views::Widget* widget = constrained_window::CreateBrowserModalDialogViews(
-      std::move(dialog), browser()->window()->GetNativeWindow());
+      std::move(dialog), browser()->GetWindow()->GetNativeWindow());
   ASSERT_NE(nullptr, widget);
   widget->Show();
   raw_dialog->ResetViewShownTimeStampForTesting();
@@ -13612,7 +13852,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
         allowed = result;
       }));
   views::Widget* widget = constrained_window::CreateBrowserModalDialogViews(
-      std::move(dialog), browser()->window()->GetNativeWindow());
+      std::move(dialog), browser()->GetWindow()->GetNativeWindow());
   ASSERT_NE(nullptr, widget);
   widget->Show();
   views::test::WidgetDestroyedWaiter destroyed_waiter(widget);
@@ -13641,7 +13881,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest, CloseDeniesExactlyOnce) {
         allowed = result;
       }));
   views::Widget* widget = constrained_window::CreateBrowserModalDialogViews(
-      std::move(dialog), browser()->window()->GetNativeWindow());
+      std::move(dialog), browser()->GetWindow()->GetNativeWindow());
   ASSERT_NE(nullptr, widget);
   widget->Show();
   views::test::WidgetDestroyedWaiter destroyed_waiter(widget);
@@ -13656,7 +13896,8 @@ IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest, CloseDeniesExactlyOnce) {
 
 IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
                        ParentDestructionDeniesExactlyOnce) {
-  Browser* parent_browser = CreateBrowser(browser()->profile());
+  BrowserWindowInterface* parent_browser =
+      CreateBrowser(browser()->GetProfile());
   ASSERT_NE(nullptr, parent_browser);
   int callback_count = 0;
   bool allowed = true;
@@ -13674,7 +13915,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
         allowed = result;
       }));
   views::Widget* widget = constrained_window::CreateBrowserModalDialogViews(
-      std::move(dialog), parent_browser->window()->GetNativeWindow());
+      std::move(dialog), parent_browser->GetWindow()->GetNativeWindow());
   ASSERT_NE(nullptr, widget);
   widget->Show();
 
@@ -13740,7 +13981,7 @@ IN_PROC_BROWSER_TEST_F(DaoQrCodeResultDialogBrowserTest,
   auto dialog = std::make_unique<DaoQrCodeResultDialogView>(
       browser()->tab_strip_model()->GetActiveWebContents(), std::move(results));
   views::Widget* widget = constrained_window::CreateBrowserModalDialogViews(
-      std::move(dialog), browser()->window()->GetNativeWindow());
+      std::move(dialog), browser()->GetWindow()->GetNativeWindow());
   ASSERT_NE(nullptr, widget);
   widget->Show();
   WidgetCloseRequestObserver close_observer(widget);
@@ -13773,7 +14014,7 @@ IN_PROC_BROWSER_TEST_F(DaoQrCodeResultDialogBrowserTest,
   auto dialog = std::make_unique<DaoQrCodeResultDialogView>(
       browser()->tab_strip_model()->GetActiveWebContents(), std::move(results));
   views::Widget* widget = constrained_window::CreateBrowserModalDialogViews(
-      std::move(dialog), browser()->window()->GetNativeWindow());
+      std::move(dialog), browser()->GetWindow()->GetNativeWindow());
   ASSERT_NE(nullptr, widget);
   widget->Show();
   WidgetCloseRequestObserver close_observer(widget);
@@ -13799,7 +14040,7 @@ IN_PROC_BROWSER_TEST_F(DaoQrCodeResultDialogBrowserTest,
   auto dialog = std::make_unique<DaoQrCodeResultDialogView>(
       browser()->tab_strip_model()->GetActiveWebContents(), std::move(results));
   views::Widget* widget = constrained_window::CreateBrowserModalDialogViews(
-      std::move(dialog), browser()->window()->GetNativeWindow());
+      std::move(dialog), browser()->GetWindow()->GetNativeWindow());
   ASSERT_NE(nullptr, widget);
   widget->Show();
   WidgetCloseRequestObserver close_observer(widget);

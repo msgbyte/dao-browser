@@ -11,7 +11,7 @@
 #include "ui/base/accelerators/accelerator.h"
 #include "ui/views/view.h"
 
-class Browser;
+class BrowserWindowInterface;
 class TabStripModel;
 
 namespace content {
@@ -41,7 +41,7 @@ class DaoLittleDaoView : public views::View,
  public:
   static constexpr int kBarHeight = 48;
 
-  explicit DaoLittleDaoView(Browser* browser);
+  explicit DaoLittleDaoView(BrowserWindowInterface* browser);
   DaoLittleDaoView(const DaoLittleDaoView&) = delete;
   DaoLittleDaoView& operator=(const DaoLittleDaoView&) = delete;
   ~DaoLittleDaoView() override;
@@ -65,7 +65,6 @@ class DaoLittleDaoView : public views::View,
       const TabStripModelChange& change,
       const TabStripSelectionChange& selection) override;
   void OnTabChangedAt(tabs::TabInterface* tab,
-                      int index,
                       TabChangeType change_type) override;
 
   // content::WebContentsObserver:
@@ -88,7 +87,7 @@ class DaoLittleDaoView : public views::View,
   void ShowMiniDaoSiteCenter();
   void OpenInDao();
 
-  raw_ptr<Browser> browser_;
+  raw_ptr<BrowserWindowInterface> browser_;
   raw_ptr<TabStripModel> tab_strip_model_;
   raw_ptr<views::View> url_container_ = nullptr;
   raw_ptr<views::LabelButton> url_text_button_ = nullptr;

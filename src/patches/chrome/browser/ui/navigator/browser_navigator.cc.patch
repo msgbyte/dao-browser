@@ -1,7 +1,7 @@
 diff --git a/chrome/browser/ui/navigator/browser_navigator.cc b/chrome/browser/ui/navigator/browser_navigator.cc
 --- a/chrome/browser/ui/navigator/browser_navigator.cc
 +++ b/chrome/browser/ui/navigator/browser_navigator.cc
-@@ -621,6 +621,15 @@
+@@ -685,6 +685,15 @@
      }
    }
  
@@ -17,14 +17,12 @@ diff --git a/chrome/browser/ui/navigator/browser_navigator.cc b/chrome/browser/u
    // If no source WebContents was specified, we use the selected one from the
    // target browser. This must happen before GetBrowserAndTabForDisposition()
    // has a chance to replace |params->browser| with another one, but after the
-@@ -871,10 +880,11 @@
-         contents_to_navigate_or_insert, params->transition,
-         params->window_action, user_initiated);
+@@ -947,8 +956,11 @@
+                                      params->transition, params->window_action,
+                                      user_initiated);
    } else if (singleton_index == -1) {
 -    if (source_browser != params->browser) {
--      params->tabstrip_index = params->browser->GetBrowserForMigrationOnly()
--                                   ->tab_strip_model()
--                                   ->count();
+-      params->tabstrip_index = params->browser->GetTabStripModel()->count();
 +    if ((!is_webpage_link || source_browser != params->browser) &&
 +        params->tabstrip_index == -1) {
 +      // Dao: browser UI and cross-window navigation default to the top,

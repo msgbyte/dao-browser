@@ -15,15 +15,15 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
-#include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ssl/chrome_security_state_util.h"
 #include "chrome/browser/ui/browser_commands.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/toolbar/back_forward_menu_model.h"
 #include "chrome/browser/ui/view_ids.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/page_info/page_info_bubble_specification.h"
 #include "chrome/browser/ui/views/page_info/page_info_bubble_view.h"
-#include "components/security_state/content/security_state_tab_helper.h"
 #include "components/strings/grit/components_strings.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
@@ -358,7 +358,7 @@ END_METADATA
 BEGIN_METADATA(DaoAddressBarView)
 END_METADATA
 
-DaoAddressBarView::DaoAddressBarView(Browser* browser)
+DaoAddressBarView::DaoAddressBarView(BrowserWindowInterface* browser)
     : browser_(browser), tab_strip_model_(browser->tab_strip_model()) {
   SetBackground(views::CreateSolidBackground(SK_ColorWHITE));  // default
 
@@ -588,10 +588,9 @@ void DaoAddressBarView::OnTabStripModelChanged(
 }
 
 void DaoAddressBarView::OnTabChangedAt(tabs::TabInterface* tab,
-                                       int index,
                                        TabChangeType change_type) {
   // Only update if the changed tab is the active one
-  if (tab_strip_model_ && index == tab_strip_model_->active_index()) {
+  if (tab_strip_model_ && tab == tab_strip_model_->GetActiveTab()) {
     if (change_type == TabChangeType::kLoadingOnly) {
       UpdateStopRefreshButton();
       return;
@@ -663,11 +662,10 @@ void DaoAddressBarView::UpdateSecurityButton() {
   content::WebContents* web_contents =
       tab_strip_model_ ? tab_strip_model_->GetActiveWebContents() : nullptr;
   if (web_contents) {
-    if (auto* helper = SecurityStateTabHelper::FromWebContents(web_contents)) {
-      const security_state::SecurityLevel level = helper->GetSecurityLevel();
-      visible = level == security_state::WARNING ||
-                level == security_state::DANGEROUS;
-    }
+    const security_state::SecurityLevel level =
+        chrome_security_state::GetSecurityLevel(web_contents);
+    visible = level == security_state::WARNING ||
+              level == security_state::DANGEROUS;
   }
   static_cast<views::FlexLayout*>(url_container_->GetLayoutManager())
       ->SetInteriorMargin(visible ? gfx::Insets::TLBR(2, 4, 2, 8)

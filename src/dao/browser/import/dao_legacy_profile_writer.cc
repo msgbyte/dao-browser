@@ -46,7 +46,7 @@ void DaoLegacyProfileWriter::AddPasswordForm(
   entry.origin = form.url;
   entry.signon_realm = form.signon_realm;
   entry.username = form.username_value;
-  entry.password = form.password_value;
+  entry.password = form.password_value.value();
   entry.date_created = form.date_created;
   pending_passwords_.push_back(std::move(entry));
 }

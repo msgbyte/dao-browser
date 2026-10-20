@@ -7,7 +7,7 @@
 
 #include "third_party/skia/include/core/SkColor.h"
 
-class Browser;
+class BrowserWindowInterface;
 
 namespace dao {
 
@@ -15,12 +15,12 @@ namespace dao {
 bool IsDarkMode();
 
 SkColor SidebarBackground();
-SkColor SidebarBackground(const Browser* browser);
+SkColor SidebarBackground(const BrowserWindowInterface* browser);
 SkColor FrameColor();
 
 SkColor TextPrimary();
 SkColor TextSecondary();
-SkColor TextSecondary(const Browser* browser);
+SkColor TextSecondary(const BrowserWindowInterface* browser);
 SkColor TextMuted();
 
 SkColor ActiveTabBackground();
@@ -54,7 +54,7 @@ constexpr int kContentInsetRight = 6;
 constexpr int kContentInsetBottom = 6;
 
 // Split view styling
-SkColor DividerColor(const Browser* browser);
+SkColor DividerColor(const BrowserWindowInterface* browser);
 SkColor DividerHoverColor();
 SkColor DropZoneOverlay();
 constexpr int kDividerWidth = 4;
@@ -90,7 +90,7 @@ SkColor ToastTextColor();
 SkColor ControlCenterIconDefault();
 SkColor ControlCenterIconMuted();
 SkColor ControlCenterHoverBg();
-SkColor ControlCenterHoverBg(const Browser* browser);
+SkColor ControlCenterHoverBg(const BrowserWindowInterface* browser);
 SkColor ControlCenterActiveBg();
 SkColor ControlCenterLabelColor();
 SkColor ControlCenterSecondaryTextColor();

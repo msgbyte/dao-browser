@@ -1,19 +1,18 @@
 diff --git a/chrome/browser/ui/views/frame/browser_native_widget_mac.mm b/chrome/browser/ui/views/frame/browser_native_widget_mac.mm
-index d6d2a757c2..4ac4d1a5e1 100644
 --- a/chrome/browser/ui/views/frame/browser_native_widget_mac.mm
 +++ b/chrome/browser/ui/views/frame/browser_native_widget_mac.mm
-@@ -18,6 +18,7 @@
- #include "chrome/browser/media/router/media_router_feature.h"
+@@ -23,6 +23,7 @@
+ #include "chrome/browser/ui/browser_actions.h"
  #include "chrome/browser/ui/browser_command_controller.h"
  #include "chrome/browser/ui/browser_commands.h"
 +#include "chrome/browser/ui/singleton_tabs.h"
  #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
  #import "chrome/browser/ui/cocoa/browser_window_command_handler.h"
- #import "chrome/browser/ui/cocoa/chrome_command_dispatcher_delegate.h"
-@@ -30,6 +31,15 @@
- #include "chrome/browser/ui/views/frame/browser_view.h"
+@@ -41,8 +42,18 @@
  #include "chrome/browser/ui/views/frame/browser_widget.h"
- #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
+ #include "chrome/browser/ui/views/frame/glass_frame_service.h"
+ #include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
 +#include "chrome/browser/ui/tabs/tab_strip_model.h"
 +#include "content/public/browser/web_contents.h"
 +#include "dao/browser/ui/views/dao_tab_commands.h"
@@ -25,9 +24,12 @@ index d6d2a757c2..4ac4d1a5e1 100644
 +#include "url/gurl.h"
  #include "chrome/browser/ui/views/web_apps/frame_toolbar/web_app_frame_toolbar_utils.h"
  #include "chrome/browser/ui/web_applications/app_browser_controller.h"
++#include "chrome/browser/ui/window_feature_controller/window_feature_controller.h"
  #include "chrome/common/pref_names.h"
-@@ -88,6 +98,20 @@ bool ShouldHandleKeyboardEvent(const input::NativeWebKeyboardEvent& event) {
-   return event.os_event && event.os_event.Get().type == NSEventTypeKeyDown;
+ #include "chrome/grit/generated_resources.h"
+ #include "components/bookmarks/common/bookmark_pref_names.h"
+@@ -139,6 +150,20 @@
+   return GetLayoutConstant(LayoutConstant::kToolbarCornerRadius) * 2;
  }
  
 +bool IsDaoCommandSShortcut(const input::NativeWebKeyboardEvent& event) {
@@ -46,8 +48,8 @@ index d6d2a757c2..4ac4d1a5e1 100644
 +
  }  // namespace
  
- // Bridge Obj-C class for WindowTouchBarDelegate and
-@@ -176,7 +200,15 @@ - (NSTouchBar*)makeTouchBar {
+ // NSGlassEffectView intercepts hit testing even when added below the
+@@ -262,7 +287,15 @@
                   top_element_info.toolbar_minimum_height) +
          browser_view_->browser_widget()->GetFrameView()->GetTopInset(true);
      if (!browser_view_->ShouldDrawTabStrip()) {
@@ -64,7 +66,7 @@ index d6d2a757c2..4ac4d1a5e1 100644
      }
    } else {
      *override_titlebar_height = false;
-@@ -216,6 +248,38 @@ - (NSTouchBar*)makeTouchBar {
+@@ -382,6 +415,38 @@
  void BrowserNativeWidgetMac::ValidateUserInterfaceItem(
      int32_t tag,
      remote_cocoa::mojom::ValidateUserInterfaceItemResult* result) {
@@ -100,19 +102,19 @@ index d6d2a757c2..4ac4d1a5e1 100644
 +    return;
 +  }
 +
-   Browser* const browser = browser_view_ ? browser_view_->browser() : nullptr;
+   BrowserWindowInterface* const browser =
+       browser_view_ ? browser_view_->browser() : nullptr;
    if (!browser || !chrome::SupportsCommand(browser, tag)) {
-     result->enable = false;
-@@ -446,6 +510,36 @@ - (NSTouchBar*)makeTouchBar {
+@@ -628,6 +693,36 @@
      int32_t command,
      WindowOpenDisposition window_open_disposition,
      bool is_before_first_responder) {
 +  // Dao: Handle IDC_NEW_LITTLE_DAO directly since it's not registered
 +  // in the browser command system.
 +  if (command == IDC_NEW_LITTLE_DAO) {
-+    Browser* browser = browser_view_->browser();
++    BrowserWindowInterface* browser = browser_view_->browser();
 +    dao::DaoLittleDaoController::OpenInLittleDao(
-+        browser->profile(), GURL("about:blank"));
++        browser->GetProfile(), GURL("about:blank"));
 +    return true;
 +  }
 +
@@ -140,7 +142,7 @@ index d6d2a757c2..4ac4d1a5e1 100644
    if (!WillExecuteCommand(command, window_open_disposition,
                            is_before_first_responder)) {
      return false;
-@@ -499,6 +593,16 @@ - (NSTouchBar*)makeTouchBar {
+@@ -718,6 +813,16 @@
      if (browser_view_->GetIsWebAppType()) {
        params->window_title_hidden = true;
      }
@@ -157,20 +159,21 @@ index d6d2a757c2..4ac4d1a5e1 100644
    } else {
      params->window_class = remote_cocoa::mojom::WindowClass::kDefault;
    }
-@@ -568,6 +672,12 @@ - (NSTouchBar*)makeTouchBar {
+@@ -816,6 +921,13 @@
      views::Widget::InitParams::Ownership ownership) {
    views::Widget::InitParams params(ownership);
    params.native_widget = this;
 +  // Dao: Make the window translucent so NSVisualEffectView can show
 +  // through, producing the frosted glass sidebar effect.
-+  if (browser_view_ && browser_view_->browser()->SupportsWindowFeature(
-+                           Browser::WindowFeature::kFeatureTabStrip)) {
++  if (browser_view_ && WindowFeatureController::From(browser_view_->browser())
++                           ->SupportsWindowFeature(
++                               WindowFeatureController::WindowFeature::kFeatureTabStrip)) {
 +    params.opacity = views::Widget::InitParams::WindowOpacity::kTranslucent;
 +  }
    return params;
  }
  
-@@ -592,6 +702,17 @@ - (NSTouchBar*)makeTouchBar {
+@@ -840,6 +952,17 @@
  content::KeyboardEventProcessingResult
  BrowserNativeWidgetMac::PreHandleKeyboardEvent(
      const input::NativeWebKeyboardEvent& event) {

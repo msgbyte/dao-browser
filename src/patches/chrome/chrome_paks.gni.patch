@@ -1,11 +1,9 @@
-diff --git a/chrome/chrome_paks.gni b/chrome/chrome_paks.gni
-index a6db77c7261e8..795f305ab0206 100644
 --- a/chrome/chrome_paks.gni
 +++ b/chrome/chrome_paks.gni
-@@ -220,6 +220,11 @@ template("chrome_extra_paks") {
+@@ -214,6 +214,11 @@
          "$root_gen_dir/chrome/browser/indigo/resources/indigo_browser_resources.pak",
          "$root_gen_dir/chrome/certificate_manager_resources.pak",
-         "$root_gen_dir/chrome/content_annotator_internals_resources.pak",
+         "$root_gen_dir/chrome/contextual_cueing_internals_resources.pak",
 +        "$root_gen_dir/chrome/dao_agent_resources.pak",
 +        "$root_gen_dir/chrome/dao_home_resources.pak",
 +        "$root_gen_dir/chrome/dao_import_resources.pak",
@@ -14,15 +12,15 @@ index a6db77c7261e8..795f305ab0206 100644
          "$root_gen_dir/chrome/data_sharing_resources.pak",
          "$root_gen_dir/chrome/dev_ui_resources.pak",
          "$root_gen_dir/chrome/downloads_resources.pak",
-@@ -268,6 +273,11 @@ template("chrome_extra_paks") {
-         "//chrome/browser/actor/resources:browser_resources",
-         "//chrome/browser/indigo/resources:browser_resources",
-         "//chrome/browser/resources:dev_ui_paks",
+@@ -271,6 +276,11 @@
+         "//chrome/browser/resources/contextual_cueing/internals:resources",
+         "//chrome/browser/resources/geic:resources",
+         "//components/headless/command_handler",
 +        "//dao/browser/ui/webui/resources/agent:resources",
 +        "//dao/browser/ui/webui/resources/home:resources",
 +        "//dao/browser/ui/webui/resources/import:resources",
 +        "//dao/browser/ui/webui/resources/sidebar:resources",
 +        "//dao/browser/ui/webui/resources/welcome:resources",
-         "//chrome/browser/resources/actor_overlay:resources",
-         "//chrome/browser/resources/autofill_ml_internals:resources",
-         "//chrome/browser/resources/data_sharing:resources",
+         "//content/browser/tracing:resources",
+       ]
+       if (is_chrome_branded) {

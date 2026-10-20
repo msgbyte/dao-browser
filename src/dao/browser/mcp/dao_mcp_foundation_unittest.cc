@@ -15,7 +15,7 @@
 #include "base/values.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/tab_list/tab_list_interface.h"
-#include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
@@ -482,9 +482,9 @@ class DaoMcpLeaseBrowserTest : public InProcessBrowserTest {};
 IN_PROC_BROWSER_TEST_F(DaoMcpLeaseBrowserTest,
                        ProfileOwnsOneSharedLeaseManager) {
   DaoAgentLeaseManager* first =
-      DaoAgentLeaseManager::GetForProfile(browser()->profile());
+      DaoAgentLeaseManager::GetForProfile(browser()->GetProfile());
   DaoAgentLeaseManager* second =
-      DaoAgentLeaseManager::GetForProfile(browser()->profile());
+      DaoAgentLeaseManager::GetForProfile(browser()->GetProfile());
   ASSERT_NE(nullptr, first);
   ASSERT_EQ(first, second);
 
@@ -513,8 +513,8 @@ IN_PROC_BROWSER_TEST_F(DaoMcpSessionTest,
   ASSERT_TRUE(eligible_target.has_value())
       << "url=" << authorized_target->GetLastCommittedURL()
       << " browser_type=" << browser()->GetType()
-      << " off_the_record=" << browser()->profile()->IsOffTheRecord()
-      << " guest=" << browser()->profile()->IsGuestSession();
+      << " off_the_record=" << browser()->GetProfile()->IsOffTheRecord()
+      << " guest=" << browser()->GetProfile()->IsGuestSession();
   EXPECT_EQ(authorized_target, eligible_target.value());
 
   session.set_expected_domain("example.test");
@@ -544,7 +544,7 @@ IN_PROC_BROWSER_TEST_F(
     DaoMcpSessionTest,
     RejectsSameProfileWebContentsOutsideAuthorizedWindowAtConstruction) {
   auto unauthorized_target = content::WebContents::Create(
-      content::WebContents::CreateParams(browser()->profile()));
+      content::WebContents::CreateParams(browser()->GetProfile()));
   ASSERT_NE(nullptr, unauthorized_target);
 
   DaoBrowserAutomationSession session(browser(), unauthorized_target.get());
@@ -586,7 +586,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpSessionTest,
   DaoBrowserAutomationSession session(browser(), authorized_target);
   ASSERT_EQ(authorized_target, session.ResolveTarget().value());
 
-  Browser* destination = CreateBrowser(browser()->profile());
+  BrowserWindowInterface* destination = CreateBrowser(browser()->GetProfile());
   TabListInterface* destination_tabs = TabListInterface::From(destination);
   ASSERT_NE(nullptr, destination_tabs);
   source_tabs->MoveTabToWindow(target_handle, destination->GetSessionID(), 0);
@@ -612,13 +612,14 @@ IN_PROC_BROWSER_TEST_F(DaoMcpSessionTest,
                                        TabStripModel::kNoTab, true));
 
   auto replacement = content::WebContents::Create(
-      content::WebContents::CreateParams(browser()->profile()));
+      content::WebContents::CreateParams(browser()->GetProfile()));
   content::WebContents* replacement_contents = replacement.get();
   const int target_index = tab_list->GetIndexOfTab(target_handle);
   ASSERT_GE(target_index, 0);
   std::unique_ptr<content::WebContents> discarded =
-      browser()->tab_strip_model()->DiscardWebContentsAt(
-          target_index, std::move(replacement));
+      browser()->tab_strip_model()->DiscardWebContents(
+          browser()->tab_strip_model()->GetWebContentsAt(target_index),
+          std::move(replacement));
   ASSERT_EQ(original_contents, discarded.get());
   ASSERT_TRUE(
       content::NavigateToURL(replacement_contents, GURL("about:blank")));

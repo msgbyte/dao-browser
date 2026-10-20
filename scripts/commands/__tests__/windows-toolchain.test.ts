@@ -13,6 +13,7 @@ import {
   configureWindowsToolchain,
   getWindowsToolchainEnvironment,
   prepareWindowsCrossToolchain,
+  readWindowsToolchainRequirements,
   setupWindowsToolchain,
 } from '../../windows-toolchain.js';
 
@@ -62,6 +63,24 @@ beforeEach(() => {
 afterEach(() => rmSync(root, {recursive: true, force: true}));
 
 describe('Windows cross toolchain provisioning', () => {
+  it('reads the first Visual Studio version from a multiline OrderedDict', () => {
+    write('engine/src/build/vs_toolchain.py', [
+      "TOOLCHAIN_HASH = '3bfcb536c8'",
+      "SDK_VERSION = '10.0.28000.0'",
+      'MSVS_VERSIONS = collections.OrderedDict(',
+      '    [',
+      "        ('2026', '18.0'),  # The packaged toolchain.",
+      "        ('2022', '17.0'),",
+      '    ]',
+      ')',
+    ].join('\n'));
+    expect(readWindowsToolchainRequirements(root)).toEqual({
+      hash: '3bfcb536c8',
+      sdkVersion: '10.0.28000.0',
+      visualStudioVersion: '2026',
+    });
+  });
+
   it('bootstraps the SDK on Mac without requiring downloaded Chromium resource tools', async () => {
     checkout();
     vi.mocked(runStreaming).mockImplementation(async (_command, args) => {

@@ -297,7 +297,7 @@ using DaoDreamStaticTest = InProcessBrowserTest;
 // --- Pure-logic tests on the static helpers ---
 
 IN_PROC_BROWSER_TEST_F(DaoDreamStaticTest, WeeklyDreamPrefDefaultsOff) {
-  EXPECT_FALSE(browser()->profile()->GetPrefs()->GetBoolean(
+  EXPECT_FALSE(browser()->GetProfile()->GetPrefs()->GetBoolean(
       prefs::kDaoDreamWeeklyEnabled));
 }
 
@@ -394,6 +394,12 @@ IN_PROC_BROWSER_TEST_F(DaoDreamStaticTest, DreamDomainExclusionNormalization) {
   EXPECT_EQ("app.example.com",
             DreamMaterialCollector::NormalizeExcludedDomainForTesting(
                 "app.example.com."));
+  EXPECT_EQ("www.example.co.uk",
+            DreamMaterialCollector::NormalizeExcludedDomainForTesting(
+                "www.example.co.uk"));
+  EXPECT_EQ("blogspot.com",
+            DreamMaterialCollector::NormalizeExcludedDomainForTesting(
+                "blogspot.com"));
   EXPECT_EQ("",
             DreamMaterialCollector::NormalizeExcludedDomainForTesting(""));
   EXPECT_EQ("",
@@ -401,6 +407,11 @@ IN_PROC_BROWSER_TEST_F(DaoDreamStaticTest, DreamDomainExclusionNormalization) {
                 "localhost"));
   EXPECT_EQ("",
             DreamMaterialCollector::NormalizeExcludedDomainForTesting("com"));
+  EXPECT_EQ("",
+            DreamMaterialCollector::NormalizeExcludedDomainForTesting("co.uk"));
+  EXPECT_EQ("",
+            DreamMaterialCollector::NormalizeExcludedDomainForTesting(
+                "example.invalid"));
   EXPECT_EQ("",
             DreamMaterialCollector::NormalizeExcludedDomainForTesting(
                 "127.0.0.1"));
@@ -448,13 +459,13 @@ class DaoDreamBrowserTest : public InProcessBrowserTest {
     InProcessBrowserTest::SetUpOnMainThread();
     host_resolver()->AddRule("*", "127.0.0.1");
     ASSERT_TRUE(embedded_test_server()->Start());
-    PrefService* pref_service = browser()->profile()->GetPrefs();
+    PrefService* pref_service = browser()->GetProfile()->GetPrefs();
     pref_service->SetBoolean(prefs::kDaoAgentMemoryEnabled, true);
     pref_service->SetBoolean(prefs::kDaoDreamEnabled, true);
   }
 
   DaoDreamService* dream_service() {
-    return DaoDreamServiceFactory::GetForProfile(browser()->profile());
+    return DaoDreamServiceFactory::GetForProfile(browser()->GetProfile());
   }
 
   DaoForegroundActivitySnapshot ForegroundSnapshot() {
@@ -480,7 +491,7 @@ class DaoDreamBrowserTest : public InProcessBrowserTest {
 
   DaoForegroundActivityService* foreground_service() {
     return DaoForegroundActivityServiceFactory::GetForProfile(
-        browser()->profile());
+        browser()->GetProfile());
   }
 
  private:
@@ -490,7 +501,7 @@ class DaoDreamBrowserTest : public InProcessBrowserTest {
 
 IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest, ServiceGatedByPrefs) {
   EXPECT_NE(nullptr, dream_service());
-  browser()->profile()->GetPrefs()->SetBoolean(prefs::kDaoDreamEnabled, false);
+  browser()->GetProfile()->GetPrefs()->SetBoolean(prefs::kDaoDreamEnabled, false);
   EXPECT_EQ(nullptr, dream_service());
 }
 
@@ -507,15 +518,15 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
   ASSERT_FALSE(snapshot.rows.empty());
 
   history::HistoryService* history = HistoryServiceFactory::GetForProfile(
-      browser()->profile(), ServiceAccessType::EXPLICIT_ACCESS);
+      browser()->GetProfile(), ServiceAccessType::EXPLICIT_ACCESS);
   ASSERT_TRUE(history);
   SetForegroundDurationForUrl(history, url, base::Seconds(90));
   const base::Time now = ForegroundNow();
 
   DaoAgentMemoryService* memory =
-      DaoAgentMemoryServiceFactory::GetForProfile(browser()->profile());
+      DaoAgentMemoryServiceFactory::GetForProfile(browser()->GetProfile());
   ASSERT_TRUE(memory);
-  DreamMaterialCollector collector(browser()->profile(), memory);
+  DreamMaterialCollector collector(browser()->GetProfile(), memory);
   base::DictValue material;
   base::RunLoop loop;
   collector.Collect(now - base::Hours(1), now,
@@ -545,7 +556,7 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
   EXPECT_EQ("dao_active_tab_v1", *stats->FindString("foreground_source"));
   EXPECT_EQ("partial", *stats->FindString("foreground_coverage"));
 
-  WeeklyDreamMaterialCollector weekly_collector(browser()->profile(), memory);
+  WeeklyDreamMaterialCollector weekly_collector(browser()->GetProfile(), memory);
   WeeklyDreamMaterial weekly;
   base::RunLoop weekly_loop;
   const std::string local_date = LocalDateString(now);
@@ -615,7 +626,7 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
 IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
                        ForegroundCoverageMetadataRoundTripsUnchanged) {
   DaoAgentMemoryService* memory =
-      DaoAgentMemoryServiceFactory::GetForProfile(browser()->profile());
+      DaoAgentMemoryServiceFactory::GetForProfile(browser()->GetProfile());
   ASSERT_TRUE(memory);
   for (
       const std::string& stats :
@@ -657,7 +668,7 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
                        CollectorRedactsUrlsAndAggregates) {
   // Seed history inside the window.
   history::HistoryService* history = HistoryServiceFactory::GetForProfile(
-      browser()->profile(), ServiceAccessType::EXPLICIT_ACCESS);
+      browser()->GetProfile(), ServiceAccessType::EXPLICIT_ACCESS);
   ASSERT_TRUE(history);
   const base::Time now = base::Time::Now();
   history->AddPage(GURL("https://github.com/foo/bar?token=SECRET123"),
@@ -668,9 +679,9 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
                    now - base::Hours(3), history::SOURCE_BROWSED);
 
   DaoAgentMemoryService* memory =
-      DaoAgentMemoryServiceFactory::GetForProfile(browser()->profile());
+      DaoAgentMemoryServiceFactory::GetForProfile(browser()->GetProfile());
   ASSERT_TRUE(memory);
-  DreamMaterialCollector collector(browser()->profile(), memory);
+  DreamMaterialCollector collector(browser()->GetProfile(), memory);
 
   base::DictValue pack;
   base::RunLoop loop;
@@ -729,13 +740,13 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
                        CollectorExcludesConfiguredDomainsBeforeAggregation) {
-  PrefService* prefs = browser()->profile()->GetPrefs();
+  PrefService* prefs = browser()->GetProfile()->GetPrefs();
   base::ListValue excluded;
   excluded.Append("github.com");
   prefs->SetList(prefs::kDaoDreamExcludedDomains, std::move(excluded));
 
   history::HistoryService* history = HistoryServiceFactory::GetForProfile(
-      browser()->profile(), ServiceAccessType::EXPLICIT_ACCESS);
+      browser()->GetProfile(), ServiceAccessType::EXPLICIT_ACCESS);
   ASSERT_TRUE(history);
   const base::Time now = base::Time::Now();
   history->AddPageWithDetails(
@@ -751,9 +762,9 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
                               false, history::SOURCE_BROWSED);
 
   DaoAgentMemoryService* memory =
-      DaoAgentMemoryServiceFactory::GetForProfile(browser()->profile());
+      DaoAgentMemoryServiceFactory::GetForProfile(browser()->GetProfile());
   ASSERT_TRUE(memory);
-  DreamMaterialCollector collector(browser()->profile(), memory);
+  DreamMaterialCollector collector(browser()->GetProfile(), memory);
 
   base::DictValue pack;
   base::RunLoop loop;
@@ -786,13 +797,13 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
                        CollectorDoesNotExtractQueriesFromExcludedDomains) {
-  PrefService* prefs = browser()->profile()->GetPrefs();
+  PrefService* prefs = browser()->GetProfile()->GetPrefs();
   base::ListValue excluded;
   excluded.Append("google.com");
   prefs->SetList(prefs::kDaoDreamExcludedDomains, std::move(excluded));
 
   history::HistoryService* history = HistoryServiceFactory::GetForProfile(
-      browser()->profile(), ServiceAccessType::EXPLICIT_ACCESS);
+      browser()->GetProfile(), ServiceAccessType::EXPLICIT_ACCESS);
   ASSERT_TRUE(history);
   const base::Time now = base::Time::Now();
   history->AddPage(GURL("https://www.google.com/search?q=private+query"),
@@ -801,9 +812,9 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
                    now - base::Hours(2), history::SOURCE_BROWSED);
 
   DaoAgentMemoryService* memory =
-      DaoAgentMemoryServiceFactory::GetForProfile(browser()->profile());
+      DaoAgentMemoryServiceFactory::GetForProfile(browser()->GetProfile());
   ASSERT_TRUE(memory);
-  DreamMaterialCollector collector(browser()->profile(), memory);
+  DreamMaterialCollector collector(browser()->GetProfile(), memory);
 
   base::DictValue pack;
   base::RunLoop loop;
@@ -823,7 +834,7 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
 IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
                        CollectorAggregatesForegroundDuration) {
   history::HistoryService* history = HistoryServiceFactory::GetForProfile(
-      browser()->profile(), ServiceAccessType::EXPLICIT_ACCESS);
+      browser()->GetProfile(), ServiceAccessType::EXPLICIT_ACCESS);
   ASSERT_TRUE(history);
   const base::Time now = base::Time::Now();
   const GURL deep_url("https://deep.example/research");
@@ -839,9 +850,9 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
   SetForegroundDurationForUrl(history, quick_url, base::Seconds(30));
 
   DaoAgentMemoryService* memory =
-      DaoAgentMemoryServiceFactory::GetForProfile(browser()->profile());
+      DaoAgentMemoryServiceFactory::GetForProfile(browser()->GetProfile());
   ASSERT_TRUE(memory);
-  DreamMaterialCollector collector(browser()->profile(), memory);
+  DreamMaterialCollector collector(browser()->GetProfile(), memory);
 
   base::DictValue pack;
   base::RunLoop loop;
@@ -878,10 +889,10 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
 IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
                        CollectorStatsCountSignalsBeforeMaterialCaps) {
   history::HistoryService* history = HistoryServiceFactory::GetForProfile(
-      browser()->profile(), ServiceAccessType::EXPLICIT_ACCESS);
+      browser()->GetProfile(), ServiceAccessType::EXPLICIT_ACCESS);
   ASSERT_TRUE(history);
   DaoAgentMemoryService* memory =
-      DaoAgentMemoryServiceFactory::GetForProfile(browser()->profile());
+      DaoAgentMemoryServiceFactory::GetForProfile(browser()->GetProfile());
   ASSERT_TRUE(memory);
   const base::Time now = base::Time::Now();
 
@@ -908,7 +919,7 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
         std::move(messages)));
   }
 
-  DreamMaterialCollector collector(browser()->profile(), memory);
+  DreamMaterialCollector collector(browser()->GetProfile(), memory);
   base::DictValue pack;
   base::RunLoop loop;
   collector.Collect(now - base::Hours(6), now,
@@ -939,7 +950,7 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest, CollectorCapsLongHistoryText) {
   history::HistoryService* history = HistoryServiceFactory::GetForProfile(
-      browser()->profile(), ServiceAccessType::EXPLICIT_ACCESS);
+      browser()->GetProfile(), ServiceAccessType::EXPLICIT_ACCESS);
   ASSERT_TRUE(history);
   const base::Time now = base::Time::Now();
   const std::u16string long_title(800, u'T');
@@ -951,9 +962,9 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest, CollectorCapsLongHistoryText) {
                    now - base::Hours(2), history::SOURCE_BROWSED);
 
   DaoAgentMemoryService* memory =
-      DaoAgentMemoryServiceFactory::GetForProfile(browser()->profile());
+      DaoAgentMemoryServiceFactory::GetForProfile(browser()->GetProfile());
   ASSERT_TRUE(memory);
-  DreamMaterialCollector collector(browser()->profile(), memory);
+  DreamMaterialCollector collector(browser()->GetProfile(), memory);
 
   base::DictValue pack;
   base::RunLoop loop;
@@ -991,7 +1002,7 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest, CollectorCapsLongHistoryText) {
 IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
                        CollectorIncludesHighConfidencePreferences) {
   DaoAgentMemoryService* memory =
-      DaoAgentMemoryServiceFactory::GetForProfile(browser()->profile());
+      DaoAgentMemoryServiceFactory::GetForProfile(browser()->GetProfile());
   ASSERT_TRUE(memory);
 
   {
@@ -1033,7 +1044,7 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
     ASSERT_TRUE(saved);
   }
 
-  DreamMaterialCollector collector(browser()->profile(), memory);
+  DreamMaterialCollector collector(browser()->GetProfile(), memory);
   const base::Time now = base::Time::Now();
   base::DictValue pack;
   base::RunLoop loop;
@@ -1068,7 +1079,7 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
 IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
                        MemoryContextIncludesDomainSummary) {
   DaoAgentMemoryService* memory =
-      DaoAgentMemoryServiceFactory::GetForProfile(browser()->profile());
+      DaoAgentMemoryServiceFactory::GetForProfile(browser()->GetProfile());
   ASSERT_TRUE(memory);
 
   ConversationSummary summary;
@@ -1136,7 +1147,7 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest, DreamReportStoreRoundTrip) {
   DaoAgentMemoryService* memory =
-      DaoAgentMemoryServiceFactory::GetForProfile(browser()->profile());
+      DaoAgentMemoryServiceFactory::GetForProfile(browser()->GetProfile());
   ASSERT_TRUE(memory);
 
   DreamReport report;
@@ -1230,7 +1241,7 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest, DreamReportStoreRoundTrip) {
 IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
                        DreamReportHistoryListsCompletedReportsNewestFirst) {
   DaoAgentMemoryService* memory =
-      DaoAgentMemoryServiceFactory::GetForProfile(browser()->profile());
+      DaoAgentMemoryServiceFactory::GetForProfile(browser()->GetProfile());
   ASSERT_TRUE(memory);
 
   auto save_report = [&](const std::string& date, const std::string& status) {
@@ -1274,7 +1285,7 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest, WeeklyDreamReportStoreRoundTrip) {
   DaoAgentMemoryService* memory =
-      DaoAgentMemoryServiceFactory::GetForProfile(browser()->profile());
+      DaoAgentMemoryServiceFactory::GetForProfile(browser()->GetProfile());
   ASSERT_TRUE(memory);
 
   WeeklyDreamReport report;
@@ -1492,7 +1503,7 @@ IN_PROC_BROWSER_TEST_F(
     DaoDreamBrowserTest,
     WeeklyDreamReportReplacementRollsBackOnBadSources) {
   DaoAgentMemoryService* memory =
-      DaoAgentMemoryServiceFactory::GetForProfile(browser()->profile());
+      DaoAgentMemoryServiceFactory::GetForProfile(browser()->GetProfile());
   ASSERT_TRUE(memory);
 
   WeeklyDreamReport original;
@@ -1601,7 +1612,7 @@ IN_PROC_BROWSER_TEST_F(
 IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
                        WeeklyDreamReportHistoryListsCompletedNewestFirst) {
   DaoAgentMemoryService* memory =
-      DaoAgentMemoryServiceFactory::GetForProfile(browser()->profile());
+      DaoAgentMemoryServiceFactory::GetForProfile(browser()->GetProfile());
   ASSERT_TRUE(memory);
 
   auto save_weekly = [&](const std::string& week_start,
@@ -1736,7 +1747,7 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
 IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
                        DeleteConversationInvalidatesWeeklySource) {
   DaoAgentMemoryService* memory =
-      DaoAgentMemoryServiceFactory::GetForProfile(browser()->profile());
+      DaoAgentMemoryServiceFactory::GetForProfile(browser()->GetProfile());
   ASSERT_TRUE(memory);
 
   const base::Time window_start = LocalTime(2026, 7, 6, 0, 0);
@@ -1945,7 +1956,7 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
 IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
                        ClearAllDeletesDreamReportsAndSources) {
   DaoAgentMemoryService* memory =
-      DaoAgentMemoryServiceFactory::GetForProfile(browser()->profile());
+      DaoAgentMemoryServiceFactory::GetForProfile(browser()->GetProfile());
   ASSERT_TRUE(memory);
 
   DreamReport daily;
@@ -2063,7 +2074,7 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
                        WeeklyCollectorSeparatesLocalLocators) {
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
   DaoAgentMemoryService* memory =
       DaoAgentMemoryServiceFactory::GetForProfile(profile);
   ASSERT_TRUE(memory);
@@ -2229,7 +2240,7 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
                        WeeklyCollectorExcludesConfiguredDomains) {
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
   base::ListValue excluded;
   excluded.Append("example.com");
   profile->GetPrefs()->SetList(prefs::kDaoDreamExcludedDomains,
@@ -2272,7 +2283,7 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
                        WeeklyCollectorUsesSummariesAndBoundedFallback) {
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
   DaoAgentMemoryService* memory =
       DaoAgentMemoryServiceFactory::GetForProfile(profile);
   ASSERT_TRUE(memory);
@@ -2419,7 +2430,7 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
 IN_PROC_BROWSER_TEST_F(
     DaoDreamBrowserTest,
     WeeklyCollectorFallsBackFromPlaceholderOnlySummaries) {
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
   DaoAgentMemoryService* memory =
       DaoAgentMemoryServiceFactory::GetForProfile(profile);
   ASSERT_TRUE(memory);
@@ -2510,7 +2521,7 @@ IN_PROC_BROWSER_TEST_F(
 IN_PROC_BROWSER_TEST_F(
     DaoDreamBrowserTest,
     WeeklyCollectorIncludesAvailableDailyAndPreviousReports) {
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
   DaoAgentMemoryService* memory =
       DaoAgentMemoryServiceFactory::GetForProfile(profile);
   ASSERT_TRUE(memory);
@@ -2610,7 +2621,7 @@ IN_PROC_BROWSER_TEST_F(
 
 IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
                        WeeklyCollectorCapsEverySourceType) {
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
   DaoAgentMemoryService* memory =
       DaoAgentMemoryServiceFactory::GetForProfile(profile);
   ASSERT_TRUE(memory);
@@ -2873,7 +2884,7 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
 IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
                        DreamReportStoreRoundTripWithoutFtsExpecter) {
   DaoAgentMemoryService* memory =
-      DaoAgentMemoryServiceFactory::GetForProfile(browser()->profile());
+      DaoAgentMemoryServiceFactory::GetForProfile(browser()->GetProfile());
   ASSERT_TRUE(memory);
 
   DreamReport report;
@@ -3043,7 +3054,7 @@ void DrainDreamScheduling(DaoAgentMemoryService* memory) {
 
 IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
                        DailyExistingCheckRevalidatesRunner) {
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
   DaoAgentMemoryService* memory =
       DaoAgentMemoryServiceFactory::GetForProfile(profile);
   ASSERT_TRUE(memory);
@@ -3077,7 +3088,7 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
                        DailyExistingCheckRevalidatesMasterPref) {
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
   DaoAgentMemoryService* memory =
       DaoAgentMemoryServiceFactory::GetForProfile(profile);
   ASSERT_TRUE(memory);
@@ -3113,7 +3124,7 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
 IN_PROC_BROWSER_TEST_F(
     DaoDreamBrowserTest,
     ManualWeeklyRunInvalidatesDeferredAutomaticSchedulerReply) {
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
   DaoDreamService* service = dream_service();
   ASSERT_TRUE(service);
   PrefService* pref_service = profile->GetPrefs();
@@ -3194,7 +3205,7 @@ IN_PROC_BROWSER_TEST_F(
 
 IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
                        WeeklySchedulerRefreshesWindowAfterDeferredReply) {
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
   DaoDreamService* service = dream_service();
   ASSERT_TRUE(service);
   PrefService* pref_service = profile->GetPrefs();
@@ -3261,7 +3272,7 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
                        WeeklySchedulerRequiresIndependentPref) {
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
   PrefService* pref_service = profile->GetPrefs();
   EXPECT_FALSE(
       pref_service->GetBoolean(prefs::kDaoDreamWeeklyEnabled));
@@ -3317,7 +3328,7 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
                        WeeklySchedulerRunsOnlyLatestCompletedWeek) {
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
   profile->GetPrefs()->SetBoolean(prefs::kDaoDreamWeeklyEnabled, true);
   DaoAgentMemoryService* memory =
       DaoAgentMemoryServiceFactory::GetForProfile(profile);
@@ -3369,7 +3380,7 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
                        WeeklySchedulerTreatsSkippedAsDone) {
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
   profile->GetPrefs()->SetBoolean(prefs::kDaoDreamWeeklyEnabled, true);
   DaoAgentMemoryService* memory =
       DaoAgentMemoryServiceFactory::GetForProfile(profile);
@@ -3406,7 +3417,7 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
                        WeeklySchedulerTreatsCompletedAsDone) {
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
   profile->GetPrefs()->SetBoolean(prefs::kDaoDreamWeeklyEnabled, true);
   DaoAgentMemoryService* memory =
       DaoAgentMemoryServiceFactory::GetForProfile(profile);
@@ -3443,7 +3454,7 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
 IN_PROC_BROWSER_TEST_F(
     DaoDreamBrowserTest,
     WeeklySchedulerRetriesFailedBelowCapAndBridgeSkipIsIdempotent) {
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
   profile->GetPrefs()->SetBoolean(prefs::kDaoDreamWeeklyEnabled, true);
   DaoAgentMemoryService* memory =
       DaoAgentMemoryServiceFactory::GetForProfile(profile);
@@ -3516,7 +3527,7 @@ IN_PROC_BROWSER_TEST_F(
 
 IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
                        WeeklySchedulerStopsAtFailedAttemptCap) {
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
   profile->GetPrefs()->SetBoolean(prefs::kDaoDreamWeeklyEnabled, true);
   DaoAgentMemoryService* memory =
       DaoAgentMemoryServiceFactory::GetForProfile(profile);
@@ -3552,7 +3563,7 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest, DailyCatchUpWinsBeforeWeekly) {
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
   profile->GetPrefs()->SetBoolean(prefs::kDaoDreamWeeklyEnabled, true);
   history::HistoryService* history = HistoryServiceFactory::GetForProfile(
       profile, ServiceAccessType::EXPLICIT_ACCESS);
@@ -3595,7 +3606,7 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest, DailyCatchUpWinsBeforeWeekly) {
 
 IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
                        WeeklyAndDailyShareOneActiveRun) {
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
   profile->GetPrefs()->SetBoolean(prefs::kDaoDreamWeeklyEnabled, true);
   history::HistoryService* history = HistoryServiceFactory::GetForProfile(
       profile, ServiceAccessType::EXPLICIT_ACCESS);
@@ -3642,7 +3653,7 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
                        WeeklySchedulerPersistsEmptyWeekAsSkipped) {
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
   profile->GetPrefs()->SetBoolean(prefs::kDaoDreamWeeklyEnabled, true);
   DaoAgentMemoryService* memory =
       DaoAgentMemoryServiceFactory::GetForProfile(profile);
@@ -3674,7 +3685,7 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
 IN_PROC_BROWSER_TEST_F(
     DaoDreamBrowserTest,
     ManualWeeklyDefaultsToLatestCompletedWeekAndBypassesWeeklyPref) {
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
   EXPECT_FALSE(
       profile->GetPrefs()->GetBoolean(prefs::kDaoDreamWeeklyEnabled));
   DaoAgentMemoryService* memory =
@@ -3767,7 +3778,7 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
 IN_PROC_BROWSER_TEST_F(
     DaoDreamBrowserTest,
     WeeklyCompletedResultPersistsContentStatsSourcesAndRedactedDebug) {
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
   DaoDreamService* service = dream_service();
   ASSERT_TRUE(service);
   profile->GetPrefs()->SetBoolean(prefs::kDaoDreamEnabled, false);
@@ -3890,7 +3901,7 @@ IN_PROC_BROWSER_TEST_F(
 IN_PROC_BROWSER_TEST_F(
     DaoDreamBrowserTest,
     ManualWeeklyEmptyWeekPersistsSkippedAndReturnsNoMaterial) {
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
   DaoDreamService* service = dream_service();
   ASSERT_TRUE(service);
   profile->GetPrefs()->SetBoolean(prefs::kDaoDreamEnabled, false);
@@ -3933,7 +3944,7 @@ IN_PROC_BROWSER_TEST_F(
 
 IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
                        WeeklyProviderFailureDefersWithoutConsumingAttempt) {
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
   profile->GetPrefs()->SetBoolean(prefs::kDaoDreamWeeklyEnabled, true);
   DaoAgentMemoryService* memory =
       DaoAgentMemoryServiceFactory::GetForProfile(profile);
@@ -4028,7 +4039,7 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
 IN_PROC_BROWSER_TEST_F(
     DaoDreamBrowserTest,
     ManualWeeklyConfigurationAndProviderUseStableCodesAndBypassDefer) {
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
   DaoDreamService* service = dream_service();
   ASSERT_TRUE(service);
   profile->GetPrefs()->SetBoolean(prefs::kDaoDreamEnabled, false);
@@ -4086,7 +4097,7 @@ IN_PROC_BROWSER_TEST_F(
 IN_PROC_BROWSER_TEST_F(
     DaoDreamBrowserTest,
     WeeklyTimeoutDefersWithoutConsumingAttemptAndIgnoresLateResult) {
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
   profile->GetPrefs()->SetBoolean(prefs::kDaoDreamWeeklyEnabled, true);
   DaoAgentMemoryService* memory =
       DaoAgentMemoryServiceFactory::GetForProfile(profile);
@@ -4140,7 +4151,7 @@ IN_PROC_BROWSER_TEST_F(
 IN_PROC_BROWSER_TEST_F(
     DaoDreamBrowserTest,
     WeeklyInvalidOutputConsumesAttemptAndStopsAtThree) {
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
   profile->GetPrefs()->SetBoolean(prefs::kDaoDreamWeeklyEnabled, true);
   profile->GetPrefs()->SetBoolean(prefs::kDaoDreamDebug, true);
   DaoAgentMemoryService* memory =
@@ -4236,7 +4247,7 @@ IN_PROC_BROWSER_TEST_F(
 IN_PROC_BROWSER_TEST_F(
     DaoDreamBrowserTest,
     ManualWeeklyFailuresPreserveCompletedReportAndSources) {
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
   DaoDreamService* service = dream_service();
   ASSERT_TRUE(service);
   profile->GetPrefs()->SetBoolean(prefs::kDaoDreamEnabled, false);
@@ -4371,7 +4382,7 @@ IN_PROC_BROWSER_TEST_F(
 IN_PROC_BROWSER_TEST_F(
     DaoDreamBrowserTest,
     ManualWeeklyRunnerDisappearsDuringCollectionIsTransient) {
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
   DaoDreamService* service = dream_service();
   ASSERT_TRUE(service);
   profile->GetPrefs()->SetBoolean(prefs::kDaoDreamEnabled, false);
@@ -4419,7 +4430,7 @@ IN_PROC_BROWSER_TEST_F(
 IN_PROC_BROWSER_TEST_F(
     DaoDreamBrowserTest,
     ManualWeeklyRerunPreservesCompletedReportAndSources) {
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
   DaoDreamService* service = dream_service();
   ASSERT_TRUE(service);
   profile->GetPrefs()->SetBoolean(prefs::kDaoDreamEnabled, false);
@@ -4580,7 +4591,7 @@ IN_PROC_BROWSER_TEST_F(
 IN_PROC_BROWSER_TEST_F(
     DaoDreamBrowserTest,
     ManualWeeklyLookupOccupiesStateAndRejectsConcurrentRun) {
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
   DaoDreamService* service = dream_service();
   ASSERT_TRUE(service);
   profile->GetPrefs()->SetBoolean(prefs::kDaoDreamEnabled, false);
@@ -4632,7 +4643,7 @@ IN_PROC_BROWSER_TEST_F(
 
 IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
                        ManualWeeklyLookupRevalidatesRunner) {
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
   DaoDreamService* service = dream_service();
   ASSERT_TRUE(service);
   profile->GetPrefs()->SetBoolean(prefs::kDaoDreamEnabled, false);
@@ -4694,7 +4705,7 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest, SchedulerSkipsWithoutRunner) {
 IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
                        RunnerRegistrationStartsCatchUpWithoutIdle) {
   history::HistoryService* history = HistoryServiceFactory::GetForProfile(
-      browser()->profile(), ServiceAccessType::EXPLICIT_ACCESS);
+      browser()->GetProfile(), ServiceAccessType::EXPLICIT_ACCESS);
   ASSERT_TRUE(history);
   history->AddPage(GURL("https://example.com/yesterday"),
                    LocalTime(2026, 6, 10, 12, 0), history::SOURCE_BROWSED);
@@ -4727,7 +4738,7 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
   // Seed one history row so material is non-empty and the run reaches
   // the runner instead of being skipped.
   history::HistoryService* history = HistoryServiceFactory::GetForProfile(
-      browser()->profile(), ServiceAccessType::EXPLICIT_ACCESS);
+      browser()->GetProfile(), ServiceAccessType::EXPLICIT_ACCESS);
   ASSERT_TRUE(history);
   history->AddPage(GURL("https://example.com/page"), base::Time::Now(),
                    history::SOURCE_BROWSED);
@@ -4775,7 +4786,7 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
   service->OnDreamResult(runner.last_request().request_id, std::move(result));
 
   DaoAgentMemoryService* memory =
-      DaoAgentMemoryServiceFactory::GetForProfile(browser()->profile());
+      DaoAgentMemoryServiceFactory::GetForProfile(browser()->GetProfile());
   ASSERT_TRUE(memory);
   // Poll until the save lands (kSaving → kIdle).
   while (service->state() != DaoDreamService::State::kIdle) {
@@ -4823,7 +4834,7 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
 IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
                        ManualDreamFailureReportsRunnerError) {
   history::HistoryService* history = HistoryServiceFactory::GetForProfile(
-      browser()->profile(), ServiceAccessType::EXPLICIT_ACCESS);
+      browser()->GetProfile(), ServiceAccessType::EXPLICIT_ACCESS);
   ASSERT_TRUE(history);
   history->AddPage(GURL("https://example.com/page"), base::Time::Now(),
                    history::SOURCE_BROWSED);
@@ -4861,7 +4872,7 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
                        TimeoutRejectsLateCompletionWhileSavingFailure) {
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
   history::HistoryService* history = HistoryServiceFactory::GetForProfile(
       profile, ServiceAccessType::EXPLICIT_ACCESS);
   ASSERT_TRUE(history);
@@ -4916,7 +4927,7 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
                        DuplicateFailureStartsOnlyOnePersistenceChain) {
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
   history::HistoryService* history = HistoryServiceFactory::GetForProfile(
       profile, ServiceAccessType::EXPLICIT_ACCESS);
   ASSERT_TRUE(history);
@@ -4974,7 +4985,7 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
                        ConsecutiveSamePeriodRunsRejectOldRequestId) {
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
   history::HistoryService* history = HistoryServiceFactory::GetForProfile(
       profile, ServiceAccessType::EXPLICIT_ACCESS);
   ASSERT_TRUE(history);
@@ -5051,7 +5062,7 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest, ManualDreamRunsSpecifiedDate) {
   history::HistoryService* history = HistoryServiceFactory::GetForProfile(
-      browser()->profile(), ServiceAccessType::EXPLICIT_ACCESS);
+      browser()->GetProfile(), ServiceAccessType::EXPLICIT_ACCESS);
   ASSERT_TRUE(history);
   history->AddPage(GURL("https://example.com/june-10"),
                    LocalTime(2026, 6, 10, 12, 0), history::SOURCE_BROWSED);
@@ -5115,7 +5126,7 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest, ManualDreamRejectsFutureDate) {
 IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
                        FailedManualRerunPreservesCompletedReport) {
   DaoAgentMemoryService* memory =
-      DaoAgentMemoryServiceFactory::GetForProfile(browser()->profile());
+      DaoAgentMemoryServiceFactory::GetForProfile(browser()->GetProfile());
   ASSERT_TRUE(memory);
 
   DreamReport existing;
@@ -5136,7 +5147,7 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
   }
 
   history::HistoryService* history = HistoryServiceFactory::GetForProfile(
-      browser()->profile(), ServiceAccessType::EXPLICIT_ACCESS);
+      browser()->GetProfile(), ServiceAccessType::EXPLICIT_ACCESS);
   ASSERT_TRUE(history);
   history->AddPage(GURL("https://example.com/june-10"),
                    LocalTime(2026, 6, 10, 12, 0), history::SOURCE_BROWSED);
@@ -5185,7 +5196,7 @@ IN_PROC_BROWSER_TEST_F(
     DaoDreamBrowserTest,
     WeeklyDreamWebUiSerializesLockedShapeAndOmitsInvalidContent) {
   DaoAgentMemoryService* memory =
-      DaoAgentMemoryServiceFactory::GetForProfile(browser()->profile());
+      DaoAgentMemoryServiceFactory::GetForProfile(browser()->GetProfile());
   ASSERT_TRUE(memory);
 
   WeeklyDreamReport valid_report;
@@ -5354,7 +5365,7 @@ IN_PROC_BROWSER_TEST_F(
 IN_PROC_BROWSER_TEST_F(
     DaoDreamBrowserTest,
     WeeklyDreamWebUiKeepsSourcesPrivateAndRejectsStaleExactPage) {
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
   DaoAgentMemoryService* memory =
       DaoAgentMemoryServiceFactory::GetForProfile(profile);
   ASSERT_TRUE(memory);

@@ -1087,6 +1087,20 @@ describe('import helpers', () => {
 
   it('selects the rewrite behavior from a Chromium path', () => {
     expect(rewriteChromiumPathContent(
+        'ash/ash_strings.grd',
+        'Open chrome://device-log')).toEqual({
+          content: 'Open dao://device-log',
+          replacements: 1,
+        });
+
+    expect(rewriteChromiumPathContent(
+        'ash/login/resources/ash_login_strings.grd',
+        'Open chrome://system')).toEqual({
+          content: 'Open dao://system',
+          replacements: 1,
+        });
+
+    expect(rewriteChromiumPathContent(
         'chrome/browser/resources/settings/settings.html',
         '<base href="chrome://settings">\n' +
             '<script src="chrome://resources/foo.js"></script>')).toEqual({

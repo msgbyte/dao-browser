@@ -1,16 +1,15 @@
 diff --git a/chrome/browser/chrome_content_browser_client.cc b/chrome/browser/chrome_content_browser_client.cc
-index 30c653e9ca5ce..34636f37bafb0 100644
 --- a/chrome/browser/chrome_content_browser_client.cc
 +++ b/chrome/browser/chrome_content_browser_client.cc
-@@ -371,6 +371,7 @@
+@@ -389,6 +389,7 @@
+ #include "content/public/common/content_features.h"
  #include "content/public/common/content_switches.h"
- #include "content/public/common/origin_util.h"
  #include "content/public/common/url_utils.h"
 +#include "dao/browser/dao_pref_names.h"
  #include "content/public/common/window_container_type.mojom-shared.h"
  #include "device/fido/public/features.h"
  #include "device/vr/buildflags/buildflags.h"
-@@ -4954,6 +4955,8 @@ void ChromeContentBrowserClient::OverrideWebPreferences(
+@@ -4826,6 +4827,8 @@
    web_prefs->root_scrollbar_theme_color =
        GetRootScrollbarThemeColor(web_contents);
  
@@ -19,10 +18,11 @@ index 30c653e9ca5ce..34636f37bafb0 100644
    web_prefs->translate_service_available = TranslateService::IsAvailable(prefs);
  
    std::optional<ui::CaptionStyle> style =
-@@ -5069,6 +5072,21 @@ bool ChromeContentBrowserClient::OverrideWebPreferencesAfterNavigation(
+@@ -4945,6 +4948,21 @@
+       web_prefs->preferred_color_scheme != old_preferred_color_scheme ||
        web_prefs->preferred_root_scrollbar_color_scheme !=
            old_preferred_root_scrollbar_color_scheme;
- 
++
 +  const bool old_force_dark_mode_enabled =
 +      web_prefs->force_dark_mode_enabled;
 +  const auto old_dao_preferred_color_scheme =
@@ -37,11 +37,10 @@ index 30c653e9ca5ce..34636f37bafb0 100644
 +      web_prefs->preferred_color_scheme != old_dao_preferred_color_scheme ||
 +      web_prefs->preferred_root_scrollbar_color_scheme !=
 +          old_dao_preferred_root_scrollbar_color_scheme;
-+
+ 
  #if BUILDFLAG(IS_ANDROID)
-   if (auto* theme_client = night_mode::WebContentsThemeClient::FromWebContents(web_contents)) {
-     bool force_dark_mode_new_state = theme_client->IsForceDarkWebContentEnabled();
-@@ -5113,6 +5131,9 @@ bool ChromeContentBrowserClient::
+   if (auto* theme_client =
+@@ -4984,6 +5002,9 @@
                                   &web_contents) !=
               std::tie(prefs.preferred_color_scheme,
                        prefs.preferred_root_scrollbar_color_scheme) ||

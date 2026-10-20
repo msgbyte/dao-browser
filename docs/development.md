@@ -86,7 +86,8 @@ release metadata unchanged. Windows arm64 targets are not supported. macOS can
 cross-compile Windows x64 as described below. On macOS, the configured arm64
 target is retained even when Node runs as x64 under Rosetta.
 
-The prepared machine retains these installation paths:
+The previously prepared machine retains these installation paths. It has not
+been prepared or verified again for Chromium 154:
 
 | Component | Path / version |
 | --- | --- |
@@ -97,12 +98,16 @@ The prepared machine retains these installation paths:
 | MSVC | v143, 14.44; x64/x86 C++ tools and ATL/MFC |
 | Windows SDK and Debugging Tools | `C:\Program Files (x86)\Windows Kits\10`, 10.0.26100.7705 |
 
-Set `DEPOT_TOOLS_WIN_TOOLCHAIN=0`, set `vs2022_install` to the Visual Studio
-installation, and place depot_tools on `PATH`. Restart the terminal after
+Chromium 154.0.8037.100 documents Visual Studio 2026 (>=18.0.0), Windows SDK
+10.0.28000.2270 (installed under `10.0.28000.0`), and SDK Debugging Tools
+10.0.26100.3323 or newer. Install the C++ desktop workload and ATL/MFC components;
+the recorded VS2022/26100 SDK installation above is not ready for this pin.
+Set `DEPOT_TOOLS_WIN_TOOLCHAIN=0`, set `vs2026_install` to the actual Visual Studio
+2026 installation, and place depot_tools on `PATH`. Restart the terminal after
 changing environment variables. If Google downloads require a proxy, set
 `HTTP_PROXY` and `HTTPS_PROXY` to the local proxy that is actually running;
 proxy addresses are machine-specific and are not part of the project config.
-Check the [pinned Chromium Windows instructions](https://chromium.googlesource.com/chromium/src/+/refs/tags/149.0.7827.201/docs/windows_build_instructions.md)
+Check the [pinned Chromium Windows instructions](https://chromium.googlesource.com/chromium/src/+/refs/tags/154.0.8037.100/docs/windows_build_instructions.md)
 and `build/vs_toolchain.py` when upgrading the Chromium pin.
 
 ```powershell
@@ -173,7 +178,7 @@ The CLI can build the Windows x64 browser, native WebView2 host, and unsigned
 NSIS installer on an Apple Silicon or Intel Mac. It uses Chromium's bundled
 Clang/lld/resource compiler and its hermetic MSVC/Windows SDK archive. Compilation
 and packaging run on the Mac; no Windows VM, Wine, or remote builder is used.
-See the [upstream cross-compilation instructions](https://chromium.googlesource.com/chromium/src/+/refs/tags/149.0.7827.201/docs/win_cross.md).
+See the [upstream cross-compilation instructions](https://chromium.googlesource.com/chromium/src/+/refs/tags/154.0.8037.100/docs/win_cross.md).
 
 **Prepare the SDK on the Mac.** With the Chromium checkout already present,
 install the native extraction/packaging tools and run (for a fresh checkout,
@@ -190,28 +195,33 @@ licenses, downloads their public packages, and creates a local Chromium-compatib
 SDK archive. A Windows machine, Wine, and a VM are not required. The downloader
 from [msvc-wine](https://github.com/mstorsjo/msvc-wine) is pinned by commit and
 SHA-256; only its package download/extraction code runs. Microsoft's Visual Studio
-2026 (18.10.3) manifest is also pinned by SHA-256; the manifest and verified payloads
-are cached under `.dao/windows-sdk/`.
+2026 (18.10.3) manifest is also pinned by SHA-256 and supplies the compile SDK
+`10.0.28000.0`; the manifest and verified payloads are cached under
+`.dao/windows-sdk/`.
 The standalone SDK 10.0.26100.7705 bundle supplies the debugging tools omitted by
-Visual Studio's SDK component. Setup verifies its SHA-256 and its payload hashes,
-then packages the x86/x64/ARM64 headers, libraries, ATL, DIA, runtimes, and environment
-files using Chromium's content-hash format. Chromium's own installer verifies and
+Visual Studio's SDK component and meets Chromium 154's debugging-tools minimum.
+It is pinned separately from the compile SDK. Setup verifies its SHA-256 and
+payload hashes, then packages the x86/x64/ARM64 headers, libraries, ATL, DIA,
+runtimes, and environment files using Chromium's content-hash format.
+Chromium's own installer verifies and
 installs that archive. SDK setup does not require the cross resource compiler;
 the following download command fetches those Chromium host tools. The output
 target remains Windows x64; Chromium also loads the ARM64 toolchain environment
 when generating its build graph on Apple Silicon.
 
-Existing archive configurations remain supported and are reused without public
-downloads. The Google-hosted SDK archive is not public. To use a compatible private
+Compatible archive configurations remain supported and are reused without public
+downloads. Older 26100 compile SDK archives must be prepared again for this pin.
+The Google-hosted SDK archive is not public. To use a compatible private
 archive instead, optionally export one from a Windows installation using:
 
 ```powershell
-npx.cmd tsx scripts/cli.ts windows-toolchain export --output C:\dao-sdk-export
+npx.cmd tsx scripts/cli.ts windows-toolchain export --sdk-version 10.0.28000.0 --output C:\dao-sdk-export
 ```
 
 The exporter delegates to depot_tools' `package_from_installed.py` and requires
-an empty destination. For Chromium 149.0.7827.201, its hermetic toolchain expects
-Visual Studio 2026 and Windows SDK 10.0.26100.0. Install the C++ desktop workload,
+an empty destination. The explicit SDK version avoids a depot_tools default that
+may lag the Chromium pin. For Chromium 154.0.8037.100, its hermetic toolchain expects
+Visual Studio 2026 and Windows SDK 10.0.28000.0. Install the C++ desktop workload,
 ATL/MFC, ARM64 tools and SDK Debugging Tools required by that upstream packager.
 The existing native VS2022 development environment is not a compatible archive
 for this hermetic configuration. No application binaries are compiled during
@@ -236,8 +246,14 @@ Configuration is stored in ignored `.dao/windows-toolchain.json`; SDK contents
 are managed by Chromium/depot_tools. Standard
 `DEPOT_TOOLS_WIN_TOOLCHAIN_BASE_URL` and `GYP_MSVS_HASH_<upstream-hash>` overrides
 are also supported. The CLI selects `DEPOT_TOOLS_WIN_TOOLCHAIN=1` for cross
-builds even if the native Windows environment used `0`. Upgrading Chromium may
-require exporting a new compatible SDK archive.
+builds even if the native Windows environment used `0`. Existing configuration is
+retained: repeating `setup --accept-license` does not regenerate an older archive.
+For a previously generated public archive, run
+`python3 scripts/bootstrap-windows-toolchain.py --root . --vs-version 2026 --sdk-version 10.0.28000.0 --accept-license`,
+then use the resulting `.dao/windows-sdk/bootstrap.json` `baseUrl` and `hash` with
+`windows-toolchain configure` before repeating setup. For a private archive,
+export and configure a compatible replacement. Keep the old archive until the
+replacement has been validated.
 
 Download preserves existing `.gclient` settings and imported Dao patches when
 the shallow checkout already matches the locally available requested version tag,

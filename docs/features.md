@@ -4,6 +4,9 @@
 > baseline configured in `dao.json`. Dao-owned code lives in `src/dao/`;
 > Chromium integration patches live in `src/patches/`.
 
+Migration basis: Chromium `154.0.8037.100` (`81ab43db91f352ce9134362efe32529b9761c4eb`). The integration notes below
+describe that target; they are not a record of completed build or runtime checks.
+
 Android GeckoView features, including the native Compose browser shell, are documented separately in
 [`features-android.md`](features-android.md).
 The Android shell now uses Android Components `BrowserStore` tabs with regular-session restore and
@@ -178,8 +181,10 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
 - **Tab hover previews** — Settings > You and Dao exposes the profile-scoped
   `dao.tab_hover_preview_enabled` preference, **off by default**, with a
   text-free, theme-aware illustration of the feature. Chromium's
-  `ThumbnailTabHelper` is attached on every platform (`tab_helpers.cc.patch`)
-  so page readiness is tracked from the first navigation, but its switch-away
+  `ThumbnailTabHelper` is owned by `TabFeatures` (`ui/tabs/tab_features.cc.patch`)
+  and created even when upstream hover-card images are disabled. Dao looks
+  it up through `ThumbnailTabHelper::From(tab)` so readiness is tracked
+  from the first navigation, but its switch-away
   capture in `tab_strip_model.cc.patch` only runs while the preference is on.
   Only the tab the user is leaving is snapshotted, as a downscaled in-memory
   JPEG; background tabs are never force-rendered because Dao reads the stored
@@ -190,7 +195,9 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
   the window. The card is as wide as the 240 DIP snapshot and wraps the title
   to two lines before eliding. The card takes no sidebar space, hides on leave, click, or drag,
   and suppresses the delayed title tooltip; tabs without a snapshot keep the
-  settled title tooltip. Navigations clear stale snapshots, and tall
+  settled title tooltip. Discard recreates the helper for the replacement
+  WebContents while preserving its stored thumbnail; reading a preview
+  does not reload the discarded tab. Navigations clear stale snapshots, and tall
   cursor-anchored tooltips flip to stay inside the window. Toggling applies
   without restart; turning it off stops captures and hides previews, while
   snapshots already in memory are released as their tabs navigate or close.
@@ -362,6 +369,8 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
     full Chromium autocomplete result. The dropdown remains five rows tall and
     scrolls by pointer or keyboard when more results are available; empty and
     whitespace-only input shows no suggestions
+  - Enter before suggestions arrive submits the typed query through the default
+    search provider; Ask AI requires an actual selected suggestion
   - The first result is highlighted automatically without writing that row's
     `fill_into_edit` value into the native textfield; provider-owned inline
     completion remains a distinct selected suffix, and only explicit arrow-key
@@ -642,6 +651,11 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
 - Chromium settings components continue to own their routes, preferences,
   visibility gates, search integration, and external destinations; the shell
   changes presentation without replacing the settings inventory
+- Upstream About, People, On Startup, and Reset dialog templates use
+  `.html.ts` Lit patches. Overview styling follows the migrated
+  `settings_shared_lit.css`, `settings_page/settings_section.css`, and
+  A11y/Appearance/People `*_page_index.css` patches; Dao-owned page
+  templates and the remaining Polymer shell keep their existing paths
 
 **LLM / runtime plumbing**
 - `llm_config.ts` — Model + provider configuration
@@ -1020,7 +1034,11 @@ Built on Chromium's native PiP, adds a Document-PiP interception layer plus seve
 - Patches: `auto_picture_in_picture_tab_helper.cc.patch`, `picture_in_picture_window_manager.cc.patch`
 
 ### 3.3 PiP window chrome
-- Patches: `picture_in_picture_browser_frame_view.{h,cc}.patch` — Custom Document-PiP top bar
+- Patches: `views/frame/picture_in_picture_browser_frame_view.{h,cc}.patch`
+  and `views/picture_in_picture/pip_top_bar_animation_controller.{h,cc}.patch` —
+  The frame starts the controller inactive and fades the entire overlay
+  through its opacity delegate. Initial hiding, first-activation suppression,
+  hover fading, drag movement, and corner resizing remain in the frame
 - Patches: `back_to_tab_button.cc.patch`, `minimize_button.cc.patch`, `video_overlay_window_views.cc.patch` — Overlay button restyling
 - Patches: `video_picture_in_picture_window_controller_impl.cc.patch` — Capturer guard preventing tab throttling
 - User-interaction event forwarding via `chrome_render_widget_host_view_mac_delegate.mm.patch`
@@ -1031,6 +1049,13 @@ Built on Chromium's native PiP, adds a Document-PiP interception layer plus seve
 - **DaoSplitView** (`split/dao_split_view.{h,cc}`) — Split container whose rounded
   backing matches the dividers through inner pane corner cutouts, preserves
   the outer frame shadow, and remains transparent in single-pane mode
+- **Content host ownership** — `DaoSplitView` is a child of
+  `MultiContentsView`. Active split panes own their WebContents while
+  Chromium hosts remain nonempty 3×1 placeholders for status-bubble
+  anchoring. Split fills the combined content card, replacing the global
+  address bar with pane address bars; leaving split restores the primary
+  content host and single-pane viewport. Inactive split does not intercept
+  mouse input except during a sidebar tab drag
 - **DaoSplitNode** / **DaoSplitPaneView** — Split tree nodes and panes
 - **DaoSplitDividerView** — Draggable divider with an opaque fill matching the
   shadowed content-frame edge in light/dark and incognito windows, including
@@ -1183,6 +1208,7 @@ Lightweight window form factor for popups / mini-tools.
 - **DaoLittleDaoController** / **DaoLittleDaoView** (`little_dao/`) — Top bar (48px) with hostname display + "Open in Dao" button
 - **Address click feedback** — Clicking the address opens the command bar and fades out the pressed highlight, so the address does not stay dark after the command bar closes
 - **Browser::Create timing control** — Static-flag pattern (`IsCreatingLittleDao()`) to pass state into BrowserView during construction
+- **External-link trust** — The macOS external-link path preserves Chromium's launch-trust classification through `StartupTabs`. Untrusted launches retain an opaque navigation initiator; ordinary launches keep the default behavior.
 - **Permanently windowed** — Mini Dao disables browser fullscreen commands and macOS native maximize/fullscreen eligibility, including when an external link creates it while the main Dao window is fullscreen
 - macOS traffic-light repositioning
 
@@ -1232,7 +1258,9 @@ Lightweight window form factor for popups / mini-tools.
 - **macOS global shortcuts** — `chrome/browser/global_keyboard_shortcuts_mac.mm.patch`
 - **macOS main menu** — `cocoa/main_menu_builder.mm.patch` + `cocoa/accelerators_cocoa.mm.patch`
 - **App controller** — `app_controller_mac.mm.patch` (validate + execute commands when no browser window exists)
-- **IDC_\* command IDs** — `chrome/app/chrome_command_ids.h.patch`
+- **IDC_\* command IDs** — `chrome/app/chrome_command_ids.h.patch` reserves
+  `34090–34095` for the six Dao commands. QR decoding uses local context-menu
+  UMA bucket 170 with sentinel 171; both tables require collision checks
 - **Command handling** — `browser_command_controller.cc.patch` + `browser_commands.cc.patch`
 - Adding a new `IDC_*` requires keeping its declaration, shortcut/menu wiring,
   and command-controller handling synchronized.
@@ -1260,15 +1288,19 @@ file count.
 
 ### 13.2 BrowserView Integration
 - `views/frame/browser_view.{h,cc}.patch` — Inject `DaoSidebarView` and `DaoCornerOverlayView`; toolbar stays alive but is parked at `y=-height` so Chromium omnibox and command plumbing remain available
+- `chrome/common/webui_url_constants.h.patch` — Omnibox popup, AI popup, and Omnibox Everywhere URLs use `dao://` to match their WebUI registrations, including the popup initialized when a browser window opens
 - `views/frame/browser_view_layout` (implicit via patches) — Layout adjustments
 - `views/frame/{browser_native_widget_mac,browser_frame_mac,immersive_mode_controller_mac}.mm.patch` — macOS frame integrations
-- `views/frame/contents_web_view.{h,cc}.patch` + `views/frame/contents_layout_manager.cc.patch` — Content area layout
+- `window_feature_controller/window_feature_controller.cc.patch` — Keep macOS sidebar windows on Dao's fullscreen layout; non-tabbed app windows retain Chromium's immersive layout
+- `views/frame/contents_web_view.{h,cc}.patch` + `views/frame/multi_contents_view.cc.patch` — Content area layout and Dao split host ownership
 - `views/frame/layout/browser_view_{popup,tabbed}_layout_impl.cc.patch` — Per-mode layout impls
 - `views/bubble_anchor_util_views.cc.patch` — Bubble anchoring near the sidebar
+- `color/{chrome_color_id.h,chrome_color_mixer.cc,BUILD.gn}.patch` — Native textfields use Dao text color IDs while preserving system-based light/dark colors in the command bar and JavaScript prompts
 
 ### 13.3 Tab Strip and Tab Helpers
 - `chrome/browser/ui/tabs/tab_strip_model.cc.patch` — Tab model hooks (incl. cross-window drag)
 - `chrome/browser/ui/tab_helpers.cc.patch` — Attach Dao tab helpers (`DaoAgentLockTabHelper`, `DaoWebstoreBrandingTabHelper`, `DaoAutoPipVisibilityHelper`)
+- `chrome/browser/ui/tabs/tab_features.cc.patch` — Own the thumbnail helper independently of the upstream hover-card feature
 - `content/browser/web_contents/web_contents_view_mac.mm.patch` — Native drag-drop integration
 - `content/browser/renderer_host/render_frame_host_impl.cc.patch` — Frame-host hook
 
@@ -1296,13 +1328,30 @@ file count.
 - `profiles/chrome_browser_main_extra_parts_profiles.cc.patch` — Profile init hook
 
 ### 13.5 Extensions
+- **Legacy Manifest V2 support** — `ManifestV2Handler` consults Dao's retained
+  `extensions.manifest_v2` preference for installation, enablement, and
+  disable/re-enable transitions. The Dao default is 2 (allow); the
+  restore-deprecation flag selects 0 (upstream restrictions). An explicit
+  managed value takes precedence: 1 blocks MV2, 2 allows it, and 3 allows
+  forced or recommended installations only; unmanaged values cannot
+  override the Dao default. Normal extension-management restrictions
+  remain effective. This retained preference does not restore delivery
+  of the retired `ExtensionManifestV2Availability` enterprise policy.
+  Browser fixtures disable Chromium's test-only MV2 exemption
+- `extensions/browser/manifest_v2_handler.{h,cc}.patch` +
+  `extensions/browser/extension_prefs.cc.patch` — Handler integration,
+  pref registration, and managed-pref change observation
 - `views/extensions/extension_popup.cc.patch` — Popup layout
-- `extensions/browser/api/web_request/extension_web_request_event_router.cc.patch` — Event router hook
-- `extensions/common/features/simple_feature.cc.patch` + `extensions/common/api/_api_features.json.patch` + `chrome/common/extensions/api/_api_features.json.patch` — Feature allowlists
+- `extensions/browser/api/web_request/extension_web_request_event_router.cc.patch` —
+  Duplicate cleanup handles M154 per-context dispatch by matching the
+  registration filter and extra-info options, preserving distinct
+  listeners under one parent event name, process/request ownership checks,
+  pending-request cleanup, and completion signaling
+- `extensions/common/api/_api_features.json.patch` + `chrome/common/extensions/api/_api_features.json.patch` — Feature allowlists
 
-### 13.6 WebUI Pages (HTML rebranding / customization)
-- `app_home`, `bookmarks`, `certificate_manager`, `downloads`, `extensions`, `history`, `password_manager`, `print_preview`, `settings/people_page`, `settings/settings`, `signin/profile_picker` — HTML patches
-- `settings/reset_page/reset_profile_dialog.{html,ts}.patch` — Reset profile dialog customization
+### 13.6 WebUI Pages (HTML / Lit / CSS customization)
+- `app_home`, `bookmarks`, `certificate_manager`, `downloads`, `extensions`, `history`, `password_manager`, `print_preview`, `settings/people_page`, `settings/settings`, `signin/profile_picker` — HTML and Lit template patches
+- `settings/reset_page/reset_profile_dialog.{html.ts,ts}.patch` — Reset profile dialog customization
 - `chrome/browser/ui/webui/settings/settings_ui.cc.patch`
 
 ### 13.7 macOS Platform
@@ -1334,6 +1383,7 @@ file count.
 - `components/performance_manager/user_tuning/prefs.cc.patch`
 
 ### 13.10 String Localization and Rebranding
+- `ash/ash_strings.grd` + `ash/login/resources/ash_login_strings.grd` — Import-time scheme rewriting preserves Dao links as ChromeOS messages move into Ash and login resources
 - `chrome/app/*_strings.grd[p]` and `chromium_strings.grd` / `google_chrome_strings.grd` — Branded strings
 - `components/*_strings.grdp` — Component strings (autofill, crash, error, history clusters, management, omnibox, policy, privacy sandbox, security interstitials, site settings, version, etc.)
 - Settings localized-string provider patches — Dao settings page strings
@@ -1342,6 +1392,16 @@ file count.
 ## 14. Testing
 
 - **browser_tests** (`dao_browser_browsertest.cc`) — Integration test framework
+- **Migration regression checks** —
+  `DaoSplitViewBrowserTest.SplitPreservesContentCardAndRestoresPrimaryContent`
+  checks split host bounds, ownership, visibility, and input restoration.
+  `DaoSidebarThumbnailBrowserTest.HelperSurvivesDiscardWithoutUpstreamHoverImages`
+  checks tab-owned helper recreation when hover-card images are disabled
+- **interactive_ui_tests** —
+  `PictureInPictureBrowserFrameViewTest.DaoOverlayOpacityTracksTopBarAnimation`
+  in `picture_in_picture_browser_frame_view_interactive_uitest.cc.patch`
+  checks initial, intermediate, and final overlay opacity without moving
+  the client bounds; it is separate from the disabled legacy overlay tests
 - **Coverage**: sidebar presence / default width / collapse-expand, drag resize, address bar, command bar show/hide & idempotency, tab CRUD, SplitView, CornerOverlay, folder persistence, URL detection heuristics, extension icon and badge updates, PiP site rules / interception / top bar overlay
 - **Known disabled**: 5 `DaoAgentMemoryStore` round-trip tests due to FTS5
   `RazeAndPoison` under direct `Init()`, plus 4 PiP overlay tests awaiting

@@ -28,7 +28,7 @@ DaoDownloadFlyoutView::DaoDownloadFlyoutView()
   auto icon = std::make_unique<views::ImageView>();
   icon->SetPreferredSize(gfx::Size(kIconSize, kIconSize));
   icon->SetImage(ui::ImageModel::FromImageSkia(
-      gfx::CreateVectorIcon(vector_icons::kFileDownloadIcon, kIconSize,
+      gfx::CreateVectorIcon(vector_icons::kFileDownloadOldIcon, kIconSize,
                             TextPrimary())));
   icon->SetPaintToLayer();
   icon->layer()->SetFillsBoundsOpaquely(false);

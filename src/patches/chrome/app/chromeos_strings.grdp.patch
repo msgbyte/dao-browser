@@ -1,8 +1,7 @@
 diff --git a/chrome/app/chromeos_strings.grdp b/chrome/app/chromeos_strings.grdp
-index 2a14aae9b5..5c47230f4d 100644
 --- a/chrome/app/chromeos_strings.grdp
 +++ b/chrome/app/chromeos_strings.grdp
-@@ -2818,7 +2818,7 @@
+@@ -615,7 +615,7 @@
      Google Chrome will use mobile data if you're not connected to another network.
    </message>
  
@@ -11,8 +10,8 @@ index 2a14aae9b5..5c47230f4d 100644
    <message name="IDS_MOBILE_SETUP_TITLE" desc="ChromeOS mobile device activation page title">
      Mobile data service management
    </message>
-@@ -3177,7 +3177,7 @@
-     Learn more.
+@@ -626,7 +626,7 @@
+      Please contact your mobile provider
    </message>
  
 -  <!-- About network UI (chrome://network) display strings (for developer
@@ -20,7 +19,7 @@ index 2a14aae9b5..5c47230f4d 100644
         debugging) -->
    <message name="IDS_NETWORK_UI_TITLE" desc="Title of the page">
      Network
-@@ -3207,7 +3207,7 @@
+@@ -656,7 +656,7 @@
      WiFi Direct
    </message>
    <message name="IDS_NETWORK_UI_AUTO_REFRESH" desc="Instructions for how to auto-refresh the page">
@@ -29,7 +28,7 @@ index 2a14aae9b5..5c47230f4d 100644
    </message>
    <message name="IDS_NETWORK_UI_REFRESH" desc="Button label for refreshing networks">
      Refresh Networks
-@@ -3230,7 +3230,7 @@
+@@ -679,7 +679,7 @@
    <message name="IDS_NETWORK_UI_FORMAT_SHILL" desc="Label in network property format dropdown for Shill properties">
      Shill
    </message>
@@ -38,7 +37,7 @@ index 2a14aae9b5..5c47230f4d 100644
      DHCP Hostname
    </message>
    <message name="IDS_NETWORK_UI_GLOBAL_POLICY" desc="Label for global policy properties">
-@@ -3293,7 +3293,7 @@
+@@ -739,7 +739,7 @@
    <message name="IDS_NETWORK_UI_IMPORT_ONC_BUTTON_TEXT" desc="Text for button which, when pressed, selects and imports an ONC file for network configuration.">
      Import ONC File
    </message>
@@ -47,32 +46,3 @@ index 2a14aae9b5..5c47230f4d 100644
      Store system logs to the Downloads directory.
    </message>
    <message name="IDS_NETWORK_UI_NETWORK_LOGS_SYSTEM_LOGS" desc="Text describing the checkbox option for storing the system logs file sent in feedback reports.">
-@@ -3405,8 +3405,8 @@
-     Refresh WiFi Direct Clients Info
-   </message>
- 
--  <message name="IDS_DEVICE_LOG_LINK_TEXT" desc="Message preceeding link to chrome://device-log">
--    To view network UI logs, see: <ph name="DEVICE_LOG_LINK">&lt;a href="chrome://device-log"&gt;chrome://device-log&lt;/a&gt;</ph>
-+  <message name="IDS_DEVICE_LOG_LINK_TEXT" desc="Message preceeding link to dao://device-log">
-+    To view network UI logs, see: <ph name="DEVICE_LOG_LINK">&lt;a href="dao://device-log"&gt;dao://device-log&lt;/a&gt;</ph>
-   </message>
- 
-   <!-- Device health display strings-->
-@@ -3685,7 +3685,7 @@
-   </message>
-   <message name="IDS_HW_DATA_COLLECTION_CONTENT" desc="Content of the hardware data collection notice screen.">
-     <ph name="BEGIN_PARAGRAPH1">&lt;p&gt;</ph>To provide the best experience, <ph name="DEVICE_OS">$1<ex>ChromeOS Flex</ex></ph> collects hardware data about devices and shares it with Google to determine which updates should be delivered. Optionally, you can allow Google to use this data for additional purposes like support and improvements to the <ph name="DEVICE_OS">$1<ex>ChromeOS Flex</ex></ph> experience and service.<ph name="END_PARAGRAPH1">&lt;/p&gt;</ph>
--    <ph name="BEGIN_PARAGRAPH2">&lt;p&gt;</ph>You can log in on this device and view fields listed as chromeosflex_ in chrome://system to see the data sent to Google for update filtering, as well as any other instances where you choose to share data with Google.<ph name="END_PARAGRAPH2">&lt;/p&gt;</ph>
-+    <ph name="BEGIN_PARAGRAPH2">&lt;p&gt;</ph>You can log in on this device and view fields listed as chromeosflex_ in dao://system to see the data sent to Google for update filtering, as well as any other instances where you choose to share data with Google.<ph name="END_PARAGRAPH2">&lt;/p&gt;</ph>
-     <ph name="BEGIN_PARAGRAPH3">&lt;p&gt;</ph>For more details on data <ph name="DEVICE_OS">$1<ex>ChromeOS Flex</ex></ph> may share with Google, and how it is used visit g.co/flex/HWDataCollection.<ph name="END_PARAGRAPH3">&lt;/p&gt;</ph>
-   </message>
-   <message name="IDS_HW_DATA_COLLECTION_USAGE_INFO" desc="Checkbox description for additional hardware data usage. This message is followed by a 'Learn more' link.">
-@@ -4566,7 +4566,7 @@
-     Looking for file shares
-   </message>
- 
--  <!-- Strings for the VM status page (chrome://vm). -->
-+  <!-- Strings for the VM status page (dao://vm). -->
-   <message name="IDS_VM_STATUS_INDEX_PAGE_TITLE" desc="The title for the VM (virtual machine) status index page. This string is used both for the heading and the page title.">
-     VM status
-   </message>

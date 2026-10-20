@@ -1,15 +1,13 @@
 diff --git a/chrome/browser/lifetime/application_lifetime_desktop.h b/chrome/browser/lifetime/application_lifetime_desktop.h
 --- a/chrome/browser/lifetime/application_lifetime_desktop.h
 +++ b/chrome/browser/lifetime/application_lifetime_desktop.h
-@@ -10,8 +10,11 @@
+@@ -21,6 +21,9 @@
  
- static_assert(!BUILDFLAG(IS_ANDROID), "For non-Android Chrome only");
- 
- namespace chrome {
+ using ProfileBrowsersCloseCallback =
+     base::RepeatingCallback<void(const base::FilePath&)>;
 +
 +// Preserve normal sessions while the Dao update helper owns the relaunch.
 +void PreserveSessionsForDaoUpdate();
  
  // The mode for a relaunch.
  enum class RelaunchMode {
-   // Restart and restore the session normally.

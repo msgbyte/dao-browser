@@ -54,7 +54,7 @@ index 0000000000..0000000001
 +    };
 +  }
 +
-+  declare prefs: {[key: string]: any};
++  declare prefs: Record<string, unknown>;
 +  declare private routes_: SettingsRoutes;
 +
 +  override currentRouteChanged(newRoute: Route, oldRoute?: Route) {

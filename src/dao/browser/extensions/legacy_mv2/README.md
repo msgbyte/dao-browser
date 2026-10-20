@@ -1,153 +1,134 @@
 # legacy_mv2 — Dao's Manifest V2 Support
 
-## Purpose
+Dao keeps Manifest V2 extensions installable and runnable by default. The
+restore-deprecation flag opts back into Chromium's current restrictions.
+Normal extension-management restrictions remain effective.
 
-Dao Browser keeps Manifest V2 extensions installable and runnable by default.
-Chromium has been progressively dismantling MV2 throughout the 12x–14x line;
-this directory holds the small, focused set of Dao-side hooks that keep the
-behavior alive without forking any individual extension API yet.
+## Chromium 151 integration
 
-The architecture is intentionally conservative: we use Chromium's own
-enterprise-policy exemption pathway (`pref_names::kManifestV2Availability`
-set to `ManifestV2Setting::kEnabled`) rather than feature-flag overrides,
-because Google maintains the policy contract for managed deployments and we
-benefit from that stability.
+Chromium 151 replaces `ManifestV2ExperimentManager` with `ManifestV2Handler`,
+removes the remaining MV2 rollout features and availability preference, and
+removes `ExtensionManagement`'s MV2 exemption methods. Restoring deleted feature
+flags would not restore support: the new handler normally blocks all affected
+MV2 extensions, including unpacked extensions.
 
-## Control flow
+Dao retains its existing `extensions.manifest_v2` preference under
+`DaoMV2PrefDefaults::kAvailabilityPref`. `DefaultManifestV2Availability()` returns
+2 by default and 0 when `kRestoreManifestV2Deprecation` is enabled.
+`GetManifestV2Availability()` uses an explicit managed preference if present;
+unmanaged user values cannot override the Dao default. The retained values are:
+
+| Value | Behavior |
+| --- | --- |
+| 0 | Follow Chromium's current deprecation behavior. |
+| 1 | Block affected MV2 extensions. |
+| 2 | Exempt affected MV2 extensions from deprecation. |
+| 3 | Exempt only extensions with forced or recommended installation policy. |
+
+The M151 handler consults this preference after checking the extension's
+manifest version, type, and component status. Policy value 3 uses the existing
+`ExtensionManagementClient::GetInstallationMode()` result, including both
+`force_installed` and `normal_installed`. The handler observes changes to the
+availability preference, disables affected enabled extensions, and removes
+only the unsupported-manifest disable reason when an extension becomes allowed.
+Other disable reasons remain intact.
+
+The old `ExtensionManifestV2Availability` enterprise policy's YAML already
+limited support to Chromium 110–138, and its policy-to-pref mapping was absent
+in the M150 base. Retaining the managed preference does not restore external
+delivery of that retired policy. Supported `ExtensionSettings` and other
+extension restrictions continue through Chromium's normal management providers.
+Do not document this compatibility preference as a newly supported enterprise
+policy without implementing and testing its policy delivery separately.
+
+## Chromium 152–154 compatibility
+
+Chromium 152 moves the MV2 scope check into `manifest_v2_util`; the Dao policy
+and enablement hooks remain in `ManifestV2Handler`. Chromium 153 and 154 retain
+this handler, MV2 parsing, persistent background pages, and the MV2
+`webRequestBlocking` permission.
+
+Chromium 154 enables per-context WebRequest dispatch by default. Distinct
+registrations can share the parent event name, so duplicate cleanup must match
+the registration filter and extra-info options and retain other registrations.
+Dao preserves Chromium's process identity checks, request ownership checks,
+pending-target teardown, and completion signaling. The legacy sub-event path
+remains covered as well.
+
+## Install and runtime flow
 
 ```
-                                ┌─────────────────────────────────────┐
-                                │ chrome://flags entry                │
-                                │ "restore-manifest-v2-deprecation"   │
-                                │  default: Default → MV2 enabled     │
-                                └─────────────┬───────────────────────┘
-                                              │ flips
-                                              ▼
-                       ┌──────────────────────────────────────────────┐
-                       │ dao::kRestoreManifestV2Deprecation feature   │
-                       │ FEATURE_DISABLED_BY_DEFAULT                  │
-                       └──────────────────────┬───────────────────────┘
-                                              │ consulted at pref-default registration
-                                              │ AND at ExtensionManagement::Refresh fallback
-                                              ▼
-       ┌──────────────────────────────────────────────────────────────────────┐
-       │ pref_names::kManifestV2Availability                                  │
-       │  feature OFF (Dao default) → kEnabled (=2)  ← MV2 fully exempted     │
-       │  feature ON  (user opt-out) → kDefault (=0) ← Chromium's deprecation │
-       └──────────────────────────────────────────────────────────────────────┘
-                                              │ consumed by
-                                              ▼
-            ExtensionManagement::IsExemptFromMV2DeprecationByPolicy()
-                                              │ short-circuits
-                                              ▼
-            MV2DeprecationImpactChecker::IsExtensionAffected() → false
-                                              │ MV2 ext fully unaffected
-                                              ▼
-   ManifestV2ExperimentManager: not disabled / not blocked / no warning
+CRX or unpacked installer
+  -> PolicyCheck
+  -> StandardManagementPolicyProvider::UserMayInstall
+  -> ManifestV2Handler::ShouldBlockExtensionEnable
+  -> MV2 scope check + Dao availability preference
+  -> remaining extension-management checks
 ```
 
-## A second gate: experiment-stage features
+The same Dao decision is used for enablement, startup disabling, re-enablement,
+and handler status reporting. The optional extension ID on
+`ShouldBlockExtensionInstallation()` allows callers to check policy value 3;
+without an ID, that method cannot grant a forced-install exemption. Production
+CRX and unpacked installation use the full extension object through the normal
+policy check.
 
-The pref pathway above isn't the only thing Chromium consults. Independently,
-`ManifestV2ExperimentManager::CalculateCurrentExperimentStage()` reads two
-upstream `BASE_FEATURE`s before allowing CRX installs:
-
-- `kExtensionManifestV2Unsupported` — when enabled, stage = `kUnsupported`.
-- `kExtensionManifestV2Disabled` — when enabled (and the above is off),
-  stage = `kDisableWithReEnable`.
-
-Both ship `ENABLED_BY_DEFAULT` upstream. With either active the experiment
-manager silently blocks new MV2 `.crx` installs even when the policy pref
-says they should be allowed (the pref controls *exemption*; the experiment
-manager controls *the experiment stage itself*).
-
-`extensions/common/extension_features.cc.patch` flips both flags to
-`DISABLED_BY_DEFAULT` so the stage stays at `kWarning`. This was discovered
-while wiring up `DefaultPolicy_AllowsCRXInstall` in the canary suite.
+With Dao's default, MV2 unpacked extensions and CRX packages remain enabled;
+blocking web requests and persistent background pages continue to use Chromium's
+existing implementations. With restore-deprecation enabled and no managed
+exemption, M151 rejects both CRX and unpacked MV2 installations and prevents
+re-enablement. This intentionally follows M151's restriction, which is stronger
+than the old soft-disable stage.
 
 ## Patch inventory
 
-Run `grep -r "Dao MV2 Support" src/patches` from the repo root for an
-authoritative list. As of initial implementation it includes:
+- `extensions/browser/extension_prefs.cc.patch` registers Dao's retained pref.
+- `extensions/browser/manifest_v2_handler.{h,cc}.patch` connects availability to
+  the new handler and observes managed-pref changes.
+- `extensions/browser/api/web_request/extension_web_request_event_router.cc.patch`
+  tolerates duplicate registrations during session restore, preserves M151's
+  replacement logic, and releases redundant listener counts and pending requests.
+- The obsolete `extensions/common/extension_features.cc.patch` and
+  `chrome/browser/extensions/extension_management.cc.patch` are removed.
+- The existing about-flags, flag-description, install-dialog, and build patches
+  retain Dao's restore-deprecation option, localized install notice, and library
+  wiring. There is no restored upstream experiment manager or rollout flag.
 
-- `extensions/browser/extension_prefs.cc.patch` — pref-registration default.
-- `extensions/common/extension_features.cc.patch` — disables the two MV2
-  experiment-stage features so the experiment manager doesn't pre-block CRX
-  installs.
-- `chrome/browser/extensions/extension_management.cc.patch` — `Refresh()`
-  fallback that actually applies the Dao default.
-- `chrome/browser/about_flags.cc.patch` — chrome://flags entry.
-- `chrome/browser/flag_descriptions.h.patch` — flag strings.
-- `chrome/browser/ui/views/extensions/extension_install_dialog_view.cc.patch` —
-  legacy-MV2 notice above the permission list.
-- `extensions/browser/BUILD.gn.patch`, `chrome/browser/BUILD.gn.patch`,
-  `chrome/browser/extensions/BUILD.gn.patch`,
-  `chrome/browser/ui/BUILD.gn.patch`, `chrome/test/BUILD.gn.patch` — wire
-  `dao_legacy_mv2` (and the test source_set) into the surrounding source_sets.
+## Tests
 
-A future helper `scripts/list-mv2-patches.ts` will auto-generate this
-section on each Chromium upgrade. Out of scope for the initial landing.
+The browser fixture overrides `ShouldAllowMV2Extensions()` to return false, so
+Chromium's test-only MV2 exemption cannot hide a broken Dao integration. The
+suite retains real unpacked/CRX installation, enabled-registry checks, a
+`net::ERR_BLOCKED_BY_CLIENT` assertion for the blocking listener, and a persistent
+background-page marker. It also covers manual re-enablement, rejection of both
+install formats under restore-deprecation, and explicit `ExtensionSettings`
+blocking over Dao's default support.
 
-## Known limitations
+`dao_mv2_handler_unittest.cc` checks managed 0/1/2/3 behavior through the real
+handler, forced/recommended policy modes, disable/re-enable registry transitions,
+preservation of a user-disable reason, and a managed allow overriding the
+restore flag. A duplicate-listener regression drives the router's public API
+through two worker deactivations, reactivation, and an extra-headers change to
+verify that redundant counts are released. The per-context regression enables
+the feature explicitly, collapses exact duplicate registrations, preserves a
+distinct registration under the same parent event name, and verifies that
+removing the last extra-headers registration releases its count. The existing
+browser-level blocking test exercises M154's default per-context dispatch.
 
-- **Install notice is skipped for zero-permission MV2 extensions.** The
-  notice is rendered inside `ExtensionInstallDialogView::CreateExtensionInfoContainer()`,
-  which Chromium only calls when the extension has visible permissions or
-  a justification block. An MV2 extension with no permissions (rare; mostly
-  themes / minimal devtools shims) will install with no banner. Acceptable
-  trade-off — the MV2-vs-MV3 distinction matters most for permission-heavy
-  extensions like ad blockers and userscript managers, which always trigger
-  the container.
-
-## Upgrade workflow
-
-When `dao.json` bumps the Chromium version:
-
-1. Run `npm run import`. Patches that fail to apply are inspected against the
-   "Dao MV2 Support" header convention to confirm whether they are MV2-related.
-2. Run `npm run test -- --gtest_filter='Dao*MV2*'`. Failures in the canary
-   tests indicate which Chromium-side capability changed:
-   - **"still works upstream, just code moved"** — re-target the patch.
-   - **"subtly changed"** — adjust the patch.
-   - **"removed upstream"** — escalate to fork. Add a new `legacy_mv2/`
-     implementation of the affected capability, route to it through
-     `DaoMV2APIRouter`, and update the corresponding test from a
-     pass-through check to a behavior check.
-
-## When to fork (decision tree)
+After importing the tracked proposal and confirming compilation with
+`npm run rebuild`, run the relevant freshly built tests with:
 
 ```
-Upstream change touches a capability our canary tests cover?
-├─ No  → no action; patches reapply cleanly, tests still pass.
-└─ Yes →
-   Is the capability removed entirely (not just refactored)?
-   ├─ No  → re-target / adjust patch; keep tests green.
-   └─ Yes →
-      Is the capability used by extensions our users actually depend on
-      (uBlock Origin, NoScript, Tampermonkey, Violentmonkey, etc.)?
-      ├─ No  → drop the canary test for the removed capability.
-      │        Document the removal in this README's "Sunset notes".
-      └─ Yes →
-         Fork. Add the Dao implementation under `legacy_mv2/`,
-         add a router method to DaoMV2APIRouter, switch the test
-         from pass-through to behavior.
+DaoMV2BrowserTest.*:DaoMV2BrowserTestRestoreDeprecation.*:DaoMV2ManagedPolicyBrowserTest.*:DaoMV2PrefDefaultsTest.*:DaoMV2HandlerTest.*:DaoMV2HandlerRestoreTest.*:DaoMV2PerContextWebRequestTest.*
 ```
 
-## Sunset policy
+## Maintenance boundaries
 
-If maintaining MV2 support requires reimplementing more than two distinct
-extension APIs at once, the project will reassess. Options at that point
-include (1) accepting the maintenance cost, (2) freezing Dao's Chromium at
-the last MV2-capable release, or (3) dropping MV2 support outright. No
-specific Chromium version is pinned as the sunset point in advance — that
-decision is reactive, not preemptive.
+Each Chromium upgrade must verify that manifest parsing, persistent background
+pages, and blocking web requests still exist. If an API disappears, implement
+only the compatibility behavior users need under this directory and keep the
+corresponding behavior test. `DaoMV2APIRouter` remains a pass-through seam today.
 
-## Files
-
-- `dao_mv2_features.{h,cc}` — the `kRestoreManifestV2Deprecation` feature.
-- `dao_mv2_pref_defaults.{h,cc}` — the Dao default for
-  `kManifestV2Availability`.
-- `dao_mv2_api_router.{h,cc}` — the compat seam, pass-through today.
-- `dao_mv2_install_notice.{h,cc}` — install-dialog notice helpers.
-- `dao_mv2_browsertest.cc` — the canary regression suite.
-- `test_data/` — minimal MV2 extensions for the canary tests.
+The existing install notice is omitted for zero-permission extensions when
+Chromium skips the extension-info container. No new user-facing strings or
+enterprise-policy surfaces are introduced by the M151 handler migration.

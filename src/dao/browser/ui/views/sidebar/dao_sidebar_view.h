@@ -30,7 +30,7 @@
 #include "ui/views/controls/webview/unhandled_keyboard_event_handler.h"
 #include "ui/views/view.h"
 
-class Browser;
+class BrowserWindowInterface;
 
 namespace views {
 class Button;
@@ -44,7 +44,8 @@ namespace dao {
 // Browser that owns the DaoSidebarView hosting it, or nullptr. Used by the
 // sidebar message handler when the async WebUI-controller binding in
 // DaoSidebarView::EnsureWebUILoaded hasn't completed yet.
-Browser* GetBrowserForSidebarWebContents(content::WebContents* web_contents);
+BrowserWindowInterface* GetBrowserForSidebarWebContents(
+    content::WebContents* web_contents);
 
 class DaoSidebarView : public views::View,
                        public gfx::AnimationDelegate,
@@ -62,7 +63,7 @@ class DaoSidebarView : public views::View,
   static constexpr int kMaxWidth = 400;
   static constexpr int kResizeAreaWidth = 6;
 
-  explicit DaoSidebarView(Browser* browser);
+  explicit DaoSidebarView(BrowserWindowInterface* browser);
   DaoSidebarView(const DaoSidebarView&) = delete;
   DaoSidebarView& operator=(const DaoSidebarView&) = delete;
   ~DaoSidebarView() override;
@@ -167,7 +168,7 @@ class DaoSidebarView : public views::View,
   DropCallback GetDropCallback(const ui::DropTargetEvent& event) override;
 
  private:
-  raw_ptr<Browser> browser_;
+  raw_ptr<BrowserWindowInterface> browser_;
   raw_ptr<views::View> inner_container_ = nullptr;
   raw_ptr<views::View> header_row_ = nullptr;
   raw_ptr<views::View> incognito_indicator_ = nullptr;

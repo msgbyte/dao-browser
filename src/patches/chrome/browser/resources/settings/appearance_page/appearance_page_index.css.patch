@@ -1,0 +1,13 @@
+diff --git a/chrome/browser/resources/settings/appearance_page/appearance_page_index.css b/chrome/browser/resources/settings/appearance_page/appearance_page_index.css
+--- a/chrome/browser/resources/settings/appearance_page/appearance_page_index.css
++++ b/chrome/browser/resources/settings/appearance_page/appearance_page_index.css
+@@ -12,3 +12,9 @@
+ cr-view-manager[show-all] [slot=view][data-parent-view-id] {
+   display: none;
+ }
++
++/* Keep active top-level content in document flow when Settings displays its
++   continuous overview. */
++cr-view-manager [slot=view]:not(.closing) {
++  position: initial;
++}

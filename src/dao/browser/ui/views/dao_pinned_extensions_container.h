@@ -20,7 +20,7 @@
 #include "ui/views/context_menu_controller.h"
 #include "ui/views/view.h"
 
-class Browser;
+class BrowserWindowInterface;
 class TabStripModel;
 
 namespace gfx {
@@ -55,7 +55,7 @@ class DaoPinnedExtensionsContainer
   METADATA_HEADER(DaoPinnedExtensionsContainer, views::View)
 
  public:
-  explicit DaoPinnedExtensionsContainer(Browser* browser);
+  explicit DaoPinnedExtensionsContainer(BrowserWindowInterface* browser);
   DaoPinnedExtensionsContainer(const DaoPinnedExtensionsContainer&) = delete;
   DaoPinnedExtensionsContainer& operator=(const DaoPinnedExtensionsContainer&) =
       delete;
@@ -83,7 +83,6 @@ class DaoPinnedExtensionsContainer
       const TabStripModelChange& change,
       const TabStripSelectionChange& selection) override;
   void OnTabChangedAt(tabs::TabInterface* tab,
-                      int index,
                       TabChangeType change_type) override;
 
   // views::ContextMenuController:
@@ -109,7 +108,7 @@ class DaoPinnedExtensionsContainer
   std::string GetExtensionIdForView(views::View* view) const;
   void OnContextMenuClosed();
 
-  raw_ptr<Browser> browser_;
+  raw_ptr<BrowserWindowInterface> browser_;
   raw_ptr<TabStripModel> tab_strip_model_ = nullptr;
   raw_ptr<ToolbarActionsModel> model_ = nullptr;
   SkColor hover_background_color_;

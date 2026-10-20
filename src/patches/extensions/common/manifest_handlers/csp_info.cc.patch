@@ -1,7 +1,8 @@
 diff --git a/extensions/common/manifest_handlers/csp_info.cc b/extensions/common/manifest_handlers/csp_info.cc
 --- a/extensions/common/manifest_handlers/csp_info.cc
 +++ b/extensions/common/manifest_handlers/csp_info.cc
-@@ -51,6 +51,6 @@
+@@ -50,7 +50,7 @@
+     "object-src 'self';";
  // The minimum CSP for extensions that can access chrome://resources.
  static const char kMinimumMV3CSPWithChromeResources[] =
 -    "script-src 'self' chrome://resources 'wasm-unsafe-eval' "
@@ -9,33 +10,63 @@ diff --git a/extensions/common/manifest_handlers/csp_info.cc b/extensions/common
      "'inline-speculation-rules'; "
      "object-src 'self';";
  // The minimum CSP to be used in isolated worlds. The placeholder is for the
-@@ -426,6 +426,29 @@ bool CSPHandler::SetExtensionPagesCSP(Extension* extension,
-   }
+@@ -160,6 +160,35 @@
+              : default_csp.get();
+ }
  
-+  // Dao resources are the canonical modules. Mirror only resource access
-+  // already validated for built-in components, never extension sandboxes.
-+  if (extension->location() == mojom::ManifestLocation::kComponent) {
-+    csp_validator::CSPParser parser(content_security_policy);
-+    content_security_policy.clear();
-+    for (const auto& directive : parser.directives()) {
-+      content_security_policy.append(directive.directive_string);
-+      if (directive.directive_name == "script-src" ||
-+          directive.directive_name == "script-src-elem" ||
-+          directive.directive_name == "default-src" ||
-+          directive.directive_name == "worker-src") {
-+        for (std::string_view source : directive.directive_values) {
-+          if (base::EqualsCaseInsensitiveASCII(source, "chrome://resources") ||
-+              base::EqualsCaseInsensitiveASCII(source, "chrome://resources/")) {
-+            content_security_policy.append(" dao://resources");
-+            break;
-+          }
-+        }
-+      }
-+      content_security_policy.append("; ");
-+    }
++// Mirror only validated component resource access, never sandbox policy.
++std::string AddDaoResourcesToComponentCSP(
++    const Extension& extension,
++    std::string content_security_policy) {
++  if (extension.location() != mojom::ManifestLocation::kComponent) {
++    return content_security_policy;
 +  }
 +
++  csp_validator::CSPParser parser(content_security_policy);
++  content_security_policy.clear();
++  for (const auto& directive : parser.directives()) {
++    content_security_policy.append(directive.directive_string);
++    if (directive.directive_name == "script-src" ||
++        directive.directive_name == "script-src-elem" ||
++        directive.directive_name == "default-src" ||
++        directive.directive_name == "worker-src") {
++      for (std::string_view source : directive.directive_values) {
++        if (base::EqualsCaseInsensitiveASCII(source, "chrome://resources") ||
++            base::EqualsCaseInsensitiveASCII(source, "chrome://resources/")) {
++          content_security_policy.append(" dao://resources");
++          break;
++        }
++      }
++    }
++    content_security_policy.append("; ");
++  }
++  return content_security_policy;
++}
++
+ }  // namespace
+ 
+ // static
+@@ -313,8 +342,9 @@
+   }
+ 
    extension->SetManifestData(
-       keys::kContentSecurityPolicy,
-       std::make_unique<CSPInfo>(std::move(content_security_policy)));
+-      std::make_unique<CSPInfo>(std::move(extension_pages_csp),
+-                                std::move(sandbox_csp)));
++      std::make_unique<CSPInfo>(AddDaoResourcesToComponentCSP(
++                                   *extension, std::move(extension_pages_csp)),
++                               std::move(sandbox_csp)));
    return true;
+ }
+ 
+@@ -350,8 +380,9 @@
+   }
+ 
+   extension->SetManifestData(
+-      std::make_unique<CSPInfo>(std::move(extension_pages_csp),
+-                                std::move(sandbox_csp)));
++      std::make_unique<CSPInfo>(AddDaoResourcesToComponentCSP(
++                                   *extension, std::move(extension_pages_csp)),
++                               std::move(sandbox_csp)));
+   return true;
+ }
+ 

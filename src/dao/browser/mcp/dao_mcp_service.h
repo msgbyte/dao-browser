@@ -37,7 +37,6 @@
 #include "dao/browser/mcp/dao_mcp_transport.h"
 #endif
 
-class Browser;
 class BrowserWindowInterface;
 class PrefService;
 
@@ -105,7 +104,7 @@ class DaoMcpApprovalDelegate {
   virtual ~DaoMcpApprovalDelegate() = default;
 
   virtual void RequestApproval(const DaoMcpApprovalRequest& request,
-                               Browser* browser,
+                               BrowserWindowInterface* browser,
                                std::string_view connection_id,
                                base::OnceCallback<void(bool)> callback) = 0;
   virtual void CancelApproval(std::string_view) {}
@@ -132,7 +131,7 @@ class DaoMcpService {
   void SetEnabled(bool enabled);
   DaoMcpServiceStatus GetStatus() const;
   std::string GetMcpConfiguration() const;
-  Browser* GetAuthorizedBrowser() const;
+  BrowserWindowInterface* GetAuthorizedBrowser() const;
   content::WebContents* GetAuthorizedTarget() const;
   bool IsTargetControlled(content::WebContents* target) const;
   size_t GetControlledTargetCount() const;
@@ -232,11 +231,11 @@ class DaoMcpService {
                  DaoToolError error);
   void CloseConnectionAfterWrites(ConnectionState& connection);
 
-  base::expected<Browser*, DaoToolError> PrepareApprovalSession(
+  base::expected<BrowserWindowInterface*, DaoToolError> PrepareApprovalSession(
       ConnectionState& connection,
       const std::string* tab_id);
   void RequestApproval(ConnectionState& connection,
-                       Browser* browser,
+                       BrowserWindowInterface* browser,
                        std::string reason);
   void OnApprovalResult(uint64_t connection_generation,
                         std::string connection_id,

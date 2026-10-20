@@ -69,8 +69,8 @@ try {
     const result = await send('Runtime.evaluate', {
       expression: `(async () => {
         const ui = document.querySelector('settings-ui');
-        const main = ui?.$.main;
-        const container = ui?.$.container;
+        const main = ui?.$?.main;
+        const container = ui?.$?.container;
         const index = main?.shadowRoot.querySelector('settings-dao-agent-page-index');
         ${body}
       })()`, awaitPromise: true, returnByValue: true,
@@ -88,7 +88,7 @@ try {
     width: 1280, height: 800, deviceScaleFactor: 1, mobile: false,
   });
   await send('Page.navigate', {url: 'dao://settings/'});
-  await until(() => ui('return !!index?.$.viewManager;'), 'Settings overview');
+  await until(() => ui('return !!index?.$?.viewManager;'), 'Settings overview');
   await settle();
 
   for (let visit = 0; visit < 2; visit++) {

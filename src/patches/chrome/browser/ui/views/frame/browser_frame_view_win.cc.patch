@@ -1,17 +1,16 @@
 diff --git a/chrome/browser/ui/views/frame/browser_frame_view_win.cc b/chrome/browser/ui/views/frame/browser_frame_view_win.cc
-index d27fe9b..18f9ccb 100644
 --- a/chrome/browser/ui/views/frame/browser_frame_view_win.cc
 +++ b/chrome/browser/ui/views/frame/browser_frame_view_win.cc
-@@ -34,6 +34,8 @@
+@@ -35,6 +35,8 @@
+ #include "chrome/browser/web_applications/web_app_icon_manager.h"
  #include "chrome/browser/web_applications/web_app_provider.h"
- #include "chrome/browser/win/mica_titlebar.h"
  #include "chrome/browser/win/titlebar_config.h"
 +#include "dao/browser/ui/views/dao_address_bar_view.h"
 +#include "dao/browser/ui/views/dao_colors.h"
  #include "content/public/browser/web_contents.h"
  #include "skia/ext/image_operations.h"
  #include "ui/base/l10n/l10n_util.h"
-@@ -212,7 +214,8 @@ BrowserLayoutParams BrowserFrameViewWin::GetBrowserLayoutParams() const {
+@@ -148,7 +150,8 @@
        params.trailing_exclusion.content =
            gfx::SizeF(width() - caption.x(), caption.bottom() - top);
        // In overlay mode, the icon is present but hidden.
@@ -21,7 +20,7 @@ index d27fe9b..18f9ccb 100644
          const auto& icon = window_icon_->bounds();
          params.leading_exclusion.content =
              gfx::SizeF(icon.right(), icon.bottom() - top);
-@@ -233,6 +236,9 @@ bool BrowserFrameViewWin::CaptionButtonsOnLeadingEdge() const {
+@@ -165,6 +168,9 @@
  }
  
  int BrowserFrameViewWin::GetTopInset(bool restored) const {
@@ -31,7 +30,7 @@ index d27fe9b..18f9ccb 100644
    if (GetBrowserView()->GetTabStripVisible()) {
      return TopAreaHeight(restored);
    }
-@@ -328,7 +334,8 @@ gfx::Rect BrowserFrameViewWin::GetBoundsForClientView() const {
+@@ -258,7 +264,8 @@
  gfx::Rect BrowserFrameViewWin::GetWindowBoundsForClientBounds(
      const gfx::Rect& client_bounds) const {
    HWND hwnd = views::HWNDForWidget(browser_widget());
@@ -41,10 +40,12 @@ index d27fe9b..18f9ccb 100644
      // If we don't have a tabstrip, we're either a popup or an app window, in
      // which case we have a standard size non-client area and can just use
      // AdjustWindowRectEx to obtain it. We check for a non-null window handle in
-@@ -364,6 +371,17 @@ int BrowserFrameViewWin::NonClientHitTest(const gfx::Point& point) {
+@@ -285,6 +292,17 @@
+   // the frame so again Windows can figure it out.
+   if (!bounds().Contains(point)) {
      return HTNOWHERE;
-   }
- 
++  }
++
 +  // Dao: Caption controls overlap the client area, including Agent WebUI.
 +  // Resolve them before the client so native close and Snap Layouts work.
 +  if (GetBrowserView()->GetIsNormalType() &&
@@ -54,32 +55,30 @@ index d27fe9b..18f9ccb 100644
 +    if (caption_button_container_->HitTestPoint(local)) {
 +      return caption_button_container_->NonClientHitTest(local);
 +    }
-+  }
-+
+   }
+ 
    // At the window corners the resize area is not actually bigger, but the 16
-   // pixels at the end of the top and bottom edges trigger diagonal resizing.
-   constexpr int kResizeCornerWidth = 16;
-@@ -669,6 +687,9 @@ int BrowserFrameViewWin::CaptionButtonsRegionWidth() const {
+@@ -586,6 +604,9 @@
  }
  
  bool BrowserFrameViewWin::ShouldShowWindowIcon(TitlebarType type) const {
 +  if (GetBrowserView()->GetIsNormalType()) {
 +    return false;
 +  }
-   if (type == TitlebarType::kCustom &&
-       !ShouldBrowserCustomDrawTitlebar(GetBrowserView())) {
+   if (type == TitlebarType::kSystem) {
      return false;
-@@ -684,6 +705,9 @@ bool BrowserFrameViewWin::ShouldShowWindowIcon(TitlebarType type) const {
+   }
+@@ -596,6 +617,9 @@
  }
  
  bool BrowserFrameViewWin::ShouldShowWindowTitle(TitlebarType type) const {
 +  if (GetBrowserView()->GetIsNormalType()) {
 +    return false;
 +  }
-   if (type == TitlebarType::kCustom &&
-       !ShouldBrowserCustomDrawTitlebar(GetBrowserView())) {
+   if (type == TitlebarType::kSystem) {
      return false;
-@@ -722,6 +746,9 @@ void BrowserFrameViewWin::SetSystemMicaTitlebarAttributes() {
+   }
+@@ -606,6 +630,9 @@
  }
  
  SkColor BrowserFrameViewWin::GetTitlebarColor() const {
@@ -89,8 +88,8 @@ index d27fe9b..18f9ccb 100644
    return GetFrameColor(BrowserFrameActiveState::kUseCurrent);
  }
  
-@@ -857,9 +884,11 @@ void BrowserFrameViewWin::LayoutCaptionButtons() {
-           : caption_button_metrics_->GetCaptionButtonWidth();
+@@ -738,9 +765,11 @@
+       caption_button_container_->GetPreferredSize();
  
    const int height =
 -      !GetBrowserView()->GetWebAppFrameToolbarPreferredSize().IsEmpty()
@@ -102,5 +101,5 @@ index d27fe9b..18f9ccb 100644
 +                ? (TitlebarHeight(false) - WindowTopY())
 +                : GetFrameHeight();
  
-   caption_button_container_->SetBounds(
-       CaptionButtonsOnLeadingEdge()
+   caption_button_container_->SetBounds(width() - preferred_size.width(),
+                                        WindowTopY(), preferred_size.width(),

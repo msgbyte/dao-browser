@@ -26,7 +26,7 @@
 #include "dao/browser/agent/dao_agent_memory_types.h"
 #include "dao/browser/agent/dao_agent_scenario_registry.h"
 
-class Browser;
+class BrowserWindowInterface;
 class GURL;
 class Profile;
 

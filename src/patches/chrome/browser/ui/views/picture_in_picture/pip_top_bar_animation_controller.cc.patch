@@ -1,0 +1,50 @@
+--- a/chrome/browser/ui/views/picture_in_picture/pip_top_bar_animation_controller.cc
++++ b/chrome/browser/ui/views/picture_in_picture/pip_top_bar_animation_controller.cc
+@@ -54,11 +54,13 @@
+     views::View* back_to_tab_button,
+     views::View* close_button,
+     std::vector<raw_ptr<ContentSettingImageView, VectorExperimental>>
+-        content_setting_views)
++        content_setting_views,
++    bool initially_active)
+     : delegate_(CHECK_DEREF(delegate)),
+       back_to_tab_button_(back_to_tab_button),
+       close_image_button_(CHECK_DEREF(close_button)),
+       content_setting_views_(std::move(content_setting_views)),
++      top_bar_active_(initially_active),
+       top_bar_color_animation_(this),
+       move_camera_button_to_left_animation_(this),
+       move_camera_button_to_right_animation_(gfx::MultiAnimation::Parts{
+@@ -107,12 +109,10 @@
+   close_image_button_->SetPaintToLayer();
+   close_image_button_->layer()->SetFillsBoundsOpaquely(false);
+ 
+-  // Configure the top-bar animations, mirroring
+-  // PictureInPictureBrowserFrameView. Start in the active state (1.0) because
+-  // the window is active when first shown.
++  // Configure the top-bar animations with the owner's initial active state.
+   top_bar_color_animation_.SetSlideDuration(kAnimationDuration);
+   top_bar_color_animation_.SetTweenType(gfx::Tween::LINEAR);
+-  top_bar_color_animation_.Reset(1.0);
++  top_bar_color_animation_.Reset(initially_active ? 1.0 : 0.0);
+ 
+   move_camera_button_to_left_animation_.SetSlideDuration(kAnimationDuration);
+   move_camera_button_to_right_animation_.set_continuous(false);
+@@ -263,6 +263,8 @@
+   if (animation != &top_bar_color_animation_) {
+     return;
+   }
++  delegate_->ApplyTopBarOpacity(
++      static_cast<float>(animation->GetCurrentValue()));
+   // Drop the interpolated color and settle on the steady-state foreground.
+   current_foreground_color_ = std::nullopt;
+   delegate_->ApplyTopBarForegroundColor(
+@@ -282,6 +284,8 @@
+         color_provider->GetColor(kColorPipWindowForeground));
+     current_foreground_color_ = color;
+     delegate_->ApplyTopBarForegroundColor(color);
++    delegate_->ApplyTopBarOpacity(
++        static_cast<float>(animation->GetCurrentValue()));
+     return;
+   }
+ 

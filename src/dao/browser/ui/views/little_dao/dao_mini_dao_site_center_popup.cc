@@ -13,8 +13,8 @@
 #include "base/functional/callback_helpers.h"
 #include "base/strings/utf_string_conversions.h"
 #include "cc/paint/paint_flags.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/page_info/page_info_bubble_specification.h"
@@ -29,6 +29,7 @@
 #include "dao/browser/ui/views/dao_lucide_icons.h"
 #include "dao/browser/ui/views/dao_qr_code_image.h"
 #include "third_party/blink/public/common/input/web_input_event.h"
+#include "ui/base/base_window.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/image_model.h"
@@ -162,9 +163,10 @@ BEGIN_METADATA(DaoMiniDaoSiteCenterPopup)
 END_METADATA
 
 DaoMiniDaoSiteCenterPopup::DaoMiniDaoSiteCenterPopup(
-    Browser* browser,
+    BrowserWindowInterface* browser,
     base::RepeatingCallback<views::View*()> anchor_view_callback)
-    : browser_(browser), anchor_view_callback_(std::move(anchor_view_callback)) {
+    : browser_(browser),
+      anchor_view_callback_(std::move(anchor_view_callback)) {
   SetPaintToLayer();
   layer()->SetFillsBoundsOpaquely(false);
   SetVisible(false);
@@ -410,7 +412,7 @@ void DaoMiniDaoSiteCenterPopup::OnPageInfoClicked() {
   Hide();
 
   PageInfoBubbleSpecification::Builder builder(
-      views::BubbleAnchor(), browser_->window()->GetNativeWindow(),
+      views::BubbleAnchor(), browser_->GetWindow()->GetNativeWindow(),
       web_contents, entry->GetVirtualURL());
   builder.AddAnchorRect(anchor_rect)
       .AddInitializedCallback(base::DoNothing())

@@ -18,7 +18,7 @@
 #include "ui/views/context_menu_controller.h"
 #include "ui/views/view.h"
 
-class Browser;
+class BrowserWindowInterface;
 class BrowserView;
 
 namespace gfx {
@@ -53,7 +53,7 @@ class DaoControlCenterExtensionsSection
 
  public:
   explicit DaoControlCenterExtensionsSection(
-      Browser* browser,
+      BrowserWindowInterface* browser,
       base::RepeatingClosure close_host_callback = base::RepeatingClosure(),
       base::RepeatingCallback<views::View*()> anchor_view_callback =
           base::RepeatingCallback<views::View*()>());
@@ -98,7 +98,7 @@ class DaoControlCenterExtensionsSection
   // Returns the extension_id associated with a button view, or empty string.
   std::string GetExtensionIdForView(views::View* view) const;
 
-  raw_ptr<Browser> browser_;
+  raw_ptr<BrowserWindowInterface> browser_;
   raw_ptr<views::View> grid_ = nullptr;
   raw_ptr<ToolbarActionsModel> model_ = nullptr;
   bool grid_dirty_ = true;

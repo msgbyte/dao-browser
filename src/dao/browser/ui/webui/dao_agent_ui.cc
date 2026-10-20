@@ -26,16 +26,16 @@
 #include "chrome/browser/history/history_service_factory.h"
 #include "chrome/browser/platform_util.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "chrome/browser/ui/navigator/browser_navigator.h"
 #include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/frame/multi_contents_view.h"
 #include "chrome/grit/dao_agent_resources.h"
 #include "chrome/grit/dao_agent_resources_map.h"
 #include "components/history/core/browser/history_service.h"
@@ -99,9 +99,10 @@ namespace dao {
 
 namespace {
 
-Browser* FindLastActiveBrowserForMigration() {
-  BrowserWindowInterface* browser = chrome::FindLastActive();
-  return browser ? browser->GetBrowserForMigrationOnly() : nullptr;
+BrowserWindowInterface* FindLastActiveBrowserForMigration() {
+  BrowserWindowInterface* browser =
+      GlobalBrowserCollection::GetInstance()->GetLastActiveBrowser();
+  return browser;
 }
 
 constexpr char kAgentExecutionContextKey[] = "__daoAgentExecutionContext";
@@ -118,13 +119,13 @@ bool IsLegacyUiOneShotTool(std::string_view tool_name) {
 
 struct LegacyUiOneShotAuthorization {
   LegacyUiOneShotAuthorization(DaoAgentLease acquired_lease,
-                               Browser* browser,
+                               BrowserWindowInterface* browser,
                                content::WebContents* target)
       : lease(std::move(acquired_lease)),
-        session(browser,
-                target,
-                DaoBrowserAutomationSession::TargetPolicy::
-                    kLegacyUiWithDaoHome) {}
+        session(
+            browser,
+            target,
+            DaoBrowserAutomationSession::TargetPolicy::kLegacyUiWithDaoHome) {}
 
   DaoAgentLease lease;
   DaoBrowserAutomationSession session;
@@ -597,7 +598,10 @@ void DaoAgentUIHandler::MoveCursor(content::WebContents* target,
                                    double x,
                                    double y,
                                    base::OnceCallback<void(bool)> callback) {
-  Browser* browser = target ? chrome::FindBrowserWithTab(target) : nullptr;
+  BrowserWindowInterface* browser =
+      target ? GlobalBrowserCollection::GetInstance()
+               ->FindBrowserWithTab(target)
+             : nullptr;
   BrowserView* browser_view =
       browser ? BrowserView::GetBrowserViewForBrowser(browser) : nullptr;
   auto* cursor_view = browser_view ? browser_view->dao_agent_cursor() : nullptr;
@@ -615,7 +619,7 @@ void DaoAgentUIHandler::MoveCursor(content::WebContents* target,
   if (target->GetRenderWidgetHostView()) {
     viewport_screen = target->GetRenderWidgetHostView()->GetViewBounds();
   } else {
-    viewport_screen = browser_view->contents_container()->GetBoundsInScreen();
+    viewport_screen = browser_view->multi_contents_view()->GetBoundsInScreen();
   }
   const gfx::Rect cursor_bounds = cursor_view->GetBoundsInScreen();
   const float view_x =
@@ -638,7 +642,10 @@ void DaoAgentUIHandler::MoveCursor(content::WebContents* target,
 }
 
 void DaoAgentUIHandler::PlayClickRipple(content::WebContents* target) {
-  Browser* browser = target ? chrome::FindBrowserWithTab(target) : nullptr;
+  BrowserWindowInterface* browser =
+      target ? GlobalBrowserCollection::GetInstance()
+               ->FindBrowserWithTab(target)
+             : nullptr;
   BrowserView* browser_view =
       browser ? BrowserView::GetBrowserViewForBrowser(browser) : nullptr;
   auto* cursor_view = browser_view ? browser_view->dao_agent_cursor() : nullptr;
@@ -658,9 +665,8 @@ void DaoAgentUIHandler::CancelCursor(content::WebContents* target) {
   }
   for (BrowserWindowInterface* browser_window :
        GetAllBrowserWindowInterfaces()) {
-    Browser* browser =
-        browser_window ? browser_window->GetBrowserForMigrationOnly() : nullptr;
-    if (!browser || browser->profile() != target->GetBrowserContext()) {
+    BrowserWindowInterface* browser = browser_window;
+    if (!browser || browser->GetProfile() != target->GetBrowserContext()) {
       continue;
     }
     BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
@@ -806,7 +812,11 @@ void DaoAgentUIHandler::ExecutePageTool(std::string callback_id,
   }
 
   content::WebContents* target = GetActivePageContents();
-  Browser* browser = target ? chrome::FindBrowserWithTab(target) : nullptr;
+  BrowserWindowInterface* browser_window =
+      target ? GlobalBrowserCollection::GetInstance()
+               ->FindBrowserWithTab(target)
+             : nullptr;
+  BrowserWindowInterface* browser = browser_window;
   if (!target || !browser) {
     ResolvePageToolError(
         std::move(callback_id),
@@ -815,7 +825,7 @@ void DaoAgentUIHandler::ExecutePageTool(std::string callback_id,
     return;
   }
 
-  auto acquired = DaoAgentLeaseManager::GetForProfile(browser->profile())
+  auto acquired = DaoAgentLeaseManager::GetForProfile(browser->GetProfile())
                       ->TryAcquire(tabs::TabInterface::GetFromContents(target)
                                        ->GetHandle(),
                                    {DaoToolClient::kDaoAgent,
@@ -899,7 +909,7 @@ void DaoAgentUIHandler::ResolvePageToolError(std::string callback_id,
 }
 
 content::WebContents* DaoAgentUIHandler::GetActivePageContents() {
-  Browser* browser = FindLastActiveBrowserForMigration();
+  BrowserWindowInterface* browser = FindLastActiveBrowserForMigration();
   if (!browser) {
     return nullptr;
   }
@@ -991,7 +1001,11 @@ void DaoAgentUIHandler::HandleBeginAgentTurn(const base::ListValue& args) {
                                   "Previous Dao Agent turn was replaced."));
   pending_begin_callback_id_ = callback_id;
   content::WebContents* contents = GetActivePageContents();
-  Browser* browser = contents ? chrome::FindBrowserWithTab(contents) : nullptr;
+  BrowserWindowInterface* browser_window =
+      contents ? GlobalBrowserCollection::GetInstance()
+                 ->FindBrowserWithTab(contents)
+               : nullptr;
+  BrowserWindowInterface* browser = browser_window;
   if (!contents || !browser) {
     clear_history_claim();
     FinishPendingBeginAgentTurn(callback_id);
@@ -1002,7 +1016,7 @@ void DaoAgentUIHandler::HandleBeginAgentTurn(const base::ListValue& args) {
     return;
   }
 
-  auto acquired = DaoAgentLeaseManager::GetForProfile(browser->profile())
+  auto acquired = DaoAgentLeaseManager::GetForProfile(browser->GetProfile())
                       ->TryAcquire(tabs::TabInterface::GetFromContents(contents)
                                        ->GetHandle(),
                                    {DaoToolClient::kDaoAgent, "dao-agent-turn",
@@ -1347,7 +1361,7 @@ void DaoAgentUIHandler::HandleGetPdfText(const base::ListValue& args) {
   }
 
   pdf::PDFDocumentHelper* helper =
-      pdf::PDFDocumentHelper::MaybeGetForWebContents(contents);
+      pdf::PDFDocumentHelper::MaybeGetForWebContents(*contents);
   if (!helper) {
     ResolvePdfCaptureNotPdf(callback_id);
     return;
@@ -1381,7 +1395,7 @@ void DaoAgentUIHandler::HandleGetPdfText(const base::ListValue& args) {
           return;
         }
         pdf::PDFDocumentHelper* h =
-            pdf::PDFDocumentHelper::MaybeGetForWebContents(c);
+            pdf::PDFDocumentHelper::MaybeGetForWebContents(*c);
         if (!h) {
           handler->ResolvePdfCaptureError(*s, "PDF helper went away");
           return;
@@ -1451,7 +1465,7 @@ void DaoAgentUIHandler::FetchNextPdfPage(
     return;
   }
   pdf::PDFDocumentHelper* helper =
-      pdf::PDFDocumentHelper::MaybeGetForWebContents(contents);
+      pdf::PDFDocumentHelper::MaybeGetForWebContents(*contents);
   if (!helper) {
     ResolvePdfCaptureError(*state, "PDF helper went away");
     return;
@@ -1539,10 +1553,14 @@ void DaoAgentUIHandler::HandleClearHighlight(const base::ListValue& args) {
     browser_tool_executor_->ClearPageState(agent_turn_session_.get());
   } else {
     content::WebContents* target = GetActivePageContents();
-    Browser* browser = target ? chrome::FindBrowserWithTab(target) : nullptr;
+    BrowserWindowInterface* browser_window =
+        target ? GlobalBrowserCollection::GetInstance()
+                 ->FindBrowserWithTab(target)
+               : nullptr;
+    BrowserWindowInterface* browser = browser_window;
     if (target && browser) {
       auto acquired =
-          DaoAgentLeaseManager::GetForProfile(browser->profile())
+          DaoAgentLeaseManager::GetForProfile(browser->GetProfile())
               ->TryAcquire(tabs::TabInterface::GetFromContents(target)
                                ->GetHandle(),
                            {DaoToolClient::kDaoAgent,
@@ -1924,7 +1942,7 @@ void DaoAgentUIHandler::HandleOpenAgentSettings(const base::ListValue& args) {
   }
   const std::string callback_id = args[0].GetString();
 
-  Browser* browser = FindLastActiveBrowserForMigration();
+  BrowserWindowInterface* browser = FindLastActiveBrowserForMigration();
   if (!browser) {
     ResolveJavascriptCallback(base::Value(callback_id),
                               base::DictValue().Set("success", false));
@@ -1943,7 +1961,7 @@ void DaoAgentUIHandler::HandleOpenAgentSettings(const base::ListValue& args) {
 }
 
 void DaoAgentUIHandler::HandleCloseSidebar(const base::ListValue& args) {
-  Browser* browser = FindLastActiveBrowserForMigration();
+  BrowserWindowInterface* browser = FindLastActiveBrowserForMigration();
   if (!browser) {
     return;
   }
@@ -1968,7 +1986,7 @@ void DaoAgentUIHandler::HandleFocusAgentSidebar(const base::ListValue& args) {
   }
   const std::string callback_id = args[0].GetString();
 
-  Browser* browser = FindLastActiveBrowserForMigration();
+  BrowserWindowInterface* browser = FindLastActiveBrowserForMigration();
   BrowserView* browser_view =
       browser ? BrowserView::GetBrowserViewForBrowser(browser) : nullptr;
   dao::DaoAgentSidebarView* sidebar =
@@ -2877,8 +2895,7 @@ void DaoAgentMemoryHandler::HandleGetPageContentForScenario(
               Profile::FromWebUI(web_ui()))) {
     collection->ForEach(
         [&target, tab_id](BrowserWindowInterface* browser_window) {
-          TabStripModel* model =
-              browser_window->GetBrowserForMigrationOnly()->tab_strip_model();
+          TabStripModel* model = browser_window->tab_strip_model();
           for (int i = 0; i < model->count(); ++i) {
             content::WebContents* wc = model->GetWebContentsAt(i);
             if (wc && sessions::SessionTabHelper::IdForTab(wc).id() == tab_id) {
@@ -3323,8 +3340,9 @@ void DaoDreamReportHandler::HandleOpenWeeklyDreamSource(
               return;
             }
 
-            Browser* browser =
-                chrome::FindBrowserWithTab(self->web_ui()->GetWebContents());
+            BrowserWindowInterface* browser =
+                GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
+                    self->web_ui()->GetWebContents());
             if (source->source_kind == "conversation") {
               BrowserView* browser_view =
                   browser ? BrowserView::GetBrowserViewForBrowser(browser)
@@ -3369,8 +3387,9 @@ void DaoDreamReportHandler::HandleOpenWeeklyDreamSource(
                             base::Value("weekly_source_unavailable"));
                         return;
                       }
-                      Browser* browser = chrome::FindBrowserWithTab(
-                          self->web_ui()->GetWebContents());
+                      BrowserWindowInterface* browser =
+                          GlobalBrowserCollection::GetInstance()
+                              ->FindBrowserWithTab(self->web_ui()->GetWebContents());
                       if (!browser) {
                         self->RejectJavascriptCallback(
                             base::Value(callback_id),
@@ -3845,7 +3864,7 @@ void DaoAgentDreamHandler::RegisterMessages() {
 }
 
 void DaoAgentDreamHandler::HandleOpenDreamReport(const base::ListValue& args) {
-  Browser* browser = FindLastActiveBrowserForMigration();
+  BrowserWindowInterface* browser = FindLastActiveBrowserForMigration();
   if (!browser) {
     return;
   }
@@ -4191,7 +4210,7 @@ void DaoAgentSkillHandler::HandleSetSkillDisabled(const base::ListValue& args) {
 }
 
 void DaoAgentSkillHandler::HandleOpenSkillManager(const base::ListValue& args) {
-  Browser* browser = FindLastActiveBrowserForMigration();
+  BrowserWindowInterface* browser = FindLastActiveBrowserForMigration();
   if (!browser) {
     return;
   }

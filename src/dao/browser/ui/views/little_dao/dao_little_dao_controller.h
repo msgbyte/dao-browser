@@ -7,7 +7,7 @@
 
 #include "url/gurl.h"
 
-class Browser;
+class BrowserWindowInterface;
 class Profile;
 
 namespace dao {
@@ -20,16 +20,20 @@ class DaoLittleDaoController {
  public:
   // Creates a Little Dao popup window, navigates to |url|, and returns the
   // created Browser. Returns nullptr when no suitable profile is available.
-  static Browser* OpenInLittleDao(Profile* profile, const GURL& url);
+  static BrowserWindowInterface* OpenInLittleDao(
+      Profile* profile,
+      const GURL& url,
+      bool is_untrusted_launch = false);
 
   // Moves the active tab from |source_browser| into a new Little Dao popup.
   // The moved WebContents keeps its live page state. If |source_browser| only
   // has one tab, a replacement blank tab is left behind so the source browser
   // stays open. Returns the created Little Dao browser, or nullptr on failure.
-  static Browser* ExtractActiveTabToLittleDao(Browser* source_browser);
+  static BrowserWindowInterface* ExtractActiveTabToLittleDao(
+      BrowserWindowInterface* source_browser);
 
   // Returns true if |browser| is a Little Dao window.
-  static bool IsLittleDaoWindow(const Browser* browser);
+  static bool IsLittleDaoWindow(const BrowserWindowInterface* browser);
 
   // Returns true if a Little Dao window is currently being created.
   // Used by BrowserView to detect Little Dao during construction.
@@ -37,7 +41,7 @@ class DaoLittleDaoController {
 
   // Transfers the active WebContents from the Little Dao |browser| to the
   // main tabbed browser window, then closes the Little Dao window.
-  static void TransferToMainBrowser(Browser* little_dao_browser);
+  static void TransferToMainBrowser(BrowserWindowInterface* little_dao_browser);
 };
 
 }  // namespace dao

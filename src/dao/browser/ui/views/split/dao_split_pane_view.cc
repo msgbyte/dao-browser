@@ -9,7 +9,7 @@
 #include "base/functional/bind.h"
 #include "cc/paint/paint_flags.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/tab_contents/chrome_web_contents_view_focus_helper.h"
 #include "content/public/browser/web_contents.h"
@@ -155,10 +155,11 @@ class PaneRearrangeButton : public PaneHeaderButton {
 BEGIN_METADATA(DaoSplitPaneView)
 END_METADATA
 
-DaoSplitPaneView::DaoSplitPaneView(Browser* browser,
+DaoSplitPaneView::DaoSplitPaneView(BrowserWindowInterface* browser,
                                    DaoSplitView* split_view,
                                    int pane_index)
-    : browser_(browser), split_view_(split_view),
+    : browser_(browser),
+      split_view_(split_view),
       glow_animation_(base::Milliseconds(200), 60, this) {
   static_cast<void>(pane_index);
   GetViewAccessibility().SetRole(ax::mojom::Role::kGroup);
@@ -172,7 +173,7 @@ DaoSplitPaneView::DaoSplitPaneView(Browser* browser,
 
   // Create the web contents view.
   contents_web_view_ = AddChildView(
-      std::make_unique<ContentsWebView>(browser->profile()));
+      std::make_unique<ContentsWebView>(browser->GetProfile()));
 
   auto header_container = std::make_unique<views::View>();
   auto* header_layout = header_container->SetLayoutManager(

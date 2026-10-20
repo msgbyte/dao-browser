@@ -1,8 +1,7 @@
-diff --git a/chrome/browser/resources/settings/settings_shared.css b/chrome/browser/resources/settings/settings_shared.css
-index 37ebfb19d5..0000000001 100644
---- a/chrome/browser/resources/settings/settings_shared.css
-+++ b/chrome/browser/resources/settings/settings_shared.css
-@@ -12,6 +12,45 @@
+diff --git a/chrome/browser/resources/settings/settings_shared_lit.css b/chrome/browser/resources/settings/settings_shared_lit.css
+--- a/chrome/browser/resources/settings/settings_shared_lit.css
++++ b/chrome/browser/resources/settings/settings_shared_lit.css
+@@ -13,6 +13,45 @@
  
  /* Common styles for Material Design settings. */
  
@@ -48,27 +47,28 @@ index 37ebfb19d5..0000000001 100644
  /* Prevent action-links from being selected to avoid accidental
   * selection when trying to click it. */
  a[is=action-link] {
-@@ -23,13 +62,14 @@ h2 {
+@@ -22,13 +61,14 @@
+ /* Use <h2> as the "sub-header" mentioned in the UX design docs. */
+ h2 {
    align-items: center;
-   /* TODO(crbug.com/454617005): consider changing to auto */
-   align-self: flex-start;
 -  color: var(--cr-secondary-text-color);
-+  color: var(--dao-settings-text);
-   display: flex;
+-  display: flex;
 -  font-size: inherit;
 -  font-weight: 500;
++  color: var(--dao-settings-text);
++  display: flex;
 +  font-size: 14px;
 +  font-weight: 650;
 +  letter-spacing: -.01em;
    margin: 0;
-   /* TODO(crbug.com/454617005): consider changing to 0 */
--  padding-bottom: 12px;
+-  padding-bottom: 0;
+-  padding-top: 12px;
 +  padding-bottom: 10px;
-   /* TODO(crbug.com/454617005): consider changing to 12px */
--  padding-top: 32px;
 +  padding-top: 30px;
  }
-@@ -138,11 +178,11 @@ iron-list[risk-selection] {
+ 
+ cr-icon,
+@@ -134,13 +174,13 @@
  .list-item {
    align-items: center;
    display: flex;
@@ -82,20 +82,25 @@ index 37ebfb19d5..0000000001 100644
 -  border-bottom: var(--cr-separator-line);
 +  border-bottom: 1px solid var(--dao-settings-border-subtle);
  }
-@@ -189,9 +229,9 @@ iron-list[risk-selection] {
+ 
+ .list-item.selected {
+@@ -184,10 +224,10 @@
+  * setting section (page or subpage). */
  .settings-box {
    align-items: center;
 -  border-top: var(--cr-separator-line);
-+  border-top: 1px solid var(--dao-settings-border-subtle);
-   display: flex;
+-  display: flex;
 -  min-height: var(--cr-section-min-height);
 -  padding: 0 var(--cr-section-padding);
++  border-top: 1px solid var(--dao-settings-border-subtle);
++  display: flex;
 +  min-height: 62px;
 +  padding: 0 18px;
  }
  
  .settings-box.no-padding {
-@@ -213,7 +253,8 @@ iron-list[risk-selection] {
+@@ -208,8 +248,9 @@
+ 
  .settings-box-text {
    box-sizing: border-box;
 -  padding-bottom: var(--cr-section-vertical-padding);
@@ -106,7 +111,7 @@ index 37ebfb19d5..0000000001 100644
  }
  
  /* We use an explicit tag to remove the top border, rather than a
-@@ -360,3 +401,19 @@ h2.first {
+@@ -356,3 +397,19 @@
  .flex {
    flex: 1;
  }

@@ -9,6 +9,7 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <utility>
 
 #include "base/functional/bind.h"
 #include "base/location.h"
@@ -18,9 +19,10 @@
 #include "base/time/time.h"
 #include "cc/paint/paint_flags.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/create_browser_window.h"
+#include "chrome/browser/ui/browser_window/public/desktop_browser_window_capabilities.h"
 #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -40,6 +42,7 @@
 #include "dao/browser/ui/views/split/dao_split_divider_view.h"
 #include "dao/browser/ui/views/split/dao_split_node.h"
 #include "dao/browser/ui/views/split/dao_split_pane_view.h"
+#include "ui/base/base_window.h"
 #include "ui/base/dragdrop/drag_drop_types.h"
 #include "ui/base/dragdrop/mojom/drag_drop_types.mojom.h"
 #include "ui/base/dragdrop/os_exchange_data.h"
@@ -71,7 +74,7 @@ constexpr char kSplitNodeSecondKey[] = "second";
 constexpr char kSplitNodeUrlKey[] = "url";
 constexpr char kSplitNodeTabSessionIdKey[] = "tab_session_id";
 
-void RefreshSplitLayout(Browser* browser, views::View* view) {
+void RefreshSplitLayout(BrowserWindowInterface* browser, views::View* view) {
   if (view->parent()) {
     view->parent()->InvalidateLayout();
   }
@@ -102,12 +105,13 @@ void CollectLeafContents(DaoSplitNode* node,
   }
 }
 
-std::string SplitLayoutStorageKey(Browser* browser) {
-  return browser ? base::NumberToString(browser->session_id().id())
+std::string SplitLayoutStorageKey(BrowserWindowInterface* browser) {
+  return browser ? base::NumberToString(browser->GetSessionID().id())
                  : std::string();
 }
 
-Browser* FindBrowserBySessionId(Profile* profile, int session_id) {
+BrowserWindowInterface* FindBrowserBySessionId(Profile* profile,
+                                               int session_id) {
   ProfileBrowserCollection* collection =
       ProfileBrowserCollection::GetForProfile(profile);
   if (!collection) {
@@ -116,7 +120,7 @@ Browser* FindBrowserBySessionId(Profile* profile, int session_id) {
 
   BrowserWindowInterface* browser = collection->FindBrowserWithID(
       SessionID::FromSerializedValue(session_id));
-  return browser ? browser->GetBrowserForMigrationOnly() : nullptr;
+  return browser;
 }
 
 content::WebContents* FindTabBySessionId(
@@ -262,9 +266,8 @@ DaoSplitView::SplitGroupSummary& DaoSplitView::SplitGroupSummary::operator=(
 DaoSplitView::SplitGroup::SplitGroup() = default;
 DaoSplitView::SplitGroup::~SplitGroup() = default;
 
-DaoSplitView::DaoSplitView(Browser* browser)
-    : browser_(browser),
-      tab_strip_model_(browser->tab_strip_model()) {
+DaoSplitView::DaoSplitView(BrowserWindowInterface* browser)
+    : browser_(browser), tab_strip_model_(browser->tab_strip_model()) {
   tab_strip_model_->AddObserver(this);
 
   // Create the drop zone overlay (always present, usually hidden).
@@ -281,7 +284,7 @@ DaoSplitView::DaoSplitView(Browser* browser)
   SetPaintToLayer();
   layer()->SetFillsBoundsOpaquely(false);
 
-  if (browser_->is_session_restore()) {
+  if (browser_->CreatedBySessionRestore()) {
     base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, base::BindOnce(&DaoSplitView::RestoreLayout,
                                   weak_factory_.GetWeakPtr()));
@@ -298,7 +301,7 @@ DaoSplitView::~DaoSplitView() {
 void DaoSplitView::SetTabDragActive(bool active) {
   LOG(ERROR) << "[Dao-Xwin] SetTabDragActive(" << active
              << ") browser_sessionId="
-             << (browser_ ? browser_->session_id().id() : -1);
+             << (browser_ ? browser_->GetSessionID().id() : -1);
   if (active) {
     SyncSinglePaneRootWithActiveTab();
     dao::ArmTabDragWatchdog();
@@ -798,16 +801,19 @@ bool DaoSplitView::PopOutPane(content::WebContents* web_contents) {
     return false;
   }
 
-  Browser::CreateParams params(browser_->profile(), /*user_gesture=*/true);
-  Browser* new_browser = Browser::Create(params);
+  BrowserWindowCreateParams params(browser_->GetProfile(),
+                                   /*user_gesture=*/true);
+  BrowserWindowInterface* created_window =
+      CreateBrowserWindow(std::move(params));
+  BrowserWindowInterface* new_browser = created_window;
   if (!new_browser) {
     return false;
   }
 
-  new_browser->window()->Show();
+  new_browser->GetWindow()->Show();
   new_browser->tab_strip_model()->InsertWebContentsAt(
       -1, std::move(detached_contents), AddTabTypes::ADD_ACTIVE);
-  new_browser->window()->Activate();
+  new_browser->GetWindow()->Activate();
   return true;
 }
 
@@ -884,14 +890,14 @@ void DaoSplitView::EnsureAllPanesShown() {
 }
 
 void DaoSplitView::SaveLayout() {
-  if (!browser_ || !browser_->profile())
+  if (!browser_ || !browser_->GetProfile())
     return;
   if ((tab_strip_model_ && tab_strip_model_->closing_all()) ||
-      browser_->IsAttemptingToCloseBrowser()) {
+      browser_->capabilities()->IsAttemptingToCloseBrowser()) {
     return;
   }
 
-  PrefService* prefs = browser_->profile()->GetPrefs();
+  PrefService* prefs = browser_->GetProfile()->GetPrefs();
   if (!prefs)
     return;
 
@@ -920,12 +926,12 @@ void DaoSplitView::SaveLayout() {
 }
 
 void DaoSplitView::RestoreLayout() {
-  if (!browser_ || !browser_->profile() || !tab_strip_model_)
+  if (!browser_ || !browser_->GetProfile() || !tab_strip_model_)
     return;
   if (!split_groups_.empty())
     return;
 
-  PrefService* prefs = browser_->profile()->GetPrefs();
+  PrefService* prefs = browser_->GetProfile()->GetPrefs();
   if (!prefs)
     return;
 
@@ -1046,7 +1052,7 @@ void DaoSplitView::OnTabStripModelChanged(
     const TabStripSelectionChange& selection) {
   if (change.type() == TabStripModelChange::kRemoved) {
     if (tab_strip_model->closing_all() ||
-        (browser_ && browser_->IsAttemptingToCloseBrowser())) {
+        (browser_ && browser_->capabilities()->IsAttemptingToCloseBrowser())) {
       return;
     }
 
@@ -1059,7 +1065,7 @@ void DaoSplitView::OnTabStripModelChanged(
   }
 
   SyncSinglePaneRootWithActiveTab();
-  if (split_groups_.empty() && browser_ && browser_->is_session_restore()) {
+  if (split_groups_.empty() && browser_ && browser_->CreatedBySessionRestore()) {
     RestoreLayout();
   }
 
@@ -1292,12 +1298,12 @@ bool DaoSplitView::ProcessNativeTabDrop(const gfx::Point& location_in_view,
   }
 
   // Resolve source browser. Same-window when it matches ours.
-  Browser* source_browser = browser_;
+  BrowserWindowInterface* source_browser = browser_;
   bool is_cross_window = false;
-  if (static_cast<int>(browser_->session_id().id()) != source_sid) {
+  if (static_cast<int>(browser_->GetSessionID().id()) != source_sid) {
     is_cross_window = true;
     source_browser =
-        FindBrowserBySessionId(browser_->profile(), source_sid);
+        FindBrowserBySessionId(browser_->GetProfile(), source_sid);
     if (!source_browser) {
       return false;
     }
@@ -1398,8 +1404,8 @@ void DaoSplitView::OnDrop(
   const std::string prefix = kDaoTabDragPrefix;
   if (payload.starts_with(prefix) &&
       payload.find(':', prefix.size()) == std::string::npos) {
-    payload = prefix + base::NumberToString(browser_->session_id().id()) + ":" +
-              payload.substr(prefix.size());
+    payload = prefix + base::NumberToString(browser_->GetSessionID().id()) +
+              ":" + payload.substr(prefix.size());
   }
   if (ProcessNativeTabDrop(event.location(), payload)) {
     output_drag_op = ui::mojom::DragOperation::kMove;

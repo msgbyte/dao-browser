@@ -40,11 +40,10 @@
 #include "chrome/browser/sessions/session_service_factory.h"
 #include "chrome/browser/tab_list/tab_removed_reason.h"
 #include "chrome/browser/ui/accelerator_utils.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/desktop_browser_window_capabilities.h"
 #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "chrome/browser/ui/navigator/browser_navigator.h"
 #include "chrome/browser/ui/navigator/browser_navigator_params.h"
@@ -95,6 +94,7 @@
 #include "dao/browser/updater/dao_updater_service.h"
 #include "services/network/public/mojom/content_security_policy.mojom.h"
 #include "ui/base/accelerators/accelerator.h"
+#include "ui/base/base_window.h"
 #include "ui/base/clipboard/scoped_clipboard_writer.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
@@ -318,7 +318,8 @@ double GetLastActiveTimeMs(content::WebContents* contents) {
   return last_active_time.InMillisecondsFSinceUnixEpoch();
 }
 
-content::WebContents* GetWebContentsAt(Browser* browser, int tab_index) {
+content::WebContents* GetWebContentsAt(BrowserWindowInterface* browser,
+                                       int tab_index) {
   if (!browser || tab_index < 0) {
     return nullptr;
   }
@@ -525,7 +526,7 @@ gfx::ImageSkia GetTabHoverPreview(TabStripModel* model, int index) {
     return gfx::ImageSkia();
   }
   content::WebContents* contents = model->GetWebContentsAt(index);
-  auto* const helper = ThumbnailTabHelper::FromWebContents(contents);
+  auto* const helper = ThumbnailTabHelper::From(model->GetTabAtIndex(index));
   if (!helper || contents->GetVisibility() == content::Visibility::VISIBLE) {
     return gfx::ImageSkia();
   }
@@ -635,7 +636,7 @@ DaoSidebarUIHandler::~DaoSidebarUIHandler() {
   }
 }
 
-void DaoSidebarUIHandler::SetBrowser(Browser* browser) {
+void DaoSidebarUIHandler::SetBrowser(BrowserWindowInterface* browser) {
   const bool browser_changed = browser_ != browser;
   if (browser_changed) {
     UnregisterPinnedItemsProfileHandler();
@@ -670,7 +671,7 @@ void DaoSidebarUIHandler::SetBrowser(Browser* browser) {
     // Split callback is wired lazily in HandleGetInitialState because
     // BrowserView may not be ready when SetBrowser is called.
     // Initialize download observer.
-    auto* profile = browser_->profile();
+    auto* profile = browser_->GetProfile();
     if (profile) {
       session_restore_completed_ =
           profile->IsOffTheRecord() || profile->IsGuestSession() ||
@@ -697,7 +698,7 @@ void DaoSidebarUIHandler::SetBrowser(Browser* browser) {
                   if (!self || !self->browser_) {
                     return;
                   }
-                  Profile* profile = self->browser_->profile();
+                  Profile* profile = self->browser_->GetProfile();
                   if (profile && profile->GetPrefs()->GetBoolean(
                                      prefs::kDaoWelcomeShown)) {
                     return;
@@ -1086,7 +1087,7 @@ void DaoSidebarUIHandler::OnTabStripModelChanged(
       saw_web_contents_replacement_ = true;
     }
   } else if (change.type() == TabStripModelChange::kRemoved &&
-             browser_ && !browser_->IsAttemptingToCloseBrowser()) {
+             browser_ && !browser_->capabilities()->IsAttemptingToCloseBrowser()) {
     const TabStripModelChange::Remove* removed = change.GetRemove();
     if (removed) {
       for (const TabStripModelChange::RemovedTab& removed_tab :
@@ -1161,7 +1162,7 @@ void DaoSidebarUIHandler::OnTabStripModelChanged(
 
 void DaoSidebarUIHandler::SelectNonStaleTab(
     std::string expected_stale_tab_id) {
-  if (!browser_ || browser_->IsAttemptingToCloseBrowser()) {
+  if (!browser_ || browser_->capabilities()->IsAttemptingToCloseBrowser()) {
     return;
   }
 
@@ -1190,12 +1191,11 @@ void DaoSidebarUIHandler::SelectNonStaleTab(
 }
 
 void DaoSidebarUIHandler::OnTabChangedAt(tabs::TabInterface* tab,
-                                         int index,
                                          TabChangeType change_type) {
-  if (!IsJavascriptAllowed()) {
+  if (!IsJavascriptAllowed() || !browser_) {
     return;
   }
-  PushTabUpdate(index);
+  PushTabUpdate(browser_->tab_strip_model()->GetIndexOfTab(tab));
 }
 
 void DaoSidebarUIHandler::OnTabPinnedStateChanged(tabs::TabInterface* tab,
@@ -1327,7 +1327,7 @@ base::DictValue DaoSidebarUIHandler::BuildSidebarState() {
   state.Set("pinnedItems", BuildPinnedItems());
   state.Set("unpinnedTabs", std::move(unpinned_tabs));
   state.Set("activeIndex", model->active_index());
-  state.Set("sessionId", static_cast<int>(browser_->session_id().id()));
+  state.Set("sessionId", static_cast<int>(browser_->GetSessionID().id()));
   if (!pending_scroll_target_tab_id_.empty()) {
     state.Set("scrollTargetTabId", pending_scroll_target_tab_id_);
   }
@@ -1386,7 +1386,7 @@ bool DaoSidebarUIHandler::ReconcilePinnedItems(bool restore_complete) {
 
   std::vector<RuntimePinnedTab> runtime_tabs;
   auto append_runtime_tabs =
-      [&runtime_tabs](Browser* candidate_browser) {
+      [&runtime_tabs](BrowserWindowInterface* candidate_browser) {
         if (!candidate_browser) {
           return;
         }
@@ -1406,12 +1406,10 @@ bool DaoSidebarUIHandler::ReconcilePinnedItems(bool restore_complete) {
       };
   append_runtime_tabs(browser_);
   if (ProfileBrowserCollection* collection =
-          ProfileBrowserCollection::GetForProfile(browser_->profile())) {
+          ProfileBrowserCollection::GetForProfile(browser_->GetProfile())) {
     collection->ForEach(
-        [this, &append_runtime_tabs](
-            BrowserWindowInterface* browser_window) {
-          Browser* candidate =
-              browser_window->GetBrowserForMigrationOnly();
+        [this, &append_runtime_tabs](BrowserWindowInterface* browser_window) {
+          BrowserWindowInterface* candidate = browser_window;
           if (candidate != browser_) {
             append_runtime_tabs(candidate);
           }
@@ -1527,64 +1525,59 @@ bool DaoSidebarUIHandler::ReconcilePinnedItems(bool restore_complete) {
   return changed;
 }
 
-std::pair<Browser*, int> DaoSidebarUIHandler::FindOpenPinnedTabForItem(
+std::pair<BrowserWindowInterface*, int>
+DaoSidebarUIHandler::FindOpenPinnedTabForItem(
     const DaoPinnedTabItem& item) const {
   if (!browser_ || item.backing_tab_id.empty()) {
     return {nullptr, -1};
   }
 
-  auto find_in_browser =
-      [&item](Browser* candidate_browser) {
-        if (!candidate_browser) {
-          return -1;
-        }
-        TabStripModel* candidate_model =
-            candidate_browser->tab_strip_model();
-        for (int i = 0; i < candidate_model->count(); ++i) {
-          if (!candidate_model->IsTabPinned(i)) {
-            continue;
-          }
-          content::WebContents* contents =
-              candidate_model->GetWebContentsAt(i);
-          if (contents &&
-              GetSidebarTabId(contents) == item.backing_tab_id) {
-            return i;
-          }
-        }
-        return -1;
-      };
+  auto find_in_browser = [&item](BrowserWindowInterface* candidate_browser) {
+    if (!candidate_browser) {
+      return -1;
+    }
+    TabStripModel* candidate_model = candidate_browser->tab_strip_model();
+    for (int i = 0; i < candidate_model->count(); ++i) {
+      if (!candidate_model->IsTabPinned(i)) {
+        continue;
+      }
+      content::WebContents* contents = candidate_model->GetWebContentsAt(i);
+      if (contents && GetSidebarTabId(contents) == item.backing_tab_id) {
+        return i;
+      }
+    }
+    return -1;
+  };
 
   int index = find_in_browser(browser_);
   if (index >= 0) {
     return {browser_, index};
   }
 
-  Browser* found_browser = nullptr;
+  BrowserWindowInterface* found_browser = nullptr;
   int found_index = -1;
   if (ProfileBrowserCollection* collection =
-          ProfileBrowserCollection::GetForProfile(browser_->profile())) {
-    collection->ForEach(
-        [this, &find_in_browser, &found_browser, &found_index](
-            BrowserWindowInterface* browser_window) {
-          Browser* candidate =
-              browser_window->GetBrowserForMigrationOnly();
-          if (candidate == browser_) {
-            return true;
-          }
-          const int candidate_index = find_in_browser(candidate);
-          if (candidate_index >= 0) {
-            found_browser = candidate;
-            found_index = candidate_index;
-            return false;
-          }
-          return true;
-        });
+          ProfileBrowserCollection::GetForProfile(browser_->GetProfile())) {
+    collection->ForEach([this, &find_in_browser, &found_browser,
+                         &found_index](BrowserWindowInterface* browser_window) {
+      BrowserWindowInterface* candidate = browser_window;
+      if (candidate == browser_) {
+        return true;
+      }
+      const int candidate_index = find_in_browser(candidate);
+      if (candidate_index >= 0) {
+        found_browser = candidate;
+        found_index = candidate_index;
+        return false;
+      }
+      return true;
+    });
   }
   return {found_browser, found_index};
 }
 
 void DaoSidebarUIHandler::RegisterPinnedItemsProfileHandler() {
-  Profile* profile = browser_ ? browser_->profile() : nullptr;
+  Profile* profile = browser_ ? browser_->GetProfile() : nullptr;
   if (!profile) {
     return;
   }
@@ -1595,7 +1588,7 @@ void DaoSidebarUIHandler::RegisterPinnedItemsProfileHandler() {
 }
 
 void DaoSidebarUIHandler::UnregisterPinnedItemsProfileHandler() {
-  Profile* profile = browser_ ? browser_->profile() : nullptr;
+  Profile* profile = browser_ ? browser_->GetProfile() : nullptr;
   if (!profile) {
     return;
   }
@@ -1612,7 +1605,7 @@ void DaoSidebarUIHandler::UnregisterPinnedItemsProfileHandler() {
 }
 
 bool DaoSidebarUIHandler::AdoptPinnedItemsFromProfileState() {
-  Profile* profile = browser_ ? browser_->profile() : nullptr;
+  Profile* profile = browser_ ? browser_->GetProfile() : nullptr;
   if (!profile) {
     return false;
   }
@@ -1633,7 +1626,7 @@ bool DaoSidebarUIHandler::AdoptPinnedItemsFromProfileState() {
 }
 
 void DaoSidebarUIHandler::PublishPinnedItemsToProfileHandlers() {
-  Profile* profile = browser_ ? browser_->profile() : nullptr;
+  Profile* profile = browser_ ? browser_->GetProfile() : nullptr;
   if (!profile) {
     return;
   }
@@ -1643,7 +1636,7 @@ void DaoSidebarUIHandler::PublishPinnedItemsToProfileHandlers() {
   state.json = pinned_tab_model_.ToJson();
   for (DaoSidebarUIHandler* handler : state.handlers) {
     if (handler == this || !handler->browser_ ||
-        handler->browser_->profile() != profile) {
+        handler->browser_->GetProfile() != profile) {
       continue;
     }
     if (!handler->pinned_tab_model_.LoadFromJson(state.json)) {
@@ -1681,7 +1674,7 @@ void DaoSidebarUIHandler::LoadPinnedItemsThenPushFullState() {
     return;
   }
 
-  Profile* profile = browser_ ? browser_->profile() : nullptr;
+  Profile* profile = browser_ ? browser_->GetProfile() : nullptr;
   base::FilePath path = GetPinnedTabsFilePath(profile);
   if (path.empty()) {
     pinned_items_auto_save_enabled_ = true;
@@ -1738,7 +1731,7 @@ void DaoSidebarUIHandler::LoadPinnedItemsThenPushFullState() {
 void DaoSidebarUIHandler::SavePinnedItems() {
   PublishPinnedItemsToProfileHandlers();
 
-  Profile* profile = browser_ ? browser_->profile() : nullptr;
+  Profile* profile = browser_ ? browser_->GetProfile() : nullptr;
   base::FilePath path = GetPinnedTabsFilePath(profile);
   if (path.empty()) {
     return;
@@ -1760,7 +1753,7 @@ void DaoSidebarUIHandler::SavePinnedItems() {
 
 void DaoSidebarUIHandler::OnSessionRestoreDone(Profile* profile,
                                                int /*num_tabs_restored*/) {
-  if (!browser_ || browser_->profile() != profile) {
+  if (!browser_ || browser_->GetProfile() != profile) {
     return;
   }
   session_restore_completed_ = true;
@@ -1771,7 +1764,7 @@ void DaoSidebarUIHandler::OnSessionRestoreDone(Profile* profile,
 
 bool DaoSidebarUIHandler::IsPinnedSessionRestoreComplete() const {
   return browser_ && session_restore_completed_ &&
-         !SessionRestore::IsRestoring(browser_->profile());
+         !SessionRestore::IsRestoring(browser_->GetProfile());
 }
 
 void DaoSidebarUIHandler::PersistBackingIdentity(
@@ -1782,7 +1775,7 @@ void DaoSidebarUIHandler::PersistBackingIdentity(
   sessions::SessionTabHelper* session_tab_helper =
       sessions::SessionTabHelper::FromWebContents(contents);
   SessionService* session_service =
-      SessionServiceFactory::GetForProfile(browser_->profile());
+      SessionServiceFactory::GetForProfile(browser_->GetProfile());
   if (!session_tab_helper || !session_service) {
     return;
   }
@@ -1816,7 +1809,7 @@ void DaoSidebarUIHandler::RecordPinnedActivationResult(
             << " web_contents_replaced="
             << (saw_web_contents_replacement_ ? 1 : 0)
             << " session_restore="
-            << (browser_ && SessionRestore::IsRestoring(browser_->profile())
+            << (browser_ && SessionRestore::IsRestoring(browser_->GetProfile())
                     ? 1
                     : 0)
             << " result=" << result;
@@ -1875,7 +1868,7 @@ void DaoSidebarUIHandler::UnpinPinnedItemById(std::string id,
 
     if (target_index >= 0 && contents) {
       if (open_browser != browser_) {
-        const int source_session_id = open_browser->session_id().id();
+        const int source_session_id = open_browser->GetSessionID().id();
         const int source_index = model->GetIndexOfWebContents(contents);
         if (source_index == TabStripModel::kNoTab ||
             !ExecuteCrossWindowTabMove(browser_, source_session_id,
@@ -1952,8 +1945,8 @@ void DaoSidebarUIHandler::ActivateOrOpenPinnedItem(const std::string& id) {
       FindOpenPinnedTabForItem(*item);
   if (open_browser) {
     open_browser->tab_strip_model()->ActivateTabAt(open_tab_index);
-    if (open_browser->window()) {
-      open_browser->window()->Activate();
+    if (open_browser->GetWindow()) {
+      open_browser->GetWindow()->Activate();
     }
     RecordPinnedActivationResult(*item, prior_state, "backing_tab_id",
                                  tab_count_before, "activated_existing");
@@ -2135,7 +2128,7 @@ void DaoSidebarUIHandler::HandleGetInitialState(const base::ListValue& args) {
   // after it, the WebUI controller wasn't bound yet and the call was
   // silently dropped. Resolve the owning Browser from WebContents here.
   if (!browser_) {
-    if (Browser* b =
+    if (BrowserWindowInterface* b =
             GetBrowserForSidebarWebContents(web_ui()->GetWebContents())) {
       SetBrowser(b);
     }
@@ -2440,7 +2433,7 @@ base::ListValue DaoSidebarUIHandler::BuildActiveDownloadList() {
   if (!browser_) {
     return active;
   }
-  auto* profile = browser_->profile();
+  auto* profile = browser_->GetProfile();
   if (!profile) {
     return active;
   }
@@ -2487,7 +2480,7 @@ void DaoSidebarUIHandler::PushDownloadState() {
     return;
   }
 
-  DownloadPrefs* prefs = DownloadPrefs::FromBrowserContext(browser_->profile());
+  DownloadPrefs* prefs = DownloadPrefs::FromBrowserContext(browser_->GetProfile());
   base::FilePath download_dir = prefs->DownloadPath();
 
   base::ThreadPool::PostTaskAndReplyWithResult(
@@ -2607,8 +2600,8 @@ void DaoSidebarUIHandler::HandleOpenDownloadsFolder(
   if (!browser_) {
     return;
   }
-  DownloadPrefs* prefs = DownloadPrefs::FromBrowserContext(browser_->profile());
-  platform_util::OpenItem(browser_->profile(), prefs->DownloadPath(),
+  DownloadPrefs* prefs = DownloadPrefs::FromBrowserContext(browser_->GetProfile());
+  platform_util::OpenItem(browser_->GetProfile(), prefs->DownloadPath(),
                           platform_util::OPEN_FOLDER,
                           platform_util::OpenOperationCallback());
 }
@@ -2621,7 +2614,7 @@ void DaoSidebarUIHandler::HandleOpenRecentFile(const base::ListValue& args) {
   if (index < 0 || index >= static_cast<int>(recent_file_paths_.size())) {
     return;
   }
-  platform_util::OpenItem(browser_->profile(), recent_file_paths_[index],
+  platform_util::OpenItem(browser_->GetProfile(), recent_file_paths_[index],
                           platform_util::OPEN_FILE,
                           platform_util::OpenOperationCallback());
 }
@@ -2635,7 +2628,7 @@ void DaoSidebarUIHandler::HandleOpenDownload(const base::ListValue& args) {
     return;
   }
 
-  auto* profile = browser_->profile();
+  auto* profile = browser_->GetProfile();
   auto* manager = profile ? profile->GetDownloadManager() : nullptr;
   download::DownloadItem* item =
       manager ? manager->GetDownload(static_cast<uint32_t>(id)) : nullptr;
@@ -2655,7 +2648,7 @@ void DaoSidebarUIHandler::HandleCancelDownload(const base::ListValue& args) {
     return;
   }
 
-  auto* profile = browser_->profile();
+  auto* profile = browser_->GetProfile();
   if (!profile) {
     return;
   }
@@ -2694,7 +2687,7 @@ void DaoSidebarUIHandler::HandleStartDownloadDrag(const base::ListValue& args) {
     return;
   }
 
-  auto* profile = browser_->profile();
+  auto* profile = browser_->GetProfile();
   auto* manager = profile ? profile->GetDownloadManager() : nullptr;
   download::DownloadItem* item =
       manager ? manager->GetDownload(static_cast<uint32_t>(id)) : nullptr;
@@ -2726,16 +2719,15 @@ void DaoSidebarUIHandler::HandleTabDragActive(const base::ListValue& args) {
   // Activate/deactivate tab drag on ALL windows' split views so any
   // window can receive the cross-window drop.
   if (ProfileBrowserCollection* collection =
-          ProfileBrowserCollection::GetForProfile(browser_->profile())) {
-    collection->ForEach(
-        [active](BrowserWindowInterface* browser_window) {
-          BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(
-              browser_window->GetBrowserForMigrationOnly());
-          if (browser_view && browser_view->dao_split_view()) {
-            browser_view->dao_split_view()->SetTabDragActive(active);
-          }
-          return true;
-        });
+          ProfileBrowserCollection::GetForProfile(browser_->GetProfile())) {
+    collection->ForEach([active](BrowserWindowInterface* browser_window) {
+      BrowserView* browser_view =
+          BrowserView::GetBrowserViewForBrowser(browser_window);
+      if (browser_view && browser_view->dao_split_view()) {
+        browser_view->dao_split_view()->SetTabDragActive(active);
+      }
+      return true;
+    });
   }
   if (!active && IsJavascriptAllowed()) {
     PushFullState();
@@ -2744,7 +2736,7 @@ void DaoSidebarUIHandler::HandleTabDragActive(const base::ListValue& args) {
 
 void DaoSidebarUIHandler::OnTabDragEnded(std::string tab_id,
                                          const gfx::Point& screen_point) {
-  if (!browser_ || browser_->window()->GetBounds().Contains(screen_point)) {
+  if (!browser_ || browser_->GetWindow()->GetBounds().Contains(screen_point)) {
     return;
   }
   DetachTabToNewWindow(browser_, tab_id, screen_point);
@@ -2818,8 +2810,8 @@ void DaoSidebarUIHandler::HandleClassifyTabs(const base::ListValue& args) {
     FireWebUIListener(callback, result);
   };
   if (!browser_ || classification_in_progress_ ||
-      browser_->profile()->IsOffTheRecord() ||
-      browser_->profile()->IsGuestSession() || !args[1].is_list() ||
+      browser_->GetProfile()->IsOffTheRecord() ||
+      browser_->GetProfile()->IsGuestSession() || !args[1].is_list() ||
       !args[2].is_list() || args[1].GetList().empty() ||
       args[1].GetList().size() > 1000 || args[2].GetList().size() > 500) {
     fail();
@@ -2864,7 +2856,7 @@ void DaoSidebarUIHandler::HandleClassifyTabs(const base::ListValue& args) {
   classification_tab_urls_ = std::move(tab_urls);
   const uint64_t generation = ++classification_generation_;
   DaoAgentSettingsHandler::ClassifyTabs(
-      browser_->profile(), std::move(request),
+      browser_->GetProfile(), std::move(request),
       base::BindOnce(
           [](base::WeakPtr<DaoSidebarUIHandler> self, std::string callback,
              uint64_t generation, base::DictValue result) {
@@ -2888,8 +2880,8 @@ void DaoSidebarUIHandler::HandleSaveClassifiedFolders(
     return;
   }
   AllowJavascript();
-  if (browser_->profile()->IsOffTheRecord() ||
-      browser_->profile()->IsGuestSession()) {
+  if (browser_->GetProfile()->IsOffTheRecord() ||
+      browser_->GetProfile()->IsGuestSession()) {
     FireWebUIListener(args[0].GetString(), base::Value(false));
     return;
   }
@@ -2909,7 +2901,7 @@ void DaoSidebarUIHandler::HandleSaveClassifiedFolders(
     FireWebUIListener(args[0].GetString(), base::Value(false));
     return;
   }
-  const auto path = browser_->profile()->GetPath().AppendASCII("dao_folders.json");
+  const auto path = browser_->GetProfile()->GetPath().AppendASCII("dao_folders.json");
   GetFolderFileTaskRunner()->PostTaskAndReplyWithResult(
       FROM_HERE, base::BindOnce(&UpdateFolderFileIfUnchanged, path,
                                args[2].GetString(), args[1].GetString()),
@@ -2925,7 +2917,7 @@ void DaoSidebarUIHandler::HandleSaveClassifiedFolders(
               self->FireWebUIListener(callback, base::Value(success));
             }
           },
-          weak_factory_.GetWeakPtr(), browser_->profile()->GetWeakPtr(),
+          weak_factory_.GetWeakPtr(), browser_->GetProfile()->GetWeakPtr(),
           args[0].GetString(), classification_generation_));
 }
 
@@ -2959,7 +2951,7 @@ void DaoSidebarUIHandler::HandleLoadFolders(const base::ListValue& args) {
   }
   const std::string callback_id = args[0].GetString();
 
-  Profile* profile = browser_ ? browser_->profile() : Profile::FromWebUI(web_ui());
+  Profile* profile = browser_ ? browser_->GetProfile() : Profile::FromWebUI(web_ui());
   if (profile->IsOffTheRecord()) {
     FireWebUIListener(callback_id, base::Value(*ReadFolderData(profile)));
     return;
@@ -2984,7 +2976,7 @@ void DaoSidebarUIHandler::HandleSaveFolders(const base::ListValue& args) {
   if (args.size() != 2 || !args[0].is_string() || !args[1].is_string()) {
     return;
   }
-  Profile* profile = browser_ ? browser_->profile() : Profile::FromWebUI(web_ui());
+  Profile* profile = browser_ ? browser_->GetProfile() : Profile::FromWebUI(web_ui());
   if (profile->IsOffTheRecord()) {
     UpdateFolderData(profile, args[1].GetString(), args[0].GetString());
     NotifyFolderDataChanged(profile);
@@ -3001,7 +2993,7 @@ void DaoSidebarUIHandler::HandleSaveFolders(const base::ListValue& args) {
               LOG(ERROR) << "Failed to save Dao folders";
             }
             if (self && self->browser_) {
-              NotifyFolderDataChanged(self->browser_->profile());
+              NotifyFolderDataChanged(self->browser_->GetProfile());
             }
           },
           weak_factory_.GetWeakPtr()));
@@ -3088,8 +3080,8 @@ void DaoSidebarUIHandler::HandleShowTabContextMenu(
   PrefService* local_state = g_browser_process->local_state();
   if (DaoMcpService::IsSupported() && local_state &&
       local_state->GetBoolean(prefs::kDaoMcpServerEnabled) &&
-      !browser_->profile()->IsOffTheRecord() &&
-      !browser_->profile()->IsGuestSession()) {
+      !browser_->GetProfile()->IsOffTheRecord() &&
+      !browser_->GetProfile()->IsGuestSession()) {
     tab_context_menu_model_->AddItem(
         kCopyTabId,
         l10n_util::GetStringUTF16(IDS_DAO_TAB_CONTEXT_COPY_TAB_ID));
@@ -3122,9 +3114,9 @@ void DaoSidebarUIHandler::HandleShowTabContextMenu(
   organize_tabs_menu_model_->AddItem(
       kMoveStaleTabsToFolder,
       l10n_util::GetStringUTF16(IDS_DAO_SIDEBAR_CONTEXT_MOVE_STALE_TABS));
-  if (!browser_->profile()->IsOffTheRecord() &&
-      !browser_->profile()->IsGuestSession() &&
-      IsDaoTabClassificationConfigured(browser_->profile()->GetPrefs())) {
+  if (!browser_->GetProfile()->IsOffTheRecord() &&
+      !browser_->GetProfile()->IsGuestSession() &&
+      IsDaoTabClassificationConfigured(browser_->GetProfile()->GetPrefs())) {
     organize_tabs_menu_model_->AddSeparator(ui::NORMAL_SEPARATOR);
     organize_tabs_menu_model_->AddItem(
         kClassifyTabs, l10n_util::GetStringUTF16(IDS_DAO_CLASSIFY_TABS));
@@ -3415,7 +3407,7 @@ void DaoSidebarUIHandler::HandleShowTabTooltip(const base::ListValue& args) {
 
 void DaoSidebarUIHandler::HandleShowTabPreview(const base::ListValue& args) {
   if (!browser_ || args.size() != 4 ||
-      !dao::IsTabHoverPreviewEnabled(browser_->profile())) {
+      !dao::IsTabHoverPreviewEnabled(browser_->GetProfile())) {
     return;
   }
   const std::optional<int> screen_x = args[0].GetIfInt();
@@ -3763,9 +3755,9 @@ void DaoSidebarUIHandler::HandleShowSidebarContextMenu(
   tab_context_menu_model_->AddItem(
       kMoveStaleTabsToFolder,
       l10n_util::GetStringUTF16(IDS_DAO_SIDEBAR_CONTEXT_MOVE_STALE_TABS));
-  if (!browser_->profile()->IsOffTheRecord() &&
-      !browser_->profile()->IsGuestSession() &&
-      IsDaoTabClassificationConfigured(browser_->profile()->GetPrefs())) {
+  if (!browser_->GetProfile()->IsOffTheRecord() &&
+      !browser_->GetProfile()->IsGuestSession() &&
+      IsDaoTabClassificationConfigured(browser_->GetProfile()->GetPrefs())) {
     tab_context_menu_model_->AddItem(
         kClassifyTabs, l10n_util::GetStringUTF16(IDS_DAO_CLASSIFY_TABS));
     if (context_menu_tab_index_ >= 0) {
@@ -3868,7 +3860,7 @@ views::Widget* DaoSidebarUIHandler::ShowDeleteFolderDialog(
 
   views::Widget* widget =
       constrained_window::CreateBrowserModalDialogViews(
-          std::move(dialog), browser_->window()->GetNativeWindow());
+          std::move(dialog), browser_->GetWindow()->GetNativeWindow());
   widget->Show();
   return widget;
 }
@@ -3967,7 +3959,7 @@ int DaoSidebarUIHandler::CloseDuplicateTabs() {
                            &DaoSidebarUIHandler::OnDuplicateTabsClosed,
                            weak_factory_.GetWeakPtr())));
   for (int index : to_close) {
-    if (model->IsTabClosable(index)) {
+    if (model->IsTabClosable(model->GetTabAtIndex(index))) {
       duplicate_tab_close_observers_.push_back(
           std::make_unique<DuplicateTabCloseObserver>(
               model->GetWebContentsAt(index), on_closed));
@@ -3982,7 +3974,7 @@ int DaoSidebarUIHandler::CloseDuplicateTabs() {
 
 void DaoSidebarUIHandler::OnDuplicateTabsClosed(std::vector<bool> closed) {
   duplicate_tab_close_observers_.clear();
-  if (!browser_ || browser_->IsAttemptingToCloseBrowser()) {
+  if (!browser_ || browser_->capabilities()->IsAttemptingToCloseBrowser()) {
     return;
   }
   auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser_);
@@ -4008,9 +4000,9 @@ bool DaoSidebarUIHandler::IsCommandIdEnabled(int command_id) const {
   }
   if (command_id == kClassifyTabs || command_id == kClassifyTabsBelow) {
     return !classification_in_progress_ &&
-           !browser_->profile()->IsOffTheRecord() &&
-           !browser_->profile()->IsGuestSession() &&
-           IsDaoTabClassificationConfigured(browser_->profile()->GetPrefs()) &&
+           !browser_->GetProfile()->IsOffTheRecord() &&
+           !browser_->GetProfile()->IsGuestSession() &&
+           IsDaoTabClassificationConfigured(browser_->GetProfile()->GetPrefs()) &&
            (command_id == kClassifyTabs ||
             ResolveDraggedTabIndex(browser_, -1, context_menu_tab_id_) >= 0);
   }
@@ -4182,7 +4174,7 @@ void DaoSidebarUIHandler::ExecuteCommand(int command_id, int event_flags) {
 
   if (command_id == kMoveStaleTabsToFolder) {
     if (IsJavascriptAllowed()) {
-      const int expiration_hours = browser_->profile()->GetPrefs()->GetInteger(
+      const int expiration_hours = browser_->GetProfile()->GetPrefs()->GetInteger(
           prefs::kDaoStaleTabExpirationHours);
       FireWebUIListener("moveStaleTabsRequested",
                         base::Value(expiration_hours));
@@ -4383,7 +4375,7 @@ DaoSidebarUI::DaoSidebarUI(content::WebUI* web_ui) : WebUIController(web_ui) {
 
 DaoSidebarUI::~DaoSidebarUI() = default;
 
-void DaoSidebarUI::SetBrowser(Browser* browser) {
+void DaoSidebarUI::SetBrowser(BrowserWindowInterface* browser) {
   if (handler_) {
     handler_->SetBrowser(browser);
   }

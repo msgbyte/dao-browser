@@ -26,9 +26,9 @@
 #include "build/build_config.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/tab_list/tab_list_interface.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
-#include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -188,7 +188,10 @@ public:
 
 private:
   bool CanAnimateTarget(content::WebContents *target) const {
-    Browser *browser = target ? chrome::FindBrowserWithTab(target) : nullptr;
+    BrowserWindowInterface* browser =
+        target ? GlobalBrowserCollection::GetInstance()
+                 ->FindBrowserWithTab(target)
+               : nullptr;
     BrowserView *browser_view =
         browser ? BrowserView::GetBrowserViewForBrowser(browser) : nullptr;
     return browser_view && browser_view->GetActiveWebContents() == target;
@@ -1688,7 +1691,7 @@ IN_PROC_BROWSER_TEST_F(
                      future.GetCallback());
   cursor_ready.Run();
 
-  Browser *destination = CreateBrowser(browser()->profile());
+  BrowserWindowInterface* destination = CreateBrowser(browser()->GetProfile());
   source_tabs->MoveTabToWindow(target_handle, destination->GetSessionID(), 0);
   ui_delegate_.CompletePendingCursorMove(true);
 
@@ -1742,7 +1745,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
         .ExtractBool();
   }));
 
-  Browser *destination = CreateBrowser(browser()->profile());
+  BrowserWindowInterface* destination = CreateBrowser(browser()->GetProfile());
   source_tabs->MoveTabToWindow(target_handle, destination->GetSessionID(), 0);
   ASSERT_TRUE(content::EvalJs(target, "window.__dao_complete_select__(); true")
                   .ExtractBool());
@@ -2480,7 +2483,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpPeerLeaseTest,
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
   content::WebContents *agent_contents = LoadAgentWebUi();
   DaoAgentLeaseManager *leases =
-      DaoAgentLeaseManager::GetForProfile(browser()->profile());
+      DaoAgentLeaseManager::GetForProfile(browser()->GetProfile());
   ASSERT_NE(nullptr, leases);
   auto external =
       leases->TryAcquire({DaoToolClient::kMcp, "external-test", "Codex"});
@@ -2534,7 +2537,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
   content::WebContents *agent_contents = LoadAgentWebUi();
   DaoAgentLeaseManager *leases =
-      DaoAgentLeaseManager::GetForProfile(browser()->profile());
+      DaoAgentLeaseManager::GetForProfile(browser()->GetProfile());
   ASSERT_NE(nullptr, leases);
 
   ASSERT_TRUE(content::ExecJs(agent_contents, R"JS(
@@ -2738,7 +2741,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
         .ExtractBool();
   }));
   auto blocked_lease =
-      DaoAgentLeaseManager::GetForProfile(browser()->profile())
+      DaoAgentLeaseManager::GetForProfile(browser()->GetProfile())
           ->TryAcquire({DaoToolClient::kMcp, "abort-e2e-blocked", "Codex"});
   EXPECT_FALSE(blocked_lease.has_value());
   EXPECT_FALSE(DaoAgentLockTabHelper::IsLocked(target));
@@ -2777,7 +2780,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
         .ExtractBool();
   }));
   EXPECT_LT(native_cancel_timer.Elapsed(), base::Seconds(2));
-  auto still_blocked = DaoAgentLeaseManager::GetForProfile(browser()->profile())
+  auto still_blocked = DaoAgentLeaseManager::GetForProfile(browser()->GetProfile())
                            ->TryAcquire({DaoToolClient::kMcp,
                                          "abort-e2e-still-blocked", "Codex"});
   EXPECT_FALSE(still_blocked.has_value());
@@ -2830,7 +2833,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
                       "String(window.__abortE2E.followUpDetails.title || '')")
           .ExtractString());
   auto blocked_after_follow_up =
-      DaoAgentLeaseManager::GetForProfile(browser()->profile())
+      DaoAgentLeaseManager::GetForProfile(browser()->GetProfile())
           ->TryAcquire(
               {DaoToolClient::kMcp, "abort-e2e-follow-up-blocked", "Codex"});
   EXPECT_FALSE(blocked_after_follow_up.has_value());
@@ -2845,7 +2848,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
   )JS")
                   .ExtractBool());
   EXPECT_TRUE(
-      DaoAgentLeaseManager::GetForProfile(browser()->profile())
+      DaoAgentLeaseManager::GetForProfile(browser()->GetProfile())
           ->TryAcquire({DaoToolClient::kMcp, "abort-e2e-external", "Codex"})
           .has_value());
 }
@@ -2855,7 +2858,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
   content::WebContents *agent_contents = LoadAgentWebUi();
   DaoAgentLeaseManager *leases =
-      DaoAgentLeaseManager::GetForProfile(browser()->profile());
+      DaoAgentLeaseManager::GetForProfile(browser()->GetProfile());
   ASSERT_NE(nullptr, leases);
   auto external =
       leases->TryAcquire({DaoToolClient::kMcp, "external-test", "Codex"});
@@ -2890,7 +2893,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
   content::WebContents *agent_contents = LoadAgentWebUi();
   DaoAgentLeaseManager *leases =
-      DaoAgentLeaseManager::GetForProfile(browser()->profile());
+      DaoAgentLeaseManager::GetForProfile(browser()->GetProfile());
   ASSERT_NE(nullptr, leases);
 
   const std::string first_turn =

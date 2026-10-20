@@ -11,7 +11,8 @@
 #include "cc/paint/paint_filter.h"
 #include "cc/paint/paint_flags.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "content/public/browser/web_contents.h"
 #include "dao/browser/ui/views/dao_colors.h"
@@ -59,7 +60,10 @@ BEGIN_METADATA(DaoAgentCursorView)
 END_METADATA
 
 bool CanAnimateAgentCursorForTarget(content::WebContents* target) {
-  Browser* browser = target ? chrome::FindBrowserWithTab(target) : nullptr;
+  BrowserWindowInterface* browser =
+      target ? GlobalBrowserCollection::GetInstance()
+               ->FindBrowserWithTab(target)
+             : nullptr;
   BrowserView* browser_view =
       browser ? BrowserView::GetBrowserViewForBrowser(browser) : nullptr;
   return browser_view && browser_view->GetActiveWebContents() == target &&

@@ -11,42 +11,36 @@ diff --git a/components/viz/service/frame_sinks/frame_sink_manager_impl.cc b/com
  }
  
  void FrameSinkManagerImpl::SetFrameSinkDebugLabel(
-@@ -1162,6 +1165,7 @@
+@@ -1131,13 +1134,15 @@
                      if (auto* support = GetFrameSinkForId(child_id)) {
                        support->SetThrottleInterval(default_throttle);
                        support->SetAllowThrottling(true);
 +                      support->SetUndrawnFrameThrottlingExempt(false);
-                       if (features::ShouldThrottleWhenInteractiveFrameSinks()) {
-                         support->SetThrottledDueToInteraction(
-                             !interactive_frame_sink_ids_.empty());
-@@ -1171,11 +1175,13 @@
+                     }
+                   });
  
    bool check_throttles = ThrottleIntervalHasEffect();
    bool check_captures = !captured_frame_sink_ids_.empty();
+-
+-  if (!check_throttles && !check_captures) {
 +  bool check_exemptions = !throttling_exempt_frame_sink_ids_.empty();
-   bool check_interactions = base::FeatureList::IsEnabled(
-                                 features::kThrottleFrameSinksOnInteraction) &&
-                             !interactive_frame_sink_ids_.empty();
- 
--  if (!check_throttles && !check_captures && !check_interactions) {
-+  if (!check_throttles && !check_captures && !check_exemptions &&
-+      !check_interactions) {
++
++  if (!check_throttles && !check_captures && !check_exemptions) {
      return;
    }
  
-@@ -1216,8 +1222,9 @@
+@@ -1172,8 +1177,8 @@
      collect_roots(child, /*is_ancestor=*/false);
    });
  
 -  // Apply the identified rules.
--  ApplyThrottlingRules(throttles, captures, interactions);
+-  ApplyThrottlingRules(throttles, captures);
 +  // Shared descendants may inherit exemptions from outside this subtree.
-+  ApplyThrottlingRules(throttles, captures, throttling_exempt_frame_sink_ids_,
-+                       interactions);
++  ApplyThrottlingRules(throttles, captures, throttling_exempt_frame_sink_ids_);
  }
  
  void FrameSinkManagerImpl::Throttle(const std::vector<FrameSinkId>& ids,
-@@ -1238,9 +1245,24 @@
+@@ -1194,9 +1199,24 @@
    UpdateThrottling();
  }
  
@@ -66,15 +60,17 @@ diff --git a/components/viz/service/frame_sinks/frame_sink_manager_impl.cc b/com
 +
  void FrameSinkManagerImpl::ApplyThrottlingRules(
      const base::flat_set<FrameSinkId>& throttled_roots,
-     const base::flat_set<FrameSinkId>& captured_roots,
-+    const base::flat_set<FrameSinkId>& exempt_roots,
-     const base::flat_set<FrameSinkId>& interacting_roots) {
+-    const base::flat_set<FrameSinkId>& captured_roots) {
++    const base::flat_set<FrameSinkId>& captured_roots,
++    const base::flat_set<FrameSinkId>& exempt_roots) {
    // Apply throttling
    if (ThrottleIntervalHasEffect()) {
-@@ -1262,6 +1284,16 @@
+     for (const auto& id : throttled_roots) {
+@@ -1216,6 +1236,16 @@
+       }
      });
    }
- 
++
 +  // Explicit exemptions also bypass throttling for undrawn frames.
 +  for (const auto& id : exempt_roots) {
 +    RecurseChildren(id, [this](const FrameSinkId& frame_sink_id) {
@@ -84,23 +80,21 @@ diff --git a/components/viz/service/frame_sinks/frame_sink_manager_impl.cc b/com
 +      }
 +    });
 +  }
-+
-   // Interacting clients should not be throttled.
-   for (const FrameSinkId& id : interacting_roots) {
-     if (auto* support = GetFrameSinkForId(id)) {
-@@ -1279,6 +1311,7 @@
+ }
+ 
+ void FrameSinkManagerImpl::UpdateThrottling() {
+@@ -1227,9 +1257,11 @@
    for (auto& [id, support] : support_map_) {
      support->SetThrottleInterval(gloabl_throttle);
      support->SetAllowThrottling(true);
+-  }
+-
+-  ApplyThrottlingRules(frame_sink_ids_to_throttle_, captured_frame_sink_ids_);
 +    support->SetUndrawnFrameThrottlingExempt(false);
-     if (features::ShouldThrottleWhenInteractiveFrameSinks()) {
-       support->SetThrottledDueToInteraction(
-           !interactive_frame_sink_ids_.empty());
-@@ -1286,6 +1319,7 @@
-   }
- 
-   ApplyThrottlingRules(frame_sink_ids_to_throttle_, captured_frame_sink_ids_,
-+                       throttling_exempt_frame_sink_ids_,
-                        interactive_frame_sink_ids_);
++  }
++
++  ApplyThrottlingRules(frame_sink_ids_to_throttle_, captured_frame_sink_ids_,
++                       throttling_exempt_frame_sink_ids_);
  }
  
+ bool FrameSinkManagerImpl::ThrottleIntervalHasEffect() const {

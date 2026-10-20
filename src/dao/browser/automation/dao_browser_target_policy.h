@@ -8,7 +8,7 @@
 #include "base/types/expected.h"
 #include "dao/browser/automation/dao_browser_tool_types.h"
 
-class Browser;
+class BrowserWindowInterface;
 class Profile;
 class GURL;
 
@@ -24,7 +24,7 @@ namespace dao {
 base::expected<void, DaoToolError> ValidateExternalTargetUrl(const GURL& url);
 
 base::expected<void, DaoToolError> ValidateExternalTarget(
-    Browser* browser,
+    BrowserWindowInterface* browser,
     Profile* profile,
     content::WebContents* contents,
     bool allow_uncommitted_url = false);

@@ -1,19 +1,18 @@
 diff --git a/chrome/app/chrome_command_ids.h b/chrome/app/chrome_command_ids.h
-index 8c34db5f63..bc46e6a692 100644
 --- a/chrome/app/chrome_command_ids.h
 +++ b/chrome/app/chrome_command_ids.h
-@@ -87,6 +87,14 @@
- #define IDC_VERTICAL_TABS_SEND_FEEDBACK 34057
- #define IDC_TOGGLE_VERTICAL_TABS_EXPAND_ON_HOVER 34058
- 
-+// Dao commands
-+#define IDC_NEW_LITTLE_DAO              34070
-+#define IDC_DAO_COPY_URL                34071
-+#define IDC_DAO_DUPLICATE_TAB           34072
-+#define IDC_DAO_WELCOME                 34073
-+#define IDC_DAO_CHECK_FOR_UPDATES       34074
-+#define IDC_DAO_DECODE_QR_CODE          34075
+@@ -98,6 +98,14 @@
+ #define IDC_VERTICAL_TABS_SEND_FEEDBACK 34059
+ #define IDC_TOGGLE_VERTICAL_TABS_EXPAND_ON_HOVER 34060
+ #define IDC_TOGGLE_VERTICAL_TABS_COLLAPSE 34061
 +
++// Dao commands
++#define IDC_NEW_LITTLE_DAO              34090
++#define IDC_DAO_COPY_URL                34091
++#define IDC_DAO_DUPLICATE_TAB           34092
++#define IDC_DAO_WELCOME                 34093
++#define IDC_DAO_CHECK_FOR_UPDATES       34094
++#define IDC_DAO_DECODE_QR_CODE          34095
+ 
  // Web app window commands
- #define IDC_COPY_URL                    34060
- #define IDC_OPEN_IN_CHROME              34061
+ #define IDC_COPY_URL                    34071

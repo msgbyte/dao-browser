@@ -1,8 +1,7 @@
 diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
-index 5ef79ef4e8bba..9c64e04ad9481 100644
 --- a/chrome/browser/ui/BUILD.gn
 +++ b/chrome/browser/ui/BUILD.gn
-@@ -25,6 +25,8 @@ import("//rlz/buildflags/buildflags.gni")
+@@ -25,6 +25,8 @@
  import("//services/screen_ai/buildflags/features.gni")
  import("//third_party/protobuf/proto_library.gni")
  import("//tools/metrics/generate_allowlist_from_histograms_file.gni")
@@ -11,25 +10,25 @@ index 5ef79ef4e8bba..9c64e04ad9481 100644
  import("//ui/base/ui_features.gni")
  import("//ui/views/features.gni")
  
-@@ -46,7 +48,7 @@ generate_allowlist_from_histograms_file("webui_name_variants") {
+@@ -603,7 +605,7 @@
  # The two are already semantically a part of the same target as they allow
  # circular includes from each other.
  static_library("ui") {
 -  sources = [
 +  sources = dao_browser_ui_sources + [
-     "accelerator_utils.h",
-     "browser_ui_prefs.cc",
-     "browser_ui_prefs.h",
-@@ -257,7 +259,7 @@ static_library("ui") {
+     "tab_helpers.cc",
+     "tab_helpers.h",
+   ]
+@@ -651,7 +653,7 @@
      "//chrome/browser/ui/webui/subresource_filter",
    ]
  
 -  deps = [
 +  deps = dao_browser_ui_deps + [
      ":browser_element_identifiers",
-     ":ui_features",
-     ":url_identity",
-@@ -6021,3 +6023,29 @@ if (use_aura) {
+     ":browser_otr_state",
+     ":browser_ui_prefs",
+@@ -4192,3 +4194,29 @@
      ]
    }
  }

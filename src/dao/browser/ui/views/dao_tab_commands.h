@@ -6,8 +6,8 @@
 #define DAO_BROWSER_UI_VIEWS_DAO_TAB_COMMANDS_H_
 
 #include "base/strings/utf_string_conversions.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "content/public/browser/web_contents.h"
@@ -18,7 +18,8 @@
 
 namespace dao {
 
-inline bool CopyTabUrl(Browser* browser, content::WebContents* target) {
+inline bool CopyTabUrl(BrowserWindowInterface* browser,
+                       content::WebContents* target) {
   BrowserView* browser_view =
       browser ? BrowserView::GetBrowserViewForBrowser(browser) : nullptr;
   if (!target || target->IsBeingDestroyed() ||
@@ -44,7 +45,8 @@ inline bool CopyTabUrl(Browser* browser, content::WebContents* target) {
   return true;
 }
 
-inline content::WebContents* DuplicateTabAt(Browser* browser, int index) {
+inline content::WebContents* DuplicateTabAt(BrowserWindowInterface* browser,
+                                            int index) {
   if (!browser || !chrome::CanDuplicateTabAt(browser, index)) {
     return nullptr;
   }
@@ -64,7 +66,7 @@ inline content::WebContents* DuplicateTabAt(Browser* browser, int index) {
   return duplicate;
 }
 
-inline bool DuplicateActiveTab(Browser* browser) {
+inline bool DuplicateActiveTab(BrowserWindowInterface* browser) {
   if (!browser) {
     return false;
   }

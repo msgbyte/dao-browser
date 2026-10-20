@@ -1,8 +1,7 @@
 diff --git a/chrome/browser/ui/webui/settings/settings_ui.cc b/chrome/browser/ui/webui/settings/settings_ui.cc
-index ecb360f35259e..e5631f9cb5476 100644
 --- a/chrome/browser/ui/webui/settings/settings_ui.cc
 +++ b/chrome/browser/ui/webui/settings/settings_ui.cc
-@@ -139,6 +139,9 @@
+@@ -147,6 +147,9 @@
  #include "content/public/browser/web_ui_data_source.h"
  #include "content/public/common/content_features.h"
  #include "crypto/crypto_buildflags.h"
@@ -12,18 +11,18 @@ index ecb360f35259e..e5631f9cb5476 100644
  #include "device/vr/buildflags/buildflags.h"
  #include "printing/buildflags/buildflags.h"
  #include "services/device/public/cpp/device_features.h"
-@@ -243,6 +246,10 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
- 
+@@ -251,6 +254,10 @@
    AddSettingsPageUIHandler(std::make_unique<AccessibilityMainHandler>());
    AddSettingsPageUIHandler(std::make_unique<BrowserLifetimeHandler>());
-+  AddSettingsPageUIHandler(
+   AddSettingsPageUIHandler(
 +      std::make_unique<dao::DaoMcpSettingsHandler>());
 +  web_ui->AddMessageHandler(std::make_unique<dao::DaoAgentSettingsHandler>());
 +  web_ui->AddMessageHandler(std::make_unique<dao::DaoFolderSettingsHandler>());
-   AddSettingsPageUIHandler(
++  AddSettingsPageUIHandler(
        std::make_unique<ClearBrowsingDataHandler>(web_ui, profile));
    AddSettingsPageUIHandler(std::make_unique<SafetyHubHandler>(profile));
-@@ -300,9 +307,7 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
+   AddSettingsPageUIHandler(std::make_unique<DictationHandler>());
+@@ -307,9 +314,7 @@
    AddSettingsPageUIHandler(std::make_unique<MacSystemSettingsHandler>());
  #endif
  
@@ -32,5 +31,5 @@ index ecb360f35259e..e5631f9cb5476 100644
 -                                                   prefs::kSigninAllowed));
 +  html_source->AddBoolean("signinAllowed", false);
  
-   html_source->AddBoolean(
-       "shouldUseMetricsConsentRestructure",
+   html_source->AddBoolean("shouldUseMetricsConsentRestructure",
+                           metrics::MetricsReportingChoiceService::

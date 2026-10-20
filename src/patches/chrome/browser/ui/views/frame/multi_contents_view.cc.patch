@@ -1,0 +1,40 @@
+diff --git a/chrome/browser/ui/views/frame/multi_contents_view.cc b/chrome/browser/ui/views/frame/multi_contents_view.cc
+--- a/chrome/browser/ui/views/frame/multi_contents_view.cc
++++ b/chrome/browser/ui/views/frame/multi_contents_view.cc
+@@ -39,6 +39,7 @@
+ #include "components/tabs/public/tab_interface.h"
+ #include "content/public/browser/web_contents.h"
+ #include "content/public/common/url_constants.h"
++#include "dao/browser/ui/views/split/dao_split_view.h"
+ #include "ui/base/metadata/metadata_impl_macros.h"
+ #include "ui/base/ozone_buildflags.h"
+ #include "ui/compositor/layer.h"
+@@ -505,6 +506,28 @@
+   }
+   const int width = size_bounds.width().value();
+   const int height = size_bounds.height().value();
++
++  if (auto* split_view = browser_view_->dao_split_view();
++      split_view && split_view->parent() == this) {
++    layouts.child_layouts.emplace_back(split_view, split_view->GetVisible(),
++                                       gfx::Rect(width, height));
++    if (split_view->IsSplitActive()) {
++      // Keep Chromium's content hosts nonempty for status-bubble anchoring.
++      const int placeholder_width = std::max(1, std::min(width, 3));
++      const int placeholder_height = std::max(1, std::min(height, 1));
++      const gfx::Rect placeholder(std::max(0, width - placeholder_width),
++                                  std::max(0, height - placeholder_height),
++                                  placeholder_width, placeholder_height);
++      for (views::View* child : children()) {
++        if (child != split_view) {
++          layouts.child_layouts.emplace_back(child, child->GetVisible(),
++                                             placeholder);
++        }
++      }
++      layouts.host_size = gfx::Size(width, height);
++      return layouts;
++    }
++  }
+ 
+   gfx::Rect available_space = gfx::Rect(width, height);
+ 

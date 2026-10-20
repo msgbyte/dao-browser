@@ -4,7 +4,7 @@
 
 #include "dao/browser/ui/views/dao_control_center_button.h"
 
-#include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "dao/browser/strings/grit/dao_strings.h"
 #include "dao/browser/ui/views/dao_colors.h"
@@ -28,7 +28,7 @@ constexpr int kCornerRadius = 8;
 BEGIN_METADATA(DaoControlCenterButton)
 END_METADATA
 
-DaoControlCenterButton::DaoControlCenterButton(Browser* browser)
+DaoControlCenterButton::DaoControlCenterButton(BrowserWindowInterface* browser)
     : Button(base::BindRepeating(&DaoControlCenterButton::OnClicked,
                                  base::Unretained(this))),
       browser_(browser),

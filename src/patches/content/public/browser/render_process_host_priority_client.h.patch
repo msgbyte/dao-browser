@@ -1,9 +1,9 @@
 diff --git a/content/public/browser/render_process_host_priority_client.h b/content/public/browser/render_process_host_priority_client.h
 --- a/content/public/browser/render_process_host_priority_client.h
 +++ b/content/public/browser/render_process_host_priority_client.h
-@@ -29,6 +29,7 @@
+@@ -28,6 +28,7 @@
+ #if BUILDFLAG(IS_ANDROID)
      ChildProcessImportance importance;
-     bool has_active_clients;
  #endif
 +    bool high_performance = false;
    };

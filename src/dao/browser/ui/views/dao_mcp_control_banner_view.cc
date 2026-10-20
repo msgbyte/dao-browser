@@ -13,7 +13,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
-#include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "content/public/browser/web_contents.h"
 #include "dao/browser/mcp/dao_mcp_service.h"
@@ -61,10 +61,9 @@ END_METADATA
 
 DaoMcpControlBannerView::DaoMcpControlBannerView(
     views::View* anchor_view,
-    Browser* browser,
+    BrowserWindowInterface* browser,
     content::WebContents* target)
-    : views::BubbleDialogDelegate(anchor_view,
-                                  views::BubbleBorder::TOP_LEFT),
+    : views::BubbleDialogDelegate(anchor_view, views::BubbleBorder::TOP_LEFT),
       browser_(browser) {
   const DaoMcpServiceStatus status = DaoMcpService::Get()->GetStatus();
   const DaoMcpClientInfo client = status.client.value_or(DaoMcpClientInfo());

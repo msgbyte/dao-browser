@@ -1,7 +1,7 @@
 diff --git a/components/viz/service/frame_sinks/compositor_frame_sink_support.h b/components/viz/service/frame_sinks/compositor_frame_sink_support.h
 --- a/components/viz/service/frame_sinks/compositor_frame_sink_support.h
 +++ b/components/viz/service/frame_sinks/compositor_frame_sink_support.h
-@@ -159,6 +159,10 @@
+@@ -162,6 +162,10 @@
    // regardless of any other throttling.
    void SetAllowThrottling(bool allowed);
  
@@ -10,9 +10,9 @@ diff --git a/components/viz/service/frame_sinks/compositor_frame_sink_support.h 
 +  void SetUndrawnFrameThrottlingExempt(bool exempt);
 +
    // If other clients are interactive, reduce frame cadence if `throttled`.
-   void SetThrottledDueToInteraction(bool throttled);
  
-@@ -537,6 +541,7 @@
+   // SurfaceClient implementation.
+@@ -532,6 +536,7 @@
    uint32_t last_drawn_frame_index_ = kFrameIndexStart - 1;
  
    FrameSinkThrottler throttler_;

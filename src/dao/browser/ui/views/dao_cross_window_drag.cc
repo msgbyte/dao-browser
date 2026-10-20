@@ -5,13 +5,14 @@
 #include "dao/browser/ui/views/dao_cross_window_drag.h"
 
 #include <algorithm>
+#include <utility>
 
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/create_browser_window.h"
 #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
@@ -19,6 +20,7 @@
 #include "content/public/browser/web_contents.h"
 #include "dao/browser/ui/views/dao_tab_identity.h"
 #include "dao/browser/ui/views/split/dao_split_view.h"
+#include "ui/base/base_window.h"
 #include "ui/gfx/geometry/point.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/views/view.h"
@@ -71,7 +73,7 @@ bool ParseDaoTabDragPayload(const std::string& payload,
   return true;
 }
 
-int ResolveDraggedTabIndex(Browser* browser,
+int ResolveDraggedTabIndex(BrowserWindowInterface* browser,
                            int tab_index,
                            const std::string& tab_id) {
   if (!browser) {
@@ -89,36 +91,40 @@ int ResolveDraggedTabIndex(Browser* browser,
   return model->ContainsIndex(tab_index) ? tab_index : TabStripModel::kNoTab;
 }
 
-Browser* DetachTabToNewWindow(Browser* source_browser,
-                              const std::string& tab_id,
-                              const gfx::Point& screen_point) {
+BrowserWindowInterface* DetachTabToNewWindow(
+    BrowserWindowInterface* source_browser,
+    const std::string& tab_id,
+    const gfx::Point& screen_point) {
   const int index = ResolveDraggedTabIndex(source_browser, -1, tab_id);
-  if (index == TabStripModel::kNoTab || !source_browser->is_type_normal()) {
+  if (index == TabStripModel::kNoTab ||
+      !(source_browser->GetType() == BrowserWindowInterface::TYPE_NORMAL)) {
     return nullptr;
   }
-  gfx::Rect bounds = source_browser->window()->GetBounds();
+  gfx::Rect bounds = source_browser->GetWindow()->GetBounds();
   bounds.set_origin(
       gfx::Point(screen_point.x() - bounds.width() / 4, screen_point.y() - 40));
   if (source_browser->tab_strip_model()->count() == 1) {
-    source_browser->window()->SetBounds(bounds);
-    source_browser->window()->Activate();
+    source_browser->GetWindow()->SetBounds(bounds);
+    source_browser->GetWindow()->Activate();
     return source_browser;
   }
-  Browser::CreateParams params(source_browser->profile(), true);
+  BrowserWindowCreateParams params(source_browser->GetProfile(), true);
   params.initial_bounds = bounds;
-  Browser* target = Browser::Create(params);
+  BrowserWindowInterface* created_window =
+      CreateBrowserWindow(std::move(params));
+  BrowserWindowInterface* target = created_window;
   if (!target) {
     return nullptr;
   }
   chrome::MoveTabsToExistingWindow(source_browser, target, {index});
-  target->window()->Show();
-  target->window()->Activate();
+  target->GetWindow()->Show();
+  target->GetWindow()->Activate();
   return target;
 }
 
 namespace {
 
-DaoSplitView* SplitViewFor(Browser* browser) {
+DaoSplitView* SplitViewFor(BrowserWindowInterface* browser) {
   if (!browser) {
     return nullptr;
   }
@@ -128,7 +134,7 @@ DaoSplitView* SplitViewFor(Browser* browser) {
 
 }  // namespace
 
-void UpdateSplitDropIndicator(Browser* target_browser,
+void UpdateSplitDropIndicator(BrowserWindowInterface* target_browser,
                               const gfx::Point& point_in_browser_view) {
   DaoSplitView* sv = SplitViewFor(target_browser);
   BrowserView* bv = BrowserView::GetBrowserViewForBrowser(target_browser);
@@ -144,13 +150,13 @@ void UpdateSplitDropIndicator(Browser* target_browser,
   sv->UpdateNativeDropIndicator(pt_in_split);
 }
 
-void HideSplitDropIndicator(Browser* target_browser) {
+void HideSplitDropIndicator(BrowserWindowInterface* target_browser) {
   if (DaoSplitView* sv = SplitViewFor(target_browser)) {
     sv->HideNativeDropIndicator();
   }
 }
 
-bool PerformSplitTabDrop(Browser* target_browser,
+bool PerformSplitTabDrop(BrowserWindowInterface* target_browser,
                          const gfx::Point& point_in_browser_view,
                          const std::string& payload) {
   DaoSplitView* sv = SplitViewFor(target_browser);
@@ -166,7 +172,7 @@ bool PerformSplitTabDrop(Browser* target_browser,
   return sv->ProcessNativeTabDrop(pt_in_split, payload);
 }
 
-bool ExecuteCrossWindowTabMove(Browser* target_browser,
+bool ExecuteCrossWindowTabMove(BrowserWindowInterface* target_browser,
                                int source_session_id,
                                int source_tab_index,
                                int target_insert_index,
@@ -176,15 +182,12 @@ bool ExecuteCrossWindowTabMove(Browser* target_browser,
   }
 
   ProfileBrowserCollection* collection =
-      ProfileBrowserCollection::GetForProfile(target_browser->profile());
+      ProfileBrowserCollection::GetForProfile(target_browser->GetProfile());
   BrowserWindowInterface* source_browser_window =
       collection ? collection->FindBrowserWithID(
                        SessionID::FromSerializedValue(source_session_id))
                  : nullptr;
-  Browser* source_browser =
-      source_browser_window
-          ? source_browser_window->GetBrowserForMigrationOnly()
-          : nullptr;
+  BrowserWindowInterface* source_browser = source_browser_window;
   if (!source_browser || source_browser == target_browser) {
     return false;
   }

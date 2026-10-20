@@ -1,8 +1,7 @@
 diff --git a/chrome/browser/ui/startup/infobar_utils.cc b/chrome/browser/ui/startup/infobar_utils.cc
-index 8f6bccf2a4b22..a870f31a0c234 100644
 --- a/chrome/browser/ui/startup/infobar_utils.cc
 +++ b/chrome/browser/ui/startup/infobar_utils.cc
-@@ -144,15 +144,10 @@ void AddInfoBarsIfNecessary(BrowserWindowInterface* browser,
+@@ -154,15 +154,10 @@
      return;
    }
  
@@ -22,12 +21,22 @@ index 8f6bccf2a4b22..a870f31a0c234 100644
  
    // These info bars are not shown when the browser is being controlled by
    // automated tests, so that they don't interfere with tests that assume no
-@@ -184,9 +179,11 @@ void AddInfoBarsIfNecessary(BrowserWindowInterface* browser,
+@@ -194,19 +189,11 @@
    infobars::ContentInfoBarManager* infobar_manager =
        infobars::ContentInfoBarManager::FromWebContents(web_contents);
  
 -  if (!google_apis::HasAPIKeyConfigured()) {
--    GoogleApiKeysInfoBarDelegate::Create(infobar_manager);
+-    if (infobars::IsInfoBarMigrated(
+-            infobars::InfoBarDelegate::GOOGLE_API_KEYS_INFOBAR_DELEGATE)) {
+-      if (auto* manager =
+-              infobars::BrowserInfoBarManager::From(g_browser_process)) {
+-        manager->Show(
+-            tabs::TabInterface::GetFromContents(web_contents),
+-            infobars::InfoBarDelegate::GOOGLE_API_KEYS_INFOBAR_DELEGATE);
+-      }
+-    } else {
+-      GoogleApiKeysInfoBarDelegate::Create(infobar_manager);
+-    }
 -  }
 +  // Dao: Suppress the "missing Google API key" infobar — Dao doesn't ship
 +  // Google API keys and the warning is not actionable for end users.
@@ -37,7 +46,7 @@ index 8f6bccf2a4b22..a870f31a0c234 100644
  
    if (ObsoleteSystem::IsObsoleteNowOrSoon()) {
      PrefService* local_state = g_browser_process->local_state();
-@@ -213,6 +210,9 @@ void AddInfoBarsIfNecessary(BrowserWindowInterface* browser,
+@@ -245,6 +232,9 @@
  #endif
  
  #if !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_ANDROID)
@@ -47,7 +56,7 @@ index 8f6bccf2a4b22..a870f31a0c234 100644
    if (is_web_app ||
        startup_command_line.HasSwitch(switches::kNoDefaultBrowserCheck) ||
        startup_command_line.HasSwitch(switches::kNoFirstRun)) {
-@@ -270,5 +270,6 @@ void AddInfoBarsIfNecessary(BrowserWindowInterface* browser,
+@@ -302,5 +292,6 @@
      ShowDefaultBrowserPrompt(profile, base::DoNothing());
  #endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
    }

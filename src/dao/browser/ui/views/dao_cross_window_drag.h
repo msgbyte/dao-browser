@@ -7,7 +7,7 @@
 
 #include <string>
 
-class Browser;
+class BrowserWindowInterface;
 
 namespace gfx {
 class Point;
@@ -31,33 +31,34 @@ bool ParseDaoTabDragPayload(const std::string& payload,
                             std::string* tab_id = nullptr);
 
 // A supplied stable ID is authoritative; never fall back to a stale index.
-int ResolveDraggedTabIndex(Browser* browser,
+int ResolveDraggedTabIndex(BrowserWindowInterface* browser,
                            int tab_index,
                            const std::string& tab_id);
 
 // Move the only tab's window, or create a window before transferring the tab.
 // Returns the destination window, or nullptr if the tab no longer exists.
-Browser* DetachTabToNewWindow(Browser* source_browser,
-                              const std::string& tab_id,
-                              const gfx::Point& screen_point);
+BrowserWindowInterface* DetachTabToNewWindow(
+    BrowserWindowInterface* source_browser,
+    const std::string& tab_id,
+    const gfx::Point& screen_point);
 
 // Called from macOS DaoEventInterceptor's draggingUpdated: to refresh the
 // native split-drop indicator overlay. |point_in_browser_view| is in the
 // browser's BrowserView-local coordinates (top-left origin, Y down). No-op
 // if the point is outside the split view's bounds or the browser doesn't
 // have one.
-void UpdateSplitDropIndicator(Browser* target_browser,
+void UpdateSplitDropIndicator(BrowserWindowInterface* target_browser,
                               const gfx::Point& point_in_browser_view);
 
 // Called from draggingExited:/draggingEnded: to clear the overlay.
-void HideSplitDropIndicator(Browser* target_browser);
+void HideSplitDropIndicator(BrowserWindowInterface* target_browser);
 
 // Called from performDragOperation:. Tries to interpret |payload| as a
 // split-drop on |target_browser|'s DaoSplitView at |point_in_browser_view|.
 // Returns true if the drop was applied (split created, pane swapped, or
 // tab activated). False means the caller should fall back to a sidebar
 // tab move.
-bool PerformSplitTabDrop(Browser* target_browser,
+bool PerformSplitTabDrop(BrowserWindowInterface* target_browser,
                          const gfx::Point& point_in_browser_view,
                          const std::string& payload);
 
@@ -75,7 +76,7 @@ bool PerformSplitTabDrop(Browser* target_browser,
 //   - source is the same as target
 //   - source_tab_index is out of range
 //   - detach fails
-bool ExecuteCrossWindowTabMove(Browser* target_browser,
+bool ExecuteCrossWindowTabMove(BrowserWindowInterface* target_browser,
                                int source_session_id,
                                int source_tab_index,
                                int target_insert_index,

@@ -1,0 +1,46 @@
+diff --git a/extensions/browser/manifest_v2_handler.h b/extensions/browser/manifest_v2_handler.h
+--- a/extensions/browser/manifest_v2_handler.h
++++ b/extensions/browser/manifest_v2_handler.h
+@@ -11,6 +11,7 @@
+ #include "base/scoped_observation.h"
+ #include "base/types/pass_key.h"
+ #include "components/keyed_service/core/keyed_service.h"
++#include "components/prefs/pref_change_registrar.h"
+ #include "extensions/browser/extension_registry.h"
+ #include "extensions/browser/extension_registry_observer.h"
+ #include "extensions/browser/pref_types.h"
+@@ -76,11 +77,13 @@
+   bool IsExtensionAffected(const Extension& extension);
+ 
+   // Returns true if a new installation with the given `manifest_version`,
+-  // `manifest_type`, and `manifest_location` should be blocked.
++  // `manifest_type`, and `manifest_location` should be blocked. Dao callers
++  // may pass `extension_id` to resolve forced/recommended policy exemptions.
+   bool ShouldBlockExtensionInstallation(
+       int manifest_version,
+       Manifest::Type manifest_type,
+-      mojom::ManifestLocation manifest_location);
++      mojom::ManifestLocation manifest_location,
++      const ExtensionId& extension_id = {});
+ 
+   // Returns true if Chrome should disallow enabling the given `extension`.
+   bool ShouldBlockExtensionEnable(const Extension& extension);
+@@ -104,6 +107,9 @@
+       base::PassKey<ScopedTestMV2Enabler> pass_key);
+ 
+  private:
++  bool IsAllowedByDaoPolicy(const ExtensionId& extension_id);
++  void OnDaoManifestV2PolicyChanged();
++
+   // Lazily initialize and access `extension_prefs_`. We do this lazily because:
+   // - This service is created on Profile creation.
+   // - A bunch of unit tests override ExtensionPrefs after Profile creation, but
+@@ -145,6 +151,8 @@
+   base::ScopedObservation<ExtensionRegistry, ExtensionRegistryObserver>
+       registry_observation_{this};
+ 
++  PrefChangeRegistrar dao_pref_change_registrar_;
++
+   base::WeakPtrFactory<ManifestV2Handler> weak_factory_{this};
+ };
+ 

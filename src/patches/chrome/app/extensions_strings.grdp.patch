@@ -1,8 +1,7 @@
 diff --git a/chrome/app/extensions_strings.grdp b/chrome/app/extensions_strings.grdp
-index a1bdf060a1..68b7179b44 100644
 --- a/chrome/app/extensions_strings.grdp
 +++ b/chrome/app/extensions_strings.grdp
-@@ -43,13 +43,13 @@
+@@ -34,13 +34,13 @@
    <message name="IDS_EXTENSIONS_INSTALL_WARNINGS" desc="The text which says that an extension has warnings when it was installed.">
      There were warnings when trying to install this extension:
    </message>
@@ -19,7 +18,7 @@ index a1bdf060a1..68b7179b44 100644
      Warning
    </message>
    <message name="IDS_EXTENSIONS_PATH" desc="The label in front of the extension load path.">
-@@ -424,10 +424,10 @@
+@@ -427,10 +427,10 @@
    <message name="IDS_EXTENSIONS_PACK_DIALOG_CONFIRM_BUTTON" desc="The label of the button to confirm the action to pack an extension.">
      Pack extension
    </message>
@@ -32,7 +31,7 @@ index a1bdf060a1..68b7179b44 100644
      Search extensions
    </message>
    <message name="IDS_EXTENSIONS_SITE_PERMISSIONS" desc="The text for the link to manage site permissions for extensions.">
-@@ -559,7 +559,7 @@
+@@ -565,7 +565,7 @@
    <message name="IDS_EXTENSIONS_SUBPAGE_BUTTON" is_accessibility_with_no_ui="true" desc="Accessibility description for a button navigating the user from an extension's settings page to its settings subpage.">
      Subpage button
    </message>
@@ -40,4 +39,4 @@ index a1bdf060a1..68b7179b44 100644
 +  <message name="IDS_EXTENSIONS_SECTION_HEADER" desc="The label for the extensions section in dao://extensions.">
      All Extensions
    </message>
-   <!-- Extension Safety Check Review Panel strings -->
+   <message name="IDS_EXTENSIONS_PIN_NEW_EXTENSIONS" desc="The label for the toggle to pin new extensions in chrome://extensions.">

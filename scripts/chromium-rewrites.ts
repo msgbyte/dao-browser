@@ -18,6 +18,8 @@ const CHROME_SCHEME = "chrome://";
 const DAO_SCHEME = "dao://";
 
 const SCHEME_TEXT_REWRITE_PATHS = [
+  "ash/ash_strings.grd",
+  "ash/login/resources/ash_login_strings.grd",
   "chrome/app/media_router_strings.grdp",
   "chrome/app/os_settings_strings.grdp",
   "chrome/app/password_manager_ui_strings.grdp",

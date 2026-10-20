@@ -1,0 +1,25 @@
+diff --git a/chrome/browser/ui/window_feature_controller/window_feature_controller.cc b/chrome/browser/ui/window_feature_controller/window_feature_controller.cc
+--- a/chrome/browser/ui/window_feature_controller/window_feature_controller.cc
++++ b/chrome/browser/ui/window_feature_controller/window_feature_controller.cc
+@@ -57,6 +57,10 @@
+ 
+ #if BUILDFLAG(IS_MAC)
+ bool WindowFeatureController::UsesImmersiveFullscreenMode() const {
++  // Dao sidebar windows manage their own fullscreen layout.
++  if (CanSupportWindowFeature(WindowFeature::kFeatureTabStrip)) {
++    return false;
++  }
+   const bool is_pwa = app_controller_ != nullptr;
+   const bool is_tabbed_window =
+       CanSupportWindowFeature(WindowFeature::kFeatureTabStrip);
+@@ -64,6 +68,10 @@
+ }
+ 
+ bool WindowFeatureController::UsesImmersiveFullscreenTabbedMode() const {
++  // Dao sidebar windows manage their own fullscreen layout.
++  if (CanSupportWindowFeature(WindowFeature::kFeatureTabStrip)) {
++    return false;
++  }
+   const bool is_pwa = app_controller_ != nullptr;
+   const bool is_tabbed_window =
+       CanSupportWindowFeature(WindowFeature::kFeatureTabStrip);

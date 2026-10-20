@@ -1,7 +1,7 @@
 diff --git a/chrome/browser/resources/settings/settings_ui/settings_ui.html b/chrome/browser/resources/settings/settings_ui/settings_ui.html
 --- a/chrome/browser/resources/settings/settings_ui/settings_ui.html
 +++ b/chrome/browser/resources/settings/settings_ui/settings_ui.html
-@@ -1,108 +1,158 @@
+@@ -1,109 +1,159 @@
      <style include="cr-page-host-style cr-scrollable settings-shared">
        :host {
 -        display: flex;
@@ -60,14 +60,14 @@ diff --git a/chrome/browser/resources/settings/settings_ui/settings_ui.html b/ch
        #container {
 -        display: flex;
 -        flex: 1;
--        overflow: overlay;
 +        background: var(--dao-settings-page);
 +        color: var(--dao-settings-text);
 +        display: grid;
 +        grid-template-columns: var(--settings-menu-width) minmax(0, 1fr);
 +        height: 100%;
-+        overflow: auto;
+         overflow: auto;
          position: relative;
+         scrollbar-gutter: stable;
        }
  
 -      #left,
@@ -118,8 +118,8 @@ diff --git a/chrome/browser/resources/settings/settings_ui/settings_ui.html b/ch
          overscroll-behavior: contain;
 -        width: var(--settings-menu-width);
 +        width: 100%;
-       }
- 
++      }
++
 +      #daoSettingsMain {
 +        box-sizing: border-box;
 +        min-width: 0;
@@ -131,8 +131,8 @@ diff --git a/chrome/browser/resources/settings/settings_ui/settings_ui.html b/ch
 +        position: fixed;
 +        right: 0;
 +        top: 0;
-+      }
-+
+       }
+ 
        #main {
 -        flex-basis: var(--settings-main-basis);
 +        display: block;
@@ -153,7 +153,7 @@ diff --git a/chrome/browser/resources/settings/settings_ui/settings_ui.html b/ch
 +      @media (max-width: 760px) {
 +        #container {
 +          grid-template-columns: 1fr;
-         }
++        }
 +
 +        #daoSettingsNavigation {
 +          border-bottom: 1px solid var(--dao-settings-border-subtle);
@@ -178,7 +178,7 @@ diff --git a/chrome/browser/resources/settings/settings_ui/settings_ui.html b/ch
 +
 +        #scrollableShadow {
 +          left: 0;
-+        }
+         }
        }
      </style>
      <settings-prefs id="prefs" prefs="{{prefs}}"></settings-prefs>

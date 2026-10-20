@@ -14,7 +14,7 @@
 #include "ui/native_theme/native_theme_observer.h"
 #include "ui/views/view.h"
 
-class Browser;
+class BrowserWindowInterface;
 
 namespace gfx {
 class Rect;
@@ -37,7 +37,7 @@ class DaoControlCenterPopup : public views::View,
   METADATA_HEADER(DaoControlCenterPopup, views::View)
 
  public:
-  explicit DaoControlCenterPopup(Browser* browser);
+  explicit DaoControlCenterPopup(BrowserWindowInterface* browser);
   DaoControlCenterPopup(const DaoControlCenterPopup&) = delete;
   DaoControlCenterPopup& operator=(const DaoControlCenterPopup&) = delete;
   ~DaoControlCenterPopup() override;
@@ -54,7 +54,7 @@ class DaoControlCenterPopup : public views::View,
   // Show the native share picker for the active page.
   void ShareCurrentPage(const gfx::Rect& anchor_rect);
 
-  Browser* browser() const { return browser_; }
+  BrowserWindowInterface* browser() const { return browser_; }
 
   // TabStripModelObserver:
   void OnTabStripModelChanged(
@@ -78,7 +78,7 @@ class DaoControlCenterPopup : public views::View,
   static constexpr int kCardCornerRadius = 12;
   static constexpr int kCardPadding = 12;
 
-  raw_ptr<Browser> browser_;
+  raw_ptr<BrowserWindowInterface> browser_;
   raw_ptr<views::View> card_ = nullptr;
   raw_ptr<DaoControlCenterExtensionsSection> extensions_section_ = nullptr;
   raw_ptr<DaoControlCenterUtilitySection> utility_section_ = nullptr;

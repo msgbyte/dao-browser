@@ -16,10 +16,10 @@
 #include "base/strings/string_util.h"
 #include "base/strings/sys_string_conversions.h"
 #include "base/timer/timer.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
+#include "chrome/browser/ui/browser_window/public/desktop_browser_window_capabilities.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
@@ -27,6 +27,7 @@
 #include "dao/browser/ui/views/dao_cross_window_drag.h"
 #include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
 #include "dao/browser/ui/views/split/dao_split_view.h"
+#include "ui/base/base_window.h"
 #include "ui/base/dragdrop/mojom/drag_drop_types.mojom.h"
 #include "ui/gfx/geometry/point.h"
 #include "ui/gfx/geometry/point_conversions.h"
@@ -50,7 +51,7 @@ std::unique_ptr<TabDragNativeCompletion>& TabDragNativeCompletionStorage();
 // window is not a Dao browser window or the split view is missing.
 void UpdateNativeSplitIndicatorForWindow(NSWindow* window, NSPoint cocoa_loc);
 void HideNativeSplitIndicatorForWindow(NSWindow* window);
-Browser* BrowserForWindow(NSWindow* window);
+BrowserWindowInterface* BrowserForWindow(NSWindow* window);
 
 // Cross-window tab-drop fallback. Runs when BridgedContentView's drop
 // pipeline refuses our drag (which happens in v147 because the pasteboard
@@ -74,7 +75,7 @@ constexpr int kSidebarHeaderPx = 60;
 // Compute the insertion index in the target's tab strip for a cross-window
 // drop. Returns target_model->count() (append) when the cursor is outside
 // the sidebar's tab list.
-int ComputeCrossWindowInsertIndex(Browser* target_browser,
+int ComputeCrossWindowInsertIndex(BrowserWindowInterface* target_browser,
                                   NSWindow* target_window,
                                   NSPoint cursor_in_window_cocoa) {
   TabStripModel* model = target_browser->tab_strip_model();
@@ -138,7 +139,7 @@ bool HandleDaoTabDrop(NSWindow* target_window,
   }
 
   // Find the target Browser — the one whose window matches target_window.
-  Browser* target_browser = BrowserForWindow(target_window);
+  BrowserWindowInterface* target_browser = BrowserForWindow(target_window);
   if (!target_browser) {
     LOG(ERROR) << "[Dao-Xwin] HandleDaoTabDrop: no target browser for window";
     return false;
@@ -380,16 +381,15 @@ namespace {
 
 // Resolve the Browser owning |window| from the profile's browser list.
 // Returns nullptr if not found.
-Browser* BrowserForWindow(NSWindow* window) {
+BrowserWindowInterface* BrowserForWindow(NSWindow* window) {
   if (!window) {
     return nullptr;
   }
   for (BrowserWindowInterface* browser_window :
        GetAllBrowserWindowInterfaces()) {
-    Browser* browser =
-        browser_window ? browser_window->GetBrowserForMigrationOnly() : nullptr;
-    if (browser && browser->window() &&
-        browser->window()->GetNativeWindow().GetNativeNSWindow() == window) {
+    BrowserWindowInterface* browser = browser_window;
+    if (browser && browser->GetWindow() &&
+        browser->GetWindow()->GetNativeWindow().GetNativeNSWindow() == window) {
       return browser;
     }
   }
@@ -398,7 +398,7 @@ Browser* BrowserForWindow(NSWindow* window) {
 
 void UpdateNativeSplitIndicatorForWindow(NSWindow* window,
                                          NSPoint cocoa_loc) {
-  Browser* target = BrowserForWindow(window);
+  BrowserWindowInterface* target = BrowserForWindow(window);
   if (!target) {
     return;
   }
@@ -409,7 +409,7 @@ void UpdateNativeSplitIndicatorForWindow(NSWindow* window,
 }
 
 void HideNativeSplitIndicatorForWindow(NSWindow* window) {
-  if (Browser* target = BrowserForWindow(window)) {
+  if (BrowserWindowInterface* target = BrowserForWindow(window)) {
     dao::HideSplitDropIndicator(target);
   }
 }
@@ -417,11 +417,10 @@ void HideNativeSplitIndicatorForWindow(NSWindow* window) {
 bool IsOutsideEveryBrowserWindow(const gfx::Point& screen_point) {
   for (BrowserWindowInterface* browser_window :
        GetAllBrowserWindowInterfaces()) {
-    Browser* browser =
-        browser_window ? browser_window->GetBrowserForMigrationOnly() : nullptr;
-    if (browser && browser->window() && !browser->window()->IsMinimized() &&
-        browser->window()->IsVisibleOnScreen() &&
-        browser->window()->GetBounds().Contains(screen_point)) {
+    BrowserWindowInterface* browser = browser_window;
+    if (browser && browser->GetWindow() && !browser->GetWindow()->IsMinimized() &&
+        browser->capabilities()->IsVisibleOnScreen() &&
+        browser->GetWindow()->GetBounds().Contains(screen_point)) {
       return false;
     }
   }
@@ -683,8 +682,7 @@ void StopTabDragWatchdog() {
   // window is still stuck — re-opening the exact bug this guards against.
   for (BrowserWindowInterface* browser_window :
        GetAllBrowserWindowInterfaces()) {
-    Browser* browser =
-        browser_window ? browser_window->GetBrowserForMigrationOnly() : nullptr;
+    BrowserWindowInterface* browser = browser_window;
     BrowserView* browser_view =
         browser ? BrowserView::GetBrowserViewForBrowser(browser) : nullptr;
     if (browser_view && browser_view->dao_split_view() &&
@@ -702,8 +700,7 @@ void EndTabDragNativeEvents() {
   // events above the WebContents even after its Cocoa interceptor is gone.
   for (BrowserWindowInterface* browser_window :
        GetAllBrowserWindowInterfaces()) {
-    Browser* browser =
-        browser_window ? browser_window->GetBrowserForMigrationOnly() : nullptr;
+    BrowserWindowInterface* browser = browser_window;
     BrowserView* browser_view =
         browser ? BrowserView::GetBrowserViewForBrowser(browser) : nullptr;
     if (browser_view && browser_view->dao_split_view()) {

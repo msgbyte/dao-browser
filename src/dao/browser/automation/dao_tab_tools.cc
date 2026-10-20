@@ -18,7 +18,6 @@
 #include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/tab_list/tab_list_interface_observer.h"
 #include "chrome/browser/tab_list/tab_removed_reason.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
@@ -254,9 +253,7 @@ class DaoTabTools::PendingClose : public TabListInterfaceObserver,
       }
       if (client_ == DaoToolClient::kMcp) {
         BrowserWindowInterface* browser_window = session_->browser_window();
-        Browser* browser = browser_window
-                               ? browser_window->GetBrowserForMigrationOnly()
-                               : nullptr;
+        BrowserWindowInterface* browser = browser_window;
         auto policy = ValidateExternalTarget(browser, session_->profile(),
                                         replacement->GetContents());
         if (!policy.has_value()) {
@@ -468,7 +465,7 @@ DaoBrowserToolResult DaoTabTools::ExecuteSync(
         return ErrorResult(DaoToolErrorCode::kAuthorizationDenied,
                            "This connection is authorized for only one tab.");
       }
-      Browser* browser = browser_window->GetBrowserForMigrationOnly();
+      BrowserWindowInterface* browser = browser_window;
       auto policy = ValidateExternalTarget(browser, session_weak->profile(),
                                       selected_tab->GetContents());
       if (!policy.has_value()) {

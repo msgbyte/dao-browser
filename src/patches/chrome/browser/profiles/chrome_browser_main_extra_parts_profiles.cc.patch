@@ -1,5 +1,4 @@
 diff --git a/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc b/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc
-index 1aab47b6d039a..783c86ba03c03 100644
 --- a/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc
 +++ b/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc
 @@ -8,7 +8,9 @@
@@ -12,7 +11,7 @@ index 1aab47b6d039a..783c86ba03c03 100644
  #include "build/build_config.h"
  #include "build/chromeos_buildflags.h"
  #include "chrome/browser/accessibility/accessibility_labels_service_factory.h"
-@@ -282,6 +284,7 @@
+@@ -288,6 +290,7 @@
  #include "chrome/browser/webid/federated_identity_permission_context_factory.h"
  #include "chrome/common/buildflags.h"
  #include "chrome/common/chrome_features.h"
@@ -20,7 +19,7 @@ index 1aab47b6d039a..783c86ba03c03 100644
  #include "components/autofill/content/browser/autofill_log_router_factory.h"
  #include "components/breadcrumbs/core/breadcrumbs_status.h"
  #include "components/captive_portal/core/buildflags.h"
-@@ -622,6 +625,15 @@
+@@ -670,6 +673,15 @@
  #include "chrome/browser/net/nss_service_factory.h"
  #endif
  
@@ -36,8 +35,8 @@ index 1aab47b6d039a..783c86ba03c03 100644
  void AddProfilesExtraParts(ChromeBrowserMainParts* main_parts) {
    main_parts->AddParts(std::make_unique<ChromeBrowserMainExtraPartsProfiles>());
  }
-@@ -894,6 +907,13 @@ void ChromeBrowserMainExtraPartsProfiles::
- #endif  // BUILDFLAG(!IS_ANDROID)
+@@ -947,6 +959,13 @@
+   critical_actions::CriticalActionFactory::GetInstance();
    CrossDevicePrefTrackerFactory::GetInstance();
    DataTypeStoreServiceFactory::GetInstance();
 +  dao::DaoForegroundActivityServiceFactory::GetInstance();
@@ -50,7 +49,7 @@ index 1aab47b6d039a..783c86ba03c03 100644
  #if BUILDFLAG(ENTERPRISE_DATA_CONTROLS)
    data_controls::ChromeRulesServiceFactory::GetInstance();
  #endif
-@@ -1518,4 +1538,14 @@ void ChromeBrowserMainExtraPartsProfiles::
+@@ -1621,4 +1640,14 @@
  
  void ChromeBrowserMainExtraPartsProfiles::PreProfileInit() {
    EnsureBrowserContextKeyedServiceFactoriesBuilt();

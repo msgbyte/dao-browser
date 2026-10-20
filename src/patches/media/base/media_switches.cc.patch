@@ -1,22 +1,12 @@
 diff --git a/media/base/media_switches.cc b/media/base/media_switches.cc
-index 052258ead7..25e965fa73 100644
 --- a/media/base/media_switches.cc
 +++ b/media/base/media_switches.cc
-@@ -822,7 +822,7 @@ BASE_FEATURE(kLiveCaption, base::FEATURE_ENABLED_BY_DEFAULT);
+@@ -750,7 +750,7 @@
  // SODA library.
  BASE_FEATURE(kLogSodaLoadFailures,
               "kLogSodaLoadFailures",
 -             base::FEATURE_DISABLED_BY_DEFAULT);
 +             base::FEATURE_ENABLED_BY_DEFAULT);
  
- // When getDisplayMedia() is invoked, the user sees and interacts with
- // a Chromium prompt through which they choose which tab/window/screen
-@@ -1025,7 +1025,7 @@ BASE_FEATURE(kAllowEnhancedPipTransition, base::FEATURE_ENABLED_BY_DEFAULT);
- // Enables automatic Picture-in-Picture permission prompt on Android for
- // document picture-in-picture.
- BASE_FEATURE(kAutoDocPiPPermissionPromptAndroid,
--             base::FEATURE_DISABLED_BY_DEFAULT);
-+             base::FEATURE_ENABLED_BY_DEFAULT);
+ BASE_FEATURE(kMP4TimedMetadataTrack, base::FEATURE_ENABLED_BY_DEFAULT);
  
- // Enables automatic Picture-in-Picture on Android for supported websites.
- // This triggers for active video playback or camera/microphone usage on sites

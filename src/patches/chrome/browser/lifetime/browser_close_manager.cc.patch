@@ -1,8 +1,7 @@
 diff --git a/chrome/browser/lifetime/browser_close_manager.cc b/chrome/browser/lifetime/browser_close_manager.cc
 --- a/chrome/browser/lifetime/browser_close_manager.cc
 +++ b/chrome/browser/lifetime/browser_close_manager.cc
-@@ -17,8 +17,10 @@
- #include "chrome/browser/browser_process.h"
+@@ -18,6 +18,8 @@
  #include "chrome/browser/download/download_core_service.h"
  #include "chrome/browser/download/download_core_service_factory.h"
  #include "chrome/browser/lifetime/application_lifetime.h"
@@ -10,10 +9,8 @@ diff --git a/chrome/browser/lifetime/browser_close_manager.cc b/chrome/browser/l
 +#include "dao/browser/updater/dao_updater_service.h"
  #include "chrome/browser/lifetime/browser_shutdown.h"
  #include "chrome/browser/profiles/profile_manager.h"
- #include "chrome/browser/ui/browser.h"
- #include "chrome/browser/ui/browser_window.h"
-@@ -187,8 +189,15 @@
-   }
+ #include "chrome/browser/ui/browser_manager_service.h"
+@@ -187,6 +189,13 @@
  }
  
  void BrowserCloseManager::CloseBrowsers() {
@@ -27,4 +24,3 @@ diff --git a/chrome/browser/lifetime/browser_close_manager.cc b/chrome/browser/l
  #if BUILDFLAG(ENABLE_SESSION_SERVICE)
    // Before we close the browsers shutdown all session services. That way an
    // exit can restore all browsers open before exiting.
-   ProfileManager::ShutdownSessionServices();

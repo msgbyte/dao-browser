@@ -1,8 +1,7 @@
 diff --git a/chrome/browser/ui/startup/startup_browser_creator_impl.cc b/chrome/browser/ui/startup/startup_browser_creator_impl.cc
-index 89e244b960..c5f2f6a5d2 100644
 --- a/chrome/browser/ui/startup/startup_browser_creator_impl.cc
 +++ b/chrome/browser/ui/startup/startup_browser_creator_impl.cc
-@@ -74,6 +74,8 @@
+@@ -78,6 +78,8 @@
  #if BUILDFLAG(IS_MAC)
  #include "base/mac/mac_util.h"
  #include "chrome/browser/app_controller_mac.h"
@@ -11,8 +10,8 @@ index 89e244b960..c5f2f6a5d2 100644
  #endif  // BUILDFLAG(IS_MAC)
  
  #if BUILDFLAG(ENABLE_RLZ)
-@@ -282,6 +284,36 @@ Browser* StartupBrowserCreatorImpl::OpenURLsInBrowser(
-     Browser* browser,
+@@ -289,6 +291,36 @@
+     BrowserWindowInterface* browser,
      chrome::startup::IsProcessStartup process_startup,
      const std::vector<GURL>& urls) {
 +#if BUILDFLAG(IS_MAC)
@@ -22,14 +21,14 @@ index 89e244b960..c5f2f6a5d2 100644
 +  if (process_startup == chrome::startup::IsProcessStartup::kNo) {
 +    Profile* profile = profile_;
 +    if (!profile && browser) {
-+      profile = browser->profile();
++      profile = browser->GetProfile();
 +    }
 +
 +    if (profile &&
 +        profile->GetPrefs()->GetBoolean(dao::prefs::kDaoLittleDaoEnabled)) {
 +      custom_handlers::ProtocolHandlerRegistry* registry =
 +          ProtocolHandlerRegistryFactory::GetForBrowserContext(profile);
-+      Browser* last_little_dao_browser = nullptr;
++      BrowserWindowInterface* last_little_dao_browser = nullptr;
 +      for (const GURL& url : urls) {
 +        const bool handled_by_chrome =
 +            ProfileIOData::IsHandledURL(url) ||

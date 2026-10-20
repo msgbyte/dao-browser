@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "dao/browser/mcp/dao_mcp_service.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "dao/browser/mcp/dao_mcp_transport.h"
 
 #include <poll.h>
@@ -52,7 +53,6 @@
 #include "chrome/browser/profiles/profile_metrics.h"
 #include "chrome/browser/profiles/profile_test_util.h"
 #include "chrome/browser/profiles/profiles_state.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -75,9 +75,11 @@
 #include "dao/browser/ui/views/dao_mcp_control_banner_view.h"
 #include "dao/browser/ui/views/dao_tab_identity.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/base/base_window.h"
 #include "ui/base/hit_test.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/events/event.h"
+#include "ui/views/controls/button/md_text_button.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/test/button_test_api.h"
 
@@ -687,7 +689,7 @@ class FakeApprovalDelegate : public DaoMcpApprovalDelegate {
   };
 
   void RequestApproval(const DaoMcpApprovalRequest& request,
-                       Browser* browser,
+                       BrowserWindowInterface* browser,
                        std::string_view connection_id,
                        base::OnceCallback<void(bool)> callback) override {
     request_ = request;
@@ -707,7 +709,7 @@ class FakeApprovalDelegate : public DaoMcpApprovalDelegate {
   }
   size_t request_count() const { return requests_.size(); }
   const DaoMcpApprovalRequest& request() const { return request_; }
-  Browser* browser() const { return browser_; }
+  BrowserWindowInterface* browser() const { return browser_; }
   const std::vector<std::string>& cancelled_connection_ids() const {
     return cancelled_connection_ids_;
   }
@@ -725,7 +727,7 @@ class FakeApprovalDelegate : public DaoMcpApprovalDelegate {
 
  private:
   DaoMcpApprovalRequest request_;
-  raw_ptr<Browser> browser_ = nullptr;
+  raw_ptr<BrowserWindowInterface> browser_ = nullptr;
   std::vector<Request> requests_;
   std::vector<std::string> cancelled_connection_ids_;
 };
@@ -733,7 +735,7 @@ class FakeApprovalDelegate : public DaoMcpApprovalDelegate {
 class AllowDuringCancelApprovalDelegate : public DaoMcpApprovalDelegate {
  public:
   void RequestApproval(const DaoMcpApprovalRequest&,
-                       Browser*,
+                       BrowserWindowInterface*,
                        std::string_view,
                        base::OnceCallback<void(bool)> callback) override {
     callback_ = std::move(callback);
@@ -1237,7 +1239,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
                        ToolCallWaitsForApprovalAndUsesExternalLease) {
-  PrefService* profile_prefs = browser()->profile()->GetPrefs();
+  PrefService* profile_prefs = browser()->GetProfile()->GetPrefs();
   ResetDaoMcpUsageStats(profile_prefs, base::Time::Now());
   FakeApprovalDelegate approval;
   service_->SetApprovalDelegate(&approval);
@@ -1406,7 +1408,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoMcpControlBannerTest,
                        FirstToolCallSnapshotsOneExactBrowserBeforeFocusChanges) {
-  Browser* authorized_browser = browser();
+  BrowserWindowInterface* authorized_browser = browser();
   const std::string authorized_url = authorized_browser->tab_strip_model()
                                          ->GetActiveWebContents()
                                          ->GetLastCommittedURL()
@@ -1422,8 +1424,9 @@ IN_PROC_BROWSER_TEST_F(DaoMcpControlBannerTest,
   WaitForApprovalRequestCount(&approval, 1u);
   ASSERT_EQ(authorized_browser, approval.browser());
 
-  Browser* other_browser = CreateBrowser(authorized_browser->profile());
-  other_browser->window()->Activate();
+  BrowserWindowInterface* other_browser =
+      CreateBrowser(authorized_browser->GetProfile());
+  other_browser->GetWindow()->Activate();
   approval.Resolve(true);
 
   EXPECT_EQ(authorized_browser, approval.browser());
@@ -1497,11 +1500,12 @@ IN_PROC_BROWSER_TEST_F(DaoMcpControlBannerTest,
       l10n_util::GetStringFUTF16(IDS_DAO_MCP_CONTROL_TAB_COUNT, u"1")));
 
   auto replacement = content::WebContents::Create(
-      content::WebContents::CreateParams(browser()->profile()));
+      content::WebContents::CreateParams(browser()->GetProfile()));
   content::WebContents* replacement_ptr = replacement.get();
   std::unique_ptr<content::WebContents> discarded =
-      browser()->tab_strip_model()->DiscardWebContentsAt(
-          0, std::move(replacement));
+      browser()->tab_strip_model()->DiscardWebContents(
+          browser()->tab_strip_model()->GetWebContentsAt(0),
+          std::move(replacement));
   ASSERT_TRUE(content::NavigateToURL(
       replacement_ptr, embedded_test_server()->GetURL("/title2.html")));
   base::RunLoop().RunUntilIdle();
@@ -1777,7 +1781,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
                        TerminalLeaseFailureReleasesConnectionSlot) {
-  auto acquired = DaoAgentLeaseManager::GetForProfile(browser()->profile())
+  auto acquired = DaoAgentLeaseManager::GetForProfile(browser()->GetProfile())
                       ->TryAcquire({DaoToolClient::kDaoAgent,
                                     "agent-blocking-mcp", "Dao Agent"});
   ASSERT_TRUE(acquired.has_value());
@@ -2181,7 +2185,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
       user_data_dir, base::GetCurrentProcId());
   EXPECT_TRUE(base::test::RunUntil(
       [this, layout] { return RuntimeEndpointIsAbsent(layout); }));
-  auto agent_lease = DaoAgentLeaseManager::GetForProfile(browser()->profile())
+  auto agent_lease = DaoAgentLeaseManager::GetForProfile(browser()->GetProfile())
                          ->TryAcquire({DaoToolClient::kDaoAgent,
                                        "agent-after-disable", "Dao Agent"});
   EXPECT_TRUE(agent_lease.has_value());
@@ -2260,7 +2264,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
   EXPECT_EQ(nullptr, service_->GetAuthorizedTarget());
   {
     auto agent_lease =
-        DaoAgentLeaseManager::GetForProfile(browser()->profile())
+        DaoAgentLeaseManager::GetForProfile(browser()->GetProfile())
             ->TryAcquire({DaoToolClient::kDaoAgent,
                           "agent-after-packaged-helper-eof", "Dao Agent"});
     EXPECT_TRUE(agent_lease.has_value());
@@ -2293,7 +2297,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
   client->Disconnect();
   disconnected.Run();
 
-  auto agent_lease = DaoAgentLeaseManager::GetForProfile(browser()->profile())
+  auto agent_lease = DaoAgentLeaseManager::GetForProfile(browser()->GetProfile())
                          ->TryAcquire({DaoToolClient::kDaoAgent,
                                        "agent-after-disconnect", "Dao Agent"});
   EXPECT_TRUE(agent_lease.has_value());
@@ -2316,8 +2320,9 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
       browser(), embedded_test_server()->GetURL("/title2.html"), -1, false);
   ASSERT_TRUE(content::WaitForLoadStop(target));
   const std::string target_id = GetOrCreateSidebarTabId(target);
-  Browser* other_browser = CreateBrowser(browser()->profile());
-  other_browser->window()->Activate();
+  BrowserWindowInterface* other_browser =
+      CreateBrowser(browser()->GetProfile());
+  other_browser->GetWindow()->Activate();
 
   ASSERT_TRUE(client->Send(ToolCall(
       "authorize-tab", "get_page_info",
@@ -2457,7 +2462,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
     EXPECT_EQ(0u, approval.request_count());
   }
 
-  Browser* other = CreateBrowser(browser()->profile());
+  BrowserWindowInterface* other = CreateBrowser(browser()->GetProfile());
   content::WebContents* first =
       browser()->tab_strip_model()->GetActiveWebContents();
   content::WebContents* second = other->tab_strip_model()->GetActiveWebContents();
@@ -2682,7 +2687,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
             terminal_states);
   {
     auto agent_lease =
-        DaoAgentLeaseManager::GetForProfile(browser()->profile())
+        DaoAgentLeaseManager::GetForProfile(browser()->GetProfile())
             ->TryAcquire({DaoToolClient::kDaoAgent,
                           "agent-after-forbidden-navigation", "Dao Agent"});
     EXPECT_TRUE(agent_lease.has_value());
@@ -2723,7 +2728,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
            service_->GetAuthorizedBrowser() == nullptr;
   }));
   auto agent_lease =
-      DaoAgentLeaseManager::GetForProfile(browser()->profile())
+      DaoAgentLeaseManager::GetForProfile(browser()->GetProfile())
           ->TryAcquire({DaoToolClient::kDaoAgent, "agent-after-target-close",
                         "Dao Agent"});
   EXPECT_TRUE(agent_lease.has_value());
@@ -2775,11 +2780,12 @@ IN_PROC_BROWSER_TEST_F(
   ApproveFirstToolCall(client.get(), &approval);
 
   auto legal_replacement = content::WebContents::Create(
-      content::WebContents::CreateParams(browser()->profile()));
+      content::WebContents::CreateParams(browser()->GetProfile()));
   content::WebContents* legal_contents = legal_replacement.get();
   std::unique_ptr<content::WebContents> first_discarded =
-      browser()->tab_strip_model()->DiscardWebContentsAt(
-          0, std::move(legal_replacement));
+      browser()->tab_strip_model()->DiscardWebContents(
+          browser()->tab_strip_model()->GetWebContentsAt(0),
+          std::move(legal_replacement));
   ASSERT_TRUE(first_discarded);
   base::RunLoop().RunUntilIdle();
   EXPECT_EQ(DaoMcpStatus::kLeaseActive, service_->GetStatus().state);
@@ -2801,11 +2807,12 @@ IN_PROC_BROWSER_TEST_F(
   EXPECT_EQ(discard_url, GURL(*discard_data->FindString("url")));
 
   auto forbidden_replacement = content::WebContents::Create(
-      content::WebContents::CreateParams(browser()->profile()));
+      content::WebContents::CreateParams(browser()->GetProfile()));
   content::WebContents* forbidden_contents = forbidden_replacement.get();
   std::unique_ptr<content::WebContents> second_discarded =
-      browser()->tab_strip_model()->DiscardWebContentsAt(
-          0, std::move(forbidden_replacement));
+      browser()->tab_strip_model()->DiscardWebContents(
+          browser()->tab_strip_model()->GetWebContentsAt(0),
+          std::move(forbidden_replacement));
   ASSERT_TRUE(second_discarded);
   base::RunLoop().RunUntilIdle();
   EXPECT_EQ(DaoMcpStatus::kLeaseActive, service_->GetStatus().state);
@@ -2819,7 +2826,8 @@ IN_PROC_BROWSER_TEST_F(
 
 IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
                        AuthorizedWindowCloseTerminatesActiveControl) {
-  Browser* authorized_browser = CreateBrowser(browser()->profile());
+  BrowserWindowInterface* authorized_browser =
+      CreateBrowser(browser()->GetProfile());
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       authorized_browser, embedded_test_server()->GetURL("/title2.html")));
   ui_test_utils::WaitForBrowserSetLastActive(authorized_browser);
@@ -2844,7 +2852,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
            service_->GetAuthorizedBrowser() == nullptr;
   }));
   auto agent_lease =
-      DaoAgentLeaseManager::GetForProfile(browser()->profile())
+      DaoAgentLeaseManager::GetForProfile(browser()->GetProfile())
           ->TryAcquire({DaoToolClient::kDaoAgent, "agent-after-window-close",
                         "Dao Agent"});
   EXPECT_TRUE(agent_lease.has_value());
@@ -2859,14 +2867,14 @@ IN_PROC_BROWSER_TEST_F(
       profile_manager->GenerateNextProfileDirectoryPath();
   Profile& secondary_profile =
       profiles::testing::CreateProfileSync(profile_manager, secondary_path);
-  Browser* secondary_browser = CreateBrowser(&secondary_profile);
+  BrowserWindowInterface* secondary_browser = CreateBrowser(&secondary_profile);
   ASSERT_NE(nullptr, secondary_browser);
   chrome::AddTabAt(secondary_browser,
                    embedded_test_server()->GetURL("/title2.html"), -1, true);
   content::WebContents* secondary_contents =
       secondary_browser->tab_strip_model()->GetActiveWebContents();
   ASSERT_NE(nullptr, secondary_contents);
-  secondary_browser->window()->Show();
+  secondary_browser->GetWindow()->Show();
   ui_test_utils::WaitForBrowserSetLastActive(secondary_browser);
 
   FakeApprovalDelegate approval;
@@ -2987,7 +2995,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
   EXPECT_FALSE(browser_view->dao_agent_cursor()->GetVisible());
   EXPECT_EQ(nullptr, service_->GetAuthorizedBrowser());
   EXPECT_EQ(nullptr, service_->GetAuthorizedTarget());
-  auto agent_lease = DaoAgentLeaseManager::GetForProfile(browser()->profile())
+  auto agent_lease = DaoAgentLeaseManager::GetForProfile(browser()->GetProfile())
                          ->TryAcquire({DaoToolClient::kDaoAgent,
                                        "agent-after-active-stop", "Dao Agent"});
   EXPECT_TRUE(agent_lease.has_value());
@@ -3059,7 +3067,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
   EXPECT_TRUE(base::test::RunUntil(
       [this, layout] { return RuntimeEndpointIsAbsent(layout); }));
   auto agent_lease =
-      DaoAgentLeaseManager::GetForProfile(browser()->profile())
+      DaoAgentLeaseManager::GetForProfile(browser()->GetProfile())
           ->TryAcquire({DaoToolClient::kDaoAgent, "agent-after-active-disable",
                         "Dao Agent"});
   EXPECT_TRUE(agent_lease.has_value());
@@ -3093,7 +3101,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpControlBannerTest,
                    ->mcp_control_button_for_testing()
                    ->GetVisible());
   {
-    auto agent_lease = DaoAgentLeaseManager::GetForProfile(browser()->profile())
+    auto agent_lease = DaoAgentLeaseManager::GetForProfile(browser()->GetProfile())
                            ->TryAcquire({DaoToolClient::kDaoAgent,
                                          "agent-after-stop", "Dao Agent"});
     EXPECT_TRUE(agent_lease.has_value());
@@ -3151,7 +3159,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpControlBannerTest,
   EXPECT_EQ(nullptr, address_bar->mcp_control_popup_for_testing());
   EXPECT_FALSE(address_bar->mcp_control_button_for_testing()->GetVisible());
   EXPECT_EQ(nullptr, service_->GetAuthorizedBrowser());
-  auto agent_lease = DaoAgentLeaseManager::GetForProfile(browser()->profile())
+  auto agent_lease = DaoAgentLeaseManager::GetForProfile(browser()->GetProfile())
                          ->TryAcquire({DaoToolClient::kDaoAgent,
                                        "agent-after-stop-button", "Dao Agent"});
   EXPECT_TRUE(agent_lease.has_value());

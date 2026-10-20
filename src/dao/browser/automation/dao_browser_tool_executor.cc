@@ -10,7 +10,6 @@
 #include "base/check.h"
 #include "base/functional/bind.h"
 #include "base/timer/timer.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "content/public/browser/web_contents.h"
 #include "dao/browser/automation/dao_browser_automation_session.h"
@@ -50,8 +49,7 @@ base::expected<content::WebContents*, DaoToolError> ResolveTargetForClient(
     return base::unexpected(std::move(target).error());
   }
   BrowserWindowInterface* browser_window = session_weak->browser_window();
-  Browser* browser =
-      browser_window ? browser_window->GetBrowserForMigrationOnly() : nullptr;
+  BrowserWindowInterface* browser = browser_window;
   auto policy = ValidateExternalTarget(browser, session_weak->profile(), *target);
   if (!policy.has_value()) {
     return base::unexpected(std::move(policy).error());

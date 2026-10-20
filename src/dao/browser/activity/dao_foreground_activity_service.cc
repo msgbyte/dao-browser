@@ -17,7 +17,6 @@
 #include "base/time/default_clock.h"
 #include "base/time/default_tick_clock.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -253,7 +252,7 @@ void DaoForegroundActivityService::ObserveBrowser(
   if (!browser_window || browser_window->GetProfile() != profile_) {
     return;
   }
-  Browser* browser = browser_window->GetBrowserForMigrationOnly();
+  BrowserWindowInterface* browser = browser_window;
   if (!browser) {
     return;
   }
@@ -303,7 +302,7 @@ content::WebContents* DaoForegroundActivityService::GetSelectedWebContents()
   if (browser_window->GetProfile() != profile_) {
     return nullptr;
   }
-  Browser* browser = browser_window->GetBrowserForMigrationOnly();
+  BrowserWindowInterface* browser = browser_window;
   BrowserView* browser_view =
       browser ? BrowserView::GetBrowserViewForBrowser(browser) : nullptr;
   return browser_view ? browser_view->GetActiveWebContents() : nullptr;

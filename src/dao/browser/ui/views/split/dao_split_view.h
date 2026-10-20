@@ -19,7 +19,7 @@
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/view.h"
 
-class Browser;
+class BrowserWindowInterface;
 class TabStripModel;
 
 namespace content {
@@ -35,13 +35,9 @@ class DaoSplitBranchNode;
 class DaoSplitLeafNode;
 class DaoSplitPaneView;
 
-// Container view that manages the binary split tree of web content panes.
-// Lives as a child of contents_container_ inside BrowserView.
-//
-// When only one pane exists (the root leaf), DaoSplitView is hidden and
-// Chromium's normal ContentsWebView is used.  When split mode is active
-// (>1 leaf), DaoSplitView becomes visible and the original ContentsWebView
-// is zero-sized.
+// Container view that manages the binary split tree inside MultiContentsView.
+// It remains present for tab-drop targeting in single-pane mode. Active splits
+// own the visible content while Chromium's content hosts remain small and nonempty.
 class DaoSplitView : public views::View,
                       public TabStripModelObserver {
   METADATA_HEADER(DaoSplitView, views::View)
@@ -60,12 +56,12 @@ class DaoSplitView : public views::View,
     bool is_active = false;
   };
 
-  explicit DaoSplitView(Browser* browser);
+  explicit DaoSplitView(BrowserWindowInterface* browser);
   DaoSplitView(const DaoSplitView&) = delete;
   DaoSplitView& operator=(const DaoSplitView&) = delete;
   ~DaoSplitView() override;
 
-  Browser* browser() const { return browser_; }
+  BrowserWindowInterface* browser() const { return browser_; }
 
   // Whether split mode is active (>1 leaf in tree).
   bool IsSplitActive() const;
@@ -271,7 +267,7 @@ class DaoSplitView : public views::View,
               ui::mojom::DragOperation& output_drag_op,
               std::unique_ptr<ui::LayerTreeOwner> drag_image_layer_owner);
 
-  raw_ptr<Browser> browser_;
+  raw_ptr<BrowserWindowInterface> browser_;
   raw_ptr<TabStripModel> tab_strip_model_;
   std::unique_ptr<DaoSplitNode> single_root_;
   std::vector<std::unique_ptr<SplitGroup>> split_groups_;

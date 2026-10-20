@@ -5,6 +5,7 @@
 #include "dao/browser/ui/views/little_dao/dao_little_dao_controller.h"
 
 #include <optional>
+#include <utility>
 
 #include "base/auto_reset.h"
 #include "base/containers/flat_set.h"
@@ -12,13 +13,13 @@
 #include "base/scoped_observation.h"
 #include "base/values.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_collection_observer.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/create_browser_window.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
+#include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "chrome/browser/ui/navigator/browser_navigator.h"
 #include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
@@ -27,10 +28,12 @@
 #include "components/prefs/scoped_user_pref_update.h"
 #include "content/public/browser/web_contents.h"
 #include "dao/browser/dao_pref_names.h"
+#include "ui/base/base_window.h"
 #include "ui/display/display.h"
 #include "ui/display/screen.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
+#include "url/origin.h"
 
 namespace dao {
 
@@ -117,8 +120,10 @@ gfx::Rect CenterLittleDaoBoundsInTargetDisplay(Profile* profile,
   }
 
   display::Display display = screen->GetPrimaryDisplay();
+  ProfileBrowserCollection* collection =
+      ProfileBrowserCollection::GetForProfile(profile);
   if (BrowserWindowInterface* last_active_browser =
-          chrome::FindLastActiveWithProfile(profile);
+          collection ? collection->GetLastActiveBrowser() : nullptr;
       last_active_browser && last_active_browser->GetWindow()) {
     display = screen->GetDisplayNearestWindow(
         last_active_browser->GetWindow()->GetNativeWindow());
@@ -147,25 +152,26 @@ gfx::Rect GetInitialLittleDaoBounds(Profile* profile) {
   return CenterLittleDaoBoundsInTargetDisplay(profile, size);
 }
 
-void RestoreLittleDaoWindowBounds(Browser* browser, const gfx::Rect& bounds) {
-  if (!browser || !browser->window() || bounds.IsEmpty()) {
+void RestoreLittleDaoWindowBounds(BrowserWindowInterface* browser,
+                                  const gfx::Rect& bounds) {
+  if (!browser || !browser->GetWindow() || bounds.IsEmpty()) {
     return;
   }
 
-  browser->window()->SetBounds(bounds);
+  browser->GetWindow()->SetBounds(bounds);
 }
 
-void UpdatePersistedLittleDaoWindowBounds(Browser* browser) {
-  if (!browser || !browser->window()) {
+void UpdatePersistedLittleDaoWindowBounds(BrowserWindowInterface* browser) {
+  if (!browser || !browser->GetWindow()) {
     return;
   }
 
-  PrefService* prefs = GetValidLittleDaoPrefs(browser->profile());
+  PrefService* prefs = GetValidLittleDaoPrefs(browser->GetProfile());
   if (!prefs) {
     return;
   }
 
-  const gfx::Rect bounds = browser->window()->GetBounds();
+  const gfx::Rect bounds = browser->GetWindow()->GetBounds();
   if (bounds.width() <= 0 || bounds.height() <= 0) {
     return;
   }
@@ -189,17 +195,17 @@ class LittleDaoBrowserTracker : public BrowserCollectionObserver {
     return *instance;
   }
 
-  void Insert(const Browser* browser) {
+  void Insert(const BrowserWindowInterface* browser) {
     browsers_.insert(browser);
   }
 
-  bool Contains(const Browser* browser) const {
+  bool Contains(const BrowserWindowInterface* browser) const {
     return browsers_.contains(browser);
   }
 
   // BrowserCollectionObserver:
   void OnBrowserClosed(BrowserWindowInterface* browser_window) override {
-    Browser* browser = browser_window->GetBrowserForMigrationOnly();
+    BrowserWindowInterface* browser = browser_window;
     // Called when a Browser window is closed and about to be destroyed.
     // Erase even if it's not a Little Dao browser — the set operation is
     // cheap and this keeps the invariant simple.
@@ -217,17 +223,17 @@ class LittleDaoBrowserTracker : public BrowserCollectionObserver {
   }
   ~LittleDaoBrowserTracker() override = default;
 
-  base::flat_set<const Browser*> browsers_;
+  base::flat_set<const BrowserWindowInterface*> browsers_;
   base::ScopedObservation<GlobalBrowserCollection, BrowserCollectionObserver>
       browser_collection_observation_{this};
 };
 
-Browser* CreateLittleDaoBrowser(Profile* profile) {
+BrowserWindowInterface* CreateLittleDaoBrowser(Profile* profile) {
   if (!profile)
     return nullptr;
 
-  Browser::CreateParams params(Browser::TYPE_POPUP, profile,
-                               /*user_gesture=*/true);
+  BrowserWindowCreateParams params(BrowserWindowInterface::TYPE_POPUP, profile,
+                                   /*user_gesture=*/true);
   const gfx::Rect initial_bounds = GetInitialLittleDaoBounds(profile);
   params.initial_bounds = initial_bounds;
   params.can_resize = true;
@@ -235,10 +241,12 @@ Browser* CreateLittleDaoBrowser(Profile* profile) {
   params.can_fullscreen = false;
   params.omit_from_session_restore = true;
 
-  // Set flag before Browser::Create so BrowserView can detect Little Dao
+  // Set flag before CreateBrowserWindow so BrowserView can detect Little Dao
   // during construction.
   base::AutoReset<bool> creating_little_dao(&g_creating_little_dao, true);
-  Browser* browser = Browser::Create(params);
+  BrowserWindowInterface* created_window =
+      CreateBrowserWindow(std::move(params));
+  BrowserWindowInterface* browser = created_window;
   if (!browser)
     return nullptr;
 
@@ -250,14 +258,20 @@ Browser* CreateLittleDaoBrowser(Profile* profile) {
 }  // namespace
 
 // static
-Browser* DaoLittleDaoController::OpenInLittleDao(Profile* profile,
-                                                 const GURL& url) {
-  Browser* browser = CreateLittleDaoBrowser(profile);
+BrowserWindowInterface* DaoLittleDaoController::OpenInLittleDao(
+    Profile* profile,
+    const GURL& url,
+    bool is_untrusted_launch) {
+  BrowserWindowInterface* browser = CreateLittleDaoBrowser(profile);
   if (!browser)
     return nullptr;
 
   // Navigate to the URL in the popup's single tab.
   NavigateParams nav_params(browser, url, ui::PAGE_TRANSITION_LINK);
+  if (is_untrusted_launch) {
+    // Preserve Chromium's unprivileged initiator for external custom protocols.
+    nav_params.initiator_origin = url::Origin();
+  }
   nav_params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
   nav_params.window_action = NavigateParams::WindowAction::kShowWindow;
   ::Navigate(&nav_params);
@@ -265,8 +279,8 @@ Browser* DaoLittleDaoController::OpenInLittleDao(Profile* profile,
 }
 
 // static
-Browser* DaoLittleDaoController::ExtractActiveTabToLittleDao(
-    Browser* source_browser) {
+BrowserWindowInterface* DaoLittleDaoController::ExtractActiveTabToLittleDao(
+    BrowserWindowInterface* source_browser) {
   if (!source_browser || IsLittleDaoWindow(source_browser))
     return nullptr;
 
@@ -279,11 +293,11 @@ Browser* DaoLittleDaoController::ExtractActiveTabToLittleDao(
   if (!original_contents)
     return nullptr;
 
-  Profile* profile = source_browser->profile();
+  Profile* profile = source_browser->GetProfile();
   if (!profile)
     return nullptr;
 
-  Browser* little_dao_browser = CreateLittleDaoBrowser(profile);
+  BrowserWindowInterface* little_dao_browser = CreateLittleDaoBrowser(profile);
   if (!little_dao_browser)
     return nullptr;
 
@@ -311,7 +325,7 @@ Browser* DaoLittleDaoController::ExtractActiveTabToLittleDao(
       source_model->GetIndexOfWebContents(original_contents);
   if (source_index == TabStripModel::kNoTab) {
     close_replacement();
-    little_dao_browser->window()->Close();
+    little_dao_browser->GetWindow()->Close();
     return nullptr;
   }
 
@@ -319,19 +333,20 @@ Browser* DaoLittleDaoController::ExtractActiveTabToLittleDao(
       source_model->DetachWebContentsAtForInsertion(source_index);
   if (!contents) {
     close_replacement();
-    little_dao_browser->window()->Close();
+    little_dao_browser->GetWindow()->Close();
     return nullptr;
   }
 
   little_dao_browser->tab_strip_model()->InsertWebContentsAt(
       -1, std::move(contents), AddTabTypes::ADD_ACTIVE);
-  little_dao_browser->window()->Show();
-  little_dao_browser->window()->Activate();
+  little_dao_browser->GetWindow()->Show();
+  little_dao_browser->GetWindow()->Activate();
   return little_dao_browser;
 }
 
 // static
-bool DaoLittleDaoController::IsLittleDaoWindow(const Browser* browser) {
+bool DaoLittleDaoController::IsLittleDaoWindow(
+    const BrowserWindowInterface* browser) {
   if (!browser)
     return false;
   return LittleDaoBrowserTracker::Get().Contains(browser);
@@ -344,7 +359,7 @@ bool DaoLittleDaoController::IsCreatingLittleDao() {
 
 // static
 void DaoLittleDaoController::TransferToMainBrowser(
-    Browser* little_dao_browser) {
+    BrowserWindowInterface* little_dao_browser) {
   if (!little_dao_browser)
     return;
 
@@ -358,14 +373,20 @@ void DaoLittleDaoController::TransferToMainBrowser(
   if (!contents)
     return;
 
-  Profile* profile = little_dao_browser->profile();
+  Profile* profile = little_dao_browser->GetProfile();
 
   // Find an existing tabbed browser, or create one.
-  Browser* main_browser = chrome::FindTabbedBrowser(profile, false);
+  ProfileBrowserCollection* collection =
+      ProfileBrowserCollection::GetForProfile(profile);
+  BrowserWindowInterface* main_window =
+      collection ? collection->FindTabbedBrowser() : nullptr;
+  BrowserWindowInterface* main_browser = main_window;
   if (!main_browser) {
-    Browser::CreateParams main_params(profile, /*user_gesture=*/true);
-    main_browser = Browser::Create(main_params);
-    main_browser->window()->Show();
+    BrowserWindowCreateParams main_params(profile, /*user_gesture=*/true);
+    BrowserWindowInterface* created_window =
+        CreateBrowserWindow(std::move(main_params));
+    main_browser = created_window;
+    main_browser->GetWindow()->Show();
   }
 
   // Insert the WebContents into the main browser.
@@ -373,12 +394,12 @@ void DaoLittleDaoController::TransferToMainBrowser(
       -1, std::move(contents), AddTabTypes::ADD_ACTIVE);
 
   // Activate the main browser window.
-  main_browser->window()->Activate();
+  main_browser->GetWindow()->Activate();
 
   // Close the Little Dao window. The tracker's OnBrowserRemoved observer
   // will erase the entry from the set when the Browser is destroyed, so no
   // explicit erase is needed here.
-  little_dao_browser->window()->Close();
+  little_dao_browser->GetWindow()->Close();
 }
 
 }  // namespace dao

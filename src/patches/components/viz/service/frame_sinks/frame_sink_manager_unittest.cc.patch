@@ -1,21 +1,11 @@
 diff --git a/components/viz/service/frame_sinks/frame_sink_manager_unittest.cc b/components/viz/service/frame_sinks/frame_sink_manager_unittest.cc
 --- a/components/viz/service/frame_sinks/frame_sink_manager_unittest.cc
 +++ b/components/viz/service/frame_sinks/frame_sink_manager_unittest.cc
-@@ -12,6 +12,7 @@
- #include "base/test/tracing/test_trace_processor.h"
- #include "components/input/features.h"
- #include "components/viz/common/constants.h"
-+#include "components/viz/common/features.h"
- #include "components/viz/common/frame_sinks/begin_frame_source.h"
- #include "components/viz/common/surfaces/parent_local_surface_id_allocator.h"
- #include "components/viz/service/frame_sinks/compositor_frame_sink_support.h"
-@@ -887,6 +888,76 @@
+@@ -881,6 +881,73 @@
                                           client_f->frame_sink_id());
  }
  
 +TEST_F(FrameSinkManagerTest, ThrottlingExemption) {
-+  scoped_feature_list_.InitAndEnableFeature(
-+      features::kThrottleFrameSinksOnInteraction);
 +  const std::vector<FrameSinkId> ids{kFrameSinkIdRoot, kFrameSinkIdA,
 +                                     kFrameSinkIdB, kFrameSinkIdC,
 +                                     kFrameSinkIdD};
@@ -34,7 +24,6 @@ diff --git a/components/viz/service/frame_sinks/frame_sink_manager_unittest.cc b
 +  constexpr base::TimeDelta interval = base::Hertz(10);
 +  manager_->StartThrottlingAllFrameSinks(global_interval);
 +  manager_->Throttle({kFrameSinkIdA}, interval);
-+  SetInteractive(root, true);
 +  manager_->SetFrameSinkThrottlingExempt(kFrameSinkIdA, true);
 +  VerifyThrottling(base::TimeDelta(), {kFrameSinkIdA, kFrameSinkIdB});
 +  VerifyAllowThrottling(false, {kFrameSinkIdA, kFrameSinkIdB});

@@ -27,8 +27,8 @@
 #include "base/time/tick_clock.h"
 #include "base/time/time.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/common/url_constants.h"
@@ -532,7 +532,7 @@ class DaoForegroundActivityBrowserTest : public InProcessBrowserTest {
     ASSERT_TRUE(https_server_.Start());
     ASSERT_TRUE(service_created_eagerly_);
     service_ = DaoForegroundActivityServiceFactory::GetForProfile(
-        browser()->profile());
+        browser()->GetProfile());
     ASSERT_TRUE(service_);
   }
 
@@ -605,7 +605,8 @@ IN_PROC_BROWSER_TEST_F(DaoForegroundActivityBrowserTest,
   split_view->SetActivePane(first_pane);
   Advance(base::Seconds(11));
 
-  Browser* background_window = CreateBrowser(browser()->profile());
+  BrowserWindowInterface* background_window =
+      CreateBrowser(browser()->GetProfile());
   BrowserView::GetBrowserViewForBrowser(background_window)
       ->GetWidget()
       ->Activate();
@@ -687,7 +688,8 @@ IN_PROC_BROWSER_TEST_F(DaoForegroundActivityBrowserTest,
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url));
   Advance(base::Seconds(5));
 
-  Browser* second_browser = CreateBrowser(browser()->profile());
+  BrowserWindowInterface* second_browser =
+      CreateBrowser(browser()->GetProfile());
   ASSERT_TRUE(ui_test_utils::NavigateToURL(second_browser, second_url));
   BrowserView::GetBrowserViewForBrowser(second_browser)
       ->GetWidget()

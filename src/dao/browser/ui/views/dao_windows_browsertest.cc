@@ -8,8 +8,8 @@
 #include "base/test/run_until.h"
 #include "base/win/windows_version.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/view_ids.h"
 #include "chrome/browser/ui/views/frame/browser_caption_button_container_win.h"
@@ -103,8 +103,8 @@ IN_PROC_BROWSER_TEST_F(DaoWindowsBrowserTest, DaoControlShortcuts) {
 }
 
 IN_PROC_BROWSER_TEST_F(DaoWindowsBrowserTest, LittleDaoControlOTransfersTab) {
-  Browser* little = dao::DaoLittleDaoController::OpenInLittleDao(
-      browser()->profile(), GURL("about:blank"));
+  BrowserWindowInterface* little = dao::DaoLittleDaoController::OpenInLittleDao(
+      browser()->GetProfile(), GURL("about:blank"));
   ASSERT_TRUE(little);
   auto* contents = little->tab_strip_model()->GetActiveWebContents();
   ASSERT_TRUE(contents);
@@ -337,7 +337,7 @@ IN_PROC_BROWSER_TEST_F(DaoWindowsBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoWindowsBrowserTest, TabSearchHasRegisteredWebUIConfig) {
   EXPECT_NE(nullptr, TopChromeWebUIConfig::From(
-                         browser()->profile(),
+                         browser()->GetProfile(),
                          GURL(chrome::kChromeUITabSearchURL)));
 }
 

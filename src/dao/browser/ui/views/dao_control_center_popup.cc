@@ -5,7 +5,7 @@
 #include "dao/browser/ui/views/dao_control_center_popup.h"
 
 #include "build/build_config.h"
-#include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "content/public/browser/web_contents.h"
 #include "dao/browser/ui/views/dao_colors.h"
@@ -95,7 +95,7 @@ class ControlCenterCardBackground : public views::Background {
 BEGIN_METADATA(DaoControlCenterPopup)
 END_METADATA
 
-DaoControlCenterPopup::DaoControlCenterPopup(Browser* browser)
+DaoControlCenterPopup::DaoControlCenterPopup(BrowserWindowInterface* browser)
     : browser_(browser) {
   SetPaintToLayer();
   layer()->SetFillsBoundsOpaquely(false);

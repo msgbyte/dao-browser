@@ -1,0 +1,13 @@
+diff --git a/chrome/browser/ui/color/chrome_color_id.h b/chrome/browser/ui/color/chrome_color_id.h
+--- a/chrome/browser/ui/color/chrome_color_id.h
++++ b/chrome/browser/ui/color/chrome_color_id.h
+@@ -1126,6 +1126,9 @@
+   /* Window control button background colors. */ \
+   E_CPONLY(kColorWindowControlButtonBackgroundActive) \
+   E_CPONLY(kColorWindowControlButtonBackgroundInactive) \
++  /* Dao command bar colors. */ \
++  E_CPONLY(kColorDaoTextPrimary) \
++  E_CPONLY(kColorDaoTextMuted) \
+ 
+ #if BUILDFLAG(IS_CHROMEOS)
+ #define CHROME_PLATFORM_SPECIFIC_COLOR_IDS \

@@ -15,14 +15,15 @@
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_attributes_entry.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/profiles/profile_view_utils.h"
+#include "chrome/browser/ui/window_metadata/window_metadata_controller.h"
 #include "components/constrained_window/constrained_window_views.h"
 #include "dao/browser/strings/grit/dao_strings.h"
 #include "dao/browser/ui/views/dao_colors.h"
 #include "dao/browser/ui/views/dao_system_dialog.h"
+#include "ui/base/base_window.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/base/mojom/ui_base_types.mojom-shared.h"
@@ -66,17 +67,18 @@ std::unique_ptr<views::Label> CreateLabel(std::u16string text,
   return label;
 }
 
-bool IsEligibleApprovalBrowser(Browser* browser) {
-  return browser && browser->is_type_normal() && browser->profile() &&
-         !browser->profile()->IsOffTheRecord() &&
-         !browser->profile()->IsGuestSession() && browser->window();
+bool IsEligibleApprovalBrowser(BrowserWindowInterface* browser) {
+  return browser &&
+         (browser->GetType() == BrowserWindowInterface::TYPE_NORMAL) &&
+         browser->GetProfile() && !browser->GetProfile()->IsOffTheRecord() &&
+         !browser->GetProfile()->IsGuestSession() && browser->GetWindow();
 }
 
 }  // namespace
 
 DaoMcpApprovalDialog::DaoMcpApprovalDialog(
     const DaoMcpApprovalRequest& request,
-    Browser* browser,
+    BrowserWindowInterface* browser,
     base::OnceCallback<void(bool)> callback)
     : callback_(std::move(callback)) {
   SetTitle(l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_TITLE));
@@ -122,7 +124,7 @@ base::WeakPtr<DaoMcpApprovalDialog> DaoMcpApprovalDialog::GetWeakPtr() {
 
 std::unique_ptr<views::View> DaoMcpApprovalDialog::BuildContents(
     const DaoMcpApprovalRequest& request,
-    Browser* browser) {
+    BrowserWindowInterface* browser) {
   auto contents = std::make_unique<views::View>();
   auto* layout =
       contents->SetLayoutManager(std::make_unique<views::BoxLayout>(
@@ -172,7 +174,9 @@ std::unique_ptr<views::View> DaoMcpApprovalDialog::BuildContents(
       ->SetSubpixelRenderingEnabled(false);
 
   std::u16string window_title =
-      browser ? browser->GetWindowTitleForCurrentTab(false) : std::u16string();
+      browser ? WindowMetadataController::From(browser)
+                    ->GetWindowTitleForCurrentTab(false)
+              : std::u16string();
   window_title = SanitizeLabel(std::move(window_title));
   details->AddChildView(CreateLabel(
       l10n_util::GetStringFUTF16(IDS_DAO_MCP_APPROVAL_WINDOW, window_title),
@@ -189,13 +193,13 @@ std::unique_ptr<views::View> DaoMcpApprovalDialog::BuildContents(
   }
 
   std::u16string profile_name;
-  if (browser && browser->profile()) {
+  if (browser && browser->GetProfile()) {
     if (ProfileAttributesEntry* entry =
-            GetProfileAttributesFromProfile(browser->profile())) {
+            GetProfileAttributesFromProfile(browser->GetProfile())) {
       profile_name = entry->GetLocalProfileName();
     }
     if (profile_name.empty()) {
-      profile_name = browser->profile()->GetPath().BaseName().AsUTF16Unsafe();
+      profile_name = browser->GetProfile()->GetPath().BaseName().AsUTF16Unsafe();
     }
   }
   details->AddChildView(CreateLabel(
@@ -226,7 +230,7 @@ DaoMcpApprovalDialogController::~DaoMcpApprovalDialogController() = default;
 
 DaoMcpApprovalDialogController::PendingRequest::PendingRequest(
     const DaoMcpApprovalRequest& request,
-    Browser* browser,
+    BrowserWindowInterface* browser,
     std::string connection_id,
     base::OnceCallback<void(bool)> callback)
     : approval(request),
@@ -243,7 +247,7 @@ DaoMcpApprovalDialogController::PendingRequest::operator=(PendingRequest&&) =
 
 void DaoMcpApprovalDialogController::RequestApproval(
     const DaoMcpApprovalRequest& request,
-    Browser* browser,
+    BrowserWindowInterface* browser,
     std::string_view connection_id,
     base::OnceCallback<void(bool)> callback) {
   if (!IsEligibleApprovalBrowser(browser)) {
@@ -276,9 +280,9 @@ void DaoMcpApprovalDialogController::ShowNextApproval() {
                      std::move(request.callback)));
   pending_dialog_ = dialog->GetWeakPtr();
   pending_connection_id_ = std::move(request.connection_id);
-  request.browser->window()->Activate();
+  request.browser->GetWindow()->Activate();
   views::Widget* widget = constrained_window::CreateBrowserModalDialogViews(
-      std::move(dialog), request.browser->window()->GetNativeWindow());
+      std::move(dialog), request.browser->GetWindow()->GetNativeWindow());
   widget->Show();
 }
 

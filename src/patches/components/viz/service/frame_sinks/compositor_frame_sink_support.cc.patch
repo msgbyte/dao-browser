@@ -1,18 +1,17 @@
 diff --git a/components/viz/service/frame_sinks/compositor_frame_sink_support.cc b/components/viz/service/frame_sinks/compositor_frame_sink_support.cc
 --- a/components/viz/service/frame_sinks/compositor_frame_sink_support.cc
 +++ b/components/viz/service/frame_sinks/compositor_frame_sink_support.cc
-@@ -287,6 +287,10 @@
+@@ -283,6 +283,9 @@
    throttler_.SetAllowThrottling(allowed);
  }
  
 +void CompositorFrameSinkSupport::SetUndrawnFrameThrottlingExempt(bool exempt) {
 +  undrawn_frame_throttling_exempt_ = exempt;
 +}
-+
- void CompositorFrameSinkSupport::SetThrottledDueToInteraction(bool throttled) {
-   throttler_.SetThrottledDueToInteraction(throttled);
- }
-@@ -1500,6 +1504,7 @@
+ 
+ 
+ void CompositorFrameSinkSupport::OnSurfaceCommitted(Surface* surface) {
+@@ -1491,6 +1494,7 @@
      // active frame requests that it doesn't.
      uint64_t num_undrawn_frames = active_frame_index - last_drawn_frame_index_;
      should_throttle_undrawn_frames =

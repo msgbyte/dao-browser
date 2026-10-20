@@ -1,0 +1,19 @@
+diff --git a/chrome/browser/ui/tabs/tab_features.cc b/chrome/browser/ui/tabs/tab_features.cc
+--- a/chrome/browser/ui/tabs/tab_features.cc
++++ b/chrome/browser/ui/tabs/tab_features.cc
+@@ -553,11 +553,10 @@
+   intent_picker_tab_helper_ =
+       std::make_unique<IntentPickerTabHelper>(tab, tab.GetContents());
+ 
+-  if (base::FeatureList::IsEnabled(features::kTabHoverCardImages)) {
+-    thumbnail_tab_helper_ =
+-        GetUserDataFactory().CreateInstance<ThumbnailTabHelper>(
+-            tab, tab, tab.GetContents());
+-  }
++  // Dao tracks readiness from the first navigation; capture follows its pref.
++  thumbnail_tab_helper_ =
++      GetUserDataFactory().CreateInstance<ThumbnailTabHelper>(
++          tab, tab, tab.GetContents());
+ 
+   if (!webui_browser::IsWebUIBrowserEnabled()) {
+     sad_tab_helper_ = GetUserDataFactory().CreateInstance<SadTabHelper>(

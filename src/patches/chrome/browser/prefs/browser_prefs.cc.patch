@@ -1,8 +1,6 @@
-diff --git a/chrome/browser/prefs/browser_prefs.cc b/chrome/browser/prefs/browser_prefs.cc
-index ad6b592b47..b53565bd82 100644
 --- a/chrome/browser/prefs/browser_prefs.cc
 +++ b/chrome/browser/prefs/browser_prefs.cc
-@@ -19,6 +19,7 @@
+@@ -20,6 +20,7 @@
  #include "build/build_config.h"
  #include "chrome/browser/about_flags.h"
  #include "chrome/browser/accessibility/accessibility_labels_service.h"
@@ -10,7 +8,7 @@ index ad6b592b47..b53565bd82 100644
  #include "chrome/browser/accessibility/invert_bubble_prefs.h"
  #include "chrome/browser/accessibility/page_colors_controller.h"
  #include "chrome/browser/accessibility/prefers_default_scrollbar_styles_prefs.h"
-@@ -1730,6 +1731,8 @@ void RegisterLocalState(PrefRegistrySimple* registry) {
+@@ -1793,6 +1794,8 @@
  void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
                            const std::string& locale) {
    TRACE_EVENT0("browser", "chrome::RegisterProfilePrefs");
@@ -18,4 +16,4 @@ index ad6b592b47..b53565bd82 100644
 +  dao::prefs::RegisterProfilePrefs(registry);
    // User prefs. Please keep this list alphabetized.
    AccessibilityLabelsService::RegisterProfilePrefs(registry);
-   AccessibilityUIMessageHandler::RegisterProfilePrefs(registry);
+   registry->RegisterBooleanPref(prefs::kRendererAccessibilityEnabled, true);

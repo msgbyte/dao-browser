@@ -1,0 +1,109 @@
+diff --git a/chrome/test/data/webui/settings/about_page_test.ts b/chrome/test/data/webui/settings/about_page_test.ts
+--- a/chrome/test/data/webui/settings/about_page_test.ts
++++ b/chrome/test/data/webui/settings/about_page_test.ts
+@@ -16,19 +16,22 @@
+ import {TestOpenWindowProxy} from 'chrome://webui-test/test_open_window_proxy.js';
+ // </if>
+ 
++// <if expr="not is_chromeos and (not is_macosx or _google_chrome)">
++import {webUIListenerCallback} from 'chrome://resources/js/cr.js';
++// </if>
++
+ // <if expr="_google_chrome and is_macosx">
+ import type {PromoteUpdaterStatus} from 'chrome://settings/settings.js';
+ // </if>
+ 
+-// <if expr="not is_chromeos">
++// <if expr="not is_chromeos and not is_macosx and not is_win">
+ import {UpdateStatus} from 'chrome://settings/settings.js';
+-import {webUIListenerCallback} from 'chrome://resources/js/cr.js';
+ import {assertNotEquals} from 'chrome://webui-test/chai_assert.js';
+ import {isVisible, eventToPromise} from 'chrome://webui-test/test_util.js';
+ // </if>
+ // clang-format on
+ 
+-// <if expr="not is_chromeos">
++// <if expr="not is_chromeos and not is_macosx and not is_win">
+ function fireStatusChanged(
+     status: UpdateStatus, options: {progress?: number, message?: string} = {}) {
+   webUIListenerCallback('update-status-changed', {
+@@ -74,13 +77,13 @@
+     return;
+     // </if>
+ 
+-    // <if expr="not is_chromeos">
++    // <if expr="not is_chromeos and not is_macosx and not is_win">
+     await aboutBrowserProxy.whenCalled('refreshUpdateStatus');
+     await microtasksFinished();
+     // </if>
+   }
+ 
+-  // <if expr="not is_chromeos">
++  // <if expr="not is_chromeos and not is_macosx and not is_win">
+   const SPINNER_ICON: string = 'chrome://resources/images/throbber_small.svg';
+ 
+   async function assertSpinnerVisible(visible: boolean) {
+@@ -310,7 +313,9 @@
+     assertTrue(relaunch.hidden);
+   });
+ 
+-  // <if expr="_google_chrome or _is_chrome_for_testing_branded">
++  // </if>
++
++  // <if expr="not is_chromeos and (_google_chrome or _is_chrome_for_testing_branded)">
+   test('TermsOfService', function() {
+     const termsOfServiceEl =
+         page.shadowRoot.querySelector<HTMLAnchorElement>('a#tos');
+@@ -321,7 +326,52 @@
+   });
+   // </if>
+ 
++  // <if expr="is_macosx or is_win">
++  test('DaoCheckForUpdates', async function() {
++    // Dao uses its platform updater instead of Chromium's update status UI.
++    assertFalse(!!page.shadowRoot.querySelector('#updateStatusMessage'));
++    assertFalse(!!page.shadowRoot.querySelector('#deprecationWarning'));
++    assertFalse(!!page.shadowRoot.querySelector('#relaunch'));
++    assertEquals(0, aboutBrowserProxy.getCallCount('refreshUpdateStatus'));
++
++    const button =
++        page.shadowRoot.querySelector<HTMLElement>('#daoCheckForUpdates');
++    assertTrue(!!button);
++    assertFalse(button.hidden);
++    button.click();
++    await aboutBrowserProxy.whenCalled('daoCheckForUpdates');
++  });
+   // </if>
++
++  // <if expr="is_win">
++  test('DaoUpdateStatus', async function() {
++    const checkButton =
++        page.shadowRoot.querySelector<HTMLElement>('#daoCheckForUpdates');
++    const applyButton =
++        page.shadowRoot.querySelector<HTMLElement>('#daoApplyUpdate');
++    const message =
++        page.shadowRoot.querySelector<HTMLElement>('[role="status"]');
++    assertTrue(!!checkButton);
++    assertTrue(!!applyButton);
++    assertTrue(!!message);
++
++    for (const status of [
++           {message: 'Checking', busy: true, ready: false},
++           {message: 'Ready', busy: false, ready: true},
++           {message: 'Applying', busy: true, ready: true},
++           {message: 'Error', busy: false, ready: false},
++         ]) {
++      webUIListenerCallback('dao-update-status-changed', status);
++      await microtasksFinished();
++      assertEquals(status.message, message.textContent);
++      assertEquals(status.ready, checkButton.hidden);
++      assertEquals(!status.ready, applyButton.hidden);
++      assertEquals(status.busy, checkButton.hasAttribute('disabled'));
++      assertEquals(status.busy, applyButton.hasAttribute('disabled'));
++    }
++  });
++  // </if>
++
+   test('GetHelp', function() {
+     assertTrue(!!page.shadowRoot.querySelector('#help'));
+     page.shadowRoot.querySelector<HTMLElement>('#help')!.click();

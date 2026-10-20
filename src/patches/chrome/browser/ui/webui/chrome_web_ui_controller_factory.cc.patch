@@ -1,13 +1,13 @@
 diff --git a/chrome/browser/ui/webui/chrome_web_ui_controller_factory.cc b/chrome/browser/ui/webui/chrome_web_ui_controller_factory.cc
-index ec24b0ffaf339..e87bfed48d794 100644
+index c978f8f..dc6fe46 100644
 --- a/chrome/browser/ui/webui/chrome_web_ui_controller_factory.cc
 +++ b/chrome/browser/ui/webui/chrome_web_ui_controller_factory.cc
-@@ -352,7 +352,9 @@ bool ChromeWebUIControllerFactory::IsWebUIAllowedToMakeNetworkRequests(
-       // https://crbug.com/40583261
-       origin.host() == chrome::kChromeUIDownloadsHost ||
+@@ -354,7 +354,9 @@ bool ChromeWebUIControllerFactory::IsWebUIAllowedToMakeNetworkRequests(
        // https://crbug.com/376417346
--      origin.host() == chrome::kChromeUIExtensionsHost;
-+      origin.host() == chrome::kChromeUIExtensionsHost ||
+       origin.host() == chrome::kChromeUIExtensionsHost ||
+       // https://crbug.com/509216218
+-      origin.host() == chrome::kChromeUIDrivePickerHostHost;
++      origin.host() == chrome::kChromeUIDrivePickerHostHost ||
 +      // Dao agent WebUI needs to make API calls to external LLM services.
 +      origin.host() == "agent";
  }

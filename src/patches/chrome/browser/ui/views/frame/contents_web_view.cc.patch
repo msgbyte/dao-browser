@@ -1,8 +1,7 @@
 diff --git a/chrome/browser/ui/views/frame/contents_web_view.cc b/chrome/browser/ui/views/frame/contents_web_view.cc
-index f5e8ba18cb..c138206ff7 100644
 --- a/chrome/browser/ui/views/frame/contents_web_view.cc
 +++ b/chrome/browser/ui/views/frame/contents_web_view.cc
-@@ -58,6 +58,16 @@ void ContentsWebView::SetBackgroundVisible(bool background_visible) {
+@@ -60,6 +60,17 @@
    }
  }
  
@@ -11,16 +10,17 @@ index f5e8ba18cb..c138206ff7 100644
 +  if (GetWidget()) {
 +    UpdateBackgroundColor();
 +  } else if (layer() && background_override_color_.has_value()) {
-+    layer()->SetColor(background_visible_ ? *background_override_color_
-+                                          : SK_ColorTRANSPARENT);
++    layer()->AsSolidColor()->SetColor(
++        SkColor4f::FromColor(background_visible_ ? *background_override_color_
++                                               : SK_ColorTRANSPARENT));
 +  }
 +}
 +
  const gfx::RoundedCornersF& ContentsWebView::GetBackgroundRadii() const {
    const ui::Layer* background_layer = layer();
  
-@@ -119,9 +129,10 @@ void ContentsWebView::SetWebContents(content::WebContents* web_contents) {
- }
+@@ -186,9 +197,10 @@
+ #endif
  
  void ContentsWebView::UpdateBackgroundColor() {
 -  const SkColor color = GetColorProvider()->GetColor(

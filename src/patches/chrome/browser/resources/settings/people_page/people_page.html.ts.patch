@@ -1,0 +1,20 @@
+diff --git a/chrome/browser/resources/settings/people_page/people_page.html.ts b/chrome/browser/resources/settings/people_page/people_page.html.ts
+--- a/chrome/browser/resources/settings/people_page/people_page.html.ts
++++ b/chrome/browser/resources/settings/people_page/people_page.html.ts
+@@ -95,14 +95,14 @@
+             .subLabel="${this.getSyncAndNonPersonalizedServicesSubtext_()}"
+             @click="${this.onSyncClick_}"
+             role-description="$i18n{subpageArrowRoleDescription}"
+-            ?hidden="${this.shouldHideSyncSetupLinkRow_()}">
++            ?hidden="${!this.signinAllowed_}">
+         </cr-link-row>
+ 
+         <cr-link-row id="google-services"
+             label="$i18n{googleServicesPageTitle}"
+             @click="${this.onGoogleServicesClick_}"
+             role-description="$i18n{subpageArrowRoleDescription}"
+-            ?hidden="${!this.shouldHideSyncSetupLinkRow_()}">
++            ?hidden="${!this.signinAllowed_}">
+         </cr-link-row>
+ 
+ <if expr="not is_chromeos">

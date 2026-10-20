@@ -1,10 +1,9 @@
 diff --git a/content/browser/webui/url_data_manager_backend.cc b/content/browser/webui/url_data_manager_backend.cc
-index 155c29dc58..f1b2fbf169 100644
 --- a/content/browser/webui/url_data_manager_backend.cc
 +++ b/content/browser/webui/url_data_manager_backend.cc
-@@ -61,7 +61,12 @@ const char kURLDataManagerBackendKeyName[] = "url_data_manager_backend";
+@@ -61,7 +61,12 @@
  bool g_disallow_webui_scheme_caching_for_testing = false;
-
+ 
  std::vector<std::string> GetWebUISchemesSlow() {
 -  std::vector<std::string> schemes = {kChromeUIScheme,
 +  // Dao: include the legacy "chrome" scheme alongside the canonical WebUI
@@ -16,11 +15,12 @@ index 155c29dc58..f1b2fbf169 100644
                                        kChromeUIUntrustedScheme};
    GetContentClient()->browser()->GetAdditionalWebUISchemes(&schemes);
    return schemes;
-@@ -253,6 +258,7 @@ scoped_refptr<net::HttpResponseHeaders> URLDataManagerBackend::GetHeaders(
+@@ -253,7 +258,7 @@
+ 
  bool URLDataManagerBackend::CheckURLIsValid(const GURL& url) {
    std::vector<std::string> additional_schemes;
-   DCHECK(url.SchemeIs(kChromeUIScheme) ||
-+         url.SchemeIs("chrome") ||
-          url.SchemeIs(kChromeUIUntrustedScheme) ||
-          (GetContentClient()->browser()->GetAdditionalWebUISchemes(
-               &additional_schemes),
+-  CHECK(url.SchemeIs(kChromeUIScheme) ||
++  CHECK(url.SchemeIs(kChromeUIScheme) || url.SchemeIs("chrome") ||
+             url.SchemeIs(kChromeUIUntrustedScheme) ||
+             (GetContentClient()->browser()->GetAdditionalWebUISchemes(
+                  &additional_schemes),

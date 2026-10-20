@@ -19,7 +19,7 @@
 #include "base/threading/thread_restrictions.h"
 #include "chrome/browser/history/history_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/test/base/in_process_browser_test.h"
@@ -444,7 +444,7 @@ class DaoHomeBrowserTest : public InProcessBrowserTest {
     CHECK(ui_test_utils::NavigateToURL(browser(), GURL("dao://home/")));
     content::WebContents* home_contents = active_contents();
     DaoHomeProjectService* service =
-        DaoHomeProjectServiceFactory::GetForProfile(browser()->profile());
+        DaoHomeProjectServiceFactory::GetForProfile(browser()->GetProfile());
     auto* home_ui =
         home_contents->GetWebUI()->GetController()->GetAs<DaoHomeUI>();
     CHECK(home_ui);
@@ -555,7 +555,7 @@ IN_PROC_BROWSER_TEST_F(DaoHomeBrowserTest,
                        DraftMustPassIsolatedPreviewBeforePublish) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("dao://home/")));
   DaoHomeProjectService* service =
-      DaoHomeProjectServiceFactory::GetForProfile(browser()->profile());
+      DaoHomeProjectServiceFactory::GetForProfile(browser()->GetProfile());
   base::test::TestFuture<base::expected<HomeDraft, HomeError>> draft_future;
   service->ApplyPatch("", kProjectPatch, "Create preview fixture",
                       draft_future.GetCallback());
@@ -601,7 +601,7 @@ IN_PROC_BROWSER_TEST_F(DaoHomeBrowserTest,
                        IsolatedPreviewRejectsTopLevelRuntimeFailure) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("dao://home/")));
   DaoHomeProjectService* service =
-      DaoHomeProjectServiceFactory::GetForProfile(browser()->profile());
+      DaoHomeProjectServiceFactory::GetForProfile(browser()->GetProfile());
   base::test::TestFuture<base::expected<HomeDraft, HomeError>> draft_future;
   service->ApplyPatch("", kBrokenProjectPatch, "Create broken fixture",
                       draft_future.GetCallback());
@@ -782,7 +782,7 @@ IN_PROC_BROWSER_TEST_F(DaoHomeBrowserTest,
                        IsolatedPreviewRejectsFrameReplacement) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("dao://home/")));
   DaoHomeProjectService* service =
-      DaoHomeProjectServiceFactory::GetForProfile(browser()->profile());
+      DaoHomeProjectServiceFactory::GetForProfile(browser()->GetProfile());
   base::test::TestFuture<base::expected<HomeDraft, HomeError>> draft_future;
   service->ApplyPatch("", kRedirectingProjectPatch, "Create redirect fixture",
                       draft_future.GetCallback());
@@ -808,7 +808,7 @@ IN_PROC_BROWSER_TEST_F(DaoHomeBrowserTest,
 IN_PROC_BROWSER_TEST_F(DaoHomeBrowserTest,
                        ImportPreviewsDraftBeforeReplacingProject) {
   DaoHomeProjectService* service =
-      DaoHomeProjectServiceFactory::GetForProfile(browser()->profile());
+      DaoHomeProjectServiceFactory::GetForProfile(browser()->GetProfile());
   base::test::TestFuture<base::expected<HomeDraft, HomeError>> draft_future;
   service->ApplyPatch("", kProjectPatch, "Create import fixture",
                       draft_future.GetCallback());
@@ -850,7 +850,7 @@ IN_PROC_BROWSER_TEST_F(DaoHomeBrowserTest,
   exported_files->Set("app.js", broken_app);
   ASSERT_TRUE(base::JSONWriter::Write(*package, &package_json.value()));
   const base::FilePath temporary_root =
-      browser()->profile()->GetPath().AppendASCII("DaoHome").AppendASCII(
+      browser()->GetProfile()->GetPath().AppendASCII("DaoHome").AppendASCII(
           ".tmp");
   auto list_temporary_entries = [&]() {
     base::ScopedAllowBlockingForTesting allow_blocking;
@@ -889,7 +889,7 @@ IN_PROC_BROWSER_TEST_F(DaoHomeBrowserTest,
                        HiddenHomeInvalidatesPendingMutationCommit) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("dao://home/")));
   DaoHomeProjectService* service =
-      DaoHomeProjectServiceFactory::GetForProfile(browser()->profile());
+      DaoHomeProjectServiceFactory::GetForProfile(browser()->GetProfile());
   base::test::TestFuture<base::expected<HomeDraft, HomeError>> draft_future;
   service->ApplyPatch("", kProjectPatch, "Create owner fixture",
                       draft_future.GetCallback());
@@ -923,7 +923,7 @@ IN_PROC_BROWSER_TEST_F(DaoHomeBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoHomeBrowserTest, HiddenHomeRejectsRollback) {
   DaoHomeProjectService* service =
-      DaoHomeProjectServiceFactory::GetForProfile(browser()->profile());
+      DaoHomeProjectServiceFactory::GetForProfile(browser()->GetProfile());
   base::test::TestFuture<base::expected<HomeDraft, HomeError>> initial_draft;
   service->ApplyPatch("", kProjectPatch, "Create rollback fixture",
                       initial_draft.GetCallback());
@@ -972,7 +972,7 @@ IN_PROC_BROWSER_TEST_F(DaoHomeBrowserTest,
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("dao://home/")));
   content::WebContents* home_contents = active_contents();
   DaoHomeProjectService* service =
-      DaoHomeProjectServiceFactory::GetForProfile(browser()->profile());
+      DaoHomeProjectServiceFactory::GetForProfile(browser()->GetProfile());
   ASSERT_FALSE(
       service->ConsumeHistoryBootstrapBrief("missing-turn").has_value());
   service->SetHistoryBootstrapBrief(home_contents->GetWeakPtr(), "hidden-claim",
@@ -985,7 +985,7 @@ IN_PROC_BROWSER_TEST_F(DaoHomeBrowserTest,
   ASSERT_TRUE(content::ExecJs(home_contents,
                               "chrome.send('openHomeAgent', ['history'])"));
   history::HistoryService* history = HistoryServiceFactory::GetForProfile(
-      browser()->profile(), ServiceAccessType::EXPLICIT_ACCESS);
+      browser()->GetProfile(), ServiceAccessType::EXPLICIT_ACCESS);
   ASSERT_TRUE(history);
   base::test::TestFuture<void> flushed;
   history->FlushForTest(flushed.GetCallback());
@@ -1032,7 +1032,7 @@ IN_PROC_BROWSER_TEST_F(DaoHomeBrowserTest,
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("dao://home/")));
   content::WebContents* home_contents = active_contents();
   DaoHomeProjectService* service =
-      DaoHomeProjectServiceFactory::GetForProfile(browser()->profile());
+      DaoHomeProjectServiceFactory::GetForProfile(browser()->GetProfile());
   auto* home_ui =
       home_contents->GetWebUI()->GetController()->GetAs<DaoHomeUI>();
   ASSERT_TRUE(home_ui);
@@ -1108,7 +1108,7 @@ IN_PROC_BROWSER_TEST_F(
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("dao://home/")));
   content::WebContents* home_contents = active_contents();
   DaoHomeProjectService* service =
-      DaoHomeProjectServiceFactory::GetForProfile(browser()->profile());
+      DaoHomeProjectServiceFactory::GetForProfile(browser()->GetProfile());
   auto* home_ui =
       home_contents->GetWebUI()->GetController()->GetAs<DaoHomeUI>();
   ASSERT_TRUE(home_ui);
@@ -1133,7 +1133,7 @@ IN_PROC_BROWSER_TEST_F(
   auto draft = draft_future.Take();
   ASSERT_TRUE(draft.has_value());
   const base::FilePath draft_path = browser()
-                                        ->profile()
+                                        ->GetProfile()
                                         ->GetPath()
                                         .AppendASCII("DaoHome")
                                         .AppendASCII(".tmp")
@@ -1179,7 +1179,7 @@ IN_PROC_BROWSER_TEST_F(
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("dao://home/")));
   content::WebContents* home_contents = active_contents();
   DaoHomeProjectService* service =
-      DaoHomeProjectServiceFactory::GetForProfile(browser()->profile());
+      DaoHomeProjectServiceFactory::GetForProfile(browser()->GetProfile());
   auto* home_ui =
       home_contents->GetWebUI()->GetController()->GetAs<DaoHomeUI>();
   ASSERT_TRUE(home_ui);
@@ -1254,7 +1254,7 @@ IN_PROC_BROWSER_TEST_F(
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("dao://home/")));
   content::WebContents* home_contents = active_contents();
   DaoHomeProjectService* service =
-      DaoHomeProjectServiceFactory::GetForProfile(browser()->profile());
+      DaoHomeProjectServiceFactory::GetForProfile(browser()->GetProfile());
   auto* home_ui =
       home_contents->GetWebUI()->GetController()->GetAs<DaoHomeUI>();
   ASSERT_TRUE(home_ui);
@@ -1332,7 +1332,7 @@ IN_PROC_BROWSER_TEST_F(
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("dao://home/")));
   content::WebContents* home_contents = active_contents();
   DaoHomeProjectService* service =
-      DaoHomeProjectServiceFactory::GetForProfile(browser()->profile());
+      DaoHomeProjectServiceFactory::GetForProfile(browser()->GetProfile());
   auto* home_ui =
       home_contents->GetWebUI()->GetController()->GetAs<DaoHomeUI>();
   ASSERT_TRUE(home_ui);
@@ -1352,7 +1352,7 @@ IN_PROC_BROWSER_TEST_F(
           .has_value());
 
   const base::FilePath temporary_root =
-      browser()->profile()->GetPath().AppendASCII("DaoHome").AppendASCII(
+      browser()->GetProfile()->GetPath().AppendASCII("DaoHome").AppendASCII(
           ".tmp");
   auto list_unpublished_draft_directories = [&]() {
     base::ScopedAllowBlockingForTesting allow_blocking;
@@ -1389,7 +1389,7 @@ IN_PROC_BROWSER_TEST_F(
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("dao://home/")));
   content::WebContents* home_contents = active_contents();
   DaoHomeProjectService* service =
-      DaoHomeProjectServiceFactory::GetForProfile(browser()->profile());
+      DaoHomeProjectServiceFactory::GetForProfile(browser()->GetProfile());
   auto* home_ui =
       home_contents->GetWebUI()->GetController()->GetAs<DaoHomeUI>();
   ASSERT_TRUE(home_ui);
@@ -1593,7 +1593,7 @@ IN_PROC_BROWSER_TEST_F(
             package->find(base::Base64Encode(kEphemeralSampleSentinel)));
 
   const base::FilePath provisional_path = browser()
-                                              ->profile()
+                                              ->GetProfile()
                                               ->GetPath()
                                               .AppendASCII("DaoHome")
                                               .AppendASCII(".tmp")
@@ -1613,7 +1613,7 @@ IN_PROC_BROWSER_TEST_F(
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("dao://home/")));
   content::WebContents* home_contents = active_contents();
   DaoHomeProjectService* service =
-      DaoHomeProjectServiceFactory::GetForProfile(browser()->profile());
+      DaoHomeProjectServiceFactory::GetForProfile(browser()->GetProfile());
   auto* home_ui =
       home_contents->GetWebUI()->GetController()->GetAs<DaoHomeUI>();
   ASSERT_TRUE(home_ui);
@@ -1713,7 +1713,7 @@ IN_PROC_BROWSER_TEST_F(DaoHomeBrowserTest,
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("dao://home/")));
   content::WebContents* home_contents = active_contents();
   DaoHomeProjectService* service =
-      DaoHomeProjectServiceFactory::GetForProfile(browser()->profile());
+      DaoHomeProjectServiceFactory::GetForProfile(browser()->GetProfile());
   auto* home_ui =
       home_contents->GetWebUI()->GetController()->GetAs<DaoHomeUI>();
   ASSERT_TRUE(home_ui);
@@ -1789,7 +1789,7 @@ IN_PROC_BROWSER_TEST_F(
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("dao://home/")));
   content::WebContents* home_contents = active_contents();
   DaoHomeProjectService* service =
-      DaoHomeProjectServiceFactory::GetForProfile(browser()->profile());
+      DaoHomeProjectServiceFactory::GetForProfile(browser()->GetProfile());
   auto* home_ui =
       home_contents->GetWebUI()->GetController()->GetAs<DaoHomeUI>();
   ASSERT_TRUE(home_ui);
@@ -1904,7 +1904,7 @@ IN_PROC_BROWSER_TEST_F(
 IN_PROC_BROWSER_TEST_F(DaoHomeBrowserTest,
                        HistoryBootstrapCannotBeForgedByOrdinaryAgentTurn) {
   DaoHomeProjectService* service =
-      DaoHomeProjectServiceFactory::GetForProfile(browser()->profile());
+      DaoHomeProjectServiceFactory::GetForProfile(browser()->GetProfile());
   DaoHomeAgentTools tools(service);
   auto turn_authorization = base::MakeRefCounted<DaoHomeMutationLease>();
   base::test::TestFuture<base::Value> apply;
@@ -1937,7 +1937,7 @@ IN_PROC_BROWSER_TEST_F(DaoHomeBrowserTest,
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("dao://home/")));
   content::WebContents* home_contents = active_contents();
   DaoHomeProjectService* service =
-      DaoHomeProjectServiceFactory::GetForProfile(browser()->profile());
+      DaoHomeProjectServiceFactory::GetForProfile(browser()->GetProfile());
   ASSERT_TRUE(
       AddTabAtIndex(-1, GURL("dao://home/"), ui::PAGE_TRANSITION_TYPED));
   content::WebContents* agent_contents = LoadAgentWebUI();
@@ -2238,7 +2238,7 @@ IN_PROC_BROWSER_TEST_F(DaoHomeBrowserTest,
   content::WebContents* agent_contents = LoadAgentWebUI();
 
   DaoHomeProjectService* service =
-      DaoHomeProjectServiceFactory::GetForProfile(browser()->profile());
+      DaoHomeProjectServiceFactory::GetForProfile(browser()->GetProfile());
   service->SetBeforeSnapshotReplyCallbackForTesting(base::BindOnce(
       [](TabStripModel* tabs, int index) { tabs->ActivateTabAt(index); },
       browser()->tab_strip_model(), other_index));
@@ -2253,7 +2253,7 @@ IN_PROC_BROWSER_TEST_F(DaoHomeBrowserTest,
   EXPECT_EQ("TOOL_CANCELLED", *begin.ExtractDict().FindString("code"));
 
   auto acquired =
-      DaoAgentLeaseManager::GetForProfile(browser()->profile())
+      DaoAgentLeaseManager::GetForProfile(browser()->GetProfile())
           ->TryAcquire({DaoToolClient::kMcp, "home-owner-loss-test", "Codex"});
   EXPECT_TRUE(acquired.has_value());
 }
@@ -2274,7 +2274,8 @@ IN_PROC_BROWSER_TEST_F(DaoHomeBrowserTest,
   const std::string* turn_id = begin.ExtractDict().FindString("turnId");
   ASSERT_TRUE(turn_id);
 
-  Browser* other_browser = CreateBrowser(browser()->profile());
+  BrowserWindowInterface* other_browser =
+      CreateBrowser(browser()->GetProfile());
   ASSERT_TRUE(ui_test_utils::NavigateToURL(other_browser, GURL("about:blank")));
   ui_test_utils::WaitForBrowserSetLastActive(other_browser);
   ASSERT_EQ(home_contents, active_contents());
@@ -2321,7 +2322,7 @@ IN_PROC_BROWSER_TEST_F(DaoHomeBrowserTest,
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("dao://home/")));
   content::WebContents* agent_contents = LoadAgentWebUI();
   DaoHomeProjectService* service =
-      DaoHomeProjectServiceFactory::GetForProfile(browser()->profile());
+      DaoHomeProjectServiceFactory::GetForProfile(browser()->GetProfile());
   service->SetBeforeSnapshotReplyCallbackForTesting(base::BindOnce(
       [](base::WeakPtr<content::WebContents> agent_contents) {
         if (agent_contents) {
@@ -2354,7 +2355,7 @@ IN_PROC_BROWSER_TEST_F(DaoHomeBrowserTest,
   ASSERT_TRUE(begin.is_dict());
   EXPECT_EQ("TOOL_CANCELLED", *begin.ExtractDict().FindString("code"));
   auto acquired =
-      DaoAgentLeaseManager::GetForProfile(browser()->profile())
+      DaoAgentLeaseManager::GetForProfile(browser()->GetProfile())
           ->TryAcquire({DaoToolClient::kMcp, "cancelled-home-begin", "Codex"});
   EXPECT_TRUE(acquired.has_value());
 }
@@ -2362,7 +2363,7 @@ IN_PROC_BROWSER_TEST_F(DaoHomeBrowserTest,
 IN_PROC_BROWSER_TEST_F(DaoHomeBrowserTest,
                        PublishedProjectUsesOpaqueSandboxedFrames) {
   DaoHomeProjectService* service =
-      DaoHomeProjectServiceFactory::GetForProfile(browser()->profile());
+      DaoHomeProjectServiceFactory::GetForProfile(browser()->GetProfile());
   base::test::TestFuture<base::expected<HomeDraft, HomeError>> draft_future;
   service->ApplyPatch("", kProjectPatch, "Create fixture Home",
                       draft_future.GetCallback());
@@ -2412,7 +2413,7 @@ IN_PROC_BROWSER_TEST_F(DaoHomeBrowserTest,
 IN_PROC_BROWSER_TEST_F(DaoHomeBrowserTest,
                        PublishedLaunchActionOpensDirectlyWithoutConfirmation) {
   DaoHomeProjectService* service =
-      DaoHomeProjectServiceFactory::GetForProfile(browser()->profile());
+      DaoHomeProjectServiceFactory::GetForProfile(browser()->GetProfile());
   base::test::TestFuture<base::expected<HomeDraft, HomeError>> draft_future;
   service->ApplyPatch("", kLaunchActionProjectPatch, "Create launch fixture",
                       draft_future.GetCallback());
@@ -2458,7 +2459,7 @@ IN_PROC_BROWSER_TEST_F(DaoHomeBrowserTest,
       "required":["title","image"]}
   })";
   base::test::TestFuture<base::Value> start_future;
-  executor.Start(active_contents(), browser()->profile(), "revision-1",
+  executor.Start(active_contents(), browser()->GetProfile(), "revision-1",
                  std::move(connector), limits, "export default {}", kSchema,
                  base::Value(base::DictValue()), start_future.GetCallback());
   base::Value started = start_future.Take();
@@ -2544,7 +2545,7 @@ IN_PROC_BROWSER_TEST_F(DaoHomeBrowserTest,
   DaoHomeConnectorExecutor executor;
   HomeConnector connector = ConnectorForPath("/feed");
   base::test::TestFuture<base::Value> start_future;
-  executor.Start(active_contents(), browser()->profile(), /*revision=*/"",
+  executor.Start(active_contents(), browser()->GetProfile(), /*revision=*/"",
                  std::move(connector), HomeLimits(), "export default {}",
                  R"({"type":"array","items":{"type":"string"}})",
                  base::Value(base::DictValue()), start_future.GetCallback());
@@ -2568,7 +2569,7 @@ IN_PROC_BROWSER_TEST_F(DaoHomeBrowserTest,
       "required":["image"]}
   })";
   base::test::TestFuture<base::Value> start_future;
-  executor.Start(active_contents(), browser()->profile(), "revision-1",
+  executor.Start(active_contents(), browser()->GetProfile(), "revision-1",
                  std::move(connector), HomeLimits(), "export default {}",
                  kSchema, base::Value(base::DictValue()),
                  start_future.GetCallback());
@@ -2622,7 +2623,7 @@ IN_PROC_BROWSER_TEST_F(DaoHomeBrowserTest,
       "required":["image"]}
   })";
   base::test::TestFuture<base::Value> start_future;
-  executor.Start(active_contents(), browser()->profile(), "revision-1",
+  executor.Start(active_contents(), browser()->GetProfile(), "revision-1",
                  std::move(connector), HomeLimits(), "export default {}",
                  kSchema, base::Value(base::DictValue()),
                  start_future.GetCallback());
@@ -2664,7 +2665,7 @@ IN_PROC_BROWSER_TEST_F(DaoHomeBrowserTest,
       "required":["image"]}
   })";
   base::test::TestFuture<base::Value> start_future;
-  executor.Start(active_contents(), browser()->profile(), "revision-1",
+  executor.Start(active_contents(), browser()->GetProfile(), "revision-1",
                  std::move(connector), HomeLimits(), "export default {}",
                  kSchema, base::Value(base::DictValue()),
                  start_future.GetCallback());
@@ -2694,7 +2695,7 @@ IN_PROC_BROWSER_TEST_F(DaoHomeBrowserTest, LoginFormReturnsAuthRequired) {
   DaoHomeConnectorExecutor executor;
   HomeConnector connector = ConnectorForPath("/login");
   base::test::TestFuture<base::Value> future;
-  executor.Start(active_contents(), browser()->profile(), "revision-1",
+  executor.Start(active_contents(), browser()->GetProfile(), "revision-1",
                  std::move(connector), HomeLimits(), "export default {}",
                  R"({"type":"array","items":{"type":"string"}})",
                  base::Value(base::DictValue()), future.GetCallback());
@@ -2710,7 +2711,7 @@ IN_PROC_BROWSER_TEST_F(DaoHomeBrowserTest, RejectsInvalidConnectorOutput) {
   DaoHomeConnectorExecutor executor;
   HomeConnector connector = ConnectorForPath("/feed");
   base::test::TestFuture<base::Value> start_future;
-  executor.Start(active_contents(), browser()->profile(), "revision-1",
+  executor.Start(active_contents(), browser()->GetProfile(), "revision-1",
                  std::move(connector), HomeLimits(), "export default {}",
                  R"({"type":"array","items":{"type":"string"}})",
                  base::Value(base::DictValue()), start_future.GetCallback());

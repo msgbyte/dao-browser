@@ -13,7 +13,7 @@
 #include "components/download/content/public/all_download_item_notifier.h"
 #include "ui/views/view.h"
 
-class Browser;
+class BrowserWindowInterface;
 
 namespace content {
 class DownloadManager;
@@ -38,7 +38,7 @@ class DaoMiniDaoDownloadCardView
   METADATA_HEADER(DaoMiniDaoDownloadCardView, views::View)
 
  public:
-  explicit DaoMiniDaoDownloadCardView(Browser* browser);
+  explicit DaoMiniDaoDownloadCardView(BrowserWindowInterface* browser);
   DaoMiniDaoDownloadCardView(const DaoMiniDaoDownloadCardView&) = delete;
   DaoMiniDaoDownloadCardView& operator=(
       const DaoMiniDaoDownloadCardView&) = delete;
@@ -80,7 +80,7 @@ class DaoMiniDaoDownloadCardView
 
   static std::string FormatSpeed(int64_t bytes_per_sec);
 
-  raw_ptr<Browser> browser_;
+  raw_ptr<BrowserWindowInterface> browser_;
   raw_ptr<views::View> card_ = nullptr;
   raw_ptr<views::View> rows_container_ = nullptr;
   raw_ptr<views::Label> overflow_label_ = nullptr;

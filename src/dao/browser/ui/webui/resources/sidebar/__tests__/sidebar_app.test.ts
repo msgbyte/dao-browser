@@ -1045,7 +1045,7 @@ describe('dao-sidebar-app', () => {
 
     expect(headerText).toContain('kCopyTabId');
     expect(handlerText).toMatch(
-        /GetBoolean\(prefs::kDaoMcpServerEnabled\)[\s\S]*?!browser_->profile\(\)->IsOffTheRecord\(\)[\s\S]*?!browser_->profile\(\)->IsGuestSession\(\)[\s\S]*?AddItem\(\s*kCopyTabId/);
+        /GetBoolean\(prefs::kDaoMcpServerEnabled\)[\s\S]*?!browser_->GetProfile\(\)->IsOffTheRecord\(\)[\s\S]*?!browser_->GetProfile\(\)->IsGuestSession\(\)[\s\S]*?AddItem\(\s*kCopyTabId/);
     expect(handlerText).toMatch(
         /case kCopyTabId:[\s\S]*?GetSidebarTabId\(contents\)[\s\S]*?WriteText/);
     expect(handlerText).toContain('IDS_DAO_TAB_ID_COPIED_TOAST');

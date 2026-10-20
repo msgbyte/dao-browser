@@ -1,5 +1,4 @@
 diff --git a/chrome/browser/ui/views/extensions/extension_popup.cc b/chrome/browser/ui/views/extensions/extension_popup.cc
-index bd4d2193c3..cac33a3713 100644
 --- a/chrome/browser/ui/views/extensions/extension_popup.cc
 +++ b/chrome/browser/ui/views/extensions/extension_popup.cc
 @@ -7,8 +7,10 @@
@@ -10,10 +9,10 @@ index bd4d2193c3..cac33a3713 100644
  #include "chrome/browser/devtools/devtools_window.h"
  #include "chrome/browser/extensions/extension_view_host.h"
 +#include "extensions/common/extension.h"
- #include "chrome/browser/ui/browser.h"
  #include "chrome/browser/ui/views/extensions/security_dialog_tracker.h"
  #include "chrome/browser/ui/views/frame/browser_view.h"
-@@ -271,7 +273,16 @@ ExtensionPopup::ExtensionPopup(
+ #include "components/javascript_dialogs/app_modal_dialog_queue.h"
+@@ -282,7 +284,16 @@
        deferred_close_weak_ptr_factory_(this) {
    g_last_popup_for_testing = this;
    SetButtons(static_cast<int>(ui::mojom::DialogButton::kNone));
@@ -28,6 +27,6 @@ index bd4d2193c3..cac33a3713 100644
 +  // Tighten the title bar and keep top/bottom symmetric so the title text
 +  // is vertically centered relative to the close button.
 +  set_title_margins(gfx::Insets::TLBR(10, 16, 10, 16));
-
+ 
    set_margins(gfx::Insets());
    SetLayoutManager(std::make_unique<views::FillLayout>());

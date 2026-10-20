@@ -10,20 +10,24 @@ diff --git a/chrome/browser/resources/settings/settings_ui/settings_ui.ts b/chro
  import 'chrome://resources/cr_elements/cr_toolbar/cr_toolbar_search_field.js';
  import 'chrome://resources/cr_elements/cr_page_host_style.css.js';
  import 'chrome://resources/cr_elements/icons.html.js';
-@@ -25,11 +23,8 @@
- import '../settings_vars.css.js';
+@@ -26,12 +24,9 @@ import '../settings_vars.css.js';
  
  import type {SettingsPrefsElement} from '/shared/settings/prefs/prefs.js';
+ import {ColorChangeUpdater, COLORS_CSS_SELECTOR} from 'chrome://resources/cr_components/color_change_listener/colors_css_updater.js';
 -import type {CrDrawerElement} from 'chrome://resources/cr_elements/cr_drawer/cr_drawer.js';
 -import type {CrToolbarElement} from 'chrome://resources/cr_elements/cr_toolbar/cr_toolbar.js';
 +import type {CrToolbarSearchFieldElement} from 'chrome://resources/cr_elements/cr_toolbar/cr_toolbar_search_field.js';
  import {FindShortcutMixin} from 'chrome://resources/cr_elements/find_shortcut_mixin.js';
+ import {assert} from 'chrome://resources/js/assert.js';
 -import {listenOnce} from 'chrome://resources/js/util.js';
 -import type {DomIf} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
  import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
  
  import {resetGlobalScrollTargetForTesting, setGlobalScrollTarget} from '../global_scroll_target_mixin.js';
-@@ -45,18 +40,23 @@
+@@ -44,21 +39,26 @@ import type {SettingsMenuElement} from '../settings_menu/settings_menu.js';
+ 
+ import {getTemplate} from './settings_ui.html.js';
+ 
 +const SEARCH_DEBOUNCE_MS = 150;
 +
  declare global {
@@ -50,7 +54,7 @@ diff --git a/chrome/browser/resources/settings/settings_ui/settings_ui.ts b/chro
      prefs: SettingsPrefsElement,
    };
  }
-@@ -87,11 +85,6 @@
+@@ -89,11 +89,6 @@ export class SettingsUiElement extends SettingsUiElementBase {
          value: false,
        },
  
@@ -62,9 +66,9 @@ diff --git a/chrome/browser/resources/settings/settings_ui/settings_ui.ts b/chro
        lastSearchQuery_: {
          type: String,
          value: '',
-@@ -101,7 +96,8 @@
+@@ -103,8 +98,9 @@ export class SettingsUiElement extends SettingsUiElementBase {
  
-   declare prefs: {[key: string]: any};
+   declare prefs: Record<string, unknown>;
    declare private toolbarSpinnerActive_: boolean;
 -  declare private narrow_: boolean;
    declare private lastSearchQuery_: string;
@@ -72,7 +76,8 @@ diff --git a/chrome/browser/resources/settings/settings_ui/settings_ui.ts b/chro
 +  private searchDebounceTimer_: number|null = null;
  
    constructor() {
-@@ -113,15 +105,6 @@
+     super();
+@@ -115,15 +111,6 @@ export class SettingsUiElement extends SettingsUiElementBase {
    override ready() {
      super.ready();
  
@@ -88,7 +93,7 @@ diff --git a/chrome/browser/resources/settings/settings_ui/settings_ui.ts b/chro
      window.CrPolicyStrings = {
        controlledSettingExtension:
            loadTimeData.getString('controlledSettingExtension'),
-@@ -172,6 +155,9 @@
+@@ -180,6 +167,9 @@ export class SettingsUiElement extends SettingsUiElementBase {
      this.$.scrollableShadow.classList.toggle(
          'force-on', route === routes.PRIVACY_GUIDE || route.depth > 1);
  
@@ -98,7 +103,7 @@ diff --git a/chrome/browser/resources/settings/settings_ui/settings_ui.ts b/chro
      const urlSearchQuery =
          Router.getInstance().getQueryParameters().get('search') || '';
      if (urlSearchQuery === this.lastSearchQuery_) {
-@@ -180,9 +166,7 @@
+@@ -188,9 +178,7 @@ export class SettingsUiElement extends SettingsUiElementBase {
  
      this.lastSearchQuery_ = urlSearchQuery;
  
@@ -109,10 +114,7 @@ diff --git a/chrome/browser/resources/settings/settings_ui/settings_ui.ts b/chro
  
      // If the search was initiated by directly entering a search URL, need to
      // sync the URL parameter to the textbox.
-@@ -189,9 +173,9 @@
-     if (urlSearchQuery !== searchField.getValue()) {
-       // Setting the search box value without triggering a 'search-changed'
-       // event, to prevent an unnecessary duplicate entry in |window.history|.
+@@ -200,7 +188,7 @@ export class SettingsUiElement extends SettingsUiElementBase {
        searchField.setValue(urlSearchQuery, true /* noEvent */);
      }
  
@@ -120,7 +122,8 @@ diff --git a/chrome/browser/resources/settings/settings_ui/settings_ui.ts b/chro
 +    this.searchPromise_ = this.$.main.searchContents(urlSearchQuery);
    }
  
-@@ -200,23 +184,93 @@
+   // Override FindShortcutMixin methods.
+@@ -208,23 +196,93 @@ export class SettingsUiElement extends SettingsUiElementBase {
      if (modalContextOpen) {
        return false;
      }
@@ -220,9 +223,7 @@ diff --git a/chrome/browser/resources/settings/settings_ui/settings_ui.ts b/chro
    /**
     * Handles the 'search-changed' event fired from the toolbar.
     */
-@@ -223,79 +277,34 @@
-   private onSearchChanged_(e: CustomEvent<string>) {
-     let query = e.detail;
+@@ -233,6 +291,24 @@ export class SettingsUiElement extends SettingsUiElementBase {
      if (query.length > MAX_QUERY_LENGTH) {
        query = query.substring(0, MAX_QUERY_LENGTH);
      }
@@ -247,8 +248,7 @@ diff --git a/chrome/browser/resources/settings/settings_ui/settings_ui.ts b/chro
      Router.getInstance().navigateTo(
          routes.BASIC,
          query.length > 0 ?
-             new URLSearchParams('search=' + encodeURIComponent(query)) :
-             undefined,
+@@ -241,70 +317,6 @@ export class SettingsUiElement extends SettingsUiElementBase {
          /* removeSearch */ true);
    }
  
@@ -315,6 +315,7 @@ diff --git a/chrome/browser/resources/settings/settings_ui/settings_ui.ts b/chro
 -      this.$.drawer.addEventListener('close', boundCloseListener);
 -    }
 -  }
- }
- 
- declare global {
+-
+   private addThemedColors_() {
+     assert(document.body.querySelector(COLORS_CSS_SELECTOR) === null);
+     const link = document.createElement('link');

@@ -226,8 +226,8 @@ describe("settings continuous overview contract", () => {
       "settings_menu/settings_menu.html.patch",
       "settings_menu/settings_menu.ts.patch",
       "settings_main/settings_main.ts.patch",
-      "settings_page/settings_section.html.patch",
-      "settings_shared.css.patch",
+      "settings_page/settings_section.css.patch",
+      "settings_shared_lit.css.patch",
     ];
 
     for (const relativePath of requiredPatches) {
@@ -239,7 +239,7 @@ describe("settings continuous overview contract", () => {
     const menuTsPatch = readPatch("settings_menu/settings_menu.ts.patch");
     const mainTsPatch = readPatch("settings_main/settings_main.ts.patch");
     const uiTsPatch = readPatch("settings_ui/settings_ui.ts.patch");
-    const sharedCssPatch = readPatch("settings_shared.css.patch");
+    const sharedCssPatch = readPatch("settings_shared_lit.css.patch");
     expect(uiPatch).toContain("--settings-menu-width: 184px");
     expect(uiPatch).toContain('id="searchField"');
     expect(uiPatch).not.toContain('id="daoSettingsBrand"');
@@ -333,7 +333,7 @@ describe("settings continuous overview contract", () => {
       "settings_ui/settings_ui.ts.patch",
       "settings_menu/settings_menu.html.patch",
       "settings_main/settings_main.html.patch",
-      "settings_shared.css.patch",
+      "settings_shared_lit.css.patch",
       "dao_page/dao_page.html.patch",
       "dao_page/dao_page.ts.patch",
     ].filter((relativePath) => existsSync(patchPath(relativePath)));
@@ -1059,12 +1059,17 @@ describe("settings continuous overview contract", () => {
 
   it("keeps nested top-level page views in overview document flow", () => {
     const nestedPagePatches = [
-      "people_page/people_page_index.html.patch",
+      "people_page/people_page_index.css.patch",
       "autofill_page/autofill_page_index.html.patch",
-      "your_saved_info_page/your_saved_info_page_index.html.patch",
-      "appearance_page/appearance_page_index.html.patch",
-      "a11y_page/a11y_page_index.html.patch",
+      "appearance_page/appearance_page_index.css.patch",
+      "a11y_page/a11y_page_index.css.patch",
     ];
+
+    // Your Saved Info is part of Autofill from M153; its retained page below
+    // must still keep the overview document-flow rule.
+    const removedPagePatch =
+      "your_saved_info_page/your_saved_info_page_index.html.patch";
+    expect(existsSync(patchPath(removedPagePatch))).toBe(false);
 
     for (const relativePath of nestedPagePatches) {
       expect(existsSync(patchPath(relativePath)), relativePath).toBe(true);

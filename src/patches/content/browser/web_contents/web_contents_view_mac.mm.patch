@@ -1,8 +1,7 @@
 diff --git a/content/browser/web_contents/web_contents_view_mac.mm b/content/browser/web_contents/web_contents_view_mac.mm
-index 712da37eaef7c..e4d6564192228 100644
 --- a/content/browser/web_contents/web_contents_view_mac.mm
 +++ b/content/browser/web_contents/web_contents_view_mac.mm
-@@ -656,16 +656,19 @@ void SetReadWritePermissionsForFile(base::File& file) {
+@@ -669,16 +669,19 @@
  
  void WebContentsViewMac::EndDrag(uint32_t drag_operation,
                                   const gfx::PointF& local_point,
@@ -25,7 +24,7 @@ index 712da37eaef7c..e4d6564192228 100644
    // Validate internal members are non-null as this method can be called
    // asynchronously.
    if (!web_contents_ || !drag_source_start_rwh_) {
-@@ -697,6 +700,12 @@ void SetReadWritePermissionsForFile(base::File& file) {
+@@ -710,6 +713,12 @@
        static_cast<ui::mojom::DragOperation>(drag_operation),
        drag_source_start_rwh_.get());
  
@@ -38,10 +37,12 @@ index 712da37eaef7c..e4d6564192228 100644
    drag_source_start_rwh_.reset();
  }
  
-@@ -783,7 +792,16 @@ void SetReadWritePermissionsForFile(base::File& file) {
+@@ -799,9 +808,16 @@
  }
  
  void WebContentsViewMac::ViewsHostableDetach() {
+-  // TODO(crbug.com/553428210): CHECK-exclusion: Convert to a CHECK once
+-  // we are confident it won't be triggered.
 -  DCHECK(views_host_);
 +  // Dao: DaoSplitView's pane-reparenting flow violates the strict
 +  // Attach/Detach pairing this DCHECK assumes — a WebContents can be

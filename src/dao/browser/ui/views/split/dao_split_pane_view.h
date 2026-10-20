@@ -11,7 +11,7 @@
 #include "ui/gfx/animation/linear_animation.h"
 #include "ui/views/view.h"
 
-class Browser;
+class BrowserWindowInterface;
 class ContentsWebView;
 
 namespace content {
@@ -30,7 +30,7 @@ class DaoSplitPaneView : public views::View,
   METADATA_HEADER(DaoSplitPaneView, views::View)
 
  public:
-  DaoSplitPaneView(Browser* browser,
+  DaoSplitPaneView(BrowserWindowInterface* browser,
                    DaoSplitView* split_view,
                    int pane_index);
   DaoSplitPaneView(const DaoSplitPaneView&) = delete;
@@ -82,7 +82,7 @@ class DaoSplitPaneView : public views::View,
   void AnimationProgressed(const gfx::Animation* animation) override;
   void AnimationEnded(const gfx::Animation* animation) override;
 
-  raw_ptr<Browser> browser_;
+  raw_ptr<BrowserWindowInterface> browser_;
   raw_ptr<DaoSplitView> split_view_;
   raw_ptr<DaoAddressBarView> address_bar_ = nullptr;
   raw_ptr<ContentsWebView> contents_web_view_ = nullptr;

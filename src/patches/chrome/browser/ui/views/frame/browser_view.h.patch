@@ -1,10 +1,9 @@
 diff --git a/chrome/browser/ui/views/frame/browser_view.h b/chrome/browser/ui/views/frame/browser_view.h
-index bb0e095..df6ea13 100644
 --- a/chrome/browser/ui/views/frame/browser_view.h
 +++ b/chrome/browser/ui/views/frame/browser_view.h
-@@ -124,6 +124,26 @@ enum class InstallableWebAppCheckResult;
- struct WebAppBannerData;
- }  // namespace webapps
+@@ -118,6 +118,26 @@
+ class WebView;
+ }  // namespace views
  
 +namespace dao {
 +class DaoAddressBarView;
@@ -29,10 +28,11 @@ index bb0e095..df6ea13 100644
  class CustomFloatingCorner;
  
  ///////////////////////////////////////////////////////////////////////////////
-@@ -271,6 +291,26 @@ class BrowserView : public BrowserWindow,
+@@ -261,6 +281,26 @@
+   SidePanel* side_panel() { return side_panel_; }
  
    MultiContentsView* multi_contents_view() { return multi_contents_view_; }
- 
++
 +  dao::DaoAddressBarView* dao_address_bar() { return dao_address_bar_; }
 +  dao::DaoSidebarView* dao_sidebar() { return dao_sidebar_; }
 +  dao::DaoCornerOverlayView* dao_corner_overlay() { return dao_corner_overlay_; }
@@ -52,11 +52,10 @@ index bb0e095..df6ea13 100644
 +
 +  // Windows caption exclusion in BrowserView coordinates; empty elsewhere.
 +  gfx::Rect GetDaoWindowControlsBounds() const;
-+
+ 
    // Returns either the Horizontal or Vertical TabStrip.
    TabStripRegionView* tab_strip_view() const;
- 
-@@ -1274,5 +1314,26 @@ class BrowserView : public BrowserWindow,
+@@ -1222,6 +1262,27 @@
    // should exist if and only if the side_panel_coordinator is created.
    raw_ptr<SidePanel> side_panel_ = nullptr;
  
@@ -83,3 +82,4 @@ index bb0e095..df6ea13 100644
 +
    // The handler responsible for showing autofill bubbles.
    std::unique_ptr<autofill::AutofillBubbleHandler> autofill_bubble_handler_;
+ 

@@ -13,7 +13,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "cc/paint/paint_flags.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "components/download/public/common/download_item.h"
 #include "content/public/browser/download_item_utils.h"
@@ -251,7 +251,8 @@ END_METADATA
 BEGIN_METADATA(DaoMiniDaoDownloadCardView)
 END_METADATA
 
-DaoMiniDaoDownloadCardView::DaoMiniDaoDownloadCardView(Browser* browser)
+DaoMiniDaoDownloadCardView::DaoMiniDaoDownloadCardView(
+    BrowserWindowInterface* browser)
     : browser_(browser) {
   SetVisible(false);
 
@@ -283,8 +284,8 @@ DaoMiniDaoDownloadCardView::DaoMiniDaoDownloadCardView(Browser* browser)
   PrepareLabel(overflow_label_, ControlCenterSecondaryTextColor());
   overflow_label_->SetVisible(false);
 
-  if (browser_ && browser_->profile()) {
-    if (auto* manager = browser_->profile()->GetDownloadManager()) {
+  if (browser_ && browser_->GetProfile()) {
+    if (auto* manager = browser_->GetProfile()->GetDownloadManager()) {
       download_notifier_ =
           std::make_unique<download::AllDownloadItemNotifier>(manager, this);
     }
@@ -338,11 +339,11 @@ void DaoMiniDaoDownloadCardView::Layout(PassKey) {
 std::vector<DaoMiniDaoDownloadCardView::ActiveDownload>
 DaoMiniDaoDownloadCardView::BuildActiveDownloads() const {
   std::vector<ActiveDownload> downloads;
-  if (!browser_ || !browser_->profile()) {
+  if (!browser_ || !browser_->GetProfile()) {
     return downloads;
   }
 
-  auto* manager = browser_->profile()->GetDownloadManager();
+  auto* manager = browser_->GetProfile()->GetDownloadManager();
   if (!manager) {
     return downloads;
   }
@@ -494,11 +495,11 @@ void DaoMiniDaoDownloadCardView::UpdateOverflow(
 }
 
 void DaoMiniDaoDownloadCardView::CancelDownload(int id) {
-  if (!browser_ || !browser_->profile() || id < 0) {
+  if (!browser_ || !browser_->GetProfile() || id < 0) {
     return;
   }
 
-  auto* manager = browser_->profile()->GetDownloadManager();
+  auto* manager = browser_->GetProfile()->GetDownloadManager();
   if (!manager) {
     return;
   }

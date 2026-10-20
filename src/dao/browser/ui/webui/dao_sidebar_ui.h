@@ -32,7 +32,7 @@
 #include "ui/gfx/geometry/point.h"
 #include "ui/menus/simple_menu_model.h"
 
-class Browser;
+class BrowserWindowInterface;
 class Profile;
 
 namespace content {
@@ -82,7 +82,7 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   ~DaoSidebarUIHandler() override;
 
   // Set the browser this handler operates on.
-  void SetBrowser(Browser* browser);
+  void SetBrowser(BrowserWindowInterface* browser);
 
   // Refreshes folder data in all sidebar windows of `profile` after a
   // profile-level writer updates dao_folders.json.
@@ -103,7 +103,6 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
       const TabStripModelChange& change,
       const TabStripSelectionChange& selection) override;
   void OnTabChangedAt(tabs::TabInterface* tab,
-                      int index,
                       TabChangeType change_type) override;
   void OnTabPinnedStateChanged(tabs::TabInterface* tab, int index) override;
 
@@ -182,7 +181,7 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   base::DictValue BuildSidebarState();
   base::ListValue BuildPinnedItems();
   bool ReconcilePinnedItems(bool restore_complete);
-  std::pair<Browser*, int> FindOpenPinnedTabForItem(
+  std::pair<BrowserWindowInterface*, int> FindOpenPinnedTabForItem(
       const DaoPinnedTabItem& item) const;
   void PersistBackingIdentity(content::WebContents* contents);
   void RecordPinnedActivationResult(const DaoPinnedTabItem& item,
@@ -334,7 +333,7 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   bool classification_in_progress_ = false;
   uint64_t classification_generation_ = 0;
   std::map<std::string, std::string> classification_tab_urls_;
-  raw_ptr<Browser> browser_ = nullptr;
+  raw_ptr<BrowserWindowInterface> browser_ = nullptr;
 
   class DuplicateTabCloseObserver;
   std::vector<std::unique_ptr<DuplicateTabCloseObserver>>
@@ -392,7 +391,7 @@ class DaoSidebarUI : public content::WebUIController {
   explicit DaoSidebarUI(content::WebUI* web_ui);
   ~DaoSidebarUI() override;
 
-  void SetBrowser(Browser* browser);
+  void SetBrowser(BrowserWindowInterface* browser);
   DaoSidebarUIHandler* handler_for_testing() { return handler_; }
 
  private:

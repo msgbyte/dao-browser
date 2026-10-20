@@ -1,11 +1,18 @@
 diff --git a/chrome/browser/ui/browser_commands.cc b/chrome/browser/ui/browser_commands.cc
-index cd7f650386..97bc475c4b 100644
 --- a/chrome/browser/ui/browser_commands.cc
 +++ b/chrome/browser/ui/browser_commands.cc
-@@ -114,7 +114,11 @@
- #include "chrome/browser/ui/web_applications/web_app_launch_utils.h"
+@@ -17,6 +17,7 @@
+ #include "base/command_line.h"
+ #include "base/containers/adapters.h"
+ #include "base/feature_list.h"
++#include "base/i18n/message_formatter.h"
+ #include "base/i18n/rtl.h"
+ #include "base/memory/scoped_refptr.h"
+ #include "base/memory/weak_ptr.h"
+@@ -128,7 +129,11 @@
  #include "chrome/browser/ui/web_applications/web_app_tabbed_utils.h"
  #include "chrome/browser/ui/webui/tab_search/tab_search.mojom.h"
+ #include "chrome/browser/ui/window_feature_controller/window_feature_controller.h"
 +#include "chrome/browser/ui/views/frame/browser_view.h"
  #include "chrome/browser/upgrade_detector/upgrade_detector.h"
 +#include "dao/browser/ui/views/dao_command_bar_view.h"
@@ -14,7 +21,15 @@ index cd7f650386..97bc475c4b 100644
  #include "chrome/browser/web_applications/web_app_constants.h"
  #include "chrome/browser/web_applications/web_app_helpers.h"
  #include "chrome/browser/web_applications/web_app_provider.h"
-@@ -196,6 +200,7 @@
+@@ -138,6 +143,7 @@
+ #include "chrome/common/pref_names.h"
+ #include "chrome/common/url_constants.h"
+ #include "chrome/common/webui_url_constants.h"
++#include "chrome/grit/generated_resources.h"
+ #include "components/bookmarks/browser/bookmark_model.h"
+ #include "components/bookmarks/browser/bookmark_node.h"
+ #include "components/bookmarks/browser/bookmark_utils.h"
+@@ -206,6 +212,7 @@
  #include "ui/base/clipboard/clipboard.h"
  #include "ui/base/clipboard/clipboard_buffer.h"
  #include "ui/base/clipboard/scoped_clipboard_writer.h"
@@ -22,11 +37,10 @@ index cd7f650386..97bc475c4b 100644
  #include "ui/base/models/list_selection_model.h"
  #include "ui/base/window_open_disposition.h"
  #include "ui/events/keycodes/keyboard_codes.h"
-@@ -1152,8 +1157,34 @@ content::WebContents& NewTab(BrowserWindowInterface* browser,
+@@ -1395,6 +1402,33 @@
  
-   if (browser->GetBrowserForMigrationOnly()->SupportsWindowFeature(
-           Browser::WindowFeature::kFeatureTabStrip)) {
--    std::optional<tab_groups::TabGroupId> group_id = std::nullopt;
+   if (WindowFeatureController::From(browser)->SupportsWindowFeature(
+           WindowFeatureController::WindowFeature::kFeatureTabStrip)) {
 +    // Dao: For a sidebar window driven by a user gesture (Cmd+T, "File > New
 +    // Tab" menu, new-tab-button), DON'T actually open a blank tab. Instead,
 +    // overlay the Spotlight-style command bar on the CURRENT page. If the
@@ -53,25 +67,33 @@ index cd7f650386..97bc475c4b 100644
 +        }
 +      }
 +    }
++
+     return *AddAndReturnTabAt(browser, GURL(), -1, /*foreground=*/true,
+                               std::nullopt, /*pinned=*/false, window_action);
+   }
+@@ -1492,11 +1526,6 @@
+ #endif
  
-+    std::optional<tab_groups::TabGroupId> group_id = std::nullopt;
-     if (features::IsNewTabAddsToActiveGroupEnabled()) {
-       const int index = browser->GetTabStripModel()->active_index();
-       group_id = browser->GetTabStripModel()->GetTabGroupForTab(index);
-@@ -1222,30 +1253,45 @@ void CloseTab(BrowserWindowInterface* browser) {
--  ToastController* toast_controller = browser->GetFeatures().toast_controller();
+   ToastController* toast_controller = browser->GetFeatures().toast_controller();
 -  if (!toast_controller) {
 -    CloseSelectedTabAndRecordTabCountMetric(browser);
 -    return;
 -  }
 -
--  tabs::TabInterface* tab = browser->GetTabStripModel()->GetActiveTab();
--  const bool single_pinned_tab_selected =
--      tab->IsPinned() &&
--      browser->GetTabStripModel()->selection_model().size() == 1;
--  if (single_pinned_tab_selected &&
+   const auto& selected_tabs =
+       browser->GetTabStripModel()->selection_model().selected_tabs();
+   bool all_selected_tabs_pinned = !selected_tabs.empty();
+@@ -1507,27 +1536,48 @@
+     }
+   }
+ 
+-  // If all selected tabs are pinned, show a confirmation toast if one isn't
+-  // already shown.
+-  if (all_selected_tabs_pinned &&
 -      toast_controller->GetCurrentToastId() != ToastId::kClosePinnedTab) {
--    BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
++  bool close_after_confirmation = false;
++  if (all_selected_tabs_pinned) {
+     BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
 -    CHECK(browser_view);
 -    ui::Accelerator accelerator;
 -    CHECK(
@@ -80,30 +102,25 @@ index cd7f650386..97bc475c4b 100644
 -    ToastParams params(ToastId::kClosePinnedTab);
 -    params.body_string_replacement_params.emplace_back(
 -        accelerator.GetShortcutText());
+-    params.body_string_cardinality_param = selected_tabs.size();
 -    toast_controller->MaybeShowToast(std::move(params));
 -  } else {
 -    CloseSelectedTabAndRecordTabCountMetric(browser);
--    if (single_pinned_tab_selected) {
+-    if (all_selected_tabs_pinned) {
 -      base::RecordAction(
 -          UserMetricsAction("Tab.PinnedTabToastClosedAfterConfirmation"));
 -    }
--  }
-+  ToastController* toast_controller = browser->GetFeatures().toast_controller();
-+  tabs::TabInterface* tab = browser->GetTabStripModel()->GetActiveTab();
-+  const bool single_pinned_tab_selected =
-+      tab->IsPinned() &&
-+      browser->GetTabStripModel()->selection_model().size() == 1;
-+  bool close_after_confirmation = false;
-+  if (single_pinned_tab_selected) {
-+    BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
 +    dao::DaoToastView* dao_toast =
 +        browser_view ? browser_view->dao_toast() : nullptr;
 +    if (dao_toast) {
 +      ui::Accelerator accelerator;
 +      CHECK(browser_view->GetAcceleratorForCommandId(IDC_CLOSE_TAB,
 +                                                     &accelerator));
-+      const std::u16string message = l10n_util::GetStringFUTF16(
-+          IDS_CLOSE_PINNED_TAB_TOAST_BODY, accelerator.GetShortcutText());
++      const std::u16string message =
++          base::i18n::MessageFormatter::FormatWithNumberedArgs(
++              l10n_util::GetStringFUTF16(IDS_CLOSE_PINNED_TAB_TOAST_BODY,
++                                      accelerator.GetShortcutText()),
++              static_cast<int>(selected_tabs.size()));
 +      if (!dao_toast->IsShowingToast(message)) {
 +        dao_toast->ShowToast(message);
 +        return;
@@ -120,6 +137,7 @@ index cd7f650386..97bc475c4b 100644
 +      ToastParams params(ToastId::kClosePinnedTab);
 +      params.body_string_replacement_params.emplace_back(
 +          accelerator.GetShortcutText());
++      params.body_string_cardinality_param = selected_tabs.size();
 +      toast_controller->MaybeShowToast(std::move(params));
 +      return;
 +    } else if (toast_controller) {
@@ -131,5 +149,6 @@ index cd7f650386..97bc475c4b 100644
 +  if (close_after_confirmation) {
 +    base::RecordAction(
 +        UserMetricsAction("Tab.PinnedTabToastClosedAfterConfirmation"));
-+  }
+   }
  }
+ 

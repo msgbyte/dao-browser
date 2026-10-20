@@ -286,6 +286,7 @@ dao_browser_ui_mac_test_sources = [
 
 dao_browser_ui_test_deps = [
   "//chrome/browser/tab_list",
+  "//chrome/browser/ui/window_feature_controller",
   "//components/tabs:public",
   "//components/qr_code_generator",
   "//dao/browser/mcp:browser_mcp",

@@ -41,13 +41,10 @@ std::string NormalizeDreamExcludedDomain(const std::string& input) {
     return std::string();
   }
 
-  const size_t registry_length =
-      net::registry_controlled_domains::GetRegistryLength(
-          GURL("https://" + host),
+  if (!net::registry_controlled_domains::HostHasRegistryControlledDomain(
+          host,
           net::registry_controlled_domains::EXCLUDE_UNKNOWN_REGISTRIES,
-          net::registry_controlled_domains::EXCLUDE_PRIVATE_REGISTRIES);
-  if (registry_length == 0 || registry_length == std::string::npos ||
-      registry_length == host.size()) {
+          net::registry_controlled_domains::EXCLUDE_PRIVATE_REGISTRIES)) {
     return std::string();
   }
   return host;

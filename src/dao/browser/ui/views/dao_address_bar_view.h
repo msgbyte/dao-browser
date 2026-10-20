@@ -19,7 +19,7 @@
 #include "ui/views/view.h"
 #include "ui/views/view_tracker.h"
 
-class Browser;
+class BrowserWindowInterface;
 class TabStripModel;
 
 namespace content {
@@ -58,7 +58,7 @@ class DaoAddressBarView : public views::View,
  public:
   static constexpr int kBarHeight = 30;
 
-  explicit DaoAddressBarView(Browser* browser);
+  explicit DaoAddressBarView(BrowserWindowInterface* browser);
   DaoAddressBarView(const DaoAddressBarView&) = delete;
   DaoAddressBarView& operator=(const DaoAddressBarView&) = delete;
   ~DaoAddressBarView() override;
@@ -69,7 +69,6 @@ class DaoAddressBarView : public views::View,
       const TabStripModelChange& change,
       const TabStripSelectionChange& selection) override;
   void OnTabChangedAt(tabs::TabInterface* tab,
-                      int index,
                       TabChangeType change_type) override;
 
   // content::WebContentsObserver:
@@ -150,7 +149,7 @@ class DaoAddressBarView : public views::View,
   void OnMcpServiceStatusChanged(const DaoMcpServiceStatus& status);
   void OnChatButtonPressed();
 
-  raw_ptr<Browser> browser_;
+  raw_ptr<BrowserWindowInterface> browser_;
   raw_ptr<TabStripModel> tab_strip_model_;
   raw_ptr<views::View> traffic_light_spacer_ = nullptr;
   raw_ptr<views::View> left_spacer_ = nullptr;

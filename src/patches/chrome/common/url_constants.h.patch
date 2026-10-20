@@ -1,8 +1,7 @@
 diff --git a/chrome/common/url_constants.h b/chrome/common/url_constants.h
-index 012f27fbd5..ea7fae12c7 100644
 --- a/chrome/common/url_constants.h
 +++ b/chrome/common/url_constants.h
-@@ -476,11 +476,11 @@ inline constexpr char kPrivacyLearnMoreURL[] =
+@@ -462,11 +462,11 @@
  
  // "Chrome Settings" URL for Ad Topics page
  inline constexpr char kPrivacySandboxAdTopicsURL[] =
@@ -14,5 +13,5 @@ index 012f27fbd5..ea7fae12c7 100644
 -    "chrome://settings/adPrivacy/interests/manage";
 +    "dao://settings/adPrivacy/interests/manage";
  
- #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
- // The Privacy Sandbox homepage.
+ // The URL for the Learn More link of the non-CWS bubble.
+ inline constexpr char kRemoveNonCWSExtensionURL[] =

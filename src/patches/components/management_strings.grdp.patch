@@ -1,8 +1,6 @@
-diff --git a/components/management_strings.grdp b/components/management_strings.grdp
-index 606b2c91df..a8584afb49 100644
 --- a/components/management_strings.grdp
 +++ b/components/management_strings.grdp
-@@ -23,10 +23,10 @@
+@@ -26,10 +26,10 @@
  
    <!-- Subtitles of the ChromeOS version of the management page -->
    <if expr="is_chromeos">
@@ -15,7 +13,7 @@ index 606b2c91df..a8584afb49 100644
        Your <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph> is managed by <ph name="MANAGER">$2<ex>example.com</ex></ph>
      </message>
      <message name="IDS_MANAGEMENT_NOT_MANAGED_SUBTITLE" desc="Message indicating that the device is not managed">
-@@ -36,13 +36,13 @@
+@@ -39,13 +39,13 @@
  
    <!-- Subtitles of the browser version of the management page -->
    <if expr="not is_chromeos">
@@ -32,7 +30,7 @@ index 606b2c91df..a8584afb49 100644
        Your browser is managed by your organization
      </message>
      <message name="IDS_MANAGEMENT_SUBTITLE_BROWSER_AND_PROFILE_DIFFERENT_MANAGED_BY" desc="Text displayed to inform that the browser is managed by BROWSER_DOMAIN and the profile by PROFILE_DOMAIN.">
-@@ -105,7 +105,7 @@
+@@ -108,7 +108,7 @@
  
    <!--
    If you are adding or modifying a privacy string to be displayed on
@@ -42,8 +40,8 @@ index 606b2c91df..a8584afb49 100644
    -->
    <if expr="is_chromeos">
 @@ -237,8 +237,8 @@
-     <message name="IDS_MANAGEMENT_REPORT_PLUGIN_VM" desc="Message telling users that Plugin VM can collect data.">
-       Your administrator has allowed <ph name="APP_NAME">$1<ex>Plugin VM</ex></ph> to collect diagnostics data to improve the product experience. See <ph name="BEGIN_LINK">&lt;a target="_blank" href="https://www.parallels.com/pcep"&gt;</ph>https://www.parallels.com/pcep<ph name="END_LINK">&lt;/a&gt;</ph> for more information.
+     <message name="IDS_MANAGEMENT_REPORT_ANDROID_APPLICATIONS" desc="Message stating that administrators can see user's installed Android applications.">
+       Which Google Play apps you have installed
      </message>
 -    <message name="IDS_MANAGEMENT_OPEN_CHROME_MANAGEMENT" desc="Message telling users to open chrome://management for additional information.">
 -      For additional information and policies that may apply, open chrome://management in your browser.
@@ -52,7 +50,7 @@ index 606b2c91df..a8584afb49 100644
      </message>
      <message name="IDS_MANAGEMENT_REPORT_FILE_EVENTS" desc="Message stating that administrators may see file information">
        Recent file access and modifications, including file names, digital fingerprints of the file content, download source, and metadata
-@@ -460,16 +460,16 @@
+@@ -454,16 +454,16 @@
      </message>
    </if>
    <if expr="is_ios">

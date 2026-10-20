@@ -1,11 +1,11 @@
 diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/views/frame/browser_view.cc
-index bcb1930..977e1a0 100644
 --- a/chrome/browser/ui/views/frame/browser_view.cc
 +++ b/chrome/browser/ui/views/frame/browser_view.cc
-@@ -4,6 +4,28 @@
+@@ -3,6 +3,28 @@
+ // found in the LICENSE file.
  
  #include "chrome/browser/ui/views/frame/browser_view.h"
- 
++
 +#include "dao/browser/agent/dao_agent_lock_tab_helper.h"
 +#include "dao/browser/ui/views/dao_address_bar_view.h"
 +#include "dao/browser/ui/views/dao_agent_cursor_view.h"
@@ -27,11 +27,10 @@ index bcb1930..977e1a0 100644
 +#include "dao/browser/ui/views/sidebar/dao_tab_tooltip_view.h"
 +#include "dao/browser/ui/views/split/dao_split_pane_view.h"
 +#include "dao/browser/ui/views/split/dao_split_view.h"
-+
+ 
  #include <stdint.h>
  
- #include <algorithm>
-@@ -757,6 +779,14 @@ class BrowserView::ExclusiveAccessContextImpl
+@@ -768,6 +790,14 @@
        // ...TYPE_NONE indicates deleting the bubble, except when used with
        // download.
        should_close_bubble |= params.type == EXCLUSIVE_ACCESS_BUBBLE_TYPE_NONE;
@@ -46,12 +45,13 @@ index bcb1930..977e1a0 100644
  #if BUILDFLAG(IS_CHROMEOS)
        // Immersive mode allows the toolbar to be shown, so do not show the
        // bubble. However, do show the bubble in a managed guest session (see
-@@ -929,6 +959,112 @@ BrowserView::BrowserView(Browser* browser)
-   contents_container_ = AddChildView(std::move(contents_container));
-   set_contents_view(contents_container_);
+@@ -938,6 +968,113 @@
+ 
+   set_contents_view(multi_contents_view_);
  
 +  // Dao: Only create sidebar UI for normal browser windows (not popups/devtools)
-+  if (browser_->SupportsWindowFeature(Browser::WindowFeature::kFeatureTabStrip)) {
++  if (WindowFeatureController::From(browser_)->SupportsWindowFeature(
++          WindowFeatureController::WindowFeature::kFeatureTabStrip)) {
 +    // Clip the parked toolbar's composited children to the top container.
 +    // On Windows, y=-height is still inside the window's native title bar,
 +    // so unbounded child layers would paint over the caption buttons.
@@ -62,18 +62,18 @@ index bcb1930..977e1a0 100644
 +    // Dao: Set frame background color (visible behind sidebar + content insets)
 +    SetBackground(views::CreateSolidBackground(
 +        dao::SidebarBackground(browser_.get())));
-+    contents_container_->SetPaintToLayer();
-+    contents_container_->layer()->SetFillsBoundsOpaquely(false);
-+    contents_container_->SetBackground(
++    multi_contents_view_->SetPaintToLayer();
++    multi_contents_view_->layer()->SetFillsBoundsOpaquely(false);
++    multi_contents_view_->SetBackground(
 +        views::CreateSolidBackground(dao::SidebarBackground(browser_.get())));
 +
 +    // Dao: Add left sidebar before the contents area
 +    dao_sidebar_ = AddChildViewAt(
 +        std::make_unique<dao::DaoSidebarView>(browser_.get()),
-+        GetIndexOf(contents_container_).value());
++        GetIndexOf(multi_contents_view_).value());
 +
-+    // Dao: Split view inside contents_container_ for multi-pane browsing
-+    dao_split_view_ = contents_container_->AddChildView(
++    // Dao: Split view inside multi_contents_view_ for multi-pane browsing
++    dao_split_view_ = multi_contents_view_->AddChildView(
 +        std::make_unique<dao::DaoSplitView>(browser_.get()));
 +
 +    // Dao: Thin banner shown while the active tab is AI-locked.
@@ -159,29 +159,7 @@ index bcb1930..977e1a0 100644
    // InfoBarContainer needs to be added as a child here for drop-shadow, but
    // needs to come after toolbar in focus order (see EnsureFocusOrder()).
    infobar_container_ =
-@@ -1248,12 +1384,21 @@ std::vector<ContentsContainerView*> BrowserView::GetContentsContainerViews() {
- 
- #if BUILDFLAG(IS_MAC)
- bool BrowserView::UsesImmersiveFullscreenMode() const {
-+  // Dao: Sidebar windows skip immersive mode — the sidebar stays visible in
-+  // fullscreen, so we don't need the top-chrome overlay.
-+  if (dao_sidebar_) {
-+    return false;
-+  }
-   const bool is_pwa = GetIsWebAppType();
-   const bool is_tabbed_window = GetSupportsTabStrip();
-   return is_pwa || is_tabbed_window;
- }
- 
- bool BrowserView::UsesImmersiveFullscreenTabbedMode() const {
-+  // Dao: Same as above — no immersive tab strip for sidebar windows.
-+  if (dao_sidebar_) {
-+    return false;
-+  }
-   const bool is_pwa = GetIsWebAppType();
-   const bool is_tabbed_window = GetSupportsTabStrip();
-   return is_tabbed_window && !is_pwa;
-@@ -1357,6 +1502,11 @@ bool BrowserView::ShouldDrawTabStrokes() const {
+@@ -1382,6 +1519,11 @@
  }
  
  bool BrowserView::ShouldDrawTabStrip() const {
@@ -192,9 +170,9 @@ index bcb1930..977e1a0 100644
 +
    // Return false if this window does not normally display a tabstrip or if the
    // tabstrip is currently hidden, e.g. because we're in fullscreen.
-   if (!browser_->SupportsWindowFeature(
-@@ -1934,8 +2084,13 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
-       loading_bar_->SetWebContents(nullptr);
+   if (!WindowFeatureController::From(browser_)->SupportsWindowFeature(
+@@ -1998,8 +2140,13 @@
+       GetWidget()->GetFocusManager()->ClearFocus();
      }
  
 -    multi_contents_view_->GetInactiveContentsView()->SetWebContents(nullptr);
@@ -209,7 +187,7 @@ index bcb1930..977e1a0 100644
    }
  
    // Do this before updating InfoBarContainer as the InfoBarContainer may
-@@ -1997,6 +2152,9 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
+@@ -2051,6 +2198,9 @@
        if (multi_contents_view_->IsInSplitView()) {
          HideSplitView();
        }
@@ -219,7 +197,7 @@ index bcb1930..977e1a0 100644
        multi_contents_view_->GetActiveContentsView()->SetWebContents(
            new_contents);
      }
-@@ -2034,6 +2192,25 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
+@@ -2088,6 +2238,25 @@
    UpdateTitleBar();
  
    CHECK_DEREF(TranslateBubbleController::From(browser_.get())).CloseBubble();
@@ -245,7 +223,7 @@ index bcb1930..977e1a0 100644
  }
  
  void BrowserView::OnTabDetached(content::WebContents* contents,
-@@ -2256,6 +2433,18 @@ void BrowserView::SetFocusToLocationBar(bool is_user_initiated) {
+@@ -2311,6 +2480,18 @@
    // already. On Chrome OS, changing focus makes a view believe it has a focus
    // even if the widget doens't have a focus. Either cases, we need to ignore
    // this when the browser window isn't active.
@@ -264,7 +242,7 @@ index bcb1930..977e1a0 100644
  #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
    if (!IsActive()) {
      return;
-@@ -3213,6 +3402,17 @@
+@@ -3198,6 +3379,17 @@
    ui::Accelerator accelerator =
        ui::GetAcceleratorFromNativeWebKeyboardEvent(event);
  
@@ -282,10 +260,13 @@ index bcb1930..977e1a0 100644
    // What we have to do here is as follows:
    // - If the |browser_| is for an app, do nothing.
    // - On CrOS if |accelerator| is deprecated, we allow web contents to consume
-@@ -3506,6 +3706,21 @@ void BrowserView::OnTabChangedAt(tabs::TabInterface* tab,
-                                  TabChangeType change_type) {
-   content::WebContents* contents = tab->GetContents();
- 
+@@ -3503,6 +3695,21 @@
+     if (auto* container =
+             multi_contents_view_->GetContentsContainerViewFor(contents)) {
+       container->contents_view()->UpdateIsBlockedByModal();
++    }
++  }
++
 +  // Dao: Keep lock banner + cursor in sync with tab lock state on any change.
 +  if (contents == GetActiveWebContents() && dao_agent_lock_banner_) {
 +    dao_agent_lock_banner_->SetLocked(
@@ -298,13 +279,10 @@ index bcb1930..977e1a0 100644
 +      dao_agent_cursor_->ShowAtCenter();
 +    } else {
 +      dao_agent_cursor_->Hide();
-+    }
-+  }
-+
-   if (change_type != TabChangeType::kLoadingOnly || contents->IsLoading()) {
-     return;
+     }
    }
-@@ -4529,9 +4744,35 @@ void BrowserView::GetAccessiblePanes(std::vector<views::View*>* panes) {
+ 
+@@ -4480,9 +4687,35 @@
    }
  }
  
@@ -339,8 +317,8 @@ index bcb1930..977e1a0 100644
 +
    // Window for PWAs with window-controls-overlay display override should claim
    // mouse events that fall within the draggable region.
-   web_app::AppBrowserController* controller = browser()->app_controller();
-@@ -4706,6 +4947,126 @@ int BrowserView::NonClientHitTest(const gfx::Point& point) {
+   web_app::AppBrowserController* controller =
+@@ -4660,6 +4893,126 @@
      }
    }
  
@@ -420,7 +398,7 @@ index bcb1930..977e1a0 100644
 +#endif
 +
 +    const int sidebar_right = dao_sidebar_->bounds().right();
-+    const int content_top = contents_container_->y();
++    const int content_top = multi_contents_view_->y();
 +    if (point_in_browser_view_coords.x() >= sidebar_right &&
 +        point_in_browser_view_coords.y() < content_top) {
 +      // Dao: Address bar sits in this strip above contents_container and
@@ -458,7 +436,7 @@ index bcb1930..977e1a0 100644
 +            point_in_browser_view_coords)) {
 +      return HTCLIENT;
 +    }
-+    const int content_top = contents_container_->y();
++    const int content_top = multi_contents_view_->y();
 +    if (point_in_browser_view_coords.y() < content_top) {
 +      return HTNOWHERE;
 +    }
@@ -467,7 +445,7 @@ index bcb1930..977e1a0 100644
    if (vertical_tab_strip_region_view_ &&
        vertical_tab_strip_region_view_->GetVisible()) {
      // See if the mouse pointer is within the bounds of the
-@@ -4839,6 +5200,37 @@ void BrowserView::Layout(PassKey) {
+@@ -4817,7 +5170,38 @@
      did_first_layout_while_top_controls_are_sliding_ = false;
    }
  
@@ -505,7 +483,8 @@ index bcb1930..977e1a0 100644
 +#endif
  
    // TODO(jamescook): Why was this in the middle of layout code?
-@@ -5110,6 +5502,20 @@ void BrowserView::OnThemeChanged() {
+   toolbar_->location_bar()->UpdateFocusBehavior(IsToolbarVisible());
+@@ -5143,6 +5527,20 @@
    }
  
    FrameColorsChanged();
@@ -519,17 +498,17 @@ index bcb1930..977e1a0 100644
 +  if (dao_sidebar_) {
 +    SetBackground(views::CreateSolidBackground(
 +        dao::SidebarBackground(browser_.get())));
-+    contents_container_->SetBackground(
++    multi_contents_view_->SetBackground(
 +        views::CreateSolidBackground(dao::SidebarBackground(browser_.get())));
 +    SchedulePaint();
 +  }
  }
  
  bool BrowserView::GetDropFormats(
-@@ -5146,6 +5552,14 @@
- // BrowserView, ui::AcceleratorTarget overrides:
+@@ -5185,6 +5583,14 @@
+     return true;
+   }
  
- bool BrowserView::AcceleratorPressed(const ui::Accelerator& accelerator) {
 +#if BUILDFLAG(IS_WIN)
 +  // BrowserView registers after its children. Keep Ctrl+S on Dao's normal-
 +  // priority path so an unhandled page shortcut never falls back to Save Page.

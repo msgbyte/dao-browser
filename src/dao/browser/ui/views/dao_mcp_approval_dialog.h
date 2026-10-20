@@ -16,14 +16,14 @@
 #include "dao/browser/mcp/dao_mcp_service.h"
 #include "ui/views/window/dialog_delegate.h"
 
-class Browser;
+class BrowserWindowInterface;
 
 namespace dao {
 
 class DaoMcpApprovalDialog final : public views::DialogDelegate {
  public:
   DaoMcpApprovalDialog(const DaoMcpApprovalRequest& request,
-                       Browser* browser,
+                       BrowserWindowInterface* browser,
                        base::OnceCallback<void(bool)> callback);
   ~DaoMcpApprovalDialog() override;
 
@@ -36,7 +36,7 @@ class DaoMcpApprovalDialog final : public views::DialogDelegate {
  private:
   std::unique_ptr<views::View> BuildContents(
       const DaoMcpApprovalRequest& request,
-      Browser* browser);
+      BrowserWindowInterface* browser);
   void Resolve(bool allowed);
 
   base::OnceCallback<void(bool)> callback_;
@@ -53,7 +53,7 @@ class DaoMcpApprovalDialogController final : public DaoMcpApprovalDelegate {
       const DaoMcpApprovalDialogController&) = delete;
 
   void RequestApproval(const DaoMcpApprovalRequest& request,
-                       Browser* browser,
+                       BrowserWindowInterface* browser,
                        std::string_view connection_id,
                        base::OnceCallback<void(bool)> callback) override;
   void CancelApproval(std::string_view connection_id) override;
@@ -70,7 +70,7 @@ class DaoMcpApprovalDialogController final : public DaoMcpApprovalDelegate {
 
   struct PendingRequest {
     PendingRequest(const DaoMcpApprovalRequest& request,
-                   Browser* browser,
+                   BrowserWindowInterface* browser,
                    std::string connection_id,
                    base::OnceCallback<void(bool)> callback);
     ~PendingRequest();
@@ -81,7 +81,7 @@ class DaoMcpApprovalDialogController final : public DaoMcpApprovalDelegate {
     PendingRequest& operator=(const PendingRequest&) = delete;
 
     DaoMcpApprovalRequest approval;
-    raw_ptr<Browser> browser;
+    raw_ptr<BrowserWindowInterface> browser;
     std::string connection_id;
     base::OnceCallback<void(bool)> callback;
   };

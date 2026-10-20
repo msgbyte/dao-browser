@@ -1,9 +1,12 @@
 import hashlib
 import importlib.util
+import io
 import json
 from pathlib import Path
+import shutil
 import tempfile
 import unittest
+from unittest import mock
 import xml.etree.ElementTree as ET
 import zipfile
 
@@ -22,7 +25,7 @@ class WindowsToolchainBootstrapTest(unittest.TestCase):
         self.source = self.root / 'source'
         self.archives = self.root / 'archives'
         self.sdk = 'Windows Kits/10'
-        self.version = '10.0.26100.0'
+        self.version = '10.0.28000.0'
         self.vc = 'VC/Tools/MSVC/14.50.35717'
         self.write(f'{self.vc}/include/vector')
         self.write(f'{self.vc}/atlmfc/include/atlbase.h')
@@ -48,6 +51,33 @@ class WindowsToolchainBootstrapTest(unittest.TestCase):
         file = self.source / relative
         file.parent.mkdir(parents=True, exist_ok=True)
         file.write_bytes(b'fixture')
+
+    def test_bootstraps_m154_sdk_with_matching_downloader_and_archive_versions(self):
+        def download_packages(command, **kwargs):
+            self.assertEqual(command[command.index('--sdk-version') + 1], '10.0.28000')
+            shutil.copytree(self.source, command[command.index('--dest') + 1])
+
+        path_exists = Path.exists
+        argv = [str(SCRIPT), '--root', str(self.root), '--vs-version', '2026',
+                '--sdk-version', '10.0.28000.0', '--accept-license']
+        with mock.patch.object(BOOTSTRAP.sys, 'argv', argv), \
+                mock.patch.object(BOOTSTRAP.sys, 'platform', 'darwin'), \
+                mock.patch.object(BOOTSTRAP.sys, 'stdout', io.StringIO()), \
+                mock.patch.object(BOOTSTRAP.shutil, 'which', return_value='/tools/tool'), \
+                mock.patch.object(Path, 'exists', lambda p: path_exists(
+                    p.with_name('case-check') if p.name == 'CASE-CHECK' else p)), \
+                mock.patch.object(BOOTSTRAP, 'download_verified'), \
+                mock.patch.object(BOOTSTRAP, 'install_debuggers'), \
+                mock.patch.object(BOOTSTRAP.subprocess, 'run', side_effect=download_packages):
+            try:
+                BOOTSTRAP.main()
+            except SystemExit as error:
+                self.fail(f'M154 SDK setup rejected the required version: {error}')
+
+        result = json.loads((self.root / '.dao/windows-sdk/bootstrap.json').read_text())
+        with zipfile.ZipFile(Path(result['baseUrl']) / (result['hash'] + '.zip')) as archive:
+            env = json.loads(archive.read('Windows Kits/10/bin/SetEnv.x64.json'))['env']
+            self.assertIn(['Windows Kits', '10', 'Include', '10.0.28000.0', 'um'], env['INCLUDE'])
 
     def test_packages_chromium_layout_and_content_hash(self):
         archive = BOOTSTRAP.package_toolchain(self.source, self.archives, '2026', self.version)

@@ -8,8 +8,8 @@
 #include "base/functional/callback_helpers.h"
 #include "cc/paint/paint_flags.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/page_info/page_info_bubble_specification.h"
@@ -23,6 +23,7 @@
 #include "dao/browser/ui/views/dao_lucide_icons.h"
 #include "dao/browser/ui/views/dao_toast_view.h"
 #include "dao/browser/ui/views/little_dao/dao_little_dao_controller.h"
+#include "ui/base/base_window.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/gfx/canvas.h"
@@ -260,10 +261,10 @@ void DaoControlCenterUtilitySection::OnMiniDaoClicked() {
     return;
   }
 
-  Browser* browser = popup_->browser();
+  BrowserWindowInterface* browser = popup_->browser();
   popup_->Hide();
 
-  Browser* little_dao_browser =
+  BrowserWindowInterface* little_dao_browser =
       DaoLittleDaoController::ExtractActiveTabToLittleDao(browser);
   if (little_dao_browser || !browser) {
     return;
@@ -294,7 +295,7 @@ void DaoControlCenterUtilitySection::OnForceDarkModeClicked() {
     return;
   }
 
-  Profile* profile = popup_->browser()->profile();
+  Profile* profile = popup_->browser()->GetProfile();
   SetForceDarkModeUserEnabled(profile, !IsForceDarkModeUserEnabled(profile));
   RefreshForceDarkModeState();
 }
@@ -306,7 +307,7 @@ void DaoControlCenterUtilitySection::RefreshForceDarkModeState() {
 
   auto* button = static_cast<UtilityButton*>(force_dark_mode_button_.get());
   Profile* profile =
-      popup_ && popup_->browser() ? popup_->browser()->profile() : nullptr;
+      popup_ && popup_->browser() ? popup_->browser()->GetProfile() : nullptr;
   const bool available = IsForceDarkModeAvailable();
   button->SetSelected(IsForceDarkModeUserEnabled(profile));
   button->SetVisualEnabled(available);
@@ -319,7 +320,7 @@ void DaoControlCenterUtilitySection::OnLockClicked() {
   if (!popup_ || !popup_->browser()) {
     return;
   }
-  Browser* browser = popup_->browser();
+  BrowserWindowInterface* browser = popup_->browser();
   auto* web_contents = browser->tab_strip_model()->GetActiveWebContents();
   if (!web_contents) {
     return;
@@ -368,7 +369,7 @@ void DaoControlCenterUtilitySection::OnLockClicked() {
   popup_->Hide();
 
   PageInfoBubbleSpecification::Builder builder(
-      views::BubbleAnchor(), browser->window()->GetNativeWindow(),
+      views::BubbleAnchor(), browser->GetWindow()->GetNativeWindow(),
       web_contents, virtual_url);
   builder.AddAnchorRect(anchor_rect)
       .AddInitializedCallback(base::DoNothing())

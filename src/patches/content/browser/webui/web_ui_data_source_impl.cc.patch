@@ -1,5 +1,5 @@
 diff --git a/content/browser/webui/web_ui_data_source_impl.cc b/content/browser/webui/web_ui_data_source_impl.cc
-index 07cdf7dde6..98b3f8e052 100644
+index 2ef84b7..b0f5398 100644
 --- a/content/browser/webui/web_ui_data_source_impl.cc
 +++ b/content/browser/webui/web_ui_data_source_impl.cc
 @@ -133,6 +133,45 @@ void GetDataResourceBytesOnWorkerThreadFromDisk(
@@ -48,10 +48,10 @@ index 07cdf7dde6..98b3f8e052 100644
  }  // namespace
  
  // Internal class to hide the fact that WebUIDataSourceImpl implements
-@@ -318,7 +357,11 @@ bool WebUIDataSourceImpl::IsWebUIDataSourceImpl() const {
- void WebUIDataSourceImpl::OverrideContentSecurityPolicy(
+@@ -328,7 +367,11 @@ void WebUIDataSourceImpl::OverrideContentSecurityPolicy(
      network::mojom::CSPDirectiveName directive,
      const std::string& value) {
+   CHECK(!resources_frozen_);
 -  csp_overrides_.insert_or_assign(directive, value);
 +  // Dao Browser: rewrite the CSP value so any hard-coded "chrome://..." or
 +  // "dao://..." source-list token is mirrored to the other scheme. See
@@ -61,7 +61,7 @@ index 07cdf7dde6..98b3f8e052 100644
  }
  
  void WebUIDataSourceImpl::OverrideCrossOriginOpenerPolicy(
-@@ -350,6 +393,7 @@ void WebUIDataSourceImpl::AddFrameAncestor(const GURL& frame_ancestor) {
+@@ -364,6 +407,7 @@ void WebUIDataSourceImpl::AddFrameAncestor(const GURL& frame_ancestor) {
    // Do not allow a wildcard to be a frame ancestor or it will allow any website
    // to embed the WebUI.
    CHECK(frame_ancestor.SchemeIs(kChromeUIScheme) ||
@@ -69,7 +69,7 @@ index 07cdf7dde6..98b3f8e052 100644
          frame_ancestor.SchemeIs(kChromeUIUntrustedScheme));
    frame_ancestors_.insert(frame_ancestor);
  }
-@@ -511,6 +555,16 @@ void WebUIDataSourceImpl::StartDataRequest(
+@@ -534,6 +578,16 @@ void WebUIDataSourceImpl::StartDataRequest(
      return;
    }
  

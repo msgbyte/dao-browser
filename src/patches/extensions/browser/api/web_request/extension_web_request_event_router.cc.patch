@@ -1,30 +1,34 @@
 diff --git a/extensions/browser/api/web_request/extension_web_request_event_router.cc b/extensions/browser/api/web_request/extension_web_request_event_router.cc
-index e2a4c79e4ff67..25a715dbbd760 100644
 --- a/extensions/browser/api/web_request/extension_web_request_event_router.cc
 +++ b/extensions/browser/api/web_request/extension_web_request_event_router.cc
-@@ -1974,7 +1974,10 @@ bool WebRequestEventRouter::AddEventListener(
-     size_t erased = std::erase_if(listeners, matches_sub_event);
-     // Only a single listener should ever match. It's possible no listener will
-     // match if this is a new listener in a worker context.
--    DCHECK_LE(erased, 1u);
-+    // Dao Browser: the upstream invariant is violated in the wild (observed
-+    // with Bitwarden + session restore on v147), so the DCHECK was removed.
-+    // std::erase_if correctly handles multiple duplicates and is_reactivated
-+    // below only cares whether any entry was erased.
-     is_reactivated = erased > 0u;
+@@ -2531,12 +2531,17 @@
+       inactive_listeners, extension_id, sub_event_name, std::nullopt,
+       std::nullopt, std::nullopt, browser_context_id,
+       &replacement_listener.filter, replacement_listener.extra_info_spec);
+-  // Only a single exact registration should ever match. It's possible no
+-  // listener will match if this is a new listener in a worker context.
+-  DCHECK_LE(matching_listeners.size(), 1u);
++  // Dao: Session restore can leave duplicate registrations. Retain one
++  // registration and release the redundant listeners below.
+   if (replacement_listener.IsBlocking() && !matching_listeners.empty()) {
+     replacement_listener.blocked_requests.swap(
+         matching_listeners.front()->blocked_requests);
++  }
++
++  // Dao: Only the first registration is transferred to the replacement.
++  // Release the other listeners' pending requests and listener counts.
++  for (size_t i = 1; i < matching_listeners.size(); ++i) {
++    CleanUpForListener(*matching_listeners[i], ListenerUpdateType::kRemove);
    }
  
-@@ -2138,8 +2141,11 @@ void WebRequestEventRouter::RemoveLazyListener(
+   // Whether records still left under `sub_event_name` after the
+@@ -2602,7 +2607,8 @@
    // We should only have a maximum of two listeners removed - one for the
    // on-the-record and one for the off-the-record profile - since each listener
    // must either be active *or* inactive.
 -  DCHECK_LE(removed_listeners.size(), 2u);
--
-+  // Dao Browser: the upstream invariant is violated in the wild (observed with
-+  // MV2 ad blockers + session restore finalizing a shutdown-delayed install on
-+  // v147), so the DCHECK was removed. The cleanup loop below already handles an
-+  // arbitrary number of removed listeners correctly, and release builds (where
-+  // the DCHECK is compiled out) already tolerate this.
-   std::set<content::BrowserContext*> contexts_to_update;
++  // Dao: MV2 extensions and session restore can leave extra listeners.
++  // The cleanup loop below handles all removed registrations.
+ 
    for (const auto& listener : removed_listeners) {
-     contexts_to_update.insert(listener->id.browser_context.get());
+     CleanUpForListener(*listener, ListenerUpdateType::kRemove);

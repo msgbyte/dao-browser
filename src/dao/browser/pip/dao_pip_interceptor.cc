@@ -17,7 +17,8 @@
 #include "chrome/browser/picture_in_picture/picture_in_picture_window_manager.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/common/chrome_isolated_world_ids.h"
 #include "components/prefs/pref_service.h"
@@ -722,9 +723,11 @@ void DaoPipInterceptor::OnVisibilityChanged(content::Visibility visibility) {
     return;
   }
 
-  Browser* browser = chrome::FindBrowserWithTab(web_contents());
+  BrowserWindowInterface* browser =
+      GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
+          web_contents());
   if (!browser ||
-      browser->tab_strip_model()->GetActiveWebContents() != web_contents()) {
+      browser->GetTabStripModel()->GetActiveWebContents() != web_contents()) {
     return;
   }
 

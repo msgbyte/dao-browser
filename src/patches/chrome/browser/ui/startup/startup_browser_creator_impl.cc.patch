@@ -1,9 +1,7 @@
 diff --git a/chrome/browser/ui/startup/startup_browser_creator_impl.cc b/chrome/browser/ui/startup/startup_browser_creator_impl.cc
-index 1cefe11155..89e244b960 100644
 --- a/chrome/browser/ui/startup/startup_browser_creator_impl.cc
 +++ b/chrome/browser/ui/startup/startup_browser_creator_impl.cc
-@@ -331,7 +331,8 @@ Browser* StartupBrowserCreatorImpl::OpenTabsInBrowser(
-   }
+@@ -358,6 +358,7 @@
    CHECK(profile_);
  
    bool first_tab = true;
@@ -11,8 +9,7 @@ index 1cefe11155..89e244b960 100644
    bool process_headless_commands = headless::ShouldProcessHeadlessCommands();
    custom_handlers::ProtocolHandlerRegistry* registry =
        ProtocolHandlerRegistryFactory::GetForBrowserContext(profile_);
-@@ -409,7 +410,11 @@ Browser* StartupBrowserCreatorImpl::OpenTabsInBrowser(
-     NavigateParams params(browser, tab.url, ui::PAGE_TRANSITION_AUTO_TOPLEVEL);
+@@ -443,6 +444,10 @@
      params.disposition = first_tab ? WindowOpenDisposition::NEW_FOREGROUND_TAB
                                     : WindowOpenDisposition::NEW_BACKGROUND_TAB;
      params.tabstrip_add_types = add_types;
@@ -23,7 +20,7 @@ index 1cefe11155..89e244b960 100644
  
  #if BUILDFLAG(ENABLE_RLZ)
      if (process_startup == chrome::startup::IsProcessStartup::kYes &&
-@@ -713,8 +718,21 @@ Browser* StartupBrowserCreatorImpl::RestoreOrCreateBrowser(
+@@ -751,8 +756,21 @@
        restore_options |= SessionRestore::RESTORE_APPS;
      }
  
@@ -40,13 +37,13 @@ index 1cefe11155..89e244b960 100644
 +      restore_tabs.clear();
 +    }
 +
-     browser = SessionRestore::RestoreSession(profile_, nullptr, restore_options,
--                                             tabs);
-+                                             restore_tabs);
-     if (browser) {
-       return browser;
+     BrowserWindowInterface* browser_window = SessionRestore::RestoreSession(
+-        profile_, nullptr, restore_options, tabs);
++        profile_, nullptr, restore_options, restore_tabs);
+     if (browser_window) {
+       return browser_window;
      }
-@@ -772,11 +790,13 @@ StartupBrowserCreatorImpl::DetermineBrowserOpenBehavior(
+@@ -810,11 +828,13 @@
    }
  
    if (pref.ShouldRestoreLastSession()) {

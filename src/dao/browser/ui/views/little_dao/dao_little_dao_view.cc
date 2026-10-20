@@ -7,7 +7,7 @@
 #include <utility>
 
 #include "base/strings/utf_string_conversions.h"
-#include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "content/public/browser/navigation_handle.h"
@@ -117,7 +117,7 @@ END_METADATA
 BEGIN_METADATA(DaoLittleDaoView)
 END_METADATA
 
-DaoLittleDaoView::DaoLittleDaoView(Browser* browser)
+DaoLittleDaoView::DaoLittleDaoView(BrowserWindowInterface* browser)
     : browser_(browser), tab_strip_model_(browser->tab_strip_model()) {
   SetBackground(views::CreateSolidBackground(SidebarBackground()));
 
@@ -290,9 +290,8 @@ void DaoLittleDaoView::OnTabStripModelChanged(
 }
 
 void DaoLittleDaoView::OnTabChangedAt(tabs::TabInterface* tab,
-                                       int index,
-                                       TabChangeType change_type) {
-  if (tab_strip_model_ && index == tab_strip_model_->active_index()) {
+                                      TabChangeType change_type) {
+  if (tab_strip_model_ && tab == tab_strip_model_->GetActiveTab()) {
     UpdateURLDisplay();
     UpdateBackgroundColor();
   }

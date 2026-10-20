@@ -1,8 +1,7 @@
 diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.h b/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.h
-index 785bd22434..658b09eae3 100644
 --- a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.h
 +++ b/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.h
-@@ -38,6 +38,10 @@
+@@ -35,6 +35,10 @@
  class PictureInPictureBoundsChangeAnimation;
  class PictureInPictureTucker;
  
@@ -13,7 +12,15 @@ index 785bd22434..658b09eae3 100644
  namespace views {
  class Label;
  class View;
-@@ -223,6 +227,15 @@ class PictureInPictureBrowserFrameView : public BrowserFrameView,
+@@ -129,6 +133,7 @@
+ 
+   // PipTopBarAnimationController::Delegate:
+   void ApplyTopBarForegroundColor(SkColor color) override;
++  void ApplyTopBarOpacity(float opacity) override;
+   const ui::ColorProvider* GetTopBarColorProvider() const override;
+ 
+   // PictureInPictureBrowserFrameView:
+@@ -225,6 +230,15 @@
      return child_dialog_observer_helper_->IsChildResizePendingForTesting();
    }
  
@@ -29,17 +36,7 @@ index 785bd22434..658b09eae3 100644
   protected:
    views::View* top_bar_container_view() { return top_bar_container_view_; }
  
-@@ -379,7 +392,8 @@ class PictureInPictureBrowserFrameView : public BrowserFrameView,
- 
-   // When the window is created and shown for the first time, we show the active
-   // window state even if the mouse is not inside it.
--  bool render_active_ = true;
-+  // Dao: Start as false so the first activation triggers show animation.
-+  bool render_active_ = false;
- 
-   bool mouse_inside_window_ = false;
- 
-@@ -421,6 +435,43 @@ class PictureInPictureBrowserFrameView : public BrowserFrameView,
+@@ -299,6 +313,43 @@
    std::unique_ptr<PictureInPictureTucker> tucker_;
    bool is_tucking_forced_ = false;
  

@@ -13,7 +13,7 @@
 #include "base/scoped_observation.h"
 #include "build/build_config.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "content/public/browser/browsing_data_filter_builder.h"
@@ -78,7 +78,7 @@ class BrowsingDataRemovalObserver
 };
 
 std::unique_ptr<content::BrowsingDataFilterBuilder>
-CreateActiveSiteBrowsingDataFilter(Browser* browser) {
+CreateActiveSiteBrowsingDataFilter(BrowserWindowInterface* browser) {
   if (!browser || !browser->tab_strip_model()) {
     return nullptr;
   }
@@ -353,7 +353,7 @@ void DaoControlCenterMoreMenu::ClearActiveSiteBrowsingData(
     return;
   }
 
-  auto* profile = popup_->browser()->profile();
+  auto* profile = popup_->browser()->GetProfile();
   auto* remover = profile->GetBrowsingDataRemover();
   if (!remover) {
     return;

@@ -11,7 +11,7 @@
 #include "chrome/browser/extensions/extension_view_host.h"
 #include "chrome/browser/extensions/extension_view_host_factory.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/navigator/browser_navigator.h"
 #include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/browser/ui/extensions/extension_popup_types.h"
@@ -118,7 +118,7 @@ BEGIN_METADATA(DaoControlCenterExtensionsSection)
 END_METADATA
 
 DaoControlCenterExtensionsSection::DaoControlCenterExtensionsSection(
-    Browser* browser,
+    BrowserWindowInterface* browser,
     base::RepeatingClosure close_host_callback,
     base::RepeatingCallback<views::View*()> anchor_view_callback)
     : browser_(browser),
@@ -141,7 +141,7 @@ DaoControlCenterExtensionsSection::DaoControlCenterExtensionsSection(
                                /*adjust_height_for_width=*/true));
 
   // Observe toolbar model for changes
-  auto* profile = browser_->profile();
+  auto* profile = browser_->GetProfile();
   model_ = ToolbarActionsModel::Get(profile);
   if (model_) {
     observation_.Observe(model_.get());
@@ -206,7 +206,7 @@ void DaoControlCenterExtensionsSection::RebuildGrid() {
     return;
   }
 
-  auto* profile = browser_->profile();
+  auto* profile = browser_->GetProfile();
   auto* registry = extensions::ExtensionRegistry::Get(profile);
   if (!registry) {
     return;
@@ -277,7 +277,7 @@ gfx::ImageSkia DaoControlCenterExtensionsSection::GetIconForExtension(
   }
 
   auto* action_manager =
-      extensions::ExtensionActionManager::Get(browser_->profile());
+      extensions::ExtensionActionManager::Get(browser_->GetProfile());
   if (!action_manager) {
     return gfx::ImageSkia();
   }
@@ -306,7 +306,7 @@ bool DaoControlCenterExtensionsSection::UpdateButtonIcon(
     return false;
   }
 
-  auto* registry = extensions::ExtensionRegistry::Get(browser_->profile());
+  auto* registry = extensions::ExtensionRegistry::Get(browser_->GetProfile());
   if (!registry) {
     return false;
   }
@@ -379,7 +379,7 @@ void DaoControlCenterExtensionsSection::OnExtensionClicked(
     return;
   }
 
-  auto* profile = browser_->profile();
+  auto* profile = browser_->GetProfile();
   auto* registry = extensions::ExtensionRegistry::Get(profile);
   if (!registry) {
     return;
@@ -468,7 +468,7 @@ void DaoControlCenterExtensionsSection::ShowContextMenuForViewImpl(
     return;
   }
 
-  auto* profile = browser_->profile();
+  auto* profile = browser_->GetProfile();
   auto* registry = extensions::ExtensionRegistry::Get(profile);
   if (!registry) {
     return;

@@ -23,7 +23,8 @@
 #include "chrome/browser/history/history_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/navigator/browser_navigator.h"
 #include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -902,7 +903,9 @@ void DaoHomeUIHandler::OpenAgentWithMode(const std::string& mode,
     service_->ClearHistoryBootstrapForClaim(history_claim_token);
     return;
   }
-  Browser* browser = chrome::FindBrowserWithTab(web_ui()->GetWebContents());
+  BrowserWindowInterface* browser =
+      GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
+          web_ui()->GetWebContents());
   BrowserView* browser_view =
       browser ? BrowserView::GetBrowserViewForBrowser(browser) : nullptr;
   if (!browser_view || !browser_view->dao_agent_sidebar()) {
@@ -1146,10 +1149,12 @@ void DaoHomeUIHandler::HandleImport(const base::ListValue& args) {
 
 bool DaoHomeUIHandler::HasActiveHomeOwner() {
   content::WebContents* owner = web_ui()->GetWebContents();
-  Browser* browser = owner ? chrome::FindBrowserWithTab(owner) : nullptr;
+  BrowserWindowInterface* browser =
+      owner ? GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(owner)
+            : nullptr;
   return owner && browser &&
          owner->GetVisibility() != content::Visibility::HIDDEN &&
-         browser->tab_strip_model()->GetActiveWebContents() == owner &&
+         browser->GetTabStripModel()->GetActiveWebContents() == owner &&
          owner->GetLastCommittedURL().SchemeIs(content::kChromeUIScheme) &&
          owner->GetLastCommittedURL().host() == kHomeHost;
 }
@@ -1616,7 +1621,9 @@ void DaoHomeUIHandler::HandleOpenNavigation(const base::ListValue& args) {
   if (!url.is_valid() || !url.SchemeIsHTTPOrHTTPS()) {
     return;
   }
-  Browser* browser = chrome::FindBrowserWithTab(web_ui()->GetWebContents());
+  BrowserWindowInterface* browser =
+      GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
+          web_ui()->GetWebContents());
   if (!browser) {
     return;
   }

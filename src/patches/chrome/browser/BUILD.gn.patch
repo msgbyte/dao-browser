@@ -1,17 +1,15 @@
-diff --git a/chrome/browser/BUILD.gn b/chrome/browser/BUILD.gn
 --- a/chrome/browser/BUILD.gn
 +++ b/chrome/browser/BUILD.gn
-@@ -1531,6 +1531,9 @@
-     "//content/public/common",
-     "//content/public/common:buildflags",
-     "//crypto",
-+    "//dao/browser/updater:dao_updater",
-+    # Dao MV2 Support: provide kRestoreManifestV2Deprecation feature for about_flags.cc.
+@@ -928,6 +928,8 @@
+     ":startup_data",
+     ":unexpire_flags",
+     ":universal_web_contents_observers",
 +    "//dao/browser/extensions/legacy_mv2:dao_legacy_mv2",
-     "//device/base",
-     "//device/base/synchronization",
-     "//device/fido",
-@@ -4214,6 +4217,7 @@
++    "//dao/browser/updater:dao_updater",
+     "//base/allocator:buildflags",
+     "//build/config/linux/dbus:buildflags",
+     "//chrome/browser/accessibility",
+@@ -1550,6 +1552,7 @@
        "//chrome/services/mac_notifications",
        "//chrome/services/mac_notifications/public/cpp",
        "//chrome/services/mac_notifications/public/mojom",
@@ -19,3 +17,13 @@ diff --git a/chrome/browser/BUILD.gn b/chrome/browser/BUILD.gn
        "//components/crash/core/app",
        "//components/device_signals/core/browser/mac",
        "//components/enterprise/platform_auth:enterprise_platform_auth",
+@@ -2412,6 +2415,9 @@
+     "//components/webdata/common",
+     "//components/webui/chrome_urls",
+     "//crypto",
++    "//dao/browser/updater:dao_updater",
++    # Dao MV2 Support: provide kRestoreManifestV2Deprecation feature for about_flags.cc.
++    "//dao/browser/extensions/legacy_mv2:dao_legacy_mv2",
+     "//device/base",
+     "//device/fido",
+     "//device/gamepad/public/cpp:switches",

@@ -1,8 +1,7 @@
 diff --git a/chrome/test/BUILD.gn b/chrome/test/BUILD.gn
-index 5a75b2951940c..9cf27be087e8f 100644
 --- a/chrome/test/BUILD.gn
 +++ b/chrome/test/BUILD.gn
-@@ -2598,6 +2598,9 @@ if (!is_android) {
+@@ -1982,6 +1982,9 @@
      deps = [
        ":browser_tests_runner",
        ":platform_browser_tests",
@@ -11,8 +10,8 @@ index 5a75b2951940c..9cf27be087e8f 100644
 +      "//dao/browser/extensions/legacy_mv2:dao_legacy_mv2_tests",
        ":test_support",
        ":test_support_ui",
-       ":webrtc_browser_tests_base",
-@@ -7045,6 +7048,8 @@ test("unit_tests") {
+       "//base",
+@@ -5224,6 +5227,8 @@
      "//chrome/browser/actor:test_support",
      "//chrome/browser/actor:unit_tests",
      "//chrome/browser/actor/ui:unit_tests",
@@ -20,4 +19,4 @@ index 5a75b2951940c..9cf27be087e8f 100644
 +    "//dao/browser/qrcode:unit_tests",
      "//chrome/browser/ai",
      "//chrome/browser/ai:test_support",
-     "//chrome/browser/ai:unit_tests",
+     "//chrome/browser/apps:unit_tests",

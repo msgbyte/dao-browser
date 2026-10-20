@@ -23,7 +23,8 @@
 #include "base/uuid.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/common/chrome_isolated_world_ids.h"
 #include "content/public/browser/navigation_controller.h"
@@ -264,9 +265,10 @@ bool DaoHomeConnectorExecutor::OwnerIsActive() const {
       owner_->GetVisibility() == content::Visibility::HIDDEN) {
     return false;
   }
-  Browser* browser = chrome::FindBrowserWithTab(owner_.get());
-  return browser && browser->profile() == profile_ &&
-         browser->tab_strip_model()->GetActiveWebContents() == owner_.get() &&
+  BrowserWindowInterface* browser =
+      GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(owner_.get());
+  return browser && browser->GetProfile() == profile_ &&
+         browser->GetTabStripModel()->GetActiveWebContents() == owner_.get() &&
          owner_->GetLastCommittedURL().SchemeIs(content::kChromeUIScheme) &&
          owner_->GetLastCommittedURL().host() == "home";
 }

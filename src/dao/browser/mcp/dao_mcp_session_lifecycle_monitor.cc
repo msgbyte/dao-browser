@@ -12,7 +12,6 @@
 #include "base/task/sequenced_task_runner.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/tab_list/tab_list_interface.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "content/public/browser/web_contents.h"
 #include "dao/browser/automation/dao_browser_automation_session.h"
@@ -153,7 +152,7 @@ void DaoMcpSessionLifecycleMonitor::Revalidate() {
     return;
   }
 
-  Browser* browser = browser_window_->GetBrowserForMigrationOnly();
+  BrowserWindowInterface* browser = browser_window_;
   auto policy = ValidateExternalTarget(browser, profile_, *target);
   if (!policy.has_value()) {
     Invalidate(std::move(policy).error());

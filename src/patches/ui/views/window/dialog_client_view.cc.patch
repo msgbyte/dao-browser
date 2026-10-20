@@ -1,18 +1,18 @@
 diff --git a/ui/views/window/dialog_client_view.cc b/ui/views/window/dialog_client_view.cc
-index cea7eb5aff..3207f42430 100644
 --- a/ui/views/window/dialog_client_view.cc
 +++ b/ui/views/window/dialog_client_view.cc
-@@ -6,6 +6,8 @@
+@@ -6,7 +6,9 @@
  
  #include <algorithm>
  #include <memory>
 +#include <optional>
+ #include <string>
 +#include <string_view>
  #include <utility>
  #include <vector>
  
-@@ -13,6 +15,8 @@
- #include "base/check.h"
+@@ -15,6 +17,8 @@
+ #include "base/debug/crash_logging.h"
  #include "base/memory/raw_ptr.h"
  #include "build/build_config.h"
 +#include "third_party/skia/include/core/SkBlendMode.h"
@@ -20,7 +20,7 @@ index cea7eb5aff..3207f42430 100644
  #include "ui/base/interaction/element_identifier.h"
  #include "ui/base/metadata/metadata_header_macros.h"
  #include "ui/base/metadata/metadata_impl_macros.h"
-@@ -20,17 +24,25 @@
+@@ -22,17 +26,25 @@
  #include "ui/base/ui_base_types.h"
  #include "ui/color/color_id.h"
  #include "ui/color/color_provider.h"
@@ -46,10 +46,11 @@ index cea7eb5aff..3207f42430 100644
  #include "ui/views/style/platform_style.h"
  #include "ui/views/view_class_properties.h"
  #include "ui/views/view_observer.h"
-@@ -74,6 +86,349 @@ ui::ElementIdentifier GetButtonId(ui::mojom::DialogButton type) {
+@@ -75,6 +87,349 @@
+       return kNoElementId;
    }
  }
- 
++
 +bool DialogButtonIsAvailable(const DialogDelegate* delegate,
 +                             ui::mojom::DialogButton type) {
 +  return delegate->buttons() & static_cast<int>(type);
@@ -392,11 +393,10 @@ index cea7eb5aff..3207f42430 100644
 +
 +BEGIN_METADATA(DaoSystemDialogButton)
 +END_METADATA
-+
+ 
  }  // namespace
  
- // Simple container to bubble child view changes up the view hierarchy.
-@@ -236,12 +584,36 @@ void DialogClientView::SetBackgroundColor(ui::ColorId background_color_id) {
+@@ -244,12 +599,36 @@
  }
  
  bool DialogClientView::AcceleratorPressed(const ui::Accelerator& accelerator) {
@@ -435,7 +435,7 @@ index cea7eb5aff..3207f42430 100644
    if (delegate && delegate->EscShouldCancelDialog()) {
      delegate->CancelDialog();
      return true;
-@@ -349,6 +721,8 @@ void DialogClientView::OnDialogChanged() {
+@@ -357,6 +736,8 @@
  }
  
  void DialogClientView::UpdateDialogButtons() {
@@ -444,7 +444,7 @@ index cea7eb5aff..3207f42430 100644
    SetupLayout();
    InvalidateLayout();
  }
-@@ -366,33 +740,55 @@ void DialogClientView::UpdateDialogButton(raw_ptr<MdTextButton>* member,
+@@ -374,33 +755,55 @@
    const bool is_default = delegate->GetIsDefault(type);
    const std::u16string title = delegate->GetDialogButtonLabel(type);
    const ui::ButtonStyle style = delegate->GetDialogButtonStyle(type);
@@ -515,8 +515,7 @@ index cea7eb5aff..3207f42430 100644
  }
  
  void DialogClientView::ButtonPressed(ui::mojom::DialogButton type,
-@@ -530,6 +926,7 @@ void DialogClientView::SetupLayout() {
-   // Skip views that are not a button, or are a specific subclass of Button
+@@ -539,7 +942,8 @@
    // that should never be linked. Otherwise, link everything.
    auto should_link = [](views::View* view) {
      return IsViewClass<Button>(view) && !IsViewClass<Checkbox>(view) &&
@@ -524,3 +523,5 @@ index cea7eb5aff..3207f42430 100644
 +           !IsViewClass<ImageButton>(view) &&
 +           !IsViewClass<DaoSystemDialogButton>(view);
    };
+ 
+   for (size_t i = 0; i < kNumButtons; ++i) {

@@ -9,7 +9,7 @@
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/views/controls/button/button.h"
 
-class Browser;
+class BrowserWindowInterface;
 
 namespace dao {
 
@@ -19,7 +19,7 @@ class DaoControlCenterButton : public views::Button {
   METADATA_HEADER(DaoControlCenterButton, views::Button)
 
  public:
-  explicit DaoControlCenterButton(Browser* browser);
+  explicit DaoControlCenterButton(BrowserWindowInterface* browser);
   DaoControlCenterButton(const DaoControlCenterButton&) = delete;
   DaoControlCenterButton& operator=(const DaoControlCenterButton&) = delete;
   ~DaoControlCenterButton() override;
@@ -38,7 +38,7 @@ class DaoControlCenterButton : public views::Button {
   void OnClicked();
   void UpdateBackground();
 
-  raw_ptr<Browser> browser_;
+  raw_ptr<BrowserWindowInterface> browser_;
   SkColor icon_color_;
   bool hovered_ = false;
 };

@@ -51,10 +51,9 @@ void DaoLoadProgressController::AttachToWebContents(
 }
 
 void DaoLoadProgressController::OnTabChangedAt(tabs::TabInterface* tab,
-                                               int index,
                                                TabChangeType change_type) {
   if (change_type != TabChangeType::kLoadingOnly ||
-      index != tab_strip_model_->active_index() || !web_contents()) {
+      tab != tab_strip_model_->GetActiveTab() || !web_contents()) {
     return;
   }
 

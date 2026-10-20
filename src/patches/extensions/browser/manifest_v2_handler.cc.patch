@@ -1,0 +1,116 @@
+diff --git a/extensions/browser/manifest_v2_handler.cc b/extensions/browser/manifest_v2_handler.cc
+--- a/extensions/browser/manifest_v2_handler.cc
++++ b/extensions/browser/manifest_v2_handler.cc
+@@ -10,8 +10,11 @@
+ #include "base/strings/stringprintf.h"
+ #include "base/types/pass_key.h"
+ #include "components/keyed_service/content/browser_context_dependency_manager.h"
++#include "components/user_prefs/user_prefs.h"
+ #include "content/public/browser/browser_context.h"
++#include "dao/browser/extensions/legacy_mv2/dao_mv2_pref_defaults.h"
+ #include "extensions/browser/disable_reason.h"
++#include "extensions/browser/extension_management_client.h"
+ #include "extensions/browser/extension_prefs.h"
+ #include "extensions/browser/extension_prefs_factory.h"
+ #include "extensions/browser/extension_registrar.h"
+@@ -128,6 +131,12 @@
+       .Post(FROM_HERE,
+             base::BindOnce(&ManifestV2Handler::OnExtensionSystemReady,
+                            weak_factory_.GetWeakPtr()));
++
++  dao_pref_change_registrar_.Init(user_prefs::UserPrefs::Get(browser_context_));
++  dao_pref_change_registrar_.Add(
++      dao::DaoMV2PrefDefaults::kAvailabilityPref,
++      base::BindRepeating(&ManifestV2Handler::OnDaoManifestV2PolicyChanged,
++                         base::Unretained(this)));
+ }
+ 
+ ManifestV2Handler::~ManifestV2Handler() = default;
+@@ -151,13 +160,15 @@
+ }
+ 
+ bool ManifestV2Handler::IsExtensionAffected(const Extension& extension) {
+-  return manifest_v2_util::IsExtensionAffected(extension);
++  return manifest_v2_util::IsExtensionAffected(extension) &&
++         !IsAllowedByDaoPolicy(extension.id());
+ }
+ 
+ bool ManifestV2Handler::ShouldBlockExtensionInstallation(
+     int manifest_version,
+     Manifest::Type manifest_type,
+-    mojom::ManifestLocation manifest_location) {
++    mojom::ManifestLocation manifest_location,
++    const ExtensionId& extension_id) {
+   if (!ShouldDisableLegacyExtensions()) {
+     return false;
+   }
+@@ -165,7 +176,8 @@
+   // Otherwise, if the extension is affected by the deprecation, it should be
+   // blocked.
+   return manifest_v2_util::IsExtensionAffected(manifest_version, manifest_type,
+-                                               manifest_location);
++                                             manifest_location) &&
++         !IsAllowedByDaoPolicy(extension_id);
+ }
+ 
+ bool ManifestV2Handler::ShouldBlockExtensionEnable(const Extension& extension) {
+@@ -174,6 +186,32 @@
+   }
+ 
+   return IsExtensionAffected(extension);
++}
++
++bool ManifestV2Handler::IsAllowedByDaoPolicy(const ExtensionId& extension_id) {
++  const int availability = dao::DaoMV2PrefDefaults::GetManifestV2Availability(
++      user_prefs::UserPrefs::Get(browser_context_));
++  if (availability == 2) {
++    return true;
++  }
++  if (availability != 3 || extension_id.empty()) {
++    return false;
++  }
++
++  auto* management = ExtensionsBrowserClient::Get()->GetExtensionManagementClient(
++      browser_context_);
++  if (!management) {
++    return false;
++  }
++  const auto mode =
++      management->GetInstallationMode(extension_id, /*update_url=*/std::string());
++  return mode == ManagedInstallationMode::kForced ||
++         mode == ManagedInstallationMode::kRecommended;
++}
++
++void ManifestV2Handler::OnDaoManifestV2PolicyChanged() {
++  CheckDisabledExtensions();
++  DisableAffectedExtensions();
+ }
+ 
+ bool ManifestV2Handler::DidUserAcknowledgeNoticeGlobally() {
+@@ -211,7 +249,7 @@
+ 
+   // Disable all applicable MV2 extensions.
+   for (const auto& extension : extension_registry->enabled_extensions()) {
+-    if (!manifest_v2_util::IsExtensionAffected(*extension)) {
++    if (!IsExtensionAffected(*extension)) {
+       continue;
+     }
+ 
+@@ -252,7 +290,7 @@
+   // still one in which extensions should be disabled. It's possible the global
+   // state changed (e.g. in testing), in which case extensions should be
+   // re-enabled.
+-  if (manifest_v2_util::IsExtensionAffected(extension) &&
++  if (IsExtensionAffected(extension) &&
+       ShouldDisableLegacyExtensions()) {
+     return;
+   }
+@@ -292,7 +330,7 @@
+     }
+ 
+     MV2ExtensionState extension_state = MV2ExtensionState::kUnaffected;
+-    if (!manifest_v2_util::IsExtensionAffected(extension)) {
++    if (!IsExtensionAffected(extension)) {
+       extension_state = MV2ExtensionState::kUnaffected;
+     } else if (extension_prefs()->HasDisableReason(
+                    extension.id(),

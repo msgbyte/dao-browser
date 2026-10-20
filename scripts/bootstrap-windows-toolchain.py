@@ -31,7 +31,7 @@ SDK_SETUP_URL = ('https://download.microsoft.com/download/'
                  'f4b30f2a-4fc3-430e-9b03-c842b5f5f9f1/'
                  'KIT_BUNDLE_WINDOWSSDK_MEDIACREATION/winsdksetup.exe')
 SDK_SETUP_SHA256 = '6fa0fa27db77a909f5ecb35183cb26a969a6775936780936fe239e4f9c66b458'
-SDK_VERSION = '10.0.26100.0'
+SDK_VERSION = '10.0.28000.0'
 
 
 def file_hash(file, algorithm='sha256'):
@@ -202,7 +202,7 @@ def main():
     if not args.accept_license:
         parser.error('--accept-license is required for the Microsoft build tools and SDK.')
     if args.vs_version != '2026' or args.sdk_version != SDK_VERSION:
-        parser.error('Automatic setup currently supports VS 2026 / SDK 10.0.26100.0. Use configure for another version.')
+        parser.error(f'Automatic setup currently supports VS 2026 / SDK {SDK_VERSION}. Use configure for another version.')
     if not all(shutil.which(tool) for tool in ['msiextract', '7zz']):
         parser.error('Install the macOS extraction tools first: brew install msitools sevenzip')
     workspace = args.root.resolve() / '.dao/windows-sdk'
@@ -221,7 +221,8 @@ def main():
     download_verified(VS_MANIFEST_URL, manifest, VS_MANIFEST_SHA256)
     source = workspace / 'vs'
     subprocess.run([sys.executable, str(downloader), '--accept-license', '--manifest', str(manifest),
-                    '--host-arch', 'x64', '--architecture', 'x86', 'x64', 'arm64', '--sdk-version', '10.0.26100',
+                    '--host-arch', 'x64', '--architecture', 'x86', 'x64', 'arm64',
+                    '--sdk-version', args.sdk_version.rsplit('.', 1)[0],
                     '--with-workload', 'no', '--with-msbuild', 'no', '--with-devcmd', 'no',
                     '--with-asan', 'no', '--skip-patch', '--dest', str(source), '--cache', str(cache / 'vs')], check=True)
     install_debuggers(cache, source)

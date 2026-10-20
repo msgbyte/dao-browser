@@ -22,8 +22,6 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/resource_coordinator/lifecycle_unit_state.mojom.h"
 #include "chrome/browser/resource_coordinator/tab_lifecycle_unit_external.h"
-#include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
@@ -35,7 +33,9 @@
 #include "components/password_manager/core/browser/password_form.h"
 #include "components/password_manager/core/browser/password_form_digest.h"
 #include "components/password_manager/core/browser/password_store/actionable_error.h"
+#include "components/password_manager/core/browser/password_store/password_form_converters.h"
 #include "components/password_manager/core/browser/password_store/password_store_interface.h"
+#include "components/password_manager/core/browser/password_string.h"
 #include "components/password_manager/core/common/password_manager_pref_names.h"
 #include "components/prefs/pref_service.h"
 #include "dao/browser/ui/views/dao_tab_identity.h"
@@ -63,16 +63,17 @@ std::pair<std::string, std::u16string> PasswordKey(const PasswordEntry& entry) {
   return {entry.signon_realm, entry.username};
 }
 
-Browser* FindBrowserBySessionId(Profile* profile, SessionID session_id) {
+BrowserWindowInterface* FindBrowserBySessionId(Profile* profile,
+                                               SessionID session_id) {
   ProfileBrowserCollection* collection =
       ProfileBrowserCollection::GetForProfile(profile);
   if (!collection) {
     return nullptr;
   }
-  Browser* result = nullptr;
+  BrowserWindowInterface* result = nullptr;
   collection->ForEach([&](BrowserWindowInterface* browser_window) {
-    Browser* browser = browser_window->GetBrowserForMigrationOnly();
-    if (browser && browser->session_id() == session_id) {
+    BrowserWindowInterface* browser = browser_window;
+    if (browser && browser->GetSessionID() == session_id) {
       result = browser;
       return false;
     }
@@ -242,14 +243,16 @@ void DaoChromiumMigrationTarget::AddPassword(const PasswordEntry& entry,
   form.url = entry.origin;
   form.signon_realm = entry.signon_realm;
   form.username_value = entry.username;
-  form.password_value = entry.password;
+  form.password_value =
+      password_manager::PasswordString(std::u16string(entry.password));
   form.date_created = entry.date_created;
   form.type = password_manager::PasswordForm::Type::kImported;
   pending_password_entry_ = entry;
   pending_password_callback_ = std::move(callback);
   password_store->AddLogin(
-      form, base::BindOnce(&DaoChromiumMigrationTarget::OnPasswordAdded,
-                           weak_ptr_factory_.GetWeakPtr(), password_store));
+      password_manager::FromPasswordForm(std::move(form)),
+      base::BindOnce(&DaoChromiumMigrationTarget::OnPasswordAdded,
+                     weak_ptr_factory_.GetWeakPtr(), password_store));
 }
 
 void DaoChromiumMigrationTarget::OnPasswordAdded(
@@ -302,8 +305,7 @@ bool DaoChromiumMigrationTarget::IsTabOpen(const GURL& url) const {
   }
   bool found = false;
   collection->ForEach([&](BrowserWindowInterface* browser_window) {
-    TabStripModel* model =
-        browser_window->GetBrowserForMigrationOnly()->tab_strip_model();
+    TabStripModel* model = browser_window->tab_strip_model();
     for (int index = 0; index < model->count(); ++index) {
       content::WebContents* contents = model->GetWebContentsAt(index);
       if (contents && contents->GetVisibleURL() == url) {
@@ -362,7 +364,7 @@ bool DaoChromiumMigrationTarget::AddDormantTab(const TabEntry& entry,
   if (!pending_id || *pending_id != folder_id) {
     return false;
   }
-  Browser* browser =
+  BrowserWindowInterface* browser =
       pending_folder_window_id_
           ? FindBrowserBySessionId(profile_, *pending_folder_window_id_)
           : nullptr;
@@ -483,8 +485,7 @@ void DaoChromiumMigrationTarget::AbortImportedTabFolder(
       continue;
     }
     collection->ForEach([&tab_id](BrowserWindowInterface* browser_window) {
-      TabStripModel* model =
-          browser_window->GetBrowserForMigrationOnly()->tab_strip_model();
+      TabStripModel* model = browser_window->tab_strip_model();
       for (int index = 0; index < model->count(); ++index) {
         content::WebContents* contents = model->GetWebContentsAt(index);
         if (contents && GetSidebarTabId(contents) == tab_id) {
@@ -540,8 +541,10 @@ void DaoChromiumMigrationTarget::StartNextExtensionInstall() {
     return;
   }
   const ExtensionEntry& entry = extension_queue_.front();
+  ProfileBrowserCollection* collection =
+      ProfileBrowserCollection::GetForProfile(profile_);
   BrowserWindowInterface* browser_window =
-      chrome::FindLastActiveWithProfile(profile_);
+      collection ? collection->GetLastActiveBrowser() : nullptr;
   gfx::NativeWindow parent =
       browser_window ? browser_window->GetWindow()->GetNativeWindow()
                      : gfx::NativeWindow();
@@ -650,13 +653,14 @@ bool DaoChromiumMigrationTarget::LoadFolderData() {
   folder_items_ = nullptr;
   pending_folder_ = nullptr;
   pending_folder_tab_ids_.clear();
+  ProfileBrowserCollection* collection =
+      ProfileBrowserCollection::GetForProfile(profile_);
   BrowserWindowInterface* browser_window =
-      chrome::FindLastActiveWithProfile(profile_);
+      collection ? collection->GetLastActiveBrowser() : nullptr;
   if (!browser_window) {
     return false;
   }
-  pending_folder_window_id_ =
-      browser_window->GetBrowserForMigrationOnly()->session_id();
+  pending_folder_window_id_ = browser_window->GetSessionID();
   const auto& contents = prepared_folder_json_;
   if (!contents) {
     return false;

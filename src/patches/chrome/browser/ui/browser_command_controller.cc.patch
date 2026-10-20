@@ -1,22 +1,22 @@
 diff --git a/chrome/browser/ui/browser_command_controller.cc b/chrome/browser/ui/browser_command_controller.cc
-index 2ab2f2caa8..df8d373e38 100644
 --- a/chrome/browser/ui/browser_command_controller.cc
 +++ b/chrome/browser/ui/browser_command_controller.cc
-@@ -81,6 +81,7 @@
- #include "chrome/browser/ui/webui/side_panel/customize_chrome/customize_chrome_section.h"
+@@ -105,6 +105,7 @@
  #include "chrome/browser/web_applications/web_app_install_params.h"
  #include "chrome/browser/web_applications/web_app_utils.h"
+ #include "chrome/common/channel_info.h"
 +#include "dao/browser/ui/views/little_dao/dao_little_dao_controller.h"
  #include "chrome/common/chrome_features.h"
  #include "chrome/common/content_restriction.h"
  #include "chrome/common/pref_names.h"
-@@ -210,20 +210,7 @@ void AppInfoDialogClosedCallback(SessionID session_id,
+@@ -236,21 +237,7 @@
    }
  }
-
--bool CanOpenFile(Browser* browser) {
--  if (browser->is_type_devtools() || browser->is_type_app() ||
--      browser->is_type_app_popup()) {
+ 
+-bool CanOpenFile(BrowserWindowInterface* browser) {
+-  if (browser->GetType() == BrowserWindowInterface::Type::TYPE_DEVTOOLS ||
+-      browser->GetType() == BrowserWindowInterface::Type::TYPE_APP ||
+-      browser->GetType() == BrowserWindowInterface::Type::TYPE_APP_POPUP) {
 -    return false;
 -  }
 -
@@ -29,43 +29,41 @@ index 2ab2f2caa8..df8d373e38 100644
 -  return true;
 -}
 +// Dao: CanOpenFile removed — IDC_OPEN_FILE is permanently disabled.
-
+ 
  void InvokeAction(actions::ActionId id, actions::ActionItem* scope) {
    actions::ActionManager::Get().FindAction(id, scope)->InvokeAction();
-@@ -1592,7 +1579,7 @@ void BrowserCommandController::InitCommandState() {
-   const bool normal_window = browser_->is_type_normal();
+@@ -1819,7 +1806,7 @@
+       browser_->GetType() == BrowserWindowInterface::Type::TYPE_NORMAL;
    const bool guest_session = profile()->IsGuestSession();
  
--  command_updater_.UpdateCommandEnabled(IDC_OPEN_FILE, CanOpenFile(browser_));
-+  command_updater_.UpdateCommandEnabled(IDC_OPEN_FILE, false);
+-  command_updater_->UpdateCommandEnabled(IDC_OPEN_FILE, CanOpenFile(browser_));
++  command_updater_->UpdateCommandEnabled(IDC_OPEN_FILE, false);
  
    if (base::FeatureList::IsEnabled(features::kDevToolsShowPolicyDialog)) {
      const bool dev_tools_enabled = true;
-@@ -1934,7 +1921,7 @@ void BrowserCommandController::UpdateCommandsForTabState() {
-   command_updater_.UpdateCommandEnabled(IDC_VIEW_SOURCE,
-                                         CanViewSource(browser_));
+@@ -2195,7 +2182,7 @@
+   command_updater_->UpdateCommandEnabled(IDC_VIEW_SOURCE,
+                                          CanViewSource(browser_));
  
--  command_updater_.UpdateCommandEnabled(IDC_OPEN_FILE, CanOpenFile(browser_));
-+  command_updater_.UpdateCommandEnabled(IDC_OPEN_FILE, false);
+-  command_updater_->UpdateCommandEnabled(IDC_OPEN_FILE, CanOpenFile(browser_));
++  command_updater_->UpdateCommandEnabled(IDC_OPEN_FILE, false);
  
    bool can_create_web_app = web_app::CanCreateWebApp(browser_);
-   command_updater_.UpdateCommandEnabled(IDC_INSTALL_PWA, can_create_web_app);
-@@ -2077,7 +2064,7 @@ void BrowserCommandController::UpdateCommandsForFileSelectionDialogs() {
-   }
+   command_updater_->UpdateCommandEnabled(IDC_INSTALL_PWA, can_create_web_app);
+@@ -2363,7 +2350,7 @@
+ #endif
  
    UpdateSaveAsState();
--  command_updater_.UpdateCommandEnabled(IDC_OPEN_FILE, CanOpenFile(browser_));
-+  command_updater_.UpdateCommandEnabled(IDC_OPEN_FILE, false);
+-  command_updater_->UpdateCommandEnabled(IDC_OPEN_FILE, CanOpenFile(browser_));
++  command_updater_->UpdateCommandEnabled(IDC_OPEN_FILE, false);
  }
  
  void BrowserCommandController::UpdateCommandsForFullscreenMode() {
-@@ -2135,8 +2123,13 @@ void BrowserCommandController::UpdateCommandsForFullscreenMode() {
- #if !BUILDFLAG(IS_MAC)
+@@ -2442,9 +2429,14 @@
    // Disable toggling into fullscreen mode if disallowed by pref.
    const bool fullscreen_enabled =
--      is_fullscreen ||
+       is_fullscreen ||
 -      profile()->GetPrefs()->GetBoolean(prefs::kFullscreenAllowed);
-+      is_fullscreen ||
 +      (!dao::DaoLittleDaoController::IsCreatingLittleDao() &&
 +       !dao::DaoLittleDaoController::IsLittleDaoWindow(browser_) &&
 +       profile()->GetPrefs()->GetBoolean(prefs::kFullscreenAllowed));
@@ -76,3 +74,5 @@ index 2ab2f2caa8..df8d373e38 100644
 +      (!dao::DaoLittleDaoController::IsCreatingLittleDao() &&
 +       !dao::DaoLittleDaoController::IsLittleDaoWindow(browser_));
  #endif
+ 
+   command_updater_->UpdateCommandEnabled(IDC_FULLSCREEN, fullscreen_enabled);

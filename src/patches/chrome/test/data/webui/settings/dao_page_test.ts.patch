@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/test/data/webui/settings/dao_page_test.ts
-@@ -0,0 +1,733 @@
+@@ -0,0 +1,734 @@
 +// Copyright 2026 Dao Browser Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -48,6 +48,7 @@ index 0000000000..0000000001
 +import {TestSiteSettingsBrowserProxy} from './test_site_settings_browser_proxy.js';
 +import {
 +  createContentSettingTypeToValuePair,
++  createDefaultContentSetting,
 +  createSiteSettingsPrefs,
 +} from './test_util.js';
 +
@@ -161,7 +162,7 @@ index 0000000000..0000000001
 +    siteSettingsBrowserProxy.setPrefs(createSiteSettingsPrefs([
 +      createContentSettingTypeToValuePair(
 +          ContentSettingsTypes.AUTO_PICTURE_IN_PICTURE,
-+          {setting: ContentSetting.ASK}),
++          createDefaultContentSetting({setting: ContentSetting.ASK})),
 +    ], []));
 +    SiteSettingsBrowserProxyImpl.setInstance(siteSettingsBrowserProxy);
 +    document.body.innerHTML = window.trustedTypes!.emptyHTML;
@@ -641,7 +642,7 @@ index 0000000000..0000000001
 +    flush();
 +
 +    assertFalse(input.invalid);
-+    assertEquals(48, page.prefs['dao'].stale_tab_expiration_hours.value);
++    assertEquals(48, page.getPref<number>('dao.stale_tab_expiration_hours').value);
 +  });
 +
 +  test('staleTabExpirationInputRejectsInvalidValue', function() {
@@ -655,7 +656,7 @@ index 0000000000..0000000001
 +    flush();
 +
 +    assertTrue(input.invalid);
-+    assertEquals(24, page.prefs['dao'].stale_tab_expiration_hours.value);
++    assertEquals(24, page.getPref<number>('dao.stale_tab_expiration_hours').value);
 +  });
 +
 +  test('staleTabExpirationUnitIsInlineInputSuffix', function() {

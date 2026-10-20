@@ -67,8 +67,8 @@ diff --git a/chrome/browser/resources/settings/settings_menu/settings_menu.html 
          .menu-separator {
 -          border-bottom: var(--cr-separator-line);  /* override */
 +          border-bottom-color: var(--dao-settings-border-subtle);
-         }
-       }
++        }
++      }
 +
 +      @media (max-width: 760px) {
 +        :host {
@@ -90,8 +90,8 @@ diff --git a/chrome/browser/resources/settings/settings_menu/settings_menu.html 
 +          flex: none;
 +          margin: 0;
 +          width: auto;
-+        }
-+      }
+         }
+       }
      </style>
  
      <div role="navigation">
@@ -126,40 +126,40 @@ diff --git a/chrome/browser/resources/settings/settings_menu/settings_menu.html 
              class="cr-nav-menu-item">
  <if expr="not _google_chrome">
            <cr-icon icon="settings:person"></cr-icon>
-@@ -58,6 +150,7 @@
+@@ -58,6 +154,7 @@
            <cr-ripple></cr-ripple>
          </a>
          <a role="menuitem" id="autofill" href="/autofill"
-+            data-section$="[[getAutofillSection_()]]"
++            data-section="yourSavedInfo"
              on-click="onAutofillClick_"
              class="cr-nav-menu-item"
-             hidden="[[!showAutofillMenuItem_(
-@@ -67,7 +160,7 @@
+             hidden="[[!pageVisibility_.yourSavedInfo]]">
+@@ -65,7 +162,7 @@
            $i18n{autofillPageTitle}
            <cr-ripple></cr-ripple>
          </a>
--        <a role="menuitem" href="/privacy"
-+        <a role="menuitem" href="/privacy" data-section="privacy"
+-        <a role="menuitem" id="privacy" href="/privacy"
++        <a role="menuitem" id="privacy" href="/privacy" data-section="privacy"
              hidden="[[!pageVisibility_.privacy]]"
              class="cr-nav-menu-item">
            <cr-icon icon="settings:security"></cr-icon>
-@@ -75,13 +168,14 @@
+@@ -73,13 +170,14 @@
            <cr-ripple></cr-ripple>
          </a>
          <a role="menuitem" id="performance" href="/performance"
 +            data-section="performance"
              class="cr-nav-menu-item"
              hidden="[[!pageVisibility_.performance]]">
-           <cr-icon icon="settings:navigation-performance"></cr-icon>
+           <cr-icon icon="settings:speed"></cr-icon>
            $i18n{performancePageTitle}
            <cr-ripple></cr-ripple>
          </a>
--        <a role="menuitem" href="/ai"
-+        <a role="menuitem" href="/ai" data-section="ai"
+-        <a role="menuitem" id="ai" href="/ai"
++        <a role="menuitem" id="ai" href="/ai" data-section="ai"
              hidden="[[!showAiPageMenuItem_(showAiPage_, pageVisibility_.ai)]]"
-             on-click="onAiPageClick_"
              class="cr-nav-menu-item">
-@@ -90,20 +184,22 @@
+           <cr-icon icon="settings20:button-magic"></cr-icon>
+@@ -87,20 +185,22 @@
            <cr-ripple></cr-ripple>
          </a>
          <a role="menuitem" id="appearance" href="/appearance"
@@ -170,8 +170,8 @@ diff --git a/chrome/browser/resources/settings/settings_menu/settings_menu.html 
            $i18n{appearancePageTitle}
            <cr-ripple></cr-ripple>
          </a>
--        <a role="menuitem" href="/search" class="cr-nav-menu-item">
-+        <a role="menuitem" href="/search" data-section="search"
+-        <a role="menuitem" id="search" href="/search" class="cr-nav-menu-item">
++        <a role="menuitem" id="search" href="/search" data-section="search"
 +            class="cr-nav-menu-item">
            <cr-icon icon="settings:search"></cr-icon>
            $i18n{searchPageTitle}
@@ -182,25 +182,25 @@ diff --git a/chrome/browser/resources/settings/settings_menu/settings_menu.html 
 -          href="/defaultBrowser"
 +          href="/defaultBrowser" data-section="defaultBrowser"
            hidden="[[!pageVisibility_.defaultBrowser]]">
-           <cr-icon icon="settings:web"></cr-icon>
+           <cr-icon icon="settings:web-asset"></cr-icon>
            $i18n{defaultBrowser}
-@@ -111,6 +207,7 @@
+@@ -108,6 +208,7 @@
          </a>
  </if>
          <a role="menuitem" id="onStartup" href="/onStartup"
 +            data-section="onStartup"
              class="cr-nav-menu-item"
              hidden="[[!pageVisibility_.onStartup]]">
-           <cr-icon icon="settings:power-settings"></cr-icon>
-@@ -119,6 +216,7 @@
+           <cr-icon icon="settings:power-settings-new"></cr-icon>
+@@ -116,6 +217,7 @@
          </a>
          <div class="menu-separator"></div>
          <a role="menuitem" id="languages" href="/languages"
 +            data-section="languages"
              class="cr-nav-menu-item"
              hidden="[[!pageVisibility_.languages]]">
-           <cr-icon icon="settings:navigation-language"></cr-icon>
-@@ -126,6 +224,7 @@
+           <cr-icon icon="settings:translate"></cr-icon>
+@@ -123,6 +225,7 @@
            <cr-ripple></cr-ripple>
          </a>
          <a role="menuitem" id="downloads" href="/downloads"
@@ -208,7 +208,7 @@ diff --git a/chrome/browser/resources/settings/settings_menu/settings_menu.html 
              class="cr-nav-menu-item"
              hidden="[[!pageVisibility_.downloads]]">
            <cr-icon icon="settings:download"></cr-icon>
-@@ -133,6 +232,7 @@
+@@ -130,6 +233,7 @@
            <cr-ripple></cr-ripple>
          </a>
          <a role="menuitem" id="accessibility" href="/accessibility"
@@ -216,7 +216,7 @@ diff --git a/chrome/browser/resources/settings/settings_menu/settings_menu.html 
              class="cr-nav-menu-item"
              hidden="[[!pageVisibility_.a11y]]">
            <cr-icon icon="settings:accessibility"></cr-icon>
-@@ -140,14 +240,15 @@
+@@ -137,14 +241,15 @@
            <cr-ripple></cr-ripple>
          </a>
  <if expr="not is_chromeos">
@@ -224,7 +224,7 @@ diff --git a/chrome/browser/resources/settings/settings_menu/settings_menu.html 
 +        <a role="menuitem" id="system" href="/system" data-section="system"
 +            class="cr-nav-menu-item"
              hidden="[[!pageVisibility_.system]]">
-           <cr-icon icon="settings:system"></cr-icon>
+           <cr-icon icon="settings:build"></cr-icon>
            $i18n{systemPageTitle}
            <cr-ripple></cr-ripple>
          </a>
@@ -232,9 +232,9 @@ diff --git a/chrome/browser/resources/settings/settings_menu/settings_menu.html 
 -        <a role="menuitem" id="reset" href="/reset"
 +        <a role="menuitem" id="reset" href="/reset" data-section="reset"
              hidden="[[!pageVisibility_.reset]]" class="cr-nav-menu-item">
-           <cr-icon icon="settings:restore"></cr-icon>
+           <cr-icon icon="settings:restart-alt"></cr-icon>
            $i18n{resetPageTitle}
-@@ -156,7 +257,7 @@
+@@ -153,7 +258,7 @@
          <div hidden="[[hideBottomMenuSeparator_(pageVisibility_)]]"
              class="menu-separator"></div>
          <a role="menuitem" id="extensionsLink" class="cr-nav-menu-item"

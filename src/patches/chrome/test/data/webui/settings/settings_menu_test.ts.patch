@@ -1,5 +1,4 @@
 diff --git a/chrome/test/data/webui/settings/settings_menu_test.ts b/chrome/test/data/webui/settings/settings_menu_test.ts
-index df9cb79..6fc229b 100644
 --- a/chrome/test/data/webui/settings/settings_menu_test.ts
 +++ b/chrome/test/data/webui/settings/settings_menu_test.ts
 @@ -8,7 +8,7 @@
@@ -11,7 +10,7 @@ index df9cb79..6fc229b 100644
  import {isVisible, microtasksFinished} from 'chrome://webui-test/test_util.js';
  import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
  import {eventToPromise} from 'chrome://webui-test/test_util.js';
-@@ -40,58 +40,90 @@ suite('SettingsMenu', function() {
+@@ -40,58 +40,90 @@
      resetPageVisibilityForTesting();
    });
  
@@ -21,9 +20,6 @@ index df9cb79..6fc229b 100644
 -    const urlParams = new URLSearchParams('search=foo');
 -    Router.getInstance().navigateTo(
 -        Router.getInstance().getRoutes().BASIC, urlParams);
--    assertEquals(
--        urlParams.toString(),
--        Router.getInstance().getQueryParameters().toString());
 +  test('preserves destinations with direct overview items', function() {
 +    const anchors =
 +        Array.from(settingsMenu.shadowRoot!.querySelectorAll('a'));
@@ -41,21 +37,15 @@ index df9cb79..6fc229b 100644
 +      assertEquals(settingsMenu.$.menu, item.parentElement);
 +    }
 +  });
- 
--    const selector = settingsMenu.$.menu;
--    const whenIronSelect = eventToPromise<CustomEvent<{item: HTMLElement}>>(
--        'iron-select', selector);
++
 +  test('activates overview section without navigating Router', async () => {
 +    Router.getInstance().navigateTo(routes.BASIC);
 +    const eventPromise =
 +        eventToPromise<CustomEvent<{section: string, behavior: ScrollBehavior}>>(
 +            'settings-section-activate', settingsMenu);
-     settingsMenu.$.people.click();
--    const event = await whenIronSelect;
++    settingsMenu.$.people.click();
 +    const event = await eventPromise;
- 
--    assertEquals(settingsMenu.$.people, event.detail.item);
--    assertEquals('', Router.getInstance().getQueryParameters().toString());
++
 +    assertEquals('people', event.detail.section);
 +    assertEquals('auto', event.detail.behavior);
 +    assertEquals(routes.BASIC, Router.getInstance().getCurrentRoute());
@@ -69,51 +59,30 @@ index df9cb79..6fc229b 100644
 +        '#agent[data-section="agent"]');
 +    assertTrue(!!agent);
 +    assertEquals('/agent', agent.getAttribute('href'));
-   });
- 
--  test('openResetSection', function() {
--    Router.getInstance().navigateTo(routes.RESET);
--    const selector = settingsMenu.$.menu;
--    assertTrue(!!selector.selected);
--    assertEquals('/reset', selector.selected.toString());
++  });
++
 +  test('selects parent section for a secondary route', function() {
 +    Router.getInstance().navigateTo(routes.DAO_AGENT_DETAILS);
 +    assertEquals('agent', settingsMenu.$.menu.selected);
-   });
- 
--  test('navigateToAnotherSection', async function() {
++  });
++
 +  test('tracks top-level route section', function() {
-     Router.getInstance().navigateTo(routes.RESET);
--    const selector = settingsMenu.$.menu;
--    assertTrue(!!selector.selected);
--    assertEquals('/reset', selector.selected.toString());
++    Router.getInstance().navigateTo(routes.RESET);
 +    assertEquals('reset', settingsMenu.$.menu.selected);
- 
--    const whenIronSelect = eventToPromise<CustomEvent<{item: HTMLElement}>>(
--        'iron-select', selector);
-     Router.getInstance().navigateTo(routes.PEOPLE);
--    const event = await whenIronSelect;
--
--    assertTrue(!!selector.selected);
--    assertEquals(settingsMenu.$.people, event.detail.item);
--    assertEquals('/people', selector.selected.toString());
++
++    Router.getInstance().navigateTo(routes.PEOPLE);
 +    assertEquals('people', settingsMenu.$.menu.selected);
-   });
- 
--  test('navigateToBasic', async function() {
++  });
++
 +  test('basic route has no route-owned selection', async function() {
-     Router.getInstance().navigateTo(routes.RESET);
--    const selector = settingsMenu.$.menu;
--    assertTrue(!!selector.selected);
--    assertEquals('/reset', selector.selected.toString());
++    Router.getInstance().navigateTo(routes.RESET);
 +    assertEquals('reset', settingsMenu.$.menu.selected);
- 
-     Router.getInstance().navigateTo(routes.BASIC);
-     await microtasksFinished();
--    assertFalse(!!selector.selected);
++
++    Router.getInstance().navigateTo(routes.BASIC);
++    await microtasksFinished();
 +    assertFalse(!!settingsMenu.$.menu.selected);
-   });
- 
++  });
++
 +  test('searchFiltersMenuAndClearsHiddenSelection', function() {
 +    const searchVisibleIds = () =>
 +        Array.from(settingsMenu.shadowRoot!.querySelectorAll<HTMLElement>(
@@ -131,14 +100,59 @@ index df9cb79..6fc229b 100644
 +    assertFalse(!!settingsMenu.$.menu.selected);
 +
 +    settingsMenu.setSearchResultSections('', []);
-+    assertEquals(
+     assertEquals(
+-        urlParams.toString(),
+-        Router.getInstance().getQueryParameters().toString());
+-
+-    const selector = settingsMenu.$.menu;
+-    const whenIronSelect = eventToPromise<CustomEvent<{item: HTMLElement}>>(
+-        'iron-select', selector);
+-    settingsMenu.$.people.click();
+-    const event = await whenIronSelect;
+-
+-    assertEquals(settingsMenu.$.people, event.detail.item);
+-    assertEquals('', Router.getInstance().getQueryParameters().toString());
+-  });
+-
+-  test('openResetSection', function() {
+-    Router.getInstance().navigateTo(routes.RESET);
+-    const selector = settingsMenu.$.menu;
+-    assertTrue(!!selector.selected);
+-    assertEquals('/reset', selector.selected.toString());
+-  });
+-
+-  test('navigateToAnotherSection', async function() {
+-    Router.getInstance().navigateTo(routes.RESET);
+-    const selector = settingsMenu.$.menu;
+-    assertTrue(!!selector.selected);
+-    assertEquals('/reset', selector.selected.toString());
+-
+-    const whenIronSelect = eventToPromise<CustomEvent<{item: HTMLElement}>>(
+-        'iron-select', selector);
+-    Router.getInstance().navigateTo(routes.PEOPLE);
+-    const event = await whenIronSelect;
+-
+-    assertTrue(!!selector.selected);
+-    assertEquals(settingsMenu.$.people, event.detail.item);
+-    assertEquals('/people', selector.selected.toString());
+-  });
+-
+-  test('navigateToBasic', async function() {
+-    Router.getInstance().navigateTo(routes.RESET);
+-    const selector = settingsMenu.$.menu;
+-    assertTrue(!!selector.selected);
+-    assertEquals('/reset', selector.selected.toString());
+-
+-    Router.getInstance().navigateTo(routes.BASIC);
+-    await microtasksFinished();
+-    assertFalse(!!selector.selected);
 +        16,
 +        settingsMenu.shadowRoot!.querySelectorAll(
 +            'a[data-section]:not([hidden-by-search])').length);
-+  });
-+
+   });
+ 
    test('noExperimental', async function() {
-@@ -105,24 +136,19 @@ suite('SettingsMenu', function() {
+@@ -105,24 +137,19 @@
      assertFalse(isVisible(entry));
    });
  
@@ -153,9 +167,10 @@ index df9cb79..6fc229b 100644
 -        'iron-select', selector);
 -    Router.getInstance().navigateTo(routes.AI);
 -    const event = await whenIronSelect;
-+    await microtasksFinished();
- 
+-
 -    const entry = settingsMenu.shadowRoot!.querySelector('a[href=\'/ai\']');
++    await microtasksFinished();
++
 +    const entry = settingsMenu.shadowRoot!.querySelector<HTMLElement>(
 +        'a[href=\'/ai\']');
      assertTrue(!!entry);
@@ -169,7 +184,7 @@ index df9cb79..6fc229b 100644
    });
  
    test('pageVisibility', function() {
-@@ -168,10 +194,8 @@ suite('SettingsMenu', function() {
+@@ -168,10 +195,8 @@
      assertPagesHidden(true);
    });
  
@@ -182,7 +197,7 @@ index df9cb79..6fc229b 100644
      resetRouterForTesting();
      createSettingsMenu();
      await microtasksFinished();
-@@ -179,22 +203,18 @@ suite('SettingsMenu', function() {
+@@ -179,45 +204,37 @@
      const entry =
          settingsMenu.shadowRoot!.querySelector<HTMLElement>('a[href=\'/ai\']');
      assertTrue(!!entry);
@@ -202,51 +217,25 @@ index df9cb79..6fc229b 100644
 -    await whenIronSelect;
 -
 -    assertEquals(routes.AI, Router.getInstance().getCurrentRoute());
+-  });
+-
+-  test('yourSavedInfoMenuItemClick', async function() {
+-    resetRouterForTesting();
+-    createSettingsMenu();
+-    await microtasksFinished();
+-
+-    const selector = settingsMenu.$.menu;
+-    const whenIronSelect = eventToPromise<CustomEvent<{item: HTMLElement}>>(
+-        'iron-select', selector);
 +    assertEquals('ai', (await eventPromise).detail.section);
 +    assertEquals(routes.BASIC, Router.getInstance().getCurrentRoute());
-   });
- 
--  test('autofillPageMenuClick', async function() {
-+  test('autofillClick records metric and activates section', async function() {
-     loadTimeData.overrideValues({enableYourSavedInfoSettingsPage: false});
-     resetRouterForTesting();
-     createSettingsMenu();
-@@ -203,49 +223,43 @@ suite('SettingsMenu', function() {
-     const entry = settingsMenu.shadowRoot!.querySelector<HTMLElement>(
-         'a[href=\'/autofill\']');
-     assertTrue(!!entry);
--    assertTrue(isVisible(entry));
--
--    const selector = settingsMenu.$.menu;
--    const whenIronSelect = eventToPromise<CustomEvent<{item: HTMLElement}>>(
--        'iron-select', selector);
-+    const eventPromise = eventToPromise<CustomEvent<{section: string}>>(
-+        'settings-section-activate', settingsMenu);
-     entry.click();
++  });
 +
-     const [histogramName, referrer] =
-         await metricsBrowserProxy.whenCalled('recordAutofillSettingsReferrer');
-     assertEquals(
-         'Autofill.AutofillAndPasswordsSettingsPage.VisitReferrer',
-         histogramName);
-     assertEquals(AutofillSettingsReferrer.SETTINGS_MENU, referrer);
--
--    await whenIronSelect;
--    assertEquals(routes.AUTOFILL, Router.getInstance().getCurrentRoute());
-+    assertEquals('autofill', (await eventPromise).detail.section);
-+    assertEquals(routes.BASIC, Router.getInstance().getCurrentRoute());
-   });
- 
--  test('yourSavedInfoMenuItemClick', async function() {
 +  test('yourSavedInfoClick activates rendered section', async function() {
-     loadTimeData.overrideValues({enableYourSavedInfoSettingsPage: true});
-     resetRouterForTesting();
-     createSettingsMenu();
-     await microtasksFinished();
- 
--    const selector = settingsMenu.$.menu;
--    const whenIronSelect = eventToPromise<CustomEvent<{item: HTMLElement}>>(
--        'iron-select', selector);
++    resetRouterForTesting();
++    createSettingsMenu();
++    await microtasksFinished();
++
      const entry = settingsMenu.shadowRoot!.querySelector<HTMLElement>(
          'a[href=\'/autofill\']');
      assertTrue(!!entry);
@@ -265,10 +254,37 @@ index df9cb79..6fc229b 100644
 -    assertTrue(!!selector.selected);
 -    assertEquals('/autofill', selector.selected.toString());
 -    assertEquals(
--        routes.YOUR_SAVED_INFO, Router.getInstance().getCurrentRoute());
+-        routes.AUTOFILL, Router.getInstance().getCurrentRoute());
 +    assertEquals('yourSavedInfo', (await eventPromise).detail.section);
 +    assertEquals('yourSavedInfo', settingsMenu.$.menu.selected);
 +    assertEquals(routes.BASIC, Router.getInstance().getCurrentRoute());
+   });
+ 
+   test('navMenuItemClickActions', async function() {
+@@ -315,13 +332,27 @@
+       const navItem = settingsMenu.shadowRoot!.querySelector<HTMLElement>(
+           testCase.selector);
+       assertTrue(!!navItem);
++      const section = navItem.dataset['section'];
++      const activation = section ?
++          eventToPromise<CustomEvent<{section: string}>>(
++              'settings-section-activate', settingsMenu) : null;
++      if (!section) {
++        // Keep the standalone About link from reloading the test page.
++        navItem.addEventListener(
++            'click', event => event.preventDefault(), {once: true});
++      }
+       navItem.click();
+ 
+       const action = await metricsBrowserProxy.whenCalled('recordAction');
+       assertEquals(testCase.action, action);
+-      assertEquals(testCase.route, Router.getInstance().getCurrentRoute());
++      if (activation) {
++        assertEquals(testCase.route.section, (await activation).detail.section);
++        assertEquals(section, settingsMenu.$.menu.selected);
++      }
++      assertEquals(routes.BASIC, Router.getInstance().getCurrentRoute());
+     }
    });
 +
  });

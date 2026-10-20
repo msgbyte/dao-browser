@@ -20,7 +20,6 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/values.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "components/sessions/content/session_tab_helper.h"
@@ -511,9 +510,7 @@ void DaoAgentProactiveEngine::Start() {
   }
   browser_collection_observation_.Observe(collection);
   collection->ForEach([this](BrowserWindowInterface* browser_window) {
-    browser_window->GetBrowserForMigrationOnly()
-        ->tab_strip_model()
-        ->AddObserver(this);
+    browser_window->tab_strip_model()->AddObserver(this);
     return true;
   });
 }
@@ -530,9 +527,7 @@ void DaoAgentProactiveEngine::Stop() {
   if (ProfileBrowserCollection* collection =
           ProfileBrowserCollection::GetForProfile(profile_)) {
     collection->ForEach([this](BrowserWindowInterface* browser_window) {
-      browser_window->GetBrowserForMigrationOnly()
-          ->tab_strip_model()
-          ->RemoveObserver(this);
+      browser_window->tab_strip_model()->RemoveObserver(this);
       return true;
     });
   }
@@ -542,15 +537,12 @@ void DaoAgentProactiveEngine::Stop() {
 
 void DaoAgentProactiveEngine::OnBrowserCreated(
     BrowserWindowInterface* browser_window) {
-  browser_window->GetBrowserForMigrationOnly()->tab_strip_model()->AddObserver(
-      this);
+  browser_window->tab_strip_model()->AddObserver(this);
 }
 
 void DaoAgentProactiveEngine::OnBrowserClosed(
     BrowserWindowInterface* browser_window) {
-  browser_window->GetBrowserForMigrationOnly()
-      ->tab_strip_model()
-      ->RemoveObserver(this);
+  browser_window->tab_strip_model()->RemoveObserver(this);
 }
 
 void DaoAgentProactiveEngine::OnTabStripModelChanged(

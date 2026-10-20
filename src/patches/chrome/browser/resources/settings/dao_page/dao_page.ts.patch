@@ -139,7 +139,7 @@ index 0000000000..0000000001
 +  $: {
 +    staleTabExpirationHours: CrInputElement,
 +  };
-+  prefs: {[key: string]: any};
++  prefs: Record<string, unknown>;
 +}
 +
 +const SettingsDaoPageElementBase =
@@ -270,7 +270,7 @@ index 0000000000..0000000001
 +    ];
 +  }
 +
-+  declare prefs: {[key: string]: any};
++  declare prefs: Record<string, unknown>;
 +  declare private autoPipEnabledPref_:
 +      chrome.settingsPrivate.PrefObject<boolean>;
 +  declare private daoMcpSupported_: boolean;

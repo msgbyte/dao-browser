@@ -26,12 +26,14 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/sessions/tab_restore_service_factory.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/chrome_pages.h"
+#include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/navigator/browser_navigator.h"
 #include "chrome/browser/ui/navigator/browser_navigator_params.h"
+#include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/bookmarks/browser/bookmark_model.h"
@@ -278,7 +280,8 @@ END_METADATA
 BEGIN_METADATA(DaoCommandBarView)
 END_METADATA
 
-DaoCommandBarView::DaoCommandBarView(Browser* browser) : browser_(browser) {
+DaoCommandBarView::DaoCommandBarView(BrowserWindowInterface* browser)
+    : browser_(browser) {
   SetVisible(false);
   // NOTE: No SetPaintToLayer() here — an intermediate layer would block
   // glass_container_'s backdrop blur from reaching the webpage content.
@@ -348,7 +351,7 @@ DaoCommandBarView::DaoCommandBarView(Browser* browser) : browser_(browser) {
         std::make_unique<DaoSuggestionItemView>(
             i, base::BindRepeating(&DaoCommandBarView::OnSuggestionClicked,
                                    base::Unretained(this)),
-            browser_->profile()));
+            browser_->GetProfile()));
     item->SetVisible(false);
     suggestion_views_.push_back(item);
   }
@@ -365,10 +368,10 @@ void DaoCommandBarView::ApplyTheme() {
         views::CreateRoundedRectBorder(1, 16, CommandBarBorder()));
   }
   if (textfield_) {
-    textfield_->SetTextColor(TextPrimary());
+    textfield_->SetTextColorId(kColorDaoTextPrimary);
     // Placeholder sits at the lightest step of the text hierarchy (40%)
     // so it reads as a hint rather than content.
-    textfield_->set_placeholder_text_color(TextMuted());
+    textfield_->SetPlaceholderTextColorId(kColorDaoTextMuted);
   }
   // Suggestion rows cache their text color in views::Label and rasterize
   // their vector icons at SetMatch time, so they need an explicit refresh
@@ -399,14 +402,14 @@ DaoCommandBarView::~DaoCommandBarView() {
 }
 
 bool DaoCommandBarView::EnhancedSuggestionsEnabled() const {
-  return browser_ && browser_->profile() &&
-         browser_->profile()->GetPrefs()->GetBoolean(
+  return browser_ && browser_->GetProfile() &&
+         browser_->GetProfile()->GetPrefs()->GetBoolean(
              dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled);
 }
 
 bool DaoCommandBarView::AskAiEnabled() const {
-  return browser_ && browser_->profile() &&
-         browser_->profile()->GetPrefs()->GetBoolean(
+  return browser_ && browser_->GetProfile() &&
+         browser_->GetProfile()->GetPrefs()->GetBoolean(
              dao::prefs::kDaoAskAiEnabled);
 }
 
@@ -442,7 +445,7 @@ void DaoCommandBarView::InitAutocompleteController() {
     scheme_classifier_.reset();
   }
 
-  Profile* profile = browser_->profile();
+  Profile* profile = browser_->GetProfile();
   scheme_classifier_ =
       std::make_unique<ChromeAutocompleteSchemeClassifier>(profile);
 
@@ -793,7 +796,7 @@ void DaoCommandBarView::ContentsChanged(views::Textfield* sender,
   inline_autocompletion_.clear();
 
   const std::u16string trimmed = NormalizeSearchTerms(new_contents);
-  command_mode_ = browser_->profile()->GetPrefs()->GetBoolean(
+  command_mode_ = browser_->GetProfile()->GetPrefs()->GetBoolean(
                       dao::prefs::kDaoCommandBarCommandModeEnabled) &&
                   !trimmed.empty() && trimmed.front() == u'>';
 
@@ -1090,7 +1093,7 @@ bool DaoCommandBarView::IsCommandEnabled(int command_index) const {
 std::u16string DaoCommandBarView::GetCommandTitle(int command_index) const {
   if (command_index == 1 && IsCommandEnabled(command_index)) {
     sessions::TabRestoreService* restore_service =
-        TabRestoreServiceFactory::GetForProfile(browser_->profile());
+        TabRestoreServiceFactory::GetForProfile(browser_->GetProfile());
     if (restore_service) {
       restore_service->LoadTabsFromLastSession();
       if (!restore_service->entries().empty()) {
@@ -1250,12 +1253,12 @@ void DaoCommandBarView::UpdateSuggestions() {
             index,
             base::BindRepeating(&DaoCommandBarView::OnSuggestionClicked,
                                 base::Unretained(this)),
-            browser_->profile())));
+            browser_->GetProfile())));
   }
 
   // Check if we have a bookmark model for icon determination
   bookmarks::BookmarkModel* bookmark_model =
-      BookmarkModelFactory::GetForBrowserContext(browser_->profile());
+      BookmarkModelFactory::GetForBrowserContext(browser_->GetProfile());
 
   for (int i = 0; i < static_cast<int>(suggestion_views_.size()); ++i) {
     if (i >= visible_suggestion_count_) {
@@ -1370,7 +1373,7 @@ GURL DaoCommandBarView::GetSearchUrl(const std::u16string& search_terms) const {
   }
 
   TemplateURLService* template_url_service =
-      TemplateURLServiceFactory::GetForProfile(browser_->profile());
+      TemplateURLServiceFactory::GetForProfile(browser_->GetProfile());
   const TemplateURL* default_provider =
       template_url_service ? template_url_service->GetDefaultSearchProvider()
                            : nullptr;
@@ -1709,18 +1712,18 @@ void DaoCommandBarView::UpdateInputIcon() {
     if (is_search) {
       favicon_icon_->SetImage(
           ui::ImageModel::FromImageSkia(gfx::CreateVectorIcon(
-              vector_icons::kSearchChromeRefreshIcon, 18, icon_color)));
+              vector_icons::kSearchChromeRefreshOldIcon, 18, icon_color)));
     } else {
       // Set page icon as immediate fallback, then try loading favicon
       favicon_icon_->SetImage(
           ui::ImageModel::FromImageSkia(gfx::CreateVectorIcon(
-              omnibox::kPageChromeRefreshIcon, 18, icon_color)));
+              omnibox::kPageChromeRefreshOldIcon, 18, icon_color)));
 
       if (match.destination_url.is_valid() &&
           match.destination_url.SchemeIsHTTPOrHTTPS()) {
         favicon::FaviconService* favicon_service =
             FaviconServiceFactory::GetForProfile(
-                browser_->profile(), ServiceAccessType::EXPLICIT_ACCESS);
+                browser_->GetProfile(), ServiceAccessType::EXPLICIT_ACCESS);
         if (favicon_service) {
           pending_icon_favicon_url_ = match.destination_url;
           favicon_service->GetFaviconImageForPageURL(
@@ -1738,13 +1741,13 @@ void DaoCommandBarView::UpdateInputIcon() {
   // Fallback: determine icon from input text
   if (user_input_text_.empty()) {
     favicon_icon_->SetImage(ui::ImageModel::FromImageSkia(gfx::CreateVectorIcon(
-        vector_icons::kSearchChromeRefreshIcon, 18, icon_color)));
+        vector_icons::kSearchChromeRefreshOldIcon, 18, icon_color)));
   } else if (LooksLikeURL(user_input_text_)) {
     favicon_icon_->SetImage(ui::ImageModel::FromImageSkia(gfx::CreateVectorIcon(
-        omnibox::kPageChromeRefreshIcon, 18, icon_color)));
+        omnibox::kPageChromeRefreshOldIcon, 18, icon_color)));
   } else {
     favicon_icon_->SetImage(ui::ImageModel::FromImageSkia(gfx::CreateVectorIcon(
-        vector_icons::kSearchChromeRefreshIcon, 18, icon_color)));
+        vector_icons::kSearchChromeRefreshOldIcon, 18, icon_color)));
   }
   favicon_icon_->SetVisible(true);
 }
@@ -1982,7 +1985,8 @@ void DaoCommandBarView::ApplySelectedSuggestion() {
   }
 
   if (selection_preview_active_) {
-    if (selected_index_ == ask_ai_row_index_ && !user_input_text_.empty()) {
+    if (selected_index_ >= 0 && selected_index_ == ask_ai_row_index_ &&
+        !user_input_text_.empty()) {
       SubmitAskAi(user_input_text_);
       return;
     }
@@ -2011,7 +2015,8 @@ void DaoCommandBarView::ApplySelectedSuggestion() {
     // user has rejected a preview or edited under inline suppression.
     if (!suppress_ghost_for_current_query_ &&
         rejected_selection_preview_text_.empty()) {
-      if (selected_index_ == ask_ai_row_index_ && !user_input_text_.empty()) {
+      if (selected_index_ >= 0 && selected_index_ == ask_ai_row_index_ &&
+          !user_input_text_.empty()) {
         SubmitAskAi(user_input_text_);
         return;
       }
@@ -2084,7 +2089,7 @@ void DaoCommandBarView::RecordShortcut(const AutocompleteMatch& match) {
   // accept time. A shortcut for an occasionally failing navigation is
   // harmless — its relevance decays when unused.
   scoped_refptr<ShortcutsBackend> shortcuts_backend =
-      ShortcutsBackendFactory::GetForProfile(browser_->profile());
+      ShortcutsBackendFactory::GetForProfile(browser_->GetProfile());
   // Can be null in incognito.
   if (!shortcuts_backend) {
     return;

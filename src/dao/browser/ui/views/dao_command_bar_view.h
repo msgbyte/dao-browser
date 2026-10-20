@@ -27,7 +27,7 @@
 #include "ui/views/focus/focus_manager.h"
 #include "ui/views/view.h"
 
-class Browser;
+class BrowserWindowInterface;
 
 namespace content {
 class WebContents;
@@ -50,7 +50,7 @@ class DaoCommandBarView : public views::View,
   METADATA_HEADER(DaoCommandBarView, views::View)
 
  public:
-  explicit DaoCommandBarView(Browser* browser);
+  explicit DaoCommandBarView(BrowserWindowInterface* browser);
   DaoCommandBarView(const DaoCommandBarView&) = delete;
   DaoCommandBarView& operator=(const DaoCommandBarView&) = delete;
   ~DaoCommandBarView() override;
@@ -203,7 +203,7 @@ class DaoCommandBarView : public views::View,
   bool IsExactSearchMatch(const AutocompleteMatch& match,
                           const std::u16string& search_terms) const;
 
-  raw_ptr<Browser> browser_;
+  raw_ptr<BrowserWindowInterface> browser_;
   raw_ptr<views::View> shadow_view_ = nullptr;
   raw_ptr<views::View> glass_container_ = nullptr;
   raw_ptr<views::View> card_container_ = nullptr;

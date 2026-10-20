@@ -1,23 +1,22 @@
 diff --git a/chrome/browser/ui/webui/chrome_web_ui_configs.cc b/chrome/browser/ui/webui/chrome_web_ui_configs.cc
-index 9daef52054236..d4f6fc8bad782 100644
 --- a/chrome/browser/ui/webui/chrome_web_ui_configs.cc
 +++ b/chrome/browser/ui/webui/chrome_web_ui_configs.cc
-@@ -4,6 +4,12 @@
+@@ -3,6 +3,12 @@
+ // found in the LICENSE file.
  
  #include "chrome/browser/ui/webui/chrome_web_ui_configs.h"
- 
++
 +#include "dao/browser/ui/webui/dao_agent_ui.h"
 +#include "dao/browser/ui/webui/dao_home_ui.h"
 +#include "dao/browser/ui/webui/dao_import_ui.h"
 +#include "dao/browser/ui/webui/dao_sidebar_ui.h"
 +#include "dao/browser/ui/webui/dao_welcome_ui.h"
-+
+ 
  #include "build/android_buildflags.h"
  #include "build/branding_buildflags.h"
- #include "build/build_config.h"
-@@ -246,6 +252,17 @@ void RegisterChromeWebUIConfigs() {
-   map.AddWebUIConfig(
-       std::make_unique<AccessibilityAnnotatorInternalsUIConfig>());
+@@ -253,6 +259,17 @@
+   auto& map = content::WebUIConfigMap::GetInstance();
+   map.AddWebUIConfig(std::make_unique<AccessibilityUIConfig>());
    map.AddWebUIConfig(std::make_unique<AutofillInternalsUIConfig>());
 +
 +  // Dao: Register WebUI pages
@@ -31,9 +30,9 @@ index 9daef52054236..d4f6fc8bad782 100644
 +  map.AddWebUIConfig(std::make_unique<dao::DaoSkillsUIConfig>());
 +  map.AddWebUIConfig(std::make_unique<dao::DaoWelcomeUIConfig>());
    map.AddWebUIConfig(std::make_unique<BluetoothInternalsUIConfig>());
-   map.AddWebUIConfig(std::make_unique<BrowsingTopicsInternalsUIConfig>());
    map.AddWebUIConfig(
-@@ -483,7 +500,8 @@ void RegisterChromeWebUIConfigs() {
+       std::make_unique<chrome_finds_internals::ChromeFindsInternalsUIConfig>());
+@@ -502,7 +519,8 @@
  
  #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
      BUILDFLAG(IS_CHROMEOS)

@@ -1,8 +1,33 @@
 diff --git a/chrome/browser/ui/color/chrome_color_mixer.cc b/chrome/browser/ui/color/chrome_color_mixer.cc
-index fd75b56b17..2fcc13ab3b 100644
 --- a/chrome/browser/ui/color/chrome_color_mixer.cc
 +++ b/chrome/browser/ui/color/chrome_color_mixer.cc
-@@ -401,23 +401,27 @@ void AddChromeColorMixer(ui::ColorProvider* provider,
+@@ -26,6 +26,7 @@
+ #include "ui/color/color_transform.h"
+ #include "ui/gfx/color_palette.h"
+ #include "ui/gfx/color_utils.h"
++#include "ui/native_theme/native_theme.h"
+ 
+ namespace {
+ 
+@@ -186,6 +187,17 @@
+   const bool dark_mode =
+       key.color_mode == ui::ColorProviderKey::ColorMode::kDark;
+   ui::ColorMixer& mixer = provider->AddMixer();
++  // Dao command bar follows system appearance, including in incognito windows.
++  const ui::NativeTheme* native_theme =
++      ui::NativeTheme::GetInstanceForNativeUi();
++  const bool dao_dark_mode =
++      native_theme && native_theme->preferred_color_scheme() ==
++                          ui::NativeTheme::PreferredColorScheme::kDark;
++  mixer[kColorDaoTextPrimary] = {
++      dao_dark_mode ? SkColorSetRGB(245, 245, 245) : SkColorSetRGB(30, 20, 40)};
++  mixer[kColorDaoTextMuted] = {
++      dao_dark_mode ? SkColorSetARGB(102, 255, 255, 255)
++                    : SkColorSetARGB(102, 30, 20, 40)};
+ 
+   const bool use_alternate_palette = features::IsTabGroupColorRefreshEnabled();
+ 
+@@ -571,23 +583,27 @@
                            color_utils::kMinimumVisibleContrastRatio);
    mixer[kColorPerformanceInterventionButtonIconInactive] = {
        kColorToolbarButtonIcon};

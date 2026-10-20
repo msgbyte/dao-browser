@@ -345,7 +345,7 @@ void DaoMigrationService::OnGetPasswordStoreResultsOrErrorFrom(
          std::get<password_manager::LoginsResult>(results_or_error)) {
       existing_passwords_[{credential.signon_realm,
                            credential.username_value}] =
-          credential.password_value;
+          credential.password_value.value();
     }
   }
   if (target_) {

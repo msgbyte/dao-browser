@@ -1,0 +1,48 @@
+diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view_interactive_uitest.cc b/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view_interactive_uitest.cc
+--- a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view_interactive_uitest.cc
++++ b/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view_interactive_uitest.cc
+@@ -544,10 +544,44 @@
+   EXPECT_EQ(inactive_color,
+             pip_frame_view()->GetWindowTitleForTesting()->GetEnabledColor());
+ }
+ 
+ IN_PROC_BROWSER_TEST_F(PictureInPictureBrowserFrameViewTest,
++                       DaoOverlayOpacityTracksTopBarAnimation) {
++  ASSERT_NO_FATAL_FAILURE(SetUpDocumentPIP());
++
++  auto* overlay = pip_frame_view()->dao_top_bar_overlay_widget();
++  ASSERT_TRUE(overlay);
++  ASSERT_TRUE(overlay->GetContentsView());
++  auto* layer = overlay->GetContentsView()->layer();
++  ASSERT_TRUE(layer);
++  EXPECT_FLOAT_EQ(0.0f, layer->opacity());
++  const gfx::Rect client_bounds = pip_frame_view()->GetBoundsForClientView();
++
++  pip_frame_view()->UpdateTopBarView(/*render_active=*/true);
++  AnimationWaiter show_waiter(
++      pip_frame_view()->GetRenderActiveAnimationsForTesting());
++  show_waiter.WaitForAnimationInterval(kThirdAnimationInterval);
++  EXPECT_GT(layer->opacity(), 0.0f);
++  EXPECT_LT(layer->opacity(), 1.0f);
++  EXPECT_EQ(client_bounds, pip_frame_view()->GetBoundsForClientView());
++  show_waiter.WaitForAnimationInterval(kAnimationDuration);
++  EXPECT_FLOAT_EQ(1.0f, layer->opacity());
++
++  pip_frame_view()->UpdateTopBarView(/*render_active=*/false);
++  AnimationWaiter hide_waiter(
++      pip_frame_view()->GetRenderInactiveAnimationsForTesting());
++  hide_waiter.WaitForAnimationInterval(kThirdAnimationInterval);
++  EXPECT_GT(layer->opacity(), 0.0f);
++  EXPECT_LT(layer->opacity(), 1.0f);
++  EXPECT_EQ(client_bounds, pip_frame_view()->GetBoundsForClientView());
++  hide_waiter.WaitForAnimationInterval(kAnimationDuration);
++  EXPECT_FLOAT_EQ(0.0f, layer->opacity());
++  EXPECT_EQ(client_bounds, pip_frame_view()->GetBoundsForClientView());
++}
++
++IN_PROC_BROWSER_TEST_F(PictureInPictureBrowserFrameViewTest,
+                        ResizesToFitModalChildDialogs) {
+   ASSERT_NO_FATAL_FAILURE(SetUpDocumentPIP());
+ 
+   gfx::Rect initial_pip_bounds =
+       pip_frame_view()->GetWidget()->GetWindowBoundsInScreen();

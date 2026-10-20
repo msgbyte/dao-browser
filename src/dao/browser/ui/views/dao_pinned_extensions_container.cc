@@ -11,7 +11,7 @@
 #include "chrome/browser/extensions/extension_view_host.h"
 #include "chrome/browser/extensions/extension_view_host_factory.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/extensions/extension_popup_types.h"
 #include "chrome/browser/ui/extensions/extension_side_panel_utils.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -80,13 +80,14 @@ class PinnedExtIconButton : public views::ImageButton {
 BEGIN_METADATA(DaoPinnedExtensionsContainer)
 END_METADATA
 
-DaoPinnedExtensionsContainer::DaoPinnedExtensionsContainer(Browser* browser)
+DaoPinnedExtensionsContainer::DaoPinnedExtensionsContainer(
+    BrowserWindowInterface* browser)
     : browser_(browser), hover_background_color_(ControlCenterHoverBg()) {
   auto* layout = SetLayoutManager(std::make_unique<views::FlexLayout>());
   layout->SetOrientation(views::LayoutOrientation::kHorizontal);
   layout->SetCrossAxisAlignment(views::LayoutAlignment::kCenter);
 
-  auto* profile = browser_->profile();
+  auto* profile = browser_->GetProfile();
   model_ = ToolbarActionsModel::Get(profile);
   if (model_) {
     observation_.Observe(model_.get());
@@ -120,7 +121,7 @@ void DaoPinnedExtensionsContainer::Rebuild() {
     return;
   }
 
-  auto* profile = browser_->profile();
+  auto* profile = browser_->GetProfile();
   auto* registry = extensions::ExtensionRegistry::Get(profile);
   if (!registry) {
     SetVisible(false);
@@ -185,7 +186,7 @@ gfx::ImageSkia DaoPinnedExtensionsContainer::GetIconForExtension(
   }
 
   auto* action_manager =
-      extensions::ExtensionActionManager::Get(browser_->profile());
+      extensions::ExtensionActionManager::Get(browser_->GetProfile());
   if (!action_manager) {
     return gfx::ImageSkia();
   }
@@ -214,7 +215,7 @@ bool DaoPinnedExtensionsContainer::UpdateButtonIcon(
     return false;
   }
 
-  auto* registry = extensions::ExtensionRegistry::Get(browser_->profile());
+  auto* registry = extensions::ExtensionRegistry::Get(browser_->GetProfile());
   if (!registry) {
     return false;
   }
@@ -284,7 +285,6 @@ void DaoPinnedExtensionsContainer::OnTabStripModelChanged(
 }
 
 void DaoPinnedExtensionsContainer::OnTabChangedAt(tabs::TabInterface* tab,
-                                                  int index,
                                                   TabChangeType change_type) {
   UpdateAllButtonIcons();
 }
@@ -300,7 +300,7 @@ void DaoPinnedExtensionsContainer::OnExtensionClicked(
     return;
   }
 
-  auto* profile = browser_->profile();
+  auto* profile = browser_->GetProfile();
   auto* registry = extensions::ExtensionRegistry::Get(profile);
   if (!registry) {
     return;
@@ -392,7 +392,7 @@ void DaoPinnedExtensionsContainer::ShowContextMenuForViewImpl(
     return;
   }
 
-  auto* profile = browser_->profile();
+  auto* profile = browser_->GetProfile();
   auto* registry = extensions::ExtensionRegistry::Get(profile);
   if (!registry) {
     return;

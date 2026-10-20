@@ -1,7 +1,7 @@
 diff --git a/chrome/browser/ui/startup/startup_browser_creator.cc b/chrome/browser/ui/startup/startup_browser_creator.cc
 --- a/chrome/browser/ui/startup/startup_browser_creator.cc
 +++ b/chrome/browser/ui/startup/startup_browser_creator.cc
-@@ -860,71 +860,15 @@
+@@ -894,70 +894,15 @@
  
  // static
  SessionStartupPref StartupBrowserCreator::GetSessionStartupPref(
@@ -46,8 +46,7 @@ diff --git a/chrome/browser/ui/startup/startup_browser_creator.cc b/chrome/brows
 -  // However, new profiles can be created from a browser process that has this
 -  // switch so do not set the session pref to SessionStartupPref::LAST for
 -  // those as there is nothing to restore.
--  bool restore_last_session =
--      command_line.HasSwitch(switches::kRestoreLastSession);
+-  bool restore_last_session = ShouldRestoreLastSession(command_line);
 -  if ((restore_last_session || did_restart) && !profile->IsNewProfile()) {
 -    pref.type = SessionStartupPref::LAST;
 -  }

@@ -5,7 +5,7 @@
 #include "dao/browser/ui/views/dao_colors.h"
 
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "ui/gfx/color_utils.h"
 #include "ui/native_theme/native_theme.h"
 
@@ -13,9 +13,9 @@ namespace dao {
 
 namespace {
 
-bool ShouldUseDarkColors(const Browser* browser) {
-  return IsDarkMode() || (browser && browser->profile() &&
-                          browser->profile()->IsIncognitoProfile());
+bool ShouldUseDarkColors(const BrowserWindowInterface* browser) {
+  return IsDarkMode() || (browser && browser->GetProfile() &&
+                          browser->GetProfile()->IsIncognitoProfile());
 }
 
 }  // namespace
@@ -30,7 +30,7 @@ SkColor SidebarBackground() {
   return SidebarBackground(nullptr);
 }
 
-SkColor SidebarBackground(const Browser* browser) {
+SkColor SidebarBackground(const BrowserWindowInterface* browser) {
   return ShouldUseDarkColors(browser) ? SkColorSetRGB(54, 59, 64)
                                       : SkColorSetRGB(231, 238, 245);
 }
@@ -48,7 +48,7 @@ SkColor TextSecondary() {
   return TextSecondary(nullptr);
 }
 
-SkColor TextSecondary(const Browser* browser) {
+SkColor TextSecondary(const BrowserWindowInterface* browser) {
   return ShouldUseDarkColors(browser) ? SkColorSetARGB(153, 255, 255, 255)
                                       : SkColorSetARGB(153, 30, 20, 40);
 }
@@ -127,7 +127,7 @@ SkColor GhostTextSelectedBackground() {
   return SuggestionSelected();
 }
 
-SkColor DividerColor(const Browser* browser) {
+SkColor DividerColor(const BrowserWindowInterface* browser) {
   // Match the frame next to the content, where every shadow ring overlaps.
   SkColor color = SidebarBackground(browser);
   for (int step = 1; step <= kContentShadowSteps; ++step) {
@@ -207,7 +207,7 @@ SkColor ControlCenterHoverBg() {
   return ControlCenterHoverBg(nullptr);
 }
 
-SkColor ControlCenterHoverBg(const Browser* browser) {
+SkColor ControlCenterHoverBg(const BrowserWindowInterface* browser) {
   return ShouldUseDarkColors(browser) ? SkColorSetARGB(20, 255, 255, 255)
                                       : SkColorSetARGB(20, 0, 0, 0);
 }

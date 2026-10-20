@@ -63,7 +63,7 @@ export function readWindowsToolchainRequirements(rootDir: string = ROOT_DIR): {
   const source = readFileSync(file, 'utf8');
   const hash = source.match(/^TOOLCHAIN_HASH\s*=\s*['"]([0-9a-f]+)['"]/m)?.[1];
   const sdkVersion = source.match(/^SDK_VERSION\s*=\s*['"]([\d.]+)['"]/m)?.[1];
-  const visualStudioVersion = source.match(/MSVS_VERSIONS\s*=\s*collections\.OrderedDict\(\[\s*\(['"](\d+)['"]/m)?.[1];
+  const visualStudioVersion = source.match(/MSVS_VERSIONS\s*=\s*collections\.OrderedDict\(\s*\[\s*\(['"](\d+)['"]/m)?.[1];
   if (!hash || !sdkVersion || !visualStudioVersion) {
     throw new Error('Cannot read the Windows toolchain requirements from Chromium build/vs_toolchain.py.');
   }

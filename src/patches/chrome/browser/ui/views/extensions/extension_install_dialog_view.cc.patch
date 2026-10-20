@@ -1,31 +1,30 @@
 diff --git a/chrome/browser/ui/views/extensions/extension_install_dialog_view.cc b/chrome/browser/ui/views/extensions/extension_install_dialog_view.cc
-index 220a8c654c..17044ddd6b 100644
 --- a/chrome/browser/ui/views/extensions/extension_install_dialog_view.cc
 +++ b/chrome/browser/ui/views/extensions/extension_install_dialog_view.cc
-@@ -26,6 +26,8 @@
- #include "components/constrained_window/constrained_window_views.h"
+@@ -30,6 +30,8 @@
  #include "content/public/browser/browser_thread.h"
  #include "content/public/browser/page_navigator.h"
+ #include "content/public/browser/web_contents.h"
 +#include "dao/browser/extensions/legacy_mv2/dao_mv2_install_notice.h"
 +#include "dao/browser/ui/views/dao_system_dialog.h"
  #include "extensions/common/constants.h"
  #include "extensions/common/extension.h"
  #include "extensions/common/extension_urls.h"
-@@ -252,5 +254,10 @@ ExtensionInstallDialogView::ExtensionInstallDialogView(
+@@ -258,7 +260,12 @@
+   int buttons = prompt_->GetDialogButtons();
    DCHECK(buttons & static_cast<int>(ui::mojom::DialogButton::kCancel));
--
+ 
 -  int default_button = static_cast<int>(ui::mojom::DialogButton::kCancel);
--
-+
 +  // Dao keeps normal install prompts without a default button until the
 +  // delayed install action is enabled, so Cancel never gets primary treatment.
 +  int default_button =
-+      prompt_->type() == ExtensionInstallPrompt::PromptType::INSTALL_PROMPT
++      prompt_->type() == InstallPromptData::INSTALL_PROMPT
 +          ? static_cast<int>(ui::mojom::DialogButton::kNone)
 +          : static_cast<int>(ui::mojom::DialogButton::kCancel);
-+
+ 
    // If the prompt is related to requesting an extension, set the default button
-@@ -292,6 +294,8 @@ ExtensionInstallDialogView::ExtensionInstallDialogView(
+   // to OK.
+@@ -298,6 +305,8 @@
    SetButtonLabel(ui::mojom::DialogButton::kOk, prompt_->GetAcceptButtonLabel());
    SetButtonLabel(ui::mojom::DialogButton::kCancel,
                   prompt_->GetAbortButtonLabel());
@@ -34,10 +33,11 @@ index 220a8c654c..17044ddd6b 100644
    set_close_on_deactivate(false);
    SetShowCloseButton(false);
    CreateContents();
-@@ -539,6 +542,18 @@ ExtensionInstallDialogView::CreateExtensionInfoContainer(
+@@ -543,6 +552,18 @@
+                                                    content_insets.right()))
            .SetBetweenChildSpacing(provider->GetDistanceMetric(
                views::DISTANCE_UNRELATED_CONTROL_VERTICAL));
- 
++
 +  // Dao MV2 Support: legacy-MV2 notice rendered above the permission list.
 +  if (dao::DaoMV2InstallNotice::ShouldShowLegacyMV2Notice(
 +          prompt_->extension())) {
@@ -49,17 +49,18 @@ index 220a8c654c..17044ddd6b 100644
 +            .SetHorizontalAlignment(gfx::ALIGN_LEFT)
 +            .SetMultiLine(true));
 +  }
-+
+ 
    if (has_permissions) {
      extension_info_container.AddChild(
-         views::Builder<views::BoxLayoutView>()
-@@ -697,4 +718,9 @@ void ExtensionInstallDialogView::EnableInstallButton() {
+@@ -721,6 +742,11 @@
+ 
  void ExtensionInstallDialogView::EnableInstallButton() {
    install_button_enabled_ = true;
-+  if (prompt_->type() == ExtensionInstallPrompt::PromptType::INSTALL_PROMPT) {
++  if (prompt_->type() == InstallPromptData::INSTALL_PROMPT) {
 +    SetDefaultButton(static_cast<int>(ui::mojom::DialogButton::kOk));
 +    return;
 +  }
 +
    DialogModelChanged();
  }
+ 

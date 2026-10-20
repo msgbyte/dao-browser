@@ -5,8 +5,8 @@
 #include "dao/browser/automation/dao_browser_target_policy.h"
 
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "content/public/browser/web_contents.h"
 #include "url/gurl.h"
 
@@ -35,11 +35,11 @@ base::expected<void, DaoToolError> ValidateExternalTargetUrl(const GURL& url) {
 }
 
 base::expected<void, DaoToolError> ValidateExternalTarget(
-    Browser* browser,
+    BrowserWindowInterface* browser,
     Profile* profile,
     content::WebContents* contents,
     bool allow_uncommitted_url) {
-  if (!browser || !profile || !contents || browser->profile() != profile ||
+  if (!browser || !profile || !contents || browser->GetProfile() != profile ||
       contents->GetBrowserContext() != profile) {
     return TargetGone();
   }
@@ -47,13 +47,14 @@ base::expected<void, DaoToolError> ValidateExternalTarget(
   // An explicitly different tab owner is a stale session, even if both
   // windows share a profile. Non-tab WebContents are classified by the policy
   // below so internal surfaces such as the Agent WebUI remain forbidden.
-  Browser* target_owner = chrome::FindBrowserWithTab(contents);
+  BrowserWindowInterface* target_owner =
+      GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(contents);
   if (target_owner && target_owner != browser) {
     return TargetGone();
   }
 
-  if (!browser->is_type_normal() || profile->IsOffTheRecord() ||
-      profile->IsGuestSession()) {
+  if (!(browser->GetType() == BrowserWindowInterface::TYPE_NORMAL) ||
+      profile->IsOffTheRecord() || profile->IsGuestSession()) {
     return TargetForbidden();
   }
   if (!allow_uncommitted_url || !contents->GetLastCommittedURL().is_empty()) {

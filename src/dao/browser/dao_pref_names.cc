@@ -5,7 +5,6 @@
 #include "dao/browser/dao_pref_names.h"
 
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -124,10 +123,9 @@ void NotifyForceDarkModeChanged(Profile* profile) {
 
   for (BrowserWindowInterface* browser_window :
        GetAllBrowserWindowInterfaces()) {
-    Browser* browser =
-        browser_window ? browser_window->GetBrowserForMigrationOnly() : nullptr;
+    BrowserWindowInterface* browser = browser_window;
     if (!browser ||
-        !UsesSameStorageProfile(browser->profile(), storage_profile)) {
+        !UsesSameStorageProfile(browser->GetProfile(), storage_profile)) {
       continue;
     }
 

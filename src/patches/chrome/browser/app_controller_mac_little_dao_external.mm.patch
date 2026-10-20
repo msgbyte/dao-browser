@@ -1,16 +1,15 @@
 diff --git a/chrome/browser/app_controller_mac.mm b/chrome/browser/app_controller_mac.mm
-index 33ac0c1324424..3ec9074e570f4 100644
 --- a/chrome/browser/app_controller_mac.mm
 +++ b/chrome/browser/app_controller_mac.mm
-@@ -42,6 +42,7 @@
+@@ -46,6 +46,7 @@
  #include "chrome/browser/browser_process.h"
  #include "chrome/browser/browser_process_platform_part.h"
  #include "chrome/browser/command_updater_impl.h"
 +#include "chrome/browser/custom_handlers/protocol_handler_registry_factory.h"
  #include "chrome/browser/download/download_core_service.h"
  #include "chrome/browser/download/download_core_service_factory.h"
- #include "chrome/browser/extensions/extension_service.h"
-@@ -56,6 +57,7 @@
+ #include "chrome/browser/enterprise/isolated_mode/isolated_mode_settings_service_factory.h"
+@@ -63,6 +64,7 @@
  #include "chrome/browser/profiles/profile.h"
  #include "chrome/browser/profiles/profile_attributes_entry.h"
  #include "chrome/browser/profiles/profile_attributes_storage.h"
@@ -18,7 +17,7 @@ index 33ac0c1324424..3ec9074e570f4 100644
  #include "chrome/browser/profiles/profile_manager.h"
  #include "chrome/browser/profiles/profile_manager_observer.h"
  #include "chrome/browser/profiles/profile_observer.h"
-@@ -117,6 +119,7 @@
+@@ -126,6 +128,7 @@
  #include "chrome/common/webui_url_constants.h"
  #include "chrome/grit/branded_strings.h"
  #include "chrome/grit/generated_resources.h"
@@ -26,7 +25,7 @@ index 33ac0c1324424..3ec9074e570f4 100644
  #include "components/enterprise/browser/controller/chrome_browser_cloud_management_controller.h"
  #include "components/handoff/handoff_manager.h"
  #include "components/handoff/handoff_utility.h"
-@@ -2528,6 +2531,29 @@ void OpenUrlsInBrowserWithProfile(const std::vector<GURL>& urls,
+@@ -2683,6 +2686,31 @@
      profile = ProfileManager::MaybeForceOffTheRecordMode(
          profile->GetOriginalProfile());
    }
@@ -38,14 +37,16 @@ index 33ac0c1324424..3ec9074e570f4 100644
 +    custom_handlers::ProtocolHandlerRegistry* registry =
 +        ProtocolHandlerRegistryFactory::GetForBrowserContext(profile);
 +    bool opened_little_dao = false;
-+    for (const GURL& url : urls) {
++    for (const StartupTab& tab : tabs) {
++      const GURL& url = tab.url;
 +      const bool handled_by_chrome =
 +          ProfileIOData::IsHandledURL(url) ||
 +          (registry && registry->IsHandledProtocol(url.GetScheme()));
 +      if (!handled_by_chrome) {
 +        continue;
 +      }
-+      dao::DaoLittleDaoController::OpenInLittleDao(profile, url);
++      dao::DaoLittleDaoController::OpenInLittleDao(
++          profile, url, tab.is_untrusted_launch);
 +      opened_little_dao = true;
 +    }
 +    if (opened_little_dao) {

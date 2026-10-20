@@ -1,12 +1,12 @@
 diff --git a/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc b/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
-index 8ed88c3e4bdfb..2e257ce59b15d 100644
 --- a/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
 +++ b/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
-@@ -20,7 +20,26 @@
+@@ -25,8 +25,27 @@
  #include "chrome/browser/ui/views/animations/side_panel_animations.h"
  #include "chrome/browser/ui/views/animations/tab_strip_animations.h"
  #include "chrome/browser/ui/views/bookmarks/bookmark_bar_view.h"
 +#include "chrome/browser/ui/views/frame/browser_view.h"
+ #include "chrome/browser/ui/views/frame/custom_corners.h"
  #include "chrome/browser/ui/views/frame/custom_corners_background.h"
 +#include "dao/browser/ui/views/dao_address_bar_view.h"
 +#include "dao/browser/ui/views/dao_agent_cursor_view.h"
@@ -27,9 +27,9 @@ index 8ed88c3e4bdfb..2e257ce59b15d 100644
 +#include "ui/compositor/layer.h"
 +#include "ui/views/background.h"
  #include "chrome/browser/ui/views/frame/custom_floating_corner.h"
- #include "chrome/browser/ui/views/frame/horizontal_tab_strip_region_view.h"
- #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
-@@ -1098,11 +1118,191 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
+ #include "chrome/browser/ui/views/frame/layout/browser_view_layout_delegate.h"
+ #include "chrome/browser/ui/views/frame/layout/browser_view_layout_impl.h"
+@@ -1163,11 +1182,191 @@
      content_right =
          std::min(content_right, browser_params.visual_client_area.right());
    }
@@ -109,9 +109,9 @@ index 8ed88c3e4bdfb..2e257ce59b15d 100644
 +
 +    // Address bar at the top of the content area. Carves kBarHeight off
 +    // dao_content_area so subsequent web-content views start below it.
-+    // Overlaps by 1px so the contents_container layer's top edge is hidden
++    // Overlaps by 1px so the multi_contents_view layer's top edge is hidden
 +    // under the address bar — otherwise the flat-top rounded-corner AA on
-+    // the contents_container layer bleeds the BrowserView's sidebar
++    // the multi_contents_view layer bleeds the BrowserView's sidebar
 +    // background color through as a visible hairline at the seam.
 +    //
 +    // Dao: When split mode is active, each pane has its own address bar,
@@ -192,10 +192,10 @@ index 8ed88c3e4bdfb..2e257ce59b15d 100644
 +      layout.AddChild(flyout, full_browser_bounds);
 +    }
 +
-+    // Apply rounded corners on the contents_container layer (lower corners
++    // Apply rounded corners on the multi_contents_view layer (lower corners
 +    // only; top ones are hidden under the address bar row).
 +    if (dao_sidebar_active) {
-+      views::View* const cc = views().contents_container;
++      views::View* const cc = views().multi_contents_view;
 +      if (!cc->layer()) {
 +        cc->SetPaintToLayer();
 +        cc->layer()->SetFillsBoundsOpaquely(false);
@@ -217,15 +217,15 @@ index 8ed88c3e4bdfb..2e257ce59b15d 100644
 +  }
 +
    auto& contents_layout =
--      layout.AddChild(views().contents_container,
+-      layout.AddChild(views().multi_contents_view,
 -                      gfx::Rect(content_left, params.visual_client_area.y(),
 -                                content_right - content_left,
 -                                params.visual_client_area.height()));
-+      layout.AddChild(views().contents_container, dao_contents_bounds);
++      layout.AddChild(views().multi_contents_view, dao_contents_bounds);
  
    // Maybe expand and clip the web contents to avoid issues during animation.
    if (features::UseSidePanelFlyoverAnimation()) {
-@@ -1231,24 +1441,45 @@ gfx::Rect BrowserViewTabbedLayoutImpl::CalculateTopContainerLayoutImpl(
+@@ -1353,24 +1552,45 @@
    // Lay out toolbar. If tabstrip is completely absent (or vertical), this can
    // go in the top exclusion area.
    const bool toolbar_visible = delegate().IsToolbarVisible();

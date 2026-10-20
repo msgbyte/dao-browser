@@ -1,8 +1,11 @@
 diff --git a/chrome/browser/ui/views/javascript_tab_modal_dialog_view_views.cc b/chrome/browser/ui/views/javascript_tab_modal_dialog_view_views.cc
-index e0c7c6df6f..db97367c4b 100644
 --- a/chrome/browser/ui/views/javascript_tab_modal_dialog_view_views.cc
 +++ b/chrome/browser/ui/views/javascript_tab_modal_dialog_view_views.cc
-@@ -9,6 +9,12 @@
+@@ -8,9 +8,16 @@
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+ #include "chrome/browser/ui/javascript_dialogs/javascript_tab_modal_dialog_manager_delegate_desktop.h"
+ #include "chrome/browser/ui/tabs/tab_strip_model.h"
++#include "chrome/browser/ui/color/chrome_color_id.h"
  #include "chrome/browser/ui/views/title_origin_label.h"
  #include "components/constrained_window/constrained_window_views.h"
  #include "content/public/browser/javascript_dialog_manager.h"
@@ -15,9 +18,7 @@ index e0c7c6df6f..db97367c4b 100644
  #include "ui/base/l10n/l10n_util.h"
  #include "ui/base/metadata/metadata_impl_macros.h"
  #include "ui/base/mojom/dialog_button.mojom.h"
-@@ -18,8 +24,38 @@
- #include "ui/views/bubble/bubble_frame_view.h"
- #include "ui/views/controls/label.h"
+@@ -22,6 +29,36 @@
  #include "ui/views/controls/message_box_view.h"
  #include "ui/views/controls/textfield/textfield.h"
  #include "ui/views/layout/fill_layout.h"
@@ -43,7 +44,7 @@ index e0c7c6df6f..db97367c4b 100644
 +  }
 +
 +  textfield->SetBackgroundColor(DaoPromptBackground());
-+  textfield->SetTextColor(dao::TextPrimary());
++  textfield->SetTextColorId(kColorDaoTextPrimary);
 +  textfield->SetBorder(views::CreatePaddedBorder(
 +      views::CreateRoundedRectBorder(
 +          1, kDaoPromptCornerRadius, ui::ColorVariant(DaoPromptBorder())),
@@ -54,7 +55,7 @@ index e0c7c6df6f..db97367c4b 100644
  
  JavaScriptTabModalDialogViewViews::~JavaScriptTabModalDialogViewViews() =
      default;
-@@ -93,6 +129,13 @@ JavaScriptTabModalDialogViewViews::JavaScriptTabModalDialogViewViews(
+@@ -95,6 +132,13 @@
        is_alert ? static_cast<int>(ui::mojom::DialogButton::kOk)
                 : static_cast<int>(ui::mojom::DialogButton::kOk) |
                       static_cast<int>(ui::mojom::DialogButton::kCancel));
@@ -68,7 +69,7 @@ index e0c7c6df6f..db97367c4b 100644
  
    SetAcceptCallback(base::BindOnce(
        [](JavaScriptTabModalDialogViewViews* dialog) {
-@@ -135,8 +177,10 @@ JavaScriptTabModalDialogViewViews::JavaScriptTabModalDialogViewViews(
+@@ -137,8 +181,10 @@
  
    message_box_view_ = new views::MessageBoxView(
        message_text, /* detect_directionality = */ true);
@@ -79,8 +80,8 @@ index e0c7c6df6f..db97367c4b 100644
    }
  
    SetLayoutManager(std::make_unique<views::FillLayout>());
-@@ -151,10 +194,23 @@ JavaScriptTabModalDialogViewViews::CreateAlertDialogForTesting(
-     Browser* browser,
+@@ -153,10 +199,23 @@
+     BrowserWindowInterface* browser,
      std::u16string title,
      std::u16string message) {
 +  return CreateDialogForTesting(
@@ -91,16 +92,16 @@ index e0c7c6df6f..db97367c4b 100644
 +// static
 +JavaScriptTabModalDialogViewViews*
 +JavaScriptTabModalDialogViewViews::CreateDialogForTesting(
-+    Browser* browser,
++    BrowserWindowInterface* browser,
 +    std::u16string title,
 +    content::JavaScriptDialogType dialog_type,
 +    std::u16string message,
 +    std::u16string default_prompt) {
    return new JavaScriptTabModalDialogViewViews(
-       browser->tab_strip_model()->GetActiveWebContents(),
--      browser->tab_strip_model()->GetActiveWebContents(), title,
+       browser->GetTabStripModel()->GetActiveWebContents(),
+-      browser->GetTabStripModel()->GetActiveWebContents(), title,
 -      content::JAVASCRIPT_DIALOG_TYPE_ALERT, message, std::u16string(),
-+      browser->tab_strip_model()->GetActiveWebContents(), title, dialog_type,
++      browser->GetTabStripModel()->GetActiveWebContents(), title, dialog_type,
 +      message, default_prompt,
        base::NullCallback(), base::NullCallback());
  }

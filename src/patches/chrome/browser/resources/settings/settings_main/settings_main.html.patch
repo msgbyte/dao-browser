@@ -17,7 +17,7 @@ diff --git a/chrome/browser/resources/settings/settings_main/settings_main.html 
  </style>
  <div id="noSearchResults" hidden$="[[!showNoResultsFound_]]">
    <div>$i18n{searchNoResults}</div>
-@@ -56,6 +65,26 @@
+@@ -55,12 +64,44 @@
  
  <cr-view-manager id="switcher"
      show-all$="[[shouldShowAll_(inSearchMode_, lastRoute_)]]">
@@ -44,39 +44,40 @@ diff --git a/chrome/browser/resources/settings/settings_main/settings_main.html 
    <template is="dom-if" if="[[showPage_(pageVisibility_.people)]]">
      <div slot="view" id="people">
        <template is="dom-if" if="[[renderPlugin_(
-@@ -67,17 +96,6 @@
-     </div>
-   </template>
- 
--  <template is="dom-if" if="[[showPage_(pageVisibility_.privacy)]]">
--    <div slot="view" id="privacy">
--      <template is="dom-if" if="[[renderPlugin_(
--          routes_.PRIVACY, lastRoute_, inSearchMode_)]]">
--        <settings-privacy-page-index prefs="{{prefs}}"
--            in-search-mode="[[inSearchMode_]]">
--        </settings-privacy-page-index>
--      </template>
--    </div>
--  </template>
--
-   <template is="dom-if" if="[[showAutofillPage_(pageVisibility_.autofill)]]">
-     <div slot="view" id="autofill">
-       <template is="dom-if" if="[[renderPlugin_(
-@@ -97,6 +115,17 @@
-         <settings-your-saved-info-page-index prefs="{{prefs}}"
-             in-search-mode="[[inSearchMode_]]">
-         </settings-your-saved-info-page-index>
+           routes_.PEOPLE, lastRoute_, inSearchMode_)]]">
+         <settings-people-page-index in-search-mode="[[inSearchMode_]]">
+         </settings-people-page-index>
 +      </template>
 +    </div>
 +  </template>
 +
-+  <template is="dom-if" if="[[showPage_(pageVisibility_.privacy)]]">
-+    <div slot="view" id="privacy">
++  <template is="dom-if" if="[[showPage_(
++      pageVisibility_.yourSavedInfo)]]">
++    <div slot="view" id="yourSavedInfo">
 +      <template is="dom-if" if="[[renderPlugin_(
-+          routes_.PRIVACY, lastRoute_, inSearchMode_)]]">
-+        <settings-privacy-page-index prefs="{{prefs}}"
++          routes_.AUTOFILL, lastRoute_, inSearchMode_)]]">
++        <settings-autofill-page-index prefs="{{prefs}}"
 +            in-search-mode="[[inSearchMode_]]">
-+        </settings-privacy-page-index>
++        </settings-autofill-page-index>
+       </template>
+     </div>
+   </template>
+@@ -72,18 +113,6 @@
+         <settings-privacy-page-index prefs="{{prefs}}"
+             in-search-mode="[[inSearchMode_]]">
+         </settings-privacy-page-index>
+-      </template>
+-    </div>
+-  </template>
+-
+-  <template is="dom-if" if="[[showPage_(
+-      pageVisibility_.yourSavedInfo)]]">
+-    <div slot="view" id="yourSavedInfo">
+-      <template is="dom-if" if="[[renderPlugin_(
+-          routes_.AUTOFILL, lastRoute_, inSearchMode_)]]">
+-        <settings-autofill-page-index prefs="{{prefs}}"
+-            in-search-mode="[[inSearchMode_]]">
+-        </settings-autofill-page-index>
        </template>
      </div>
    </template>
