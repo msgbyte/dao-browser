@@ -53,16 +53,11 @@ if (is_mac) {
     ]
   }
 
-  # ldflags propagated to *every* link step (libchrome_dll, helper apps,
-  # etc.) that transitively pulls in dao_updater. Without
-  # all_dependent_configs the Sparkle symbols would be unresolved at link
-  # time three deps deep:
-  #   chrome_dll -> chrome/browser:browser -> dao_updater
+  # Propagate search paths, but keep the Sparkle dependency on the binary
+  # containing dao_updater so helper executables do not link it directly.
   config("dao_updater_link") {
     ldflags = [
       "-F" + _sparkle_framework_path,
-      "-weak_framework",
-      "Sparkle",
 
       # Make @rpath/Sparkle.framework/... resolve at runtime. Chromium's
       # mac_dynamic_flags only injects rpaths when is_component_build=true
@@ -108,6 +103,7 @@ source_set("dao_updater") {
       "Foundation.framework",
       "AppKit.framework",
     ]
+    weak_frameworks = [ "Sparkle.framework" ]
 
     configs += [ ":dao_updater_compile" ]
     all_dependent_configs = [ ":dao_updater_link" ]
