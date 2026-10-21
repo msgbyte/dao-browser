@@ -6,6 +6,7 @@
 #define DAO_BROWSER_UI_VIEWS_DAO_AGENT_SIDEBAR_VIEW_H_
 
 #include <cstdint>
+#include <memory>
 #include <string>
 
 #include "base/functional/callback.h"
@@ -90,6 +91,19 @@ class DaoAgentSidebarView : public views::View,
   void Layout(PassKey) override;
 
   // content::WebContentsDelegate:
+  content::WebContents* OpenURLFromTab(
+      content::WebContents* source,
+      const content::OpenURLParams& params,
+      base::OnceCallback<void(content::NavigationHandle&)>
+          navigation_handle_callback) override;
+  content::WebContents* AddNewContents(
+      content::WebContents* source,
+      std::unique_ptr<content::WebContents> new_contents,
+      const GURL& target_url,
+      WindowOpenDisposition disposition,
+      const blink::mojom::WindowFeatures& window_features,
+      bool user_gesture,
+      bool* was_blocked) override;
   content::KeyboardEventProcessingResult PreHandleKeyboardEvent(
       content::WebContents* source,
       const input::NativeWebKeyboardEvent& event) override;

@@ -7,6 +7,7 @@
 - Prevent AI browser tools from timing out on a matching network response when optional result or error fields are absent.
 - Reduce MCP screenshot response size by sending the image only once while keeping its format metadata.
 - Give AI browser tools clearer guidance for reusable page scripts and correcting syntax errors before retrying.
+- Fix links in Agent replies doing nothing when clicked; web links now open in a new tab in the main browser window while keeping the conversation open.
 
 ### [1.0.115] - 2026-10-21
 
