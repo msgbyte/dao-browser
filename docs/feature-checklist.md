@@ -267,7 +267,36 @@ iPhone Simulator/device. These boxes are acceptance steps, not completed results
 - [ ] Test pull refresh, find, JS dialogs, media permission denial, external-app
   confirmation, certificate information and network/process-termination errors;
   retrying a failed link or popup load reopens the failed URL, not the previous page.
+- [ ] Long-press a plain image, an image inside a link and a text link on regular
+  and private tabs: both images open Download image, Copy image, Preview image and
+  (HTTP(S) only) Open image in new tab, lifting only the image; the text link keeps
+  WebKit's default menu and preview. Copy and paste into Notes; preview, pinch,
+  pan and close; open in a new tab and confirm the current page stays in front and
+  the new tab keeps its privacy. Download saves into Downloads without a second
+  prompt. Verify signed-in images, an HTML response, SVG and a `blob:` image show
+  the matching failure toast instead of saving or crashing; downloading an image
+  that answers 403/404 or drops the connection shows the failure toast and leaves
+  no Downloads row. At 150% page scale the lift still outlines the image. On a
+  private tab, open a signed-in image in a new tab, close the original tab, then
+  select the new tab: the image still loads.
+- [ ] Start a page download: the alert shows the file name as its title, the size
+  when known and a highlighted Download button. Cancel, dismiss and closing the
+  source tab leave no Downloads row or file; multiple downloads ask separately.
+  Close the tab before a slow server responds: no prompt appears later. A page that
+  opens a file in a new window and closes that window keeps the prompt.
+  During a slow download, transferred/total size and speed update, speed drops to
+  zero after five seconds without progress, and an unknown size shows bytes only.
+  Delete finished and missing files and read the matching toast.
+- [ ] Terminate a tab's WebKit content process (for example with memory pressure or
+  by ending the simulator's WebContent process): the selected page reloads by itself,
+  a background tab reloads when selected, and a page that crashes again within 30
+  seconds shows the failure view with Retry. After submitting a form, ending the
+  process or relaunching the app on that tab shows the failure view instead of
+  sending the form again.
+- [ ] Open the tab grid with the selected tab far down the list: it is visible on
+  open and stays visible after closing other tabs.
 - [ ] Scan a QR code on supported hardware; share and rescan a generated page QR.
+  The scanner shows a centered square guide that scales down on narrow screens.
 - [ ] Verify theme and search-engine labels remain visible beside their selected
   values. Toggle theme, page scale and private startup; clear website data and verify
   sign-out; confirm Web Inspector is opt-in and unavailable for private tabs.

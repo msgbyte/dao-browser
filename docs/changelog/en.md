@@ -668,3 +668,13 @@
 ## [ios] iOS
 
 ### [Unreleased] Unreleased
+
+- Long-press an image, including one inside a link, to download, copy, or preview it with pinch-to-zoom; web images can also open in a background tab.
+- Webpage downloads now show the file name, size when known, and a clear Download button before saving; cancelling, dismissing, or closing the tab leaves nothing in Downloads.
+- See how much of a running download has transferred and its current speed.
+- Deleting a download now tells you whether its file was also removed.
+- Pages that iOS stopped to free memory now reload by themselves instead of showing an error, without resending forms you submitted.
+- Reopening Dao on a page you reached by submitting a form no longer sends the form again.
+- The tab grid opens on the current tab and keeps it in view after closing other tabs.
+- Editing the address selects the whole URL so typing replaces it, and tapping the search icon brings the keyboard back.
+- The QR scanner shows a square guide to help frame codes.

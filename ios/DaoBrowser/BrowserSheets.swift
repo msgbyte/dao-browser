@@ -15,7 +15,15 @@ struct QRScanner: View {
     var body: some View {
         NavigationStack {
             Group {
-                if ready { ScannerSurface(onScan: onScan, onFailure: { unavailable = true; ready = false }) }
+                if ready {
+                    ScannerSurface(onScan: onScan, onFailure: { unavailable = true; ready = false })
+                        .overlay {
+                            // A visual framing guide; codes are still recognized anywhere in view.
+                            RoundedRectangle(cornerRadius: 10).stroke(.white, lineWidth: 3)
+                                .aspectRatio(1, contentMode: .fit).frame(maxWidth: 300).padding(24)
+                                .allowsHitTesting(false).accessibilityHidden(true)
+                        }
+                }
                 else if unavailable { Text(L("scanner_unavailable")).multilineTextAlignment(.center).padding(24) }
                 else { ProgressView().accessibilityLabel(L("camera_permission")) }
             }.navigationTitle(L("scan_qr"))

@@ -15,7 +15,7 @@ struct BrowserView: View {
         ZStack(alignment: .trailing) {
             Nova.background.ignoresSafeArea()
             destination
-                .accessibilityHidden(model.drawerOpen)
+                .accessibilityHidden(model.drawerOpen || model.imagePreview != nil)
             if model.drawerOpen {
                 Color.black.opacity(0.25).ignoresSafeArea().onTapGesture { model.drawerOpen = false }
                     .accessibilityLabel(L("close_menu")).accessibilityAddTraits(.isButton)
@@ -23,6 +23,21 @@ struct BrowserView: View {
                 // Keep the drawer above the page throughout its removal transition.
                 drawer.transition(.move(edge: .trailing)).zIndex(2)
                     .accessibilityAction(.escape) { model.drawerOpen = false }
+            }
+            if let toast = model.toast {
+                Text(toast.text).font(.subheadline.weight(.medium)).multilineTextAlignment(.center)
+                    .foregroundStyle(Nova.background)
+                    .padding(.horizontal, 18).padding(.vertical, 11)
+                    .background(Nova.foreground.opacity(0.92), in: .capsule)
+                    .padding(.horizontal, 24).padding(.bottom, 28)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                    .allowsHitTesting(false).accessibilityHidden(true)
+                    .transition(.opacity).id(toast.id).zIndex(2.5)
+            }
+            // An overlay rather than a presentation, so it can open while a context menu is still dismissing.
+            if model.imagePreview != nil {
+                ImagePreviewView(image: model.imagePreview?.image) { model.imagePreview = nil }
+                    .accessibilityAddTraits(.isModal).transition(.opacity).zIndex(2.8)
             }
             if scenePhase != .active && (model.tabs.contains { $0.record.isPrivate } || model.downloads.items.contains { $0.isPrivate }) {
                 Nova.background.ignoresSafeArea().overlay(Text(L("private_browsing")))
@@ -32,13 +47,18 @@ struct BrowserView: View {
         .foregroundStyle(Nova.foreground)
         .tint(Nova.foreground)
         .animation(reduceMotion ? nil : Nova.animation, value: model.drawerOpen)
+        .animation(reduceMotion ? nil : Nova.animation, value: model.toast)
+        .animation(reduceMotion ? nil : Nova.animation, value: model.imagePreview?.id)
+        .statusBarHidden(model.imagePreview != nil)
         .sheet(isPresented: $showScanner) { QRScanner { value in showScanner = false; model.navigate(value) } }
         .sheet(isPresented: $showQR) { QRCodeSheet(value: model.selected.record.url) }
         .sheet(isPresented: $showSecurity) { SecuritySheet(tab: model.selected, webView: model.currentSession?.webView) }
         .alert(model.prompt?.title ?? "", isPresented: $promptShown) {
             if model.prompt?.defaultText != nil { TextField(L("response"), text: $promptText) }
             if model.prompt?.allowsCancel == true { Button(L("cancel"), role: .cancel) { model.answer(false, text: nil) } }
-            Button(L("ok")) { model.answer(true, text: promptText) }
+            if let confirmTitle = model.prompt?.confirmTitle {
+                Button(confirmTitle) { model.answer(true, text: promptText) }.keyboardShortcut(.defaultAction)
+            } else { Button(L("ok")) { model.answer(true, text: promptText) } }
         } message: { Text(model.prompt?.message ?? "") }
         .onChange(of: model.prompt?.id, initial: true) { _, id in
             promptText = model.prompt?.defaultText ?? ""

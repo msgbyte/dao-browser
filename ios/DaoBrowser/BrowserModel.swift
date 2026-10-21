@@ -18,6 +18,8 @@ enum BrowserPage: String { case browser, tabs, history, bookmarks, readingList, 
     var thumbnail: UIImage?
     // Popups own a live web view before they have a web URL, so they must not show the new-tab page.
     var isPopup = false
+    /// Set when the user closes the tab, so its late download responses are declined instead of asking.
+    @ObservationIgnored var closedByUser = false
     nonisolated let id: UUID
     var title: String { record.title.isEmpty ? (record.url.isEmpty ? L("new_tab") : record.url) : record.title }
     init(_ record: TabRecord) { id = record.id; self.record = record }
@@ -29,7 +31,21 @@ struct WebPrompt: Identifiable {
     var message: String
     var defaultText: String?
     var allowsCancel = true
+    /// The title of a highlighted confirmation button; nil shows a plain OK.
+    var confirmTitle: String?
+    /// The tab that asked, so closing it can release the request.
+    var tabID: UUID?
     var completion: (Bool, String?) -> Void
+}
+
+struct Toast: Identifiable, Equatable {
+    let id = UUID()
+    let text: String
+}
+
+struct ImagePreview: Identifiable {
+    let id = UUID()
+    var image: UIImage?
 }
 
 @MainActor @Observable final class BrowserModel {
@@ -39,6 +55,8 @@ struct WebPrompt: Identifiable {
     var addressEditing = false
     var drawerOpen = false
     private(set) var prompts: [WebPrompt] = []
+    private(set) var toast: Toast?
+    var imagePreview: ImagePreview?
     var preferences: Preferences
     let downloads = DownloadStore()
     let container: ModelContainer
@@ -46,6 +64,7 @@ struct WebPrompt: Identifiable {
     @ObservationIgnored private var privateData = WKWebsiteDataStore.nonPersistent()
     @ObservationIgnored private var saveTask: Task<Void, Never>?
     @ObservationIgnored private var canSaveSession = true
+    @ObservationIgnored private var toastTask: Task<Void, Never>?
 
     var selected: BrowserTab { tabs.first { $0.id == selectedID } ?? tabs[0] }
     var currentSession: BrowserSession? { sessions[selectedID] }
@@ -73,6 +92,7 @@ struct WebPrompt: Identifiable {
             notify(L(canSaveSession ? "restore_failed" : "restore_failed_readonly"))
         }
         downloads.onError = { [weak self] in self?.notify($0) }
+        downloads.onToast = { [weak self] in self?.showToast($0) }
     }
 
     func session(for tab: BrowserTab, restore: Bool = true) -> BrowserSession {
@@ -125,18 +145,35 @@ struct WebPrompt: Identifiable {
         selectedID = tab.id
         page = .browser
         addressEditing = false
+        sessions[tab.id]?.recoverIfNeeded()
         scheduleSave()
     }
 
-    func close(_ tab: BrowserTab) {
+    /// Adds a tab that loads lazily when first selected, leaving the current tab in front.
+    func openInBackground(_ url: URL, isPrivate: Bool) {
+        tabs.append(BrowserTab(TabRecord(url: url.absoluteString, isPrivate: isPrivate)))
+        scheduleSave()
+    }
+
+    /// `byPage` marks a page closing its own window. Sites often open a file in a window and close it,
+    /// so that keeps the window's download prompts; a page waiting on a dialog cannot close itself.
+    func close(_ tab: BrowserTab, byPage: Bool = false) {
         var state = TabCollection(tabs: tabs.map(\.record), selectedID: selectedID)
         state.close(tab.id)
         sessions.removeValue(forKey: tab.id)?.dispose()
+        if !byPage {
+            tab.closedByUser = true
+            releasePrompts(from: tab.id)
+        }
         let existing = Dictionary(uniqueKeysWithValues: tabs.map { ($0.id, $0) })
         tabs = state.tabs.map { existing[$0.id] ?? BrowserTab($0) }
         selectedID = state.selectedID
-        // Closing the last private tab leaves a fresh blank one behind, so check for live sessions instead.
-        if tab.record.isPrivate, !sessions.values.contains(where: \.isPrivate) { privateData = .nonPersistent() }
+        sessions[selectedID]?.recoverIfNeeded()
+        // Closing the last private tab leaves a fresh blank one behind, and a private tab opened in the
+        // background has no session until selected, so look for private tabs that still hold a page.
+        if tab.record.isPrivate, !tabs.contains(where: { $0.record.isPrivate && (sessions[$0.id] != nil || !$0.record.url.isEmpty) }) {
+            privateData = .nonPersistent()
+        }
         scheduleSave()
     }
 
@@ -284,6 +321,62 @@ struct WebPrompt: Identifiable {
         prompts.append(request)
     }
 
+    /// Declines a closed tab's queued dialogs, download and external-app prompts instead of showing them later.
+    private func releasePrompts(from tabID: UUID) {
+        let released = prompts.filter { $0.tabID == tabID }
+        prompts.removeAll { $0.tabID == tabID }
+        for prompt in released { prompt.completion(false, nil) }
+    }
+
+    func showToast(_ text: String) {
+        let toast = Toast(text: text)
+        self.toast = toast
+        UIAccessibility.post(notification: .announcement, argument: text)
+        toastTask?.cancel()
+        toastTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(2.5))
+            guard !Task.isCancelled, self?.toast == toast else { return }
+            self?.toast = nil
+        }
+    }
+
+    // Image actions fetch through the tab's own web view, so cookies and private browsing match the page,
+    // and they finish even if the user leaves the page.
+    func downloadImage(_ url: URL, from session: BrowserSession) {
+        let isPrivate = session.isPrivate
+        let page = session.webView.url
+        session.webView.startDownload(using: URLRequest(url: url)) { [weak self] download in
+            guard let self else { download.cancel(nil); return }
+            self.downloads.attach(download, isPrivate: isPrivate, page: page, image: true, confirm: nil)
+        }
+        showToast(L("image_download_started"))
+    }
+
+    func copyImage(_ url: URL, from session: BrowserSession) {
+        let webView = session.webView
+        Task {
+            do {
+                try await PageImage.load(url, in: webView).copy()
+                showToast(L("image_copied"))
+            } catch { showToast(L("image_copy_failed")) }
+        }
+    }
+
+    func previewImage(_ url: URL, from session: BrowserSession) {
+        let preview = ImagePreview()
+        imagePreview = preview
+        let webView = session.webView
+        Task {
+            let image = try? await PageImage.load(url, in: webView).preview()
+            guard imagePreview?.id == preview.id else { return }
+            if let image { imagePreview?.image = image }
+            else {
+                imagePreview = nil
+                showToast(L("image_preview_failed"))
+            }
+        }
+    }
+
     func notify(_ text: String) {
         ask(WebPrompt(title: L("dao"), message: text, allowsCancel: false) { _, _ in })
     }
@@ -293,11 +386,11 @@ struct WebPrompt: Identifiable {
         prompts.removeFirst().completion(accepted, text)
     }
 
-    func openExternal(_ url: URL, userInitiated: Bool) {
+    func openExternal(_ url: URL, userInitiated: Bool, tabID: UUID) {
         let scheme = url.scheme?.lowercased() ?? ""
         guard userInitiated, !scheme.isEmpty,
               !["javascript", "data", "file", "about", "blob", "dao"].contains(scheme) else { return }
-        ask(WebPrompt(title: L("open_external"), message: url.absoluteString) { [weak self] accepted, _ in
+        ask(WebPrompt(title: L("open_external"), message: url.absoluteString, tabID: tabID) { [weak self] accepted, _ in
             guard accepted else { return }
             UIApplication.shared.open(url, options: [:]) { success in
                 if !success { Task { @MainActor in self?.notify(L("external_failed")) } }
