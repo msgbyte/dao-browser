@@ -353,27 +353,83 @@ class MainActivityTest {
         val newTab = composeRule.activity.getString(R.string.new_tab)
         val closeTab = composeRule.activity.getString(R.string.close_tab)
 
-        composeRule.onNodeWithContentDescription(tabs).performClick()
+        openTabGrid()
         composeRule.onNodeWithTag(TAB_GRID_TEST_TAG).assertIsDisplayed()
         composeRule.onNodeWithContentDescription(newTab).performClick()
-        composeRule.onNodeWithContentDescription(tabs).assertTextEquals("2").performClick()
+        composeRule.onNodeWithContentDescription(tabs).assertTextEquals("2")
+        openTabGrid()
         composeRule.onAllNodesWithContentDescription(closeTab)[0].performClick()
-        composeRule.onNodeWithText(composeRule.activity.getString(R.string.tabs_title, 1))
+        composeRule.onNodeWithText(composeRule.activity.getString(R.string.regular_tabs, 1))
             .assertIsDisplayed()
     }
 
     @Test
+    fun privateModeUpdatesChromeAndClosesAllPrivateTabsWithoutLosingRegularTabs() {
+        val activity = composeRule.activity
+        val tabs = activity.getString(R.string.tab_switcher)
+        val privateMode = activity.getString(R.string.browsing_mode_private)
+
+        openTabGrid()
+        composeRule.onNodeWithContentDescription(activity.getString(R.string.new_tab)).performClick()
+        composeRule.onNodeWithContentDescription(tabs).assertTextEquals("2")
+        openTabGrid()
+        composeRule.onNodeWithText(activity.getString(R.string.private_tabs, 0)).performClick()
+        pressSystemBack()
+        composeRule.onNodeWithContentDescription(privateMode).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(tabs).assertTextEquals("1")
+        openTabGrid()
+        composeRule.onNodeWithContentDescription(activity.getString(R.string.new_private_tab)).performClick()
+        composeRule.onNodeWithContentDescription(tabs).assertTextEquals("2")
+        composeRule.onNodeWithText(activity.getString(R.string.address_hint)).performClick()
+        composeRule.onNodeWithContentDescription(privateMode).assertIsDisplayed()
+        pressSystemBack()
+        openTabGrid()
+        composeRule.onNodeWithText(activity.getString(R.string.regular_tabs, 2)).performClick()
+        pressSystemBack()
+        composeRule.onNodeWithContentDescription(privateMode).assertDoesNotExist()
+        composeRule.onNodeWithContentDescription(tabs).assertTextEquals("2")
+        openTabGrid()
+        composeRule.onNodeWithText(activity.getString(R.string.private_tabs, 2)).performClick()
+        val sessions = ViewModelProvider(activity)[BrowserSessionViewModel::class.java]
+        val tabsBeforeClosing = sessions.controller.state.value.tabs
+        runBlocking {
+            tabsBeforeClosing.forEach { tab ->
+                assertTrue(sessions.thumbnailRepository.load(tab.id, tab.content.private) != null)
+            }
+        }
+        composeRule.onNodeWithContentDescription(activity.getString(R.string.close_all_private_tabs)).performClick()
+        composeRule.onNodeWithText(activity.getString(R.string.private_tabs, 0)).assertIsDisplayed()
+        composeRule.waitUntil(timeoutMillis = 10_000) {
+            runBlocking {
+                tabsBeforeClosing.filter { it.content.private }.all {
+                    sessions.thumbnailRepository.load(it.id, private = true) == null
+                }
+            }
+        }
+        runBlocking {
+            tabsBeforeClosing.filterNot { it.content.private }.forEach {
+                assertTrue(sessions.thumbnailRepository.load(it.id, private = false) != null)
+            }
+        }
+        pressSystemBack()
+        composeRule.onNodeWithContentDescription(privateMode).assertDoesNotExist()
+        composeRule.onNodeWithContentDescription(tabs).assertTextEquals("2")
+    }
+
+    @Test
     fun openingTabGridFromNewTabShowsItsCapturedThumbnail() {
-        val tabs = composeRule.activity.getString(R.string.tab_switcher)
         val tabThumbnail = SemanticsMatcher("Captured tab thumbnail") { node ->
             node.config.contains(SemanticsProperties.TestTag) &&
                 node.config[SemanticsProperties.TestTag].startsWith(TAB_THUMBNAIL_TEST_TAG_PREFIX)
         }
 
-        composeRule.onNodeWithContentDescription(tabs).performClick()
+        openTabGrid()
 
         composeRule.onNodeWithTag(TAB_GRID_TEST_TAG).assertIsDisplayed()
-        composeRule.onNode(tabThumbnail).assertIsDisplayed()
+        composeRule.waitUntil(timeoutMillis = 10_000) {
+            composeRule.onAllNodes(tabThumbnail, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
+        }
+        composeRule.onNode(tabThumbnail, useUnmergedTree = true).assertIsDisplayed()
     }
 
     private fun openSettings() {
@@ -405,6 +461,14 @@ class MainActivityTest {
         )
     }
 
+    private fun openTabGrid() {
+        composeRule.onNodeWithContentDescription(composeRule.activity.getString(R.string.tab_switcher))
+            .performClick()
+        composeRule.waitUntil(timeoutMillis = 10_000) {
+            composeRule.onAllNodesWithTag(TAB_GRID_TEST_TAG).fetchSemanticsNodes().isNotEmpty()
+        }
+    }
+
     private fun pressSystemBack() {
         composeRule.runOnIdle {
             composeRule.activity.onBackPressedDispatcher.onBackPressed()
@@ -422,18 +486,17 @@ class MainActivityTest {
 
     @Test
     fun tabGridSwitchesAndSwipeClosesBrowserStoreTabs() {
-        val tabs = composeRule.activity.getString(R.string.tab_switcher)
         val newTab = composeRule.activity.getString(R.string.new_tab)
         val tabCard = SemanticsMatcher("BrowserStore tab card") { node ->
             node.config.contains(SemanticsProperties.TestTag) &&
                 node.config[SemanticsProperties.TestTag].startsWith(TAB_CARD_TEST_TAG_PREFIX)
         }
 
-        composeRule.onNodeWithContentDescription(tabs).performClick()
+        openTabGrid()
         composeRule.onNodeWithContentDescription(newTab).performClick()
-        composeRule.onNodeWithContentDescription(tabs).performClick()
+        openTabGrid()
         composeRule.onAllNodes(tabCard).assertCountEquals(2)[0].performClick()
-        composeRule.onNodeWithContentDescription(tabs).performClick()
+        openTabGrid()
         composeRule.onAllNodes(tabCard)[0].assertIsSelected()
 
         composeRule.onAllNodes(tabCard)[0].performTouchInput { swipeRight() }

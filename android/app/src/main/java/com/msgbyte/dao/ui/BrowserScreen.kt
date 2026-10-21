@@ -96,7 +96,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathFillType
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
@@ -113,6 +119,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -122,7 +129,9 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -167,6 +176,7 @@ import com.msgbyte.dao.browser.SystemDownloadRepository
 import com.msgbyte.dao.browser.TabThumbnailRepository
 import com.msgbyte.dao.ui.theme.LocalDaoDarkTheme
 import com.msgbyte.dao.ui.theme.LocalNovaColors
+import com.msgbyte.dao.ui.theme.PrivateSpaceTheme
 import com.msgbyte.dao.ui.theme.daoBrandLogoPainter
 import java.time.LocalDateTime
 import kotlinx.coroutines.CoroutineStart
@@ -272,6 +282,14 @@ enum class BrowserDestination {
     Tabs,
 }
 
+// Screens that belong to the selected tab's space; utility pages keep Dao's regular theme.
+private val PrivateSpaceDestinations = setOf(
+    BrowserDestination.NewTab,
+    BrowserDestination.AddressEdit,
+    BrowserDestination.Browsing,
+    BrowserDestination.Tabs,
+)
+
 @Composable
 fun BrowserScreen(
     engine: Engine,
@@ -295,11 +313,15 @@ fun BrowserScreen(
     externalNavigationUrl: String? = null,
     onExternalNavigationConsumed: () -> Unit = {},
     onBrowsingVisibilityChanged: (Boolean) -> Unit = {},
+    onPrivateSpaceChange: (Boolean) -> Unit = {},
 ) {
+    val darkTheme = LocalDaoDarkTheme.current
     val browserState by controller.state.collectAsStateWithLifecycle()
     val updateState by updates.state.collectAsStateWithLifecycle()
     val downloadOpener = rememberDownloadOpenAction(downloads)
     val selectedTab = browserState.tabs.firstOrNull { it.id == browserState.selectedTabId }
+    val privateBrowsing = selectedTab?.content?.private == true
+    val tabCount = browserState.tabs.count { it.content.private == privateBrowsing }
     val thumbnailCapture = remember { BrowserThumbnailCapture() }
     var animatedDestination by remember {
         mutableStateOf(
@@ -491,6 +513,11 @@ fun BrowserScreen(
         navigateTo(BrowserDestination.Extensions, BrowserNavigationDirection.Backward)
     }
 
+    val privateSpace = privateBrowsing &&
+        extensionPopupSession == null &&
+        destination in PrivateSpaceDestinations
+    LaunchedEffect(privateSpace) { onPrivateSpaceChange(privateSpace) }
+
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = LocalNovaColors.current.background,
@@ -515,185 +542,201 @@ fun BrowserScreen(
                 contentKey = { it.destination },
                 label = "browserDestination",
             ) { targetState ->
-                when (targetState.destination) {
-                    BrowserDestination.NewTab -> NewTabScreen(
-                        bookmarks = bookmarks,
-                        history = history,
-                        tabCount = browserState.tabs.size,
-                        onTabs = openTabsFromComposePage,
-                        onSettings = { openUtility(BrowserDestination.Settings) },
-                        onNavigate = navigate,
-                    )
-                    BrowserDestination.AddressEdit -> NewTabScreen(
-                        bookmarks = bookmarks,
-                        history = history,
-                        initialQuery = addressEditUrl,
-                        startExpanded = true,
-                        tabCount = browserState.tabs.size,
-                        onTabs = openTabsFromComposePage,
-                        onSettings = { openUtility(BrowserDestination.Settings) },
-                        onExitExpanded = {
-                            navigateTo(BrowserDestination.Browsing, BrowserNavigationDirection.Immediate)
-                        },
-                        onNavigate = navigate,
-                    )
-                    BrowserDestination.Browsing -> BrowsingScreen(
-                        engine = engine,
-                        controller = controller,
-                        tab = selectedTab,
-                        tabCount = browserState.tabs.size,
-                        thumbnailCapture = thumbnailCapture,
-                        library = library,
-                        pageImages = pageImages,
-                        darkTheme = LocalDaoDarkTheme.current,
-                        onDarkThemeChange = onDarkThemeChange,
-                        onEditAddress = { url ->
-                            addressEditUrl = url
-                            navigateTo(
-                                BrowserDestination.AddressEdit,
-                                BrowserNavigationDirection.Immediate,
+                PrivateSpaceTheme(
+                    enabled = privateBrowsing && targetState.destination in PrivateSpaceDestinations,
+                ) {
+                    when (targetState.destination) {
+                        BrowserDestination.NewTab -> NewTabScreen(
+                            bookmarks = bookmarks,
+                            history = history,
+                            privateBrowsing = privateBrowsing,
+                            tabCount = tabCount,
+                            onTabs = openTabsFromComposePage,
+                            onSettings = { openUtility(BrowserDestination.Settings) },
+                            onNavigate = navigate,
+                        )
+                        BrowserDestination.AddressEdit -> NewTabScreen(
+                            bookmarks = bookmarks,
+                            history = history,
+                            privateBrowsing = privateBrowsing,
+                            initialQuery = addressEditUrl,
+                            startExpanded = true,
+                            tabCount = tabCount,
+                            onTabs = openTabsFromComposePage,
+                            onSettings = { openUtility(BrowserDestination.Settings) },
+                            onExitExpanded = {
+                                navigateTo(BrowserDestination.Browsing, BrowserNavigationDirection.Immediate)
+                            },
+                            onNavigate = navigate,
+                        )
+                        BrowserDestination.Browsing -> BrowsingScreen(
+                            engine = engine,
+                            controller = controller,
+                            tab = selectedTab,
+                            tabCount = tabCount,
+                            thumbnailCapture = thumbnailCapture,
+                            library = library,
+                            pageImages = pageImages,
+                            darkTheme = darkTheme,
+                            onDarkThemeChange = onDarkThemeChange,
+                            onEditAddress = { url ->
+                                addressEditUrl = url
+                                navigateTo(
+                                    BrowserDestination.AddressEdit,
+                                    BrowserNavigationDirection.Immediate,
+                                )
+                            },
+                            onOpenTabs = {
+                                captureSelected()
+                                navigateTo(BrowserDestination.Tabs, BrowserNavigationDirection.Immediate)
+                            },
+                            onHome = {
+                                homeReturnUrl = controller.selectedTab()?.content?.url
+                                controller.goHome()
+                                homeReturnTabId = controller.selectedTab()?.id
+                                navigateTo(BrowserDestination.NewTab, BrowserNavigationDirection.Immediate)
+                            },
+                            onNavigate = navigate,
+                            onOpen = openUtility,
+                        )
+                        BrowserDestination.Settings -> SettingsScreen(
+                            preferences = preferences,
+                            updateAvailable = updateState.release != null,
+                            onDarkThemeChange = onDarkThemeChange,
+                            onFontScaleChange = onFontScaleChange,
+                            onSearchEngineChange = onSearchEngineChange,
+                            onTrackingProtectionChange = onTrackingProtectionChange,
+                            onDefaultPrivateBrowsingChange = onDefaultPrivateBrowsingChange,
+                            onRemoteDebuggingChange = onRemoteDebuggingChange,
+                            onEnableRemoteDebuggingWithAcknowledgement =
+                                onEnableRemoteDebuggingWithAcknowledgement,
+                            onOpenAbout = {
+                                navigateTo(BrowserDestination.About, BrowserNavigationDirection.Forward)
+                            },
+                            onBack = closeUtility,
+                        )
+                        BrowserDestination.About -> AboutScreen(
+                            appInfo = readAboutAppInfo(LocalContext.current),
+                            updateContent = {
+                                AppUpdateCard(updates, preferences.automaticUpdateChecks, downloadOpener)
+                            },
+                            onOpenLicenses = {
+                                navigateTo(
+                                    BrowserDestination.OpenSourceLicenses,
+                                    BrowserNavigationDirection.Forward,
+                                )
+                            },
+                            onBack = {
+                                navigateTo(BrowserDestination.Settings, BrowserNavigationDirection.Backward)
+                            },
+                        )
+                        BrowserDestination.OpenSourceLicenses -> OpenSourceLicensesScreen(
+                            onBack = {
+                                navigateTo(BrowserDestination.About, BrowserNavigationDirection.Backward)
+                            },
+                        )
+                        BrowserDestination.History -> HistoryScreen(
+                            visits = history,
+                            onClear = { scope.launch { library.clearHistory() } },
+                            onDelete = { id -> scope.launch { library.deleteHistoryVisit(id) } },
+                            onBack = closeUtility,
+                            onNavigate = navigate,
+                        )
+                        BrowserDestination.Bookmarks -> BookmarksScreen(
+                            bookmarks = bookmarks,
+                            folders = folders,
+                            onCreateFolder = { title -> scope.launch { library.createFolder(title) } },
+                            onUpdateBookmark = { id, title, folderId, kind ->
+                                scope.launch { library.updateBookmark(id, title, folderId, kind) }
+                            },
+                            onDeleteBookmark = { id -> scope.launch { library.deleteBookmark(id) } },
+                            onBack = closeUtility,
+                            onNavigate = navigate,
+                        )
+                        BrowserDestination.Downloads -> DownloadsScreen(
+                            repository = downloads,
+                            onOpenDownload = downloadOpener.open,
+                            onBack = closeUtility,
+                        )
+                        BrowserDestination.Extensions -> ExtensionsScreen(
+                            repository = extensions,
+                            onOpenStore = {
+                                navigateTo(BrowserDestination.AmoStore, BrowserNavigationDirection.Forward)
+                            },
+                            onActionInvoked = {
+                                navigateTo(BrowserDestination.Browsing, BrowserNavigationDirection.Immediate)
+                            },
+                            onBack = closeUtility,
+                        )
+                        BrowserDestination.AmoStore -> {
+                            val storeState by amoStoreViewModel.state.collectAsStateWithLifecycle()
+                            AmoStoreScreen(
+                                state = storeState,
+                                installedExtensionGuids = installedExtensions.mapTo(mutableSetOf()) { it.id },
+                                installState = extensionInstallState,
+                                transientInstallGuid = amoTransientInstallGuid,
+                                onTransientInstallGuidChange = { amoTransientInstallGuid = it },
+                                onSearch = amoStoreViewModel::search,
+                                onRetry = amoStoreViewModel::retry,
+                                onLoadNext = amoStoreViewModel::loadNext,
+                                onInstall = { addon -> extensions.installFromAmo(addon.installUrl) },
+                                onDismissInstallResult = extensions::dismissResult,
+                                onResolvePermission = extensions::resolvePermission,
+                                onBack = {
+                                    navigateTo(
+                                        BrowserDestination.Extensions,
+                                        BrowserNavigationDirection.Backward,
+                                    )
+                                },
                             )
-                        },
-                        onOpenTabs = {
-                            captureSelected()
-                            navigateTo(BrowserDestination.Tabs, BrowserNavigationDirection.Immediate)
-                        },
-                        onHome = {
-                            homeReturnUrl = controller.selectedTab()?.content?.url
-                            controller.goHome()
-                            homeReturnTabId = controller.selectedTab()?.id
-                            navigateTo(BrowserDestination.NewTab, BrowserNavigationDirection.Immediate)
-                        },
-                        onNavigate = navigate,
-                        onOpen = openUtility,
-                    )
-                    BrowserDestination.Settings -> SettingsScreen(
-                        preferences = preferences,
-                        updateAvailable = updateState.release != null,
-                        onDarkThemeChange = onDarkThemeChange,
-                        onFontScaleChange = onFontScaleChange,
-                        onSearchEngineChange = onSearchEngineChange,
-                        onTrackingProtectionChange = onTrackingProtectionChange,
-                        onDefaultPrivateBrowsingChange = onDefaultPrivateBrowsingChange,
-                        onRemoteDebuggingChange = onRemoteDebuggingChange,
-                        onEnableRemoteDebuggingWithAcknowledgement =
-                            onEnableRemoteDebuggingWithAcknowledgement,
-                        onOpenAbout = {
-                            navigateTo(BrowserDestination.About, BrowserNavigationDirection.Forward)
-                        },
-                        onBack = closeUtility,
-                    )
-                    BrowserDestination.About -> AboutScreen(
-                        appInfo = readAboutAppInfo(LocalContext.current),
-                        updateContent = {
-                            AppUpdateCard(updates, preferences.automaticUpdateChecks, downloadOpener)
-                        },
-                        onOpenLicenses = {
-                            navigateTo(
-                                BrowserDestination.OpenSourceLicenses,
-                                BrowserNavigationDirection.Forward,
-                            )
-                        },
-                        onBack = {
-                            navigateTo(BrowserDestination.Settings, BrowserNavigationDirection.Backward)
-                        },
-                    )
-                    BrowserDestination.OpenSourceLicenses -> OpenSourceLicensesScreen(
-                        onBack = {
-                            navigateTo(BrowserDestination.About, BrowserNavigationDirection.Backward)
-                        },
-                    )
-                    BrowserDestination.History -> HistoryScreen(
-                        visits = history,
-                        onClear = { scope.launch { library.clearHistory() } },
-                        onDelete = { id -> scope.launch { library.deleteHistoryVisit(id) } },
-                        onBack = closeUtility,
-                        onNavigate = navigate,
-                    )
-                    BrowserDestination.Bookmarks -> BookmarksScreen(
-                        bookmarks = bookmarks,
-                        folders = folders,
-                        onCreateFolder = { title -> scope.launch { library.createFolder(title) } },
-                        onUpdateBookmark = { id, title, folderId, kind ->
-                            scope.launch { library.updateBookmark(id, title, folderId, kind) }
-                        },
-                        onDeleteBookmark = { id -> scope.launch { library.deleteBookmark(id) } },
-                        onBack = closeUtility,
-                        onNavigate = navigate,
-                    )
-                    BrowserDestination.Downloads -> DownloadsScreen(
-                        repository = downloads,
-                        onOpenDownload = downloadOpener.open,
-                        onBack = closeUtility,
-                    )
-                    BrowserDestination.Extensions -> ExtensionsScreen(
-                        repository = extensions,
-                        onOpenStore = {
-                            navigateTo(BrowserDestination.AmoStore, BrowserNavigationDirection.Forward)
-                        },
-                        onActionInvoked = {
-                            navigateTo(BrowserDestination.Browsing, BrowserNavigationDirection.Immediate)
-                        },
-                        onBack = closeUtility,
-                    )
-                    BrowserDestination.AmoStore -> {
-                        val storeState by amoStoreViewModel.state.collectAsStateWithLifecycle()
-                        AmoStoreScreen(
-                            state = storeState,
-                            installedExtensionGuids = installedExtensions.mapTo(mutableSetOf()) { it.id },
-                            installState = extensionInstallState,
-                            transientInstallGuid = amoTransientInstallGuid,
-                            onTransientInstallGuidChange = { amoTransientInstallGuid = it },
-                            onSearch = amoStoreViewModel::search,
-                            onRetry = amoStoreViewModel::retry,
-                            onLoadNext = amoStoreViewModel::loadNext,
-                            onInstall = { addon -> extensions.installFromAmo(addon.installUrl) },
-                            onDismissInstallResult = extensions::dismissResult,
-                            onResolvePermission = extensions::resolvePermission,
+                        }
+                        BrowserDestination.Tabs -> TabGridScreen(
+                            tabs = browserState.tabs,
+                            selectedTabId = browserState.selectedTabId,
+                            thumbnailRepository = thumbnailRepository,
+                            onSelect = { tabId ->
+                                controller.selectTab(tabId)
+                                navigateTo(
+                                    if (controller.selectedTab()?.content?.url == AppConfiguration.INITIAL_URL) {
+                                        BrowserDestination.NewTab
+                                    } else {
+                                        BrowserDestination.Browsing
+                                    },
+                                    BrowserNavigationDirection.Immediate,
+                                )
+                            },
+                            onClose = { tabId ->
+                                scope.launch(start = CoroutineStart.UNDISPATCHED) {
+                                    thumbnailCaptures.close(tabId)
+                                }
+                                controller.closeTab(tabId)
+                            },
+                            onModeChange = controller::switchBrowsingMode,
+                            onCloseAllPrivateTabs = {
+                                val privateTabIds = browserState.tabs.filter { it.content.private }.map { it.id }
+                                privateTabIds.forEach { tabId ->
+                                    scope.launch(start = CoroutineStart.UNDISPATCHED) {
+                                        thumbnailCaptures.close(tabId)
+                                    }
+                                }
+                                controller.closeAllPrivateTabs()
+                            },
+                            onNewTab = {
+                                controller.createTab()
+                                navigateTo(BrowserDestination.NewTab, BrowserNavigationDirection.Immediate)
+                            },
                             onBack = {
                                 navigateTo(
-                                    BrowserDestination.Extensions,
-                                    BrowserNavigationDirection.Backward,
+                                    if (controller.selectedTab()?.content?.url == AppConfiguration.INITIAL_URL) {
+                                        BrowserDestination.NewTab
+                                    } else {
+                                        BrowserDestination.Browsing
+                                    },
+                                    BrowserNavigationDirection.Immediate,
                                 )
                             },
                         )
                     }
-                    BrowserDestination.Tabs -> TabGridScreen(
-                        tabs = browserState.tabs,
-                        selectedTabId = browserState.selectedTabId,
-                        thumbnailRepository = thumbnailRepository,
-                        onSelect = { tabId ->
-                            controller.selectTab(tabId)
-                            navigateTo(
-                                if (controller.selectedTab()?.content?.url == AppConfiguration.INITIAL_URL) {
-                                    BrowserDestination.NewTab
-                                } else {
-                                    BrowserDestination.Browsing
-                                },
-                                BrowserNavigationDirection.Immediate,
-                            )
-                        },
-                        onClose = { tabId ->
-                            scope.launch(start = CoroutineStart.UNDISPATCHED) {
-                                thumbnailCaptures.close(tabId)
-                            }
-                            controller.closeTab(tabId)
-                        },
-                        onNewTab = {
-                            controller.createTab()
-                            navigateTo(BrowserDestination.NewTab, BrowserNavigationDirection.Immediate)
-                        },
-                        onBack = {
-                            navigateTo(
-                                if (controller.selectedTab()?.content?.url == AppConfiguration.INITIAL_URL) {
-                                    BrowserDestination.NewTab
-                                } else {
-                                    BrowserDestination.Browsing
-                                },
-                                BrowserNavigationDirection.Immediate,
-                            )
-                        },
-                    )
                 }
             }
         }
@@ -743,6 +786,7 @@ private fun ExtensionPopupScreen(
 private fun NewTabScreen(
     bookmarks: List<BookmarkEntry>,
     history: List<HistoryVisit>,
+    privateBrowsing: Boolean,
     tabCount: Int,
     onTabs: () -> Unit,
     onSettings: () -> Unit,
@@ -802,6 +846,7 @@ private fun NewTabScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .background(colors.background)
             .windowInsetsPadding(WindowInsets.safeDrawing)
             .testTag(NEW_TAB_SCREEN_TEST_TAG),
     ) {
@@ -846,10 +891,13 @@ private fun NewTabScreen(
                 Spacer(Modifier.height(9.dp))
                 Text(
                     stringResource(
-                        when (greetingPeriod(now.hour)) {
-                            GreetingPeriod.MORNING -> R.string.new_tab_greeting_morning
-                            GreetingPeriod.AFTERNOON -> R.string.new_tab_greeting_afternoon
-                            GreetingPeriod.EVENING -> R.string.new_tab_greeting_evening
+                        when {
+                            privateBrowsing -> R.string.private_space
+                            else -> when (greetingPeriod(now.hour)) {
+                                GreetingPeriod.MORNING -> R.string.new_tab_greeting_morning
+                                GreetingPeriod.AFTERNOON -> R.string.new_tab_greeting_afternoon
+                                GreetingPeriod.EVENING -> R.string.new_tab_greeting_evening
+                            }
                         },
                     ),
                     color = colors.foreground,
@@ -894,6 +942,7 @@ private fun NewTabScreen(
             },
             onSubmit = { if (query.isNotBlank()) onNavigate(query) },
             tabCount = tabCount,
+            privateBrowsing = privateBrowsing,
             onTabs = onTabs,
             focusRequester = focusRequester,
             modifier = Modifier
@@ -901,6 +950,24 @@ private fun NewTabScreen(
                 .offset(y = topOffset)
                 .padding(horizontal = 20.dp),
         )
+
+        AnimatedVisibility(
+            visible = privateBrowsing && !searchExpanded,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .offset(y = topOffset + 70.dp)
+                .padding(horizontal = 32.dp),
+            enter = fadeIn(tween(280)),
+            exit = fadeOut(tween(140)),
+        ) {
+            Text(
+                stringResource(R.string.private_new_tab_hint),
+                color = colors.muted,
+                fontSize = 12.sp,
+                lineHeight = 18.sp,
+                textAlign = TextAlign.Center,
+            )
+        }
 
         AnimatedVisibility(
             visible = searchExpanded,
@@ -937,6 +1004,7 @@ private fun SearchField(
     onActivate: () -> Unit,
     onTrailingClick: () -> Unit,
     onSubmit: () -> Unit,
+    privateBrowsing: Boolean,
     tabCount: Int,
     onTabs: () -> Unit,
     focusRequester: FocusRequester,
@@ -944,7 +1012,12 @@ private fun SearchField(
 ) {
     val colors = LocalNovaColors.current
     val tabSwitcherDescription = stringResource(R.string.tab_switcher)
-    val borderColor = if (expanded) colors.accent else colors.strongBorder
+    // The private space marks the mode itself, so its pill is a filled tone without an outline.
+    val borderColor = when {
+        expanded -> colors.accent
+        privateBrowsing -> Color.Transparent
+        else -> colors.strongBorder
+    }
     val inputTextStyle = androidx.compose.ui.text.TextStyle(
         color = colors.foreground,
         fontSize = 16.sp,
@@ -955,13 +1028,19 @@ private fun SearchField(
             .fillMaxWidth()
             .height(56.dp)
             .clip(CircleShape)
-            .background(colors.surface, CircleShape)
+            .background(if (privateBrowsing) colors.surfaceSecondary else colors.surface, CircleShape)
             .border(1.dp, borderColor, CircleShape)
             .clickable { onActivate() }
             .padding(start = 18.dp, end = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(Lucide.Search, contentDescription = null, tint = colors.muted, modifier = Modifier.size(19.dp))
+        Icon(
+            Lucide.Search,
+            // The private space is only conveyed by color, so state the mode for accessibility services.
+            contentDescription = if (privateBrowsing) stringResource(R.string.browsing_mode_private) else null,
+            tint = colors.muted,
+            modifier = Modifier.size(19.dp),
+        )
         Spacer(Modifier.width(10.dp))
         if (expanded) {
             BasicTextField(
@@ -1235,6 +1314,9 @@ private fun BrowsingScreen(
     val context = LocalContext.current
     val outerDirection = LocalLayoutDirection.current
     val content = tab?.content
+    val privateBrowsing = content?.private == true
+    // In the private space the chrome and the frame around the page share the space color.
+    val chromeColor = if (privateBrowsing) colors.background else colors.surface
     val bookmarks by library.bookmarks.collectAsStateWithLifecycle()
     val isBookmarked = bookmarks.any { it.url == content?.url && it.kind == BookmarkKind.FAVORITE }
     var findOpen by remember { mutableStateOf(false) }
@@ -1340,16 +1422,17 @@ private fun BrowsingScreen(
             },
         ) {
             androidx.compose.runtime.CompositionLocalProvider(LocalLayoutDirection provides outerDirection) {
-                Box(Modifier.fillMaxSize()) {
+                Box(Modifier.fillMaxSize().background(colors.background)) {
                     Column(
                         Modifier
                             .fillMaxSize()
                             .windowInsetsPadding(WindowInsets.engineSafeDrawing)
-                            .background(colors.surface),
+                            .background(chromeColor),
                     ) {
                         AddressBar(
                             url = content?.url.orEmpty(),
                             isSecure = content?.securityInfo?.isSecure == true,
+                            privateBrowsing = privateBrowsing,
                             tabCount = tabCount,
                             loading = content?.loading == true,
                             progress = content?.progress ?: 0,
@@ -1374,7 +1457,18 @@ private fun BrowsingScreen(
                         }
                         val session = tab?.engineState?.engineSession
                         if (session != null) {
-                            Box(Modifier.weight(1f).fillMaxWidth()) {
+                            Box(
+                                Modifier
+                                    .weight(1f)
+                                    .fillMaxWidth()
+                                    .then(
+                                        if (privateBrowsing) {
+                                            Modifier.padding(start = 6.dp, end = 6.dp, bottom = 6.dp)
+                                        } else {
+                                            Modifier
+                                        },
+                                    ),
+                            ) {
                                 BrowserSurface(
                                     engine = engine,
                                     session = session,
@@ -1387,6 +1481,9 @@ private fun BrowsingScreen(
                                         controller.reload()
                                     },
                                 )
+                                if (privateBrowsing) {
+                                    PageCornerMask(color = chromeColor, radius = 14.dp)
+                                }
                                 EdgeBackGesture(
                                     enabled = content?.canGoBack == true && drawerState.isClosed,
                                     onBack = controller::goBack,
@@ -1512,6 +1609,7 @@ private fun FindInPageBar(
 internal fun AddressBar(
     url: String,
     isSecure: Boolean,
+    privateBrowsing: Boolean,
     tabCount: Int,
     loading: Boolean,
     progress: Int,
@@ -1528,6 +1626,8 @@ internal fun AddressBar(
         label = "addressLoadProgress",
     )
     val tabSwitcherDescription = stringResource(R.string.tab_switcher)
+    // The private space is only conveyed by color, so state the mode for accessibility services.
+    val privateModeDescription = stringResource(R.string.browsing_mode_private)
     val securityInteractionSource = remember { MutableInteractionSource() }
     val uri = remember(url) { runCatching { Uri.parse(url) }.getOrNull() }
     val host = uri?.host ?: url.ifBlank { "about:blank" }
@@ -1582,7 +1682,17 @@ internal fun AddressBar(
                 }
             }
             Box(
-                modifier = Modifier.weight(1f).fillMaxHeight().clickable(onClick = onAddressClick),
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .clickable(onClick = onAddressClick)
+                    .then(
+                        if (privateBrowsing) {
+                            Modifier.semantics { stateDescription = privateModeDescription }
+                        } else {
+                            Modifier
+                        },
+                    ),
                 contentAlignment = Alignment.CenterStart,
             ) {
                 Text(
@@ -1717,6 +1827,23 @@ private fun CertificateDetailRow(label: String, value: String) {
             fontSize = 14.sp,
             lineHeight = 20.sp,
         )
+    }
+}
+
+/**
+ * Rounds the page's corners by painting [color] over them. GeckoView renders into a SurfaceView,
+ * which Compose clipping cannot shape, so the frame is drawn on top like desktop content corners.
+ */
+@Composable
+private fun PageCornerMask(color: Color, radius: Dp) {
+    Canvas(Modifier.fillMaxSize()) {
+        val bounds = Rect(Offset.Zero, size)
+        val corners = Path().apply {
+            fillType = PathFillType.EvenOdd
+            addRect(bounds)
+            addRoundRect(RoundRect(bounds, CornerRadius(radius.toPx())))
+        }
+        drawPath(corners, color)
     }
 }
 

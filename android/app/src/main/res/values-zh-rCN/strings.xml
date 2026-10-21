@@ -43,6 +43,17 @@
     <string name="tabs_title">标签页 · %1$d</string>
     <string name="new_tab">新建标签页</string>
     <string name="close_tab">关闭标签页</string>
+    <string name="browsing_mode_regular">普通</string>
+    <string name="browsing_mode_private">隐私</string>
+    <string name="regular_tabs">普通 · %1$d</string>
+    <string name="private_tabs">隐私 · %1$d</string>
+    <string name="new_private_tab">新建隐私标签页</string>
+    <string name="close_all_private_tabs">全部关闭隐私标签页</string>
+    <string name="close_all">全部关闭</string>
+    <string name="regular_tabs_subtitle">下次打开 Dao 时恢复</string>
+    <string name="private_tabs_subtitle">不保存浏览记录</string>
+    <string name="private_space">隐私空间</string>
+    <string name="private_new_tab_hint">不保存浏览记录；全部关闭后清除 Cookie 和网站数据</string>
     <string name="back">后退</string>
     <string name="forward">前进</string>
     <string name="reload">刷新</string>
