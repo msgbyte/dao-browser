@@ -242,13 +242,15 @@ cd android
 
 The application uses Mozilla Android Components `BrowserStore` and
 `EngineMiddleware` for multiple Gecko tabs. Its full-screen tab grid supports
-live tab counts, switching, close and swipe-right-to-close, new tabs, and real
-page thumbnails. Android Components `SessionStorage` restores regular tab order,
+separate regular/private groups with live counts, mode switching, close and
+swipe-right-to-close, new tabs, and real page thumbnails. Private tabs use a
+dedicated dark blue-gray space, and the private group can be closed from the
+grid header. Android Components `SessionStorage` restores regular tab order,
 selection, URLs, and navigation history after process death; private tabs and
 their thumbnails are never persisted.
 
 It also supports address-or-search navigation, persistent
 history/bookmarks/folders, Android system downloads, persistent engine
 preferences, default-private startup, signed extension installation and
-management, and CameraX QR scanning. An in-session private-mode switch,
-passwords, sync, Agent, and MCP are not yet implemented.
+management, and CameraX QR scanning. Passwords, sync, Agent, and MCP are not
+yet implemented.

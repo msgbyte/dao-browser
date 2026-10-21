@@ -43,6 +43,17 @@
     <string name="tabs_title">Tabs · %1$d</string>
     <string name="new_tab">New tab</string>
     <string name="close_tab">Close tab</string>
+    <string name="browsing_mode_regular" tools:ignore="MissingTranslation">Regular</string>
+    <string name="browsing_mode_private" tools:ignore="MissingTranslation">Private</string>
+    <string name="regular_tabs" tools:ignore="MissingTranslation">Regular · %1$d</string>
+    <string name="private_tabs" tools:ignore="MissingTranslation">Private · %1$d</string>
+    <string name="new_private_tab" tools:ignore="MissingTranslation">New private tab</string>
+    <string name="close_all_private_tabs" tools:ignore="MissingTranslation">Close all private tabs</string>
+    <string name="close_all" tools:ignore="MissingTranslation">Close all</string>
+    <string name="regular_tabs_subtitle" tools:ignore="MissingTranslation">Restored the next time you open Dao</string>
+    <string name="private_tabs_subtitle" tools:ignore="MissingTranslation">History isn\'t saved</string>
+    <string name="private_space" tools:ignore="MissingTranslation">Private space</string>
+    <string name="private_new_tab_hint" tools:ignore="MissingTranslation">History isn\'t saved. Cookies and site data are cleared once all private tabs are closed.</string>
     <string name="back">Back</string>
     <string name="forward">Forward</string>
     <string name="reload">Reload</string>

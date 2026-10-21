@@ -39,7 +39,7 @@ class BrowserDownloadConfirmationTest {
         onDownloadRequested = { request, response -> started += request to response },
     ).also {
         store.dispatch(TabListAction.AddTabAction(TabSessionState(
-            content = ContentState(url = "https://example.com"),
+            content = ContentState(url = "https://example.com", private = true),
             engineState = EngineState(engineSession = session),
         ), select = true))
     }
@@ -108,6 +108,20 @@ class BrowserDownloadConfirmationTest {
         assertTrue(started.isEmpty())
         assertTrue(body.closed)
         assertTrue(controller.pendingDownloads.value.isEmpty())
+        controller.close()
+    }
+
+    @Test
+    fun closingAllPrivateTabsCancelsTheirUnconfirmedDownloads() {
+        val body = TrackingBody()
+        requestDownload(body)
+
+        controller.closeAllPrivateTabs()
+
+        assertTrue(started.isEmpty())
+        assertTrue(body.closed)
+        assertTrue(controller.pendingDownloads.value.isEmpty())
+        assertFalse(controller.selectedTab()!!.content.private)
         controller.close()
     }
 

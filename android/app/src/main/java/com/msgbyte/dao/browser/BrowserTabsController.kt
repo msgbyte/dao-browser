@@ -41,6 +41,7 @@ class BrowserTabsController(
     private val sessionObservers = mutableMapOf<EngineSession, EngineSession.Observer>()
     private val tabsThatHadSessions = mutableSetOf<String>()
     private val tabsToReloadOnRecreate = mutableSetOf<String>()
+    private val lastSelectedTabs = mutableMapOf<Boolean, String>()
     private val mutablePendingDownloads = MutableStateFlow<List<PendingDownload>>(emptyList())
     internal val pendingDownloads = mutablePendingDownloads.asStateFlow()
     val state: StateFlow<BrowserState> = store.stateFlow
@@ -108,10 +109,26 @@ class BrowserTabsController(
 
     fun closeTab(tabId: String) {
         val tab = state.value.tabs.firstOrNull { it.id == tabId } ?: return
-        store.dispatch(TabListAction.RemoveTabAction(tabId))
-        if (state.value.tabs.isEmpty()) {
+        if (state.value.selectedTabId == tabId && state.value.tabs.none {
+                it.id != tabId && it.content.private == tab.content.private
+            }
+        ) {
             createTab(private = tab.content.private)
         }
+        store.dispatch(TabListAction.RemoveTabAction(tabId))
+    }
+
+    fun switchBrowsingMode(private: Boolean) {
+        selectedTab()?.let { lastSelectedTabs[it.content.private] = it.id }
+        val tabs = state.value.tabs.filter { it.content.private == private }
+        val target = tabs.firstOrNull { it.id == lastSelectedTabs[private] } ?: tabs.lastOrNull()
+        if (target == null) createTab(private = private) else selectTab(target.id)
+    }
+
+    fun closeAllPrivateTabs() {
+        switchBrowsingMode(private = false)
+        store.dispatch(TabListAction.RemoveAllPrivateTabsAction)
+        lastSelectedTabs.remove(true)
     }
 
     fun navigate(url: String) {

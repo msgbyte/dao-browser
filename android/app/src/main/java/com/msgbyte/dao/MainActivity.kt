@@ -60,6 +60,7 @@ class MainActivity : FragmentActivity() {
         }
     }
     private var darkThemeEnabled = false
+    private var privateSpaceVisible = false
     private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
     private var externalNavigationUrl by mutableStateOf<String?>(null)
     private var filePicker: ActivityResultLauncher<Intent>? = null
@@ -202,6 +203,10 @@ class MainActivity : FragmentActivity() {
                     externalNavigationUrl = externalNavigationUrl,
                     onExternalNavigationConsumed = { externalNavigationUrl = null },
                     onBrowsingVisibilityChanged = { browserSessionViewModel.fileUploads.isBrowsing = it },
+                    onPrivateSpaceChange = { visible ->
+                        privateSpaceVisible = visible
+                        window.decorView.post(::updateSystemBarAppearance)
+                    },
                 )
                 pendingDownloads.firstOrNull()?.let { download ->
                     DownloadConfirmationDialog(
@@ -253,9 +258,11 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun updateSystemBarAppearance() {
+        // The private space is dark in both themes, so its system bar icons are always light.
+        val lightSystemBars = !darkThemeEnabled && !privateSpaceVisible
         WindowCompat.getInsetsController(window, window.decorView).apply {
-            isAppearanceLightStatusBars = !darkThemeEnabled
-            isAppearanceLightNavigationBars = !darkThemeEnabled
+            isAppearanceLightStatusBars = lightSystemBars
+            isAppearanceLightNavigationBars = lightSystemBars
         }
     }
 

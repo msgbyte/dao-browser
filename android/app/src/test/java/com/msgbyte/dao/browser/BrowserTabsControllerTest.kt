@@ -104,6 +104,120 @@ class BrowserTabsControllerTest {
     }
 
     @Test
+    fun `closing the selected tab stays in its group even with interleaved tabs`() {
+        val controller = createController()
+        val firstRegular = controller.createTab(private = false)
+        controller.createTab(private = true)
+        val secondRegular = controller.createTab(private = false)
+        controller.createTab(private = true)
+        controller.selectTab(secondRegular)
+
+        controller.closeTab(secondRegular)
+
+        assertEquals(firstRegular, controller.state.value.selectedTabId)
+    }
+
+    @Test
+    fun `closing the last private tab individually keeps private browsing active`() {
+        val controller = createController()
+        val regularId = controller.createTab(private = false)
+        val privateId = controller.createTab(private = true)
+
+        controller.closeTab(privateId)
+
+        assertTrue(controller.selectedTab()!!.content.private)
+        assertNotEquals(privateId, controller.state.value.selectedTabId)
+        assertEquals(listOf(regularId), controller.state.value.tabs.filterNot { it.content.private }.map { it.id })
+    }
+
+    @Test
+    fun `switching modes restores each groups selected tab without changing pages`() {
+        val controller = createController()
+        val firstRegular = controller.createTab(private = false, url = "https://regular.example")
+        controller.createTab(private = false)
+        controller.selectTab(firstRegular)
+
+        controller.switchBrowsingMode(private = true)
+        val firstPrivate = controller.state.value.selectedTabId
+        controller.createTab(url = "https://private.example")
+        controller.selectTab(firstPrivate!!)
+        val tabs = controller.state.value.tabs
+
+        controller.switchBrowsingMode(private = false)
+        assertEquals(firstRegular, controller.state.value.selectedTabId)
+        controller.switchBrowsingMode(private = true)
+        assertEquals(firstPrivate, controller.state.value.selectedTabId)
+        controller.switchBrowsingMode(private = true)
+        assertEquals(tabs, controller.state.value.tabs)
+        assertEquals(2, tabs.count { it.content.private })
+    }
+
+    @Test
+    fun `switching modes ignores a closed remembered tab`() {
+        val controller = createController()
+        val first = controller.createTab(private = false)
+        val second = controller.createTab(private = false)
+        controller.switchBrowsingMode(private = true)
+        controller.closeTab(second)
+
+        controller.switchBrowsingMode(private = false)
+
+        assertEquals(first, controller.state.value.selectedTabId)
+        assertEquals(2, controller.state.value.tabs.size)
+    }
+
+    @Test
+    fun `closing all private tabs restores the regular selection and preserves regular tabs`() {
+        val controller = createController()
+        val first = controller.createTab(private = false, url = "https://regular.example")
+        controller.createTab(private = false)
+        controller.selectTab(first)
+        val regularTabs = controller.state.value.tabs
+        controller.switchBrowsingMode(private = true)
+        controller.createTab()
+
+        controller.closeAllPrivateTabs()
+
+        assertEquals(regularTabs, controller.state.value.tabs)
+        assertEquals(first, controller.state.value.selectedTabId)
+        controller.closeAllPrivateTabs()
+        assertEquals(regularTabs, controller.state.value.tabs)
+        controller.switchBrowsingMode(private = true)
+        assertTrue(controller.selectedTab()!!.content.private)
+        assertEquals(AppConfiguration.INITIAL_URL, controller.selectedTab()!!.content.url)
+    }
+
+    @Test
+    fun `closing all private tabs creates a regular tab even with default private startup`() {
+        val controller = createController(defaultPrivateBrowsing = true)
+        controller.createTab()
+        controller.createTab()
+
+        controller.closeAllPrivateTabs()
+
+        val remaining = controller.state.value.tabs.single()
+        assertFalse(remaining.content.private)
+        assertEquals(remaining.id, controller.state.value.selectedTabId)
+    }
+
+    @Test
+    fun `closing all private tabs releases their engine sessions only`() {
+        val controller = createControllerWithEngine()
+        val regularId = controller.createTab(private = false)
+        controller.ensureSession(regularId)
+        val regularSession = controller.selectedSession()!!
+        controller.switchBrowsingMode(private = true)
+        controller.ensureSession(controller.state.value.selectedTabId!!)
+        val privateSession = controller.selectedSession()!!
+
+        controller.closeAllPrivateTabs()
+
+        verify(exactly = 1) { privateSession.close() }
+        verify(exactly = 0) { regularSession.close() }
+        assertEquals(regularId, controller.state.value.selectedTabId)
+    }
+
+    @Test
     fun `initialize restores regular tabs in order and selects the saved tab`() = runBlocking {
         val storage = FakeBrowserSessionSnapshotStorage(
             snapshot = RecoverableBrowserState(
