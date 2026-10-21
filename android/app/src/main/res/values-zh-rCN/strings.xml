@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Dao</string>
+    <string name="file_picker_unavailable">无法打开文件选择器，请重试。</string>
+    <string name="file_picker_read_failed">无法读取所选文件，请重新选择。</string>
     <string name="dao_logo_content_description">Dao 标志</string>
     <string name="new_tab_date_format">EEE · M 月 d 日</string>
     <string name="new_tab_greeting_morning">早上好</string>

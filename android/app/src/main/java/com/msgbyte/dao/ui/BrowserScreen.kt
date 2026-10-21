@@ -82,6 +82,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -293,6 +294,7 @@ fun BrowserScreen(
     onEnableRemoteDebuggingWithAcknowledgement: () -> Unit,
     externalNavigationUrl: String? = null,
     onExternalNavigationConsumed: () -> Unit = {},
+    onBrowsingVisibilityChanged: (Boolean) -> Unit = {},
 ) {
     val browserState by controller.state.collectAsStateWithLifecycle()
     val updateState by updates.state.collectAsStateWithLifecycle()
@@ -324,6 +326,9 @@ fun BrowserScreen(
     var homeReturnTabId by remember { mutableStateOf<String?>(null) }
     var homeReturnUrl by remember { mutableStateOf<String?>(null) }
     var extensionPopupSession by remember { mutableStateOf<EngineSession?>(null) }
+    SideEffect {
+        onBrowsingVisibilityChanged(destination == BrowserDestination.Browsing && extensionPopupSession == null)
+    }
     var amoTransientInstallGuid by rememberSaveable { mutableStateOf<String?>(null) }
     val installedExtensions by extensions.extensions.collectAsStateWithLifecycle()
     val extensionInstallState by extensions.installState.collectAsStateWithLifecycle()

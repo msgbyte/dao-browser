@@ -2,6 +2,16 @@ import groovy.json.JsonSlurper
 import org.gradle.api.GradleException
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import javax.imageio.ImageIO
+import com.android.build.api.instrumentation.AsmClassVisitorFactory
+import com.android.build.api.instrumentation.ClassContext
+import com.android.build.api.instrumentation.ClassData
+import com.android.build.api.instrumentation.FramesComputationMode
+import com.android.build.api.instrumentation.InstrumentationParameters
+import com.android.build.api.instrumentation.InstrumentationScope
+import org.objectweb.asm.ClassVisitor
+import org.objectweb.asm.Label
+import org.objectweb.asm.MethodVisitor
+import org.objectweb.asm.Opcodes
 
 plugins {
     alias(libs.plugins.android.application)
@@ -77,6 +87,57 @@ kotlin {
 
 configurations.configureEach {
     exclude(group = "androidx.work", module = "work-runtime")
+}
+
+// Gecko 153 copies content URIs synchronously and swallows I/O errors. Dao stages them on IO first.
+check(libs.versions.mozilla.components.get() == "153.0.2") {
+    "Review the Gecko staged-file compatibility patch before upgrading Mozilla Components"
+}
+androidComponents.onVariants { variant ->
+    variant.instrumentation.transformClassesWith(
+        GeckoStagedFileVisitor::class.java,
+        InstrumentationScope.ALL,
+    ) {}
+    variant.instrumentation.setAsmFramesComputationMode(
+        FramesComputationMode.COMPUTE_FRAMES_FOR_INSTRUMENTED_METHODS,
+    )
+}
+
+abstract class GeckoStagedFileVisitor : AsmClassVisitorFactory<InstrumentationParameters.None> {
+    override fun isInstrumentable(classData: ClassData) =
+        classData.className == "mozilla.components.browser.engine.gecko.prompt.GeckoPromptDelegate"
+
+    override fun createClassVisitor(classContext: ClassContext, nextClassVisitor: ClassVisitor): ClassVisitor =
+        object : ClassVisitor(Opcodes.ASM9, nextClassVisitor) {
+            private var patched = false
+
+            override fun visitMethod(access: Int, name: String, descriptor: String, signature: String?, exceptions: Array<out String>?): MethodVisitor {
+                val visitor = super.visitMethod(access, name, descriptor, signature, exceptions)
+                if (name != "toFileUri\$browser_engine_gecko_release" ||
+                    descriptor != "(Landroid/net/Uri;Landroid/content/Context;)Landroid/net/Uri;"
+                ) return visitor
+                patched = true
+                return object : MethodVisitor(Opcodes.ASM9, visitor) {
+                    override fun visitCode() {
+                        super.visitCode()
+                        val original = Label()
+                        visitLdcInsn("file")
+                        visitVarInsn(Opcodes.ALOAD, 1)
+                        visitMethodInsn(Opcodes.INVOKEVIRTUAL, "android/net/Uri", "getScheme", "()Ljava/lang/String;", false)
+                        visitMethodInsn(Opcodes.INVOKEVIRTUAL, "java/lang/String", "equals", "(Ljava/lang/Object;)Z", false)
+                        visitJumpInsn(Opcodes.IFEQ, original)
+                        visitVarInsn(Opcodes.ALOAD, 1)
+                        visitInsn(Opcodes.ARETURN)
+                        visitLabel(original)
+                    }
+                }
+            }
+
+            override fun visitEnd() {
+                check(patched) { "Gecko staged-file patch did not match the pinned engine" }
+                super.visitEnd()
+            }
+        }
 }
 
 val bundledUBlockOriginDirectory =
@@ -285,6 +346,7 @@ dependencies {
     implementation(libs.mozilla.feature.app.links)
     implementation(libs.mozilla.feature.session)
     implementation(libs.mozilla.support.utils)
+    implementation(libs.mozilla.support.ktx)
     implementation(libs.zxing.core)
 
     debugImplementation(libs.compose.ui.tooling)

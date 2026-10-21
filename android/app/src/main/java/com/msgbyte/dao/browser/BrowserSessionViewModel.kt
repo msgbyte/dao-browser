@@ -23,9 +23,14 @@ class BrowserSessionViewModel(application: Application) : AndroidViewModel(appli
     }
     private val snapshotStorage = MozillaBrowserSessionSnapshotStorage(application, engine)
     val thumbnailRepository = TabThumbnailRepository(application)
+    internal val fileUploads = BrowserFileUpload(
+        application,
+        viewModelScope,
+        storage = daoApplication.fileUploadStorage,
+    )
     val controller = BrowserTabsController(
         store = BrowserStore(
-            middleware = EngineMiddleware.create(engine, viewModelScope),
+            middleware = listOf(fileUploads) + EngineMiddleware.create(engine, viewModelScope),
         ),
         defaultPrivateBrowsing = defaultPrivateBrowsing,
         snapshotStorage = snapshotStorage,
@@ -53,5 +58,6 @@ class BrowserSessionViewModel(application: Application) : AndroidViewModel(appli
 
     override fun onCleared() {
         controller.close()
+        fileUploads.close()
     }
 }

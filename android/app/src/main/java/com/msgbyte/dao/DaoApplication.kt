@@ -16,6 +16,7 @@ import com.msgbyte.dao.browser.PageImageActions
 import com.msgbyte.dao.browser.SharedPreferencesStreamedDownloadRecordStore
 import com.msgbyte.dao.browser.StreamedDownloadGateway
 import com.msgbyte.dao.browser.guessDownloadFileName
+import com.msgbyte.dao.browser.FileUploadStorage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -28,6 +29,8 @@ import org.mozilla.geckoview.GeckoRuntime
 import org.mozilla.geckoview.GeckoRuntimeSettings
 
 class DaoApplication : Application() {
+    internal val fileUploadStorage by lazy { FileUploadStorage(applicationContext) }
+
     val amoCatalogRepository by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
         AmoCatalogRepository()
     }
