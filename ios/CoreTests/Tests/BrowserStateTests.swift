@@ -80,3 +80,40 @@ import Testing
     #expect(DownloadName.sanitize("..") == "download")
     #expect(!DownloadName.sanitize("a\\b\u{0}.txt").contains("\u{0}"))
 }
+
+@Test func transferMeterReportsSpeedOnlyFromFreshSamples() {
+    var meter = TransferMeter()
+    meter.record(0, total: 4_000, at: 10)
+    #expect(meter.speed(at: 10) == nil)
+    meter.record(500, total: 4_000, at: 10.5)
+    #expect(meter.speed(at: 10.5) == nil)
+    meter.record(2_000, total: 4_000, at: 11)
+    #expect(meter.speed(at: 11) == 2_000)
+    #expect(meter.fraction == 0.5)
+    // Without published progress for five seconds the row shows zero.
+    #expect(meter.speed(at: 15.9) == 2_000)
+    #expect(meter.speed(at: 16) == 0)
+    // A longer gap or a counter reset hides speed until a new window completes.
+    meter.record(3_000, total: 4_000, at: 22)
+    #expect(meter.speed(at: 22) == nil)
+    meter.record(3_500, total: 4_000, at: 23)
+    #expect(meter.speed(at: 23) == 500)
+    meter.record(100, total: nil, at: 23.5)
+    #expect(meter.speed(at: 23.5) == nil)
+    #expect(meter.total == nil)
+    #expect(meter.fraction == 0)
+}
+
+@Test func pageImageMenusOnlyActOnImageSources() {
+    #expect(PageImageSource.url("https://example.com/a.png")?.host == "example.com")
+    #expect(PageImageSource.url("data:image/png;base64,iVBORw0KGgo=") != nil)
+    #expect(PageImageSource.url("DATA:IMAGE/GIF;base64,R0lGOD") != nil)
+    #expect(PageImageSource.url("blob:https://example.com/0f2c") != nil)
+    #expect(PageImageSource.url("data:text/html,<b>") == nil)
+    #expect(PageImageSource.url("javascript:alert(1)") == nil)
+    #expect(PageImageSource.url("file:///etc/passwd") == nil)
+    #expect(PageImageSource.url("") == nil)
+    #expect(PageImageSource.canOpenInTab(URL(string: "https://example.com/a.png")!))
+    #expect(!PageImageSource.canOpenInTab(URL(string: "blob:https://example.com/0f2c")!))
+    #expect(!PageImageSource.canOpenInTab(URL(string: "data:image/png;base64,iVBORw0KGgo=")!))
+}

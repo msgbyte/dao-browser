@@ -7,6 +7,8 @@ struct NewTabView: View {
     @Query(sort: \LibraryEntry.visitedAt, order: .reverse) private var entries: [LibraryEntry]
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var query = ""
+    @State private var selection: TextSelection?
+    @State private var selectAllOnFocus = false
     @State private var expanded = false
     @FocusState private var focused: Bool
 
@@ -43,7 +45,10 @@ struct NewTabView: View {
                 .opacity(expanded ? 0 : 1).allowsHitTesting(!expanded).accessibilityHidden(expanded)
                 HStack(spacing: 4) {
                     DaoIcon(name: "search").foregroundStyle(Nova.muted).padding(.leading, 18)
-                    TextField(L("search_placeholder"), text: $query,
+                        .frame(minHeight: 56).contentShape(Rectangle())
+                        // The input covers only part of the pill; the rest still brings back a dismissed keyboard.
+                        .onTapGesture { if expanded { focused = true } else { activate() } }
+                    TextField(L("search_placeholder"), text: $query, selection: $selection,
                               prompt: Text(L("search_placeholder")).foregroundStyle(Nova.muted))
                         .focused($focused).submitLabel(.go)
                         .keyboardType(.webSearch).textInputAutocapitalization(.never).autocorrectionDisabled()
@@ -59,7 +64,7 @@ struct NewTabView: View {
                         }
                     ZStack(alignment: .trailing) {
                         IconButton(icon: "x", label: query.isEmpty ? "cancel" : "clear") {
-                            if !query.isEmpty { query = "" }
+                            if !query.isEmpty { clearQuery() }
                             else { cancelEditing() }
                         }
                         .opacity(expanded ? 1 : 0).allowsHitTesting(expanded).accessibilityHidden(!expanded)
@@ -97,10 +102,17 @@ struct NewTabView: View {
                 .allowsHitTesting(expanded)
         }.onAppear {
             if model.addressEditing {
+                selection = nil
                 query = model.selected.record.url
+                selectAllOnFocus = true
                 expanded = true
                 focused = true
             }
+        }.onChange(of: focused) { _, isFocused in
+            // Focusing places the caret at the end, so select the address only once focus has landed.
+            guard isFocused, selectAllOnFocus else { return }
+            selectAllOnFocus = false
+            selection = TextSelection(range: query.startIndex..<query.endIndex)
         }
     }
 
@@ -115,9 +127,15 @@ struct NewTabView: View {
         }
     }
 
+    /// A selection holds indices into the old text, so it is dropped whenever the text is replaced.
+    private func clearQuery() {
+        selection = nil
+        query = ""
+    }
+
     private func cancelEditing() {
         focused = false
-        query = ""
+        clearQuery()
         withAnimation(reduceMotion ? nil : Nova.animation) { expanded = false }
         model.addressEditing = false
     }
@@ -125,35 +143,19 @@ struct NewTabView: View {
 
 struct TabsView: View {
     @Bindable var model: BrowserModel
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
         UtilityPage(title: "tabs", back: { model.page = .browser }) {
-            ScrollView {
-                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-                    ForEach(model.tabs) { tab in
-                        VStack(spacing: 0) {
-                            HStack(spacing: 4) {
-                                if tab.record.isPrivate { DaoIcon(name: "venetian-mask", size: 16) }
-                                Text(tab.title).font(.caption.weight(.medium)).lineLimit(1)
-                                Spacer(minLength: 0)
-                                IconButton(icon: "x", label: "close_tab") { model.close(tab) }
-                            }.padding(.leading, 10)
-                            Button { model.select(tab) } label: {
-                                ZStack {
-                                    Nova.secondary
-                                    if let image = tab.thumbnail ?? tab.record.thumbnailData.flatMap({ UIImage(data: $0) }) {
-                                        Image(uiImage: image).resizable().scaledToFill()
-                                    }
-                                    else { Image("DaoLogo").resizable().scaledToFit().frame(width: 40, height: 40) }
-                                }.frame(height: 190).clipped().contentShape(Rectangle())
-                            }.buttonStyle(.plain).accessibilityLabel(tab.title)
-                        }.background(Nova.surface).clipShape(.rect(cornerRadius: 16))
-                            .overlay(RoundedRectangle(cornerRadius: 16).stroke(tab.id == model.selectedID ? Nova.foreground : Nova.border, lineWidth: tab.id == model.selectedID ? 2 : 1))
-                            .simultaneousGesture(DragGesture(minimumDistance: 30).onEnded { value in
-                                if value.translation.width > 85 && abs(value.translation.height) < 60 { model.close(tab) }
-                            })
-                            .accessibilityAction(named: L("close_tab")) { model.close(tab) }
-                    }
-                }.padding(12)
+            // New tabs are appended at the end, so open on the selected tab and keep it on screen.
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                        ForEach(model.tabs) { tab in card(tab).id(tab.id) }
+                    }.padding(12)
+                }
+                .onAppear { proxy.scrollTo(model.selectedID) }
+                .onChange(of: model.selectedID) { reveal(proxy) }
+                .onChange(of: model.tabs.count) { reveal(proxy) }
             }
             HStack {
                 Button { model.addTab(isPrivate: false) } label: { HStack { DaoIcon(name: "plus"); Text(L("new_tab")) } }
@@ -161,5 +163,35 @@ struct TabsView: View {
                 Button { model.addTab(isPrivate: true) } label: { HStack { DaoIcon(name: "venetian-mask"); Text(L("private_tab")) } }
             }.font(.subheadline).padding(20).background(Nova.surface)
         }
+    }
+
+    /// Scrolls only as far as needed to show the selected tab in full.
+    private func reveal(_ proxy: ScrollViewProxy) {
+        withAnimation(reduceMotion ? nil : Nova.animation) { proxy.scrollTo(model.selectedID) }
+    }
+
+    private func card(_ tab: BrowserTab) -> some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 4) {
+                if tab.record.isPrivate { DaoIcon(name: "venetian-mask", size: 16) }
+                Text(tab.title).font(.caption.weight(.medium)).lineLimit(1)
+                Spacer(minLength: 0)
+                IconButton(icon: "x", label: "close_tab") { model.close(tab) }
+            }.padding(.leading, 10)
+            Button { model.select(tab) } label: {
+                ZStack {
+                    Nova.secondary
+                    if let image = tab.thumbnail ?? tab.record.thumbnailData.flatMap({ UIImage(data: $0) }) {
+                        Image(uiImage: image).resizable().scaledToFill()
+                    }
+                    else { Image("DaoLogo").resizable().scaledToFit().frame(width: 40, height: 40) }
+                }.frame(height: 190).clipped().contentShape(Rectangle())
+            }.buttonStyle(.plain).accessibilityLabel(tab.title)
+        }.background(Nova.surface).clipShape(.rect(cornerRadius: 16))
+            .overlay(RoundedRectangle(cornerRadius: 16).stroke(tab.id == model.selectedID ? Nova.foreground : Nova.border, lineWidth: tab.id == model.selectedID ? 2 : 1))
+            .simultaneousGesture(DragGesture(minimumDistance: 30).onEnded { value in
+                if value.translation.width > 85 && abs(value.translation.height) < 60 { model.close(tab) }
+            })
+            .accessibilityAction(named: L("close_tab")) { model.close(tab) }
     }
 }

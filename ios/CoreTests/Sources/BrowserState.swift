@@ -114,3 +114,62 @@ public enum DownloadName {
         return name.isEmpty || name == "." || name == ".." ? "download" : String(name.prefix(180))
     }
 }
+
+/// Estimates a running download's speed from byte deltas over monotonic time.
+public struct TransferMeter: Equatable, Sendable {
+    public static let window: TimeInterval = 1
+    public static let stall: TimeInterval = 5
+
+    public private(set) var received: Int64 = 0
+    /// The expected size, or nil when the server does not report one.
+    public private(set) var total: Int64?
+    private var speed: Double?
+    private var sampleBytes: Int64?
+    private var sampleTime: TimeInterval = 0
+    private var progressTime: TimeInterval = 0
+
+    public init() {}
+
+    public var fraction: Double {
+        guard let total, total > 0 else { return 0 }
+        return min(1, Double(received) / Double(total))
+    }
+
+    public mutating func record(_ bytes: Int64, total: Int64?, at time: TimeInterval) {
+        defer { received = bytes; self.total = total }
+        guard let base = sampleBytes, bytes >= base, time - sampleTime <= Self.stall else {
+            // The first sample, a counter reset or a long gap has no trustworthy baseline.
+            sampleBytes = bytes
+            sampleTime = time
+            progressTime = time
+            speed = nil
+            return
+        }
+        if bytes > received { progressTime = time }
+        guard time - sampleTime >= Self.window else { return }
+        speed = Double(bytes - base) / (time - sampleTime)
+        sampleBytes = bytes
+        sampleTime = time
+    }
+
+    /// The bytes per second to show at `time`; zero once progress stalls for five seconds.
+    public func speed(at time: TimeInterval) -> Double? {
+        guard let speed else { return nil }
+        return time - progressTime >= Self.stall ? 0 : speed
+    }
+}
+
+public enum PageImageSource {
+    /// Image sources a long-press menu may act on; anything else keeps WebKit's default menu.
+    public static func url(_ source: String) -> URL? {
+        guard let url = URL(string: source) else { return nil }
+        switch url.scheme?.lowercased() {
+        case "blob": return url
+        case "data": return source.dropFirst(5).lowercased().hasPrefix("image/") ? url : nil
+        default: return Address.isWeb(url) ? url : nil
+        }
+    }
+
+    /// blob: images only load inside their page, and a data: URL would bloat the saved session.
+    public static func canOpenInTab(_ url: URL) -> Bool { Address.isWeb(url) }
+}

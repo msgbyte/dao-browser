@@ -25,6 +25,7 @@
 "edit_address" = "编辑地址";
 "page_failed" = "无法加载此页面";
 "page_terminated" = "此页面已停止以释放内存，请重新加载。";
+"form_not_resent" = "此页面来自你提交的表单。为避免重复提交，没有重新加载。";
 "bookmark_page" = "收藏此页面";
 "read_later" = "稍后阅读";
 "readingList" = "阅读列表";
@@ -72,7 +73,7 @@
 "delete_download" = "删除下载？";
 "delete_download_notice" = "将删除已下载的文件和记录。";
 "delete_failed" = "无法删除文件。";
-"download_confirm" = "下载文件？";
+"download_confirm" = "是否下载此文件？";
 "download_disk_notice" = "此文件将保存在设备上，隐私浏览中也一样。";
 "open_download_page" = "打开下载页面";
 "theme" = "主题";
@@ -106,3 +107,19 @@
 "certificate_chain" = "证书链";
 "certificate" = "证书";
 "certificate_sha256" = "SHA-256 指纹";
+"download_action" = "下载";
+"download_progress" = "%1$@ / %2$@";
+"download_speed" = "%@/秒";
+"download_deleted_with_file" = "已删除下载记录，源文件也已一并删除。";
+"download_deleted_record_only" = "未找到源文件，仅删除了下载记录。";
+"image_download" = "下载图片";
+"image_copy" = "复制图片";
+"image_preview" = "预览图片";
+"image_open_in_new_tab" = "在新标签页中打开图片";
+"image_download_started" = "正在下载图片";
+"image_download_failed" = "无法下载此图片。";
+"image_copied" = "已复制图片";
+"image_copy_failed" = "无法复制此图片。";
+"image_preview_failed" = "无法预览此图片。";
+"image_opened_in_new_tab" = "已在新标签页中打开图片";
+"close_image_preview" = "关闭预览";

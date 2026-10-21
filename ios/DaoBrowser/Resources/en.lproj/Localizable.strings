@@ -25,6 +25,7 @@
 "edit_address" = "Edit address";
 "page_failed" = "This page could not be loaded";
 "page_terminated" = "This page stopped to free memory. Reload to continue.";
+"form_not_resent" = "This page came from a form you submitted. It was not reloaded, so the form is not sent twice.";
 "bookmark_page" = "Bookmark this page";
 "read_later" = "Read later";
 "readingList" = "Reading list";
@@ -72,7 +73,7 @@
 "delete_download" = "Delete download?";
 "delete_download_notice" = "The downloaded file and its record will be deleted.";
 "delete_failed" = "The file could not be deleted.";
-"download_confirm" = "Download file?";
+"download_confirm" = "Download this file?";
 "download_disk_notice" = "This file will be saved on this device, including in private browsing.";
 "open_download_page" = "Open download page";
 "theme" = "Theme";
@@ -106,3 +107,19 @@
 "certificate_chain" = "Certificate chain";
 "certificate" = "Certificate";
 "certificate_sha256" = "SHA-256 fingerprint";
+"download_action" = "Download";
+"download_progress" = "%1$@ / %2$@";
+"download_speed" = "%@/s";
+"download_deleted_with_file" = "Download and its file deleted.";
+"download_deleted_record_only" = "File not found. Only the download record was deleted.";
+"image_download" = "Download image";
+"image_copy" = "Copy image";
+"image_preview" = "Preview image";
+"image_open_in_new_tab" = "Open image in new tab";
+"image_download_started" = "Downloading image";
+"image_download_failed" = "Unable to download this image.";
+"image_copied" = "Image copied";
+"image_copy_failed" = "Unable to copy this image.";
+"image_preview_failed" = "Unable to preview this image.";
+"image_opened_in_new_tab" = "Image opened in a new tab";
+"close_image_preview" = "Close preview";

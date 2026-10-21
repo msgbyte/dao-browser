@@ -25,7 +25,10 @@ struct DownloadsView: View {
                                 }
                                 Text(L("download_" + item.state)).font(.caption).foregroundStyle(Nova.muted)
                                 if item.state == "downloading" {
-                                    ProgressView(value: item.fraction)
+                                    if let transfer = model.downloads.transfers[item.id] {
+                                        if transfer.total != nil { ProgressView(value: transfer.fraction) }
+                                        TransferLine(transfer: transfer)
+                                    } else { ProgressView(value: item.fraction) }
                                     Button(L("cancel")) { model.downloads.cancel(item.id) }.frame(minHeight: 44)
                                 } else {
                                     HStack {
@@ -57,7 +60,32 @@ struct DownloadsView: View {
         .quickLookPreview($preview)
         .alert(L("delete_download"), isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } })) {
             Button(L("cancel"), role: .cancel) { deleting = nil }
-            Button(L("delete"), role: .destructive) { if let deleting { model.downloads.remove(deleting.id) }; deleting = nil }
+            Button(L("delete"), role: .destructive) {
+                if let deleting, let fileDeleted = model.downloads.remove(deleting.id) {
+                    model.showToast(L(fileDeleted ? "download_deleted_with_file" : "download_deleted_record_only"))
+                }
+                deleting = nil
+            }
         } message: { Text(L("delete_download_notice")) }
     }
+}
+
+/// Transferred bytes, plus the speed once a fresh sample exists; it falls to zero when progress stalls.
+private struct TransferLine: View {
+    let transfer: TransferMeter
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { _ in
+            HStack {
+                Text(transfer.total.map { String(format: L("download_progress"), size(transfer.received), size($0)) }
+                    ?? size(transfer.received))
+                Spacer()
+                if let speed = transfer.speed(at: ProcessInfo.processInfo.systemUptime) {
+                    Text(String(format: L("download_speed"), size(Int64(speed))))
+                }
+            }.font(.caption.monospacedDigit()).foregroundStyle(Nova.muted)
+        }
+    }
+
+    private func size(_ bytes: Int64) -> String { ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file) }
 }
