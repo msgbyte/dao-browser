@@ -12558,6 +12558,51 @@ IN_PROC_BROWSER_TEST_F(DaoAgentSidebarViewBrowserTest, WidthClampedToBounds) {
 }
 
 IN_PROC_BROWSER_TEST_F(DaoAgentSidebarViewBrowserTest,
+                       ResponseLinksOpenInOwningBrowserTabs) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  ASSERT_TRUE(LoadAgentWebUI());
+  auto* original_tab = browser()->tab_strip_model()->GetActiveWebContents();
+  const GURL original_url = original_tab->GetLastCommittedURL();
+  Browser* other_browser = CreateBrowser(browser()->GetProfile());
+  const int other_tab_count = other_browser->tab_strip_model()->count();
+  const GURL link_url = embedded_test_server()->GetURL("/title1.html");
+
+  for (const char* target : {"_blank", "_self"}) {
+    SCOPED_TRACE(target);
+    const int tab_count = browser()->tab_strip_model()->count();
+    content::TestNavigationObserver navigation(link_url);
+    navigation.StartWatchingNewWebContents();
+    ASSERT_TRUE(content::ExecJs(agent_contents_, content::JsReplace(R"(
+      (async () => {
+        const markdown = document.createElement('markdown-block');
+        markdown.content = '[Reference](' + $1 + ')';
+        document.body.append(markdown);
+        await markdown.updateComplete;
+        const link = markdown.querySelector('a');
+        if (link.target !== '_blank' || !link.relList.contains('noopener')) {
+          throw new Error('Expected an isolated Markdown link');
+        }
+        link.target = $2;
+        link.click();
+        markdown.remove();
+      })()
+    )", link_url, target)));
+    navigation.Wait();
+
+    EXPECT_TRUE(navigation.last_navigation_succeeded());
+    EXPECT_EQ(tab_count + 1, browser()->tab_strip_model()->count());
+    auto* active = browser()->tab_strip_model()->GetActiveWebContents();
+    EXPECT_NE(original_tab, active);
+    EXPECT_EQ(link_url, active->GetLastCommittedURL());
+    EXPECT_TRUE(content::EvalJs(active, "window.opener === null").ExtractBool());
+    EXPECT_EQ(original_url, original_tab->GetLastCommittedURL());
+    EXPECT_EQ(GURL("chrome://agent/"), agent_contents_->GetLastCommittedURL());
+    EXPECT_TRUE(sidebar_->is_expanded());
+    EXPECT_EQ(other_tab_count, other_browser->tab_strip_model()->count());
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentSidebarViewBrowserTest,
                        AgentGearOpensSettingsSubpageWithoutTurn) {
   ASSERT_TRUE(LoadAgentWebUI());
   const int tab_count_before = browser()->tab_strip_model()->count();

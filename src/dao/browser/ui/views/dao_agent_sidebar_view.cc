@@ -16,7 +16,11 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/values.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/navigator/browser_navigator.h"
+#include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "content/public/browser/navigation_handle.h"
+#include "content/public/browser/page_navigator.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
@@ -506,6 +510,50 @@ void DaoAgentSidebarView::Layout(PassKey) {
       contents->UpdateWindowControlsOverlay(titlebar_area);
     }
   }
+}
+
+content::WebContents* DaoAgentSidebarView::OpenURLFromTab(
+    content::WebContents* source,
+    const content::OpenURLParams& params,
+    base::OnceCallback<void(content::NavigationHandle&)>
+        navigation_handle_callback) {
+  if (!params.url.is_valid() || !params.url.SchemeIsHTTPOrHTTPS()) {
+    return nullptr;
+  }
+
+  NavigateParams nav_params(browser_, params.url, params.transition);
+  nav_params.FillNavigateParamsFromOpenURLParams(params);
+  nav_params.source_contents = source;
+  nav_params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+  auto navigation = Navigate(&nav_params);
+  if (navigation && navigation_handle_callback) {
+    std::move(navigation_handle_callback).Run(*navigation);
+  }
+  return nav_params.navigated_or_inserted_contents;
+}
+
+content::WebContents* DaoAgentSidebarView::AddNewContents(
+    content::WebContents* source,
+    std::unique_ptr<content::WebContents> new_contents,
+    const GURL& target_url,
+    WindowOpenDisposition disposition,
+    const blink::mojom::WindowFeatures& window_features,
+    bool user_gesture,
+    bool* was_blocked) {
+  if (!target_url.is_valid() || !target_url.SchemeIsHTTPOrHTTPS()) {
+    if (was_blocked) {
+      *was_blocked = true;
+    }
+    return nullptr;
+  }
+
+  // Markdown links use target="_blank"; keep their isolated WebContents.
+  NavigateParams nav_params(browser_, std::move(new_contents));
+  nav_params.source_contents = source;
+  nav_params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+  nav_params.user_gesture = user_gesture;
+  Navigate(&nav_params);
+  return nav_params.navigated_or_inserted_contents;
 }
 
 content::KeyboardEventProcessingResult

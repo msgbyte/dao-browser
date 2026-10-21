@@ -510,6 +510,9 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
 
 **Chat surface**
 - `dao_chat_view.ts` — Main conversation view (session resume, skill picker, dynamic chips, composer height tracking, cost stats / usage)
+- **Response links** — HTTP(S) links in the Agent sidebar open a foreground
+  tab in the sidebar's owning browser window, preserving the conversation
+  and the current page; Markdown and tool-result links support new-tab targets
 - **Agent browser-turn lifecycle** — New sends, retries, regeneration, and
   edited-message resends each acquire their own native turn before execution
   and release it on completion or failure. Editing an active response waits
