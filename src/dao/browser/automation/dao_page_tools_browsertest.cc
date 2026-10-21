@@ -2089,21 +2089,70 @@ IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
 #endif
 
 IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
+                       ScriptSyntaxErrorsPreserveClassificationAndUnlock) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
+  auto session = MakeSessionForActiveTab();
+  content::WebContents* target = session->ResolveTarget().value();
+  ASSERT_TRUE(Execute(session.get(), "execute_script",
+                      base::DictValue().Set(
+                          "code", "const daoScriptLocal = 1; daoScriptLocal"))
+                  .ok);
+
+  for (const char* code : {"const daoScriptLocal = 2; daoScriptLocal",
+                          "return 1", "await Promise.resolve(1)"}) {
+    SCOPED_TRACE(code);
+    DaoBrowserToolResult result =
+        Execute(session.get(), "execute_script",
+                base::DictValue().Set("code", code).Set("lock_tab", true));
+    ASSERT_FALSE(result.ok);
+    ASSERT_TRUE(result.error);
+    EXPECT_EQ(DaoToolErrorCode::kInternalError, result.error->code);
+    EXPECT_FALSE(result.error->retryable);
+    EXPECT_NE(std::string::npos, result.error->message.find("SyntaxError"));
+    EXPECT_FALSE(DaoAgentLockTabHelper::IsLocked(target));
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
+                       ScriptIifeDeclarationsCanBeRepeated) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
+  auto session = MakeSessionForActiveTab();
+  for (int iteration = 0; iteration < 2; ++iteration) {
+    DaoBrowserToolResult result =
+        Execute(session.get(), "execute_script",
+                base::DictValue().Set(
+                    "code", "(() => { const value = 42; return {value}; })()"));
+    ASSERT_TRUE(result.ok) << result.error->message;
+    EXPECT_EQ(R"({"value":42})", *result.data.GetDict().FindString("result"));
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
                        ScriptRuntimeExceptionIsTypedFailureAndUnlocks) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
   auto session = MakeSessionForActiveTab();
   content::WebContents *target = session->ResolveTarget().value();
 
-  DaoBrowserToolResult result =
-      Execute(session.get(), "execute_script",
-              base::DictValue()
-                  .Set("code", "throw new Error('script failed')")
-                  .Set("lock_tab", true));
+  for (const char* code : {"throw new Error('script failed')",
+                          "JSON.parse('not json')",
+                          "throw new SyntaxError('script failed')"}) {
+    SCOPED_TRACE(code);
+    ASSERT_TRUE(content::ExecJs(target, "window.daoRuntimeStarted = false"));
+    DaoBrowserToolResult result =
+        Execute(session.get(), "execute_script",
+                base::DictValue()
+                    .Set("code", std::string("window.daoRuntimeStarted = true; ") +
+                                     code)
+                    .Set("lock_tab", true));
 
-  ASSERT_FALSE(result.ok);
-  ASSERT_TRUE(result.error.has_value());
-  EXPECT_EQ(DaoToolErrorCode::kInternalError, result.error->code);
-  EXPECT_FALSE(DaoAgentLockTabHelper::IsLocked(target));
+    ASSERT_FALSE(result.ok);
+    ASSERT_TRUE(result.error.has_value());
+    EXPECT_EQ(DaoToolErrorCode::kInternalError, result.error->code);
+    EXPECT_FALSE(result.error->retryable);
+    EXPECT_FALSE(result.error->message.empty());
+    EXPECT_FALSE(DaoAgentLockTabHelper::IsLocked(target));
+    EXPECT_EQ(true, content::EvalJs(target, "window.daoRuntimeStarted"));
+  }
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,

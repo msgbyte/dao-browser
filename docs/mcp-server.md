@@ -155,7 +155,7 @@ under `src/dao/browser/mcp/`.
 The authoritative names and schemas are in
 `src/dao/browser/ui/webui/resources/agent/browser_tool_catalog.json`.
 
-## Response selection and screenshots
+## Response selection and script execution
 
 `wait_for_network_response` matches responses using URL, method, status, and
 optional `json_path`/`any_of` conditions. Its `select` list only projects output
@@ -167,6 +167,25 @@ are preserved. A response can therefore match when it has `$.result` but no
 actual MIME type. `structuredContent` retains metadata such as `format`, without
 a second copy of the image. MCP consumers should read image bytes from the image
 content block; the internal Agent screenshot result is unchanged.
+
+`execute_script` evaluates code as supplied and returns a synchronous value.
+Top-level `let` and `const` bindings persist between calls, so use an immediately
+invoked function expression (IIFE) for local declarations and `return`:
+
+```javascript
+(() => {
+  const title = document.title;
+  return {title};
+})()
+```
+
+Return a small JSON-serializable value. Top-level `await` is unsupported, and
+returned promises are not awaited. Use `wait_for_element` or
+`wait_for_network_response` for supported waits. Correct script syntax before
+retrying. Script exceptions retain their original details and existing
+non-retryable `INTERNAL_ERROR` classification. A `SyntaxError` can also come from
+JSON parsing or page code at runtime, so its class alone does not indicate invalid
+script syntax.
 
 ## Use Jev from an MCP client
 

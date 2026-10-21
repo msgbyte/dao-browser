@@ -794,7 +794,7 @@
     },
     {
       "name": "execute_script",
-      "description": "Execute JavaScript code on the current page and return the result",
+      "description": "Evaluate synchronous JavaScript on the current page and return the result. Top-level let/const declarations persist between calls; use an IIFE for local variables and return. Top-level await is unsupported, and returned promises are not awaited. Correct syntax errors before retrying.",
       "group": "page",
       "clients": [
         "dao_agent",
@@ -807,7 +807,7 @@
         "properties": {
           "code": {
             "type": "string",
-            "description": "JavaScript code to execute"
+            "description": "JavaScript expression or script returning a small JSON-serializable value. For multiple statements use an IIFE, e.g. (() => { const title = document.title; return {title}; })()."
           },
           "lock_tab": {
             "type": "boolean",
