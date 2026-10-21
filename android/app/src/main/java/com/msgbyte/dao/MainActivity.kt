@@ -5,6 +5,8 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.widget.Toast
+import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -60,6 +62,7 @@ class MainActivity : FragmentActivity() {
     private var darkThemeEnabled = false
     private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
     private var externalNavigationUrl by mutableStateOf<String?>(null)
+    private var filePicker: ActivityResultLauncher<Intent>? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -67,6 +70,37 @@ class MainActivity : FragmentActivity() {
             externalNavigationUrl = intent.httpNavigationUrl()
         }
         enableEdgeToEdge()
+        lifecycleScope.launch {
+            browserSessionViewModel.fileUploads.pending.collect { request ->
+                filePicker?.unregister()
+                filePicker = null
+                if (request != null) {
+                    val launcher = activityResultRegistry.register(
+                        request.key,
+                        ActivityResultContracts.StartActivityForResult(),
+                    ) { result ->
+                        browserSessionViewModel.fileUploads.onResult(request.key, result.resultCode, result.data)
+                    }
+                    filePicker = launcher
+                    browserSessionViewModel.fileUploads.launchIntent(request)?.let { pickerIntent ->
+                        try {
+                            launcher.launch(pickerIntent)
+                        } catch (_: android.content.ActivityNotFoundException) {
+                            browserSessionViewModel.fileUploads.onLaunchFailed(request.key)
+                        } catch (_: SecurityException) {
+                            browserSessionViewModel.fileUploads.onLaunchFailed(request.key)
+                        }
+                    }
+                }
+            }
+        }
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                browserSessionViewModel.fileUploads.errors.collect { message ->
+                    Toast.makeText(this@MainActivity, message, Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
         val application = application as DaoApplication
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             lifecycleScope.launch {
@@ -167,6 +201,7 @@ class MainActivity : FragmentActivity() {
                     },
                     externalNavigationUrl = externalNavigationUrl,
                     onExternalNavigationConsumed = { externalNavigationUrl = null },
+                    onBrowsingVisibilityChanged = { browserSessionViewModel.fileUploads.isBrowsing = it },
                 )
                 pendingDownloads.firstOrNull()?.let { download ->
                     DownloadConfirmationDialog(
@@ -202,8 +237,19 @@ class MainActivity : FragmentActivity() {
     }
 
     override fun onPause() {
+        browserSessionViewModel.fileUploads.isForeground = false
         browserSessionViewModel.controller.flushRegularSessionStates()
         super.onPause()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        browserSessionViewModel.fileUploads.isForeground = true
+    }
+
+    override fun onDestroy() {
+        filePicker?.unregister()
+        super.onDestroy()
     }
 
     private fun updateSystemBarAppearance() {

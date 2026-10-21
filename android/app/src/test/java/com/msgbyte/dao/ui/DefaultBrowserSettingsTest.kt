@@ -71,7 +71,7 @@ class DefaultBrowserSettingsTest {
 
         assertEquals(1, requests.size)
         assertEquals("android.app.role.action.REQUEST_ROLE", requests.single().action)
-        assertEquals(RoleManager.ROLE_BROWSER, requests.single().getStringExtra(RoleManager.EXTRA_ROLE_NAME))
+        assertEquals(RoleManager.ROLE_BROWSER, requests.single().getStringExtra("android.intent.extra.ROLE_NAME"))
     }
 
     @Test
