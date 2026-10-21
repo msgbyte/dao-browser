@@ -4,6 +4,8 @@
 
 ### [Unreleased] Unreleased
 
+- Prevent AI browser tools from timing out on a matching network response when optional result or error fields are absent.
+
 ### [1.0.115] - 2026-10-21
 
 - Move Close Tab to the bottom of the sidebar tab context menu, below Close Multiple Tabs.

@@ -155,6 +155,14 @@ under `src/dao/browser/mcp/`.
 The authoritative names and schemas are in
 `src/dao/browser/ui/webui/resources/agent/browser_tool_catalog.json`.
 
+## Response selection
+
+`wait_for_network_response` matches responses using URL, method, status, and
+optional `json_path`/`any_of` conditions. Its `select` list only projects output
+into the `selected` object: missing paths are omitted and explicit JSON nulls
+are preserved. A response can therefore match when it has `$.result` but no
+`$.error`, or vice versa. Invalid path syntax is still rejected.
+
 ## Use Jev from an MCP client
 
 1. In **Settings → Agent**, enable the experimental **Jev** connection, enter

@@ -196,6 +196,15 @@ class DaoMcpDevToolsBrowserTest : public InProcessBrowserTest {
       response->set_content(std::move(png));
       return response;
     }
+    if (request.relative_url == "/api-wait-done" ||
+        request.relative_url == "/api-wait-failed") {
+      response->set_content_type("application/json");
+      response->set_content(
+          request.relative_url == "/api-wait-done"
+              ? R"({"status":"done","result":{"requestId":"request-1"},"optional":null})"
+              : R"({"status":"failed","error":"request failed","optional":null})");
+      return response;
+    }
     if (base::StartsWith(request.relative_url, "/api-body")) {
       response->set_content_type("application/json");
       response->set_content(R"({"source":"dao-network-body"})");
@@ -1079,6 +1088,63 @@ IN_PROC_BROWSER_TEST_F(DaoMcpDevToolsBrowserTest,
   EXPECT_EQ("dao-network-body",
             *data.FindDict("selected")->FindString("$.source"));
   EXPECT_EQ(1, callback_count);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpDevToolsBrowserTest,
+                       NetworkWaitOmitsMissingSelectionsButPreservesNull) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), page_url()));
+  auto session = MakeSession();
+  ASSERT_TRUE(Execute(session.get(), "enable_network_tracking").ok);
+  content::WebContents* target =
+      browser()->tab_strip_model()->GetActiveWebContents();
+
+  for (bool failed : {false, true}) {
+    const std::string path = failed ? "/api-wait-failed" : "/api-wait-done";
+    SCOPED_TRACE(path);
+    ASSERT_TRUE(content::EvalJs(
+                    target, content::JsReplace(
+                                "fetch($1).then(r => r.json()).then(() => true)",
+                                path))
+                    .ExtractBool());
+    base::ListValue select;
+    select.Append("$.status");
+    select.Append("$.result.requestId");
+    select.Append("$.error");
+    select.Append("$.optional");
+    base::ListValue any_of;
+    any_of.Append("done");
+    any_of.Append("failed");
+    base::DictValue arguments =
+        base::DictValue()
+            .Set("url_pattern", embedded_test_server()->GetURL(path).spec())
+            .Set("json_path", "$.status")
+            .Set("any_of", std::move(any_of))
+            .Set("select", std::move(select))
+            .Set("timeout_ms", 1000);
+    DaoBrowserToolResult result =
+        Execute(session.get(), "wait_for_network_response", arguments.Clone());
+    ASSERT_TRUE(result.ok) << result.error->message;
+    const base::DictValue* selected = result.data.GetDict().FindDict("selected");
+    ASSERT_NE(nullptr, selected);
+    base::DictValue expected;
+    expected.Set("$.status", failed ? "failed" : "done");
+    expected.Set("$.optional", base::Value());
+    if (failed) {
+      expected.Set("$.error", "request failed");
+    } else {
+      expected.Set("$.result.requestId", "request-1");
+    }
+    EXPECT_EQ(expected, *selected);
+
+    // A missing predicate still excludes the response, unlike a projection.
+    arguments.Set("json_path", "$.missing");
+    arguments.Set("timeout_ms", 100);
+    DaoBrowserToolResult unmatched =
+        Execute(session.get(), "wait_for_network_response", std::move(arguments));
+    ASSERT_FALSE(unmatched.ok);
+    ASSERT_TRUE(unmatched.error);
+    EXPECT_EQ(DaoToolErrorCode::kToolTimeout, unmatched.error->code);
+  }
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpDevToolsBrowserTest,

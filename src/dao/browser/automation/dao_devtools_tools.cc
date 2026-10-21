@@ -1842,11 +1842,9 @@ void DaoDevToolsTools::OnNetworkWaitBody(
     for (const base::Value &path_value : *paths) {
       const std::string &path = path_value.GetString();
       const base::Value *value = FindSimpleJsonPath(*parsed, path);
-      if (!value) {
-        CheckNetworkWait(request_id);
-        return;
+      if (value) {
+        selected.Set(path, value->Clone());
       }
-      selected.Set(path, value->Clone());
     }
   }
   base::DictValue data = operation->wait_match.Clone();

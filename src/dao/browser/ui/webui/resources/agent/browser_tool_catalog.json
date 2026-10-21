@@ -979,7 +979,7 @@
           },
           "select": {
             "type": "array",
-            "description": "Simple JSON paths to return instead of the full body.",
+            "description": "Simple JSON paths to return in selected instead of the full body. Missing paths are omitted; explicit null values are preserved. Selection does not filter responses; use json_path and any_of for matching.",
             "items": {
               "type": "string"
             }
