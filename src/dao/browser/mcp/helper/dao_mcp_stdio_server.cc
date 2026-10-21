@@ -719,6 +719,12 @@ base::DictValue DaoMcpStdioServer::AdaptToolResult(base::DictValue result) {
                          .Set("type", "image")
                          .Set("mimeType", *mime_type)
                          .Set("data", *data));
+      if (base::DictValue* metadata = result.FindDict("data")) {
+        const std::string* duplicate = metadata->FindString("data");
+        if (duplicate && *duplicate == *data) {
+          metadata->Remove("data");
+        }
+      }
     }
   }
   const base::Value* data = result.Find("data");

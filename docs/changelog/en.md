@@ -5,6 +5,7 @@
 ### [Unreleased] Unreleased
 
 - Prevent AI browser tools from timing out on a matching network response when optional result or error fields are absent.
+- Reduce MCP screenshot response size by sending the image only once while keeping its format metadata.
 
 ### [1.0.115] - 2026-10-21
 

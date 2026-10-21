@@ -155,13 +155,18 @@ under `src/dao/browser/mcp/`.
 The authoritative names and schemas are in
 `src/dao/browser/ui/webui/resources/agent/browser_tool_catalog.json`.
 
-## Response selection
+## Response selection and screenshots
 
 `wait_for_network_response` matches responses using URL, method, status, and
 optional `json_path`/`any_of` conditions. Its `select` list only projects output
 into the `selected` object: missing paths are omitted and explicit JSON nulls
 are preserved. A response can therefore match when it has `$.result` but no
 `$.error`, or vice versa. Invalid path syntax is still rejected.
+
+`capture_screenshot` returns the encoded image once in MCP `content`, with its
+actual MIME type. `structuredContent` retains metadata such as `format`, without
+a second copy of the image. MCP consumers should read image bytes from the image
+content block; the internal Agent screenshot result is unchanged.
 
 ## Use Jev from an MCP client
 

@@ -1159,7 +1159,7 @@ TEST_F(DaoMcpHelperBrowserTest,
           .Set("id", "image")
           .Set("method", "tools/call")
           .Set("params", base::DictValue()
-                             .Set("name", "take_screenshot")
+                             .Set("name", "capture_screenshot")
                              .Set("arguments", base::DictValue()))));
   std::optional<base::DictValue> image_call = browser.ReadRequest();
   ASSERT_TRUE(image_call);
@@ -1169,7 +1169,10 @@ TEST_F(DaoMcpHelperBrowserTest,
           .Set("id", *image_call->FindString("id"))
           .Set("result", base::DictValue()
                              .Set("ok", true)
-                             .Set("data", base::DictValue().Set("width", 10))
+                             .Set("data", base::DictValue()
+                                              .Set("width", 10)
+                                              .Set("format", "jpeg")
+                                              .Set("data", "ZmFrZQ=="))
                              .Set("media", base::DictValue()
                                                .Set("mime_type", "image/jpeg")
                                                .Set("data", "ZmFrZQ==")))));
@@ -1181,6 +1184,13 @@ TEST_F(DaoMcpHelperBrowserTest,
   ASSERT_EQ(1u, image_content->size());
   EXPECT_EQ("image/jpeg",
             *(*image_content)[0].GetDict().FindString("mimeType"));
+  EXPECT_EQ("ZmFrZQ==", *(*image_content)[0].GetDict().FindString("data"));
+  const base::DictValue* image_metadata =
+      image_response->FindDict("result")->FindDict("structuredContent");
+  ASSERT_TRUE(image_metadata);
+  EXPECT_FALSE(image_metadata->contains("data"));
+  EXPECT_EQ("jpeg", *image_metadata->FindString("format"));
+  EXPECT_EQ(10, image_metadata->FindInt("width"));
 
   ASSERT_TRUE(helper.Send(
       base::DictValue()
