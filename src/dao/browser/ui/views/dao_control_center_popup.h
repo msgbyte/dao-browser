@@ -28,8 +28,9 @@ class DaoControlCenterQrView;
 class DaoControlCenterMoreMenu;
 
 // A floating popup anchored below the control center button.
-// Contains extensions grid, utility buttons (share, QR, lock, more).
-// Has a transparent overlay that closes the popup when clicked.
+// Contains an extensions tile and utility tiles (dark mode, security, QR,
+// Mini Dao, more). Has a transparent overlay that closes the popup when
+// clicked.
 class DaoControlCenterPopup : public views::View,
                                public TabStripModelObserver,
                                public content::WebContentsObserver,
@@ -56,6 +57,10 @@ class DaoControlCenterPopup : public views::View,
 
   BrowserWindowInterface* browser() const { return browser_; }
 
+  // Shared tile metrics for the main panel.
+  static constexpr int kTileCornerRadius = 12;
+  static constexpr int kTileSpacing = 8;
+
   // TabStripModelObserver:
   void OnTabStripModelChanged(
       TabStripModel* tab_strip_model,
@@ -75,11 +80,15 @@ class DaoControlCenterPopup : public views::View,
 
  private:
   static constexpr int kCardWidth = 320;
-  static constexpr int kCardCornerRadius = 12;
-  static constexpr int kCardPadding = 12;
+  static constexpr int kCardCornerRadius = 16;
+  static constexpr int kCardPadding = 10;
 
   raw_ptr<BrowserWindowInterface> browser_;
   raw_ptr<views::View> card_ = nullptr;
+  // Holds the extensions tile and utility tiles; hidden while a sub-panel is
+  // shown.
+  raw_ptr<views::View> main_panel_ = nullptr;
+  raw_ptr<views::View> extensions_tile_ = nullptr;
   raw_ptr<DaoControlCenterExtensionsSection> extensions_section_ = nullptr;
   raw_ptr<DaoControlCenterUtilitySection> utility_section_ = nullptr;
   raw_ptr<DaoControlCenterQrView> qr_view_ = nullptr;
@@ -89,8 +98,6 @@ class DaoControlCenterPopup : public views::View,
   gfx::Point anchor_;
 
   void ApplyTheme();
-
-  raw_ptr<views::View> separator_ = nullptr;
 
   base::ScopedObservation<ui::NativeTheme, ui::NativeThemeObserver>
       native_theme_observation_{this};

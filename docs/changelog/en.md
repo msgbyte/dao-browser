@@ -16,6 +16,7 @@
 - Move Close Tab to the bottom of the sidebar tab context menu, below Close Multiple Tabs.
 - Upgrade the browsing engine to Chromium 154.0.8037.100 for updated website compatibility and security fixes.
 - Fix pressing Enter before command bar suggestions appear opening AI settings instead of searching.
+- Redesign Control Center with rounded tiles: extensions get their own section whose Add and Manage buttons stay visible however many extensions you install, and Dark Mode and Security now show their current status at a glance.
 
 ### [1.0.114] - 2026-10-18
 

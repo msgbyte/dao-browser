@@ -300,4 +300,10 @@
 <translation id="2840970850699819939">本地自动化客户端正在申请仅控制下方标签页。其他标签页不能作为自动化操作目标。</translation>
 <translation id="3696233115467211566">标签页：<ph name="TAB"/></translation>
 <translation id="1589170129806173037">网址：<ph name="URL"/></translation>
+<translation id="8803639129939845298">连接安全</translation>
+<translation id="6830728435402077660">连接不安全</translation>
+<translation id="8584447433626622357">网站信息</translation>
+<translation id="5887866489674258948">深色模式</translation>
+<translation id="5916664084637901428">已开启</translation>
+<translation id="5860033963881614850">已关闭</translation>
 </translationbundle>

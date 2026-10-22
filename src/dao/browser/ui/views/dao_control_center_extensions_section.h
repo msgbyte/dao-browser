@@ -36,14 +36,14 @@ enum class MenuSourceType;
 
 namespace views {
 class ImageButton;
+class Label;
 class MenuModelAdapter;
 class MenuRunner;
 }  // namespace views
 
 namespace dao {
 
-// Displays installed extension icons in a wrapping grid.
-// Includes "Add" and "Manage" shortcut buttons at the bottom.
+// Displays installed extension icons with "Add" and "Manage" shortcut buttons.
 class DaoControlCenterExtensionsSection
     : public views::View,
       public ToolbarActionsModel::Observer,
@@ -52,8 +52,18 @@ class DaoControlCenterExtensionsSection
   METADATA_HEADER(DaoControlCenterExtensionsSection, views::View)
 
  public:
-  explicit DaoControlCenterExtensionsSection(
+  // Where the "Add" and "Manage" shortcut buttons are placed.
+  enum class ActionsPlacement {
+    // After the extension icons, in a single row.
+    kGrid,
+    // In a titled header above the extension icons, which wrap onto as many
+    // rows as needed.
+    kHeader,
+  };
+
+  DaoControlCenterExtensionsSection(
       BrowserWindowInterface* browser,
+      ActionsPlacement actions_placement,
       base::RepeatingClosure close_host_callback = base::RepeatingClosure(),
       base::RepeatingCallback<views::View*()> anchor_view_callback =
           base::RepeatingCallback<views::View*()>());
@@ -65,6 +75,9 @@ class DaoControlCenterExtensionsSection
 
   // Rebuild the extensions grid from the current model.
   void Refresh();
+
+  // Re-apply theme colors to the header title.
+  void ApplyTheme();
 
   // ToolbarActionsModel::Observer:
   void OnToolbarActionAdded(const ToolbarActionsModel::ActionId& id) override;
@@ -84,6 +97,9 @@ class DaoControlCenterExtensionsSection
 
  private:
   void RebuildGrid();
+  // Appends the "Add" and "Manage" shortcut buttons to `parent`, styled for
+  // `actions_placement_`.
+  void AddActionButtons(views::View* parent);
   gfx::ImageSkia GetIconForExtension(const std::string& extension_id,
                                      const extensions::Extension& extension);
   bool UpdateButtonIcon(const std::string& extension_id);
@@ -99,6 +115,8 @@ class DaoControlCenterExtensionsSection
   std::string GetExtensionIdForView(views::View* view) const;
 
   raw_ptr<BrowserWindowInterface> browser_;
+  const ActionsPlacement actions_placement_;
+  raw_ptr<views::Label> header_title_ = nullptr;
   raw_ptr<views::View> grid_ = nullptr;
   raw_ptr<ToolbarActionsModel> model_ = nullptr;
   bool grid_dirty_ = true;

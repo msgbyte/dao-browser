@@ -71,26 +71,36 @@ void ClearButtonHoverState(views::View* root) {
   }
 }
 
-}  // namespace
-
-// Background that paints the semi-transparent fill on the card itself.
-class ControlCenterCardBackground : public views::Background {
+// Background that paints the semi-transparent fill and hairline border on
+// the card itself.
+class CardBackground : public views::Background {
  public:
-  ControlCenterCardBackground(SkColor color, int radius)
-      : color_(color), radius_(radius) {}
+  CardBackground(SkColor fill_color, SkColor border_color, int radius)
+      : fill_color_(fill_color), border_color_(border_color), radius_(radius) {}
   void Paint(gfx::Canvas* canvas, views::View* view) const override {
-    gfx::Rect bounds = view->GetLocalBounds();
+    gfx::RectF bounds(view->GetLocalBounds());
     cc::PaintFlags flags;
-    flags.setColor(color_);
+    flags.setColor(fill_color_);
     flags.setAntiAlias(true);
     flags.setStyle(cc::PaintFlags::kFill_Style);
-    canvas->DrawRoundRect(gfx::RectF(bounds), radius_, flags);
+    canvas->DrawRoundRect(bounds, radius_, flags);
+
+    // Inset the 1px stroke by half a pixel so it stays inside the card's
+    // rounded layer clip.
+    bounds.Inset(0.5f);
+    flags.setColor(border_color_);
+    flags.setStyle(cc::PaintFlags::kStroke_Style);
+    flags.setStrokeWidth(1.0f);
+    canvas->DrawRoundRect(bounds, radius_ - 0.5f, flags);
   }
 
  private:
-  SkColor color_;
+  SkColor fill_color_;
+  SkColor border_color_;
   int radius_;
 };
+
+}  // namespace
 
 BEGIN_METADATA(DaoControlCenterPopup)
 END_METADATA
@@ -117,17 +127,30 @@ DaoControlCenterPopup::DaoControlCenterPopup(BrowserWindowInterface* browser)
   card_layout->set_cross_axis_alignment(
       views::BoxLayout::CrossAxisAlignment::kStretch);
 
-  // Extensions grid section
-  extensions_section_ = card_->AddChildView(
-      std::make_unique<DaoControlCenterExtensionsSection>(browser_));
+  // Main panel: extensions tile above the utility tiles.
+  main_panel_ = card_->AddChildView(std::make_unique<views::View>());
+  auto* main_layout =
+      main_panel_->SetLayoutManager(std::make_unique<views::BoxLayout>(
+          views::BoxLayout::Orientation::kVertical, gfx::Insets(),
+          kTileSpacing));
+  main_layout->set_cross_axis_alignment(
+      views::BoxLayout::CrossAxisAlignment::kStretch);
 
-  // Separator
-  auto separator = std::make_unique<views::View>();
-  separator->SetPreferredSize(gfx::Size(0, 1));
-  separator_ = card_->AddChildView(std::move(separator));
+  // Extensions tile
+  extensions_tile_ = main_panel_->AddChildView(std::make_unique<views::View>());
+  auto* extensions_tile_layout =
+      extensions_tile_->SetLayoutManager(std::make_unique<views::BoxLayout>(
+          views::BoxLayout::Orientation::kVertical,
+          gfx::Insets::TLBR(6, 6, 4, 6), 0));
+  extensions_tile_layout->set_cross_axis_alignment(
+      views::BoxLayout::CrossAxisAlignment::kStretch);
+  extensions_section_ = extensions_tile_->AddChildView(
+      std::make_unique<DaoControlCenterExtensionsSection>(
+          browser_,
+          DaoControlCenterExtensionsSection::ActionsPlacement::kHeader));
 
-  // Utility buttons row
-  utility_section_ = card_->AddChildView(
+  // Utility tiles
+  utility_section_ = main_panel_->AddChildView(
       std::make_unique<DaoControlCenterUtilitySection>(this));
 
   // QR view (hidden by default, replaces main content)
@@ -149,12 +172,16 @@ DaoControlCenterPopup::DaoControlCenterPopup(BrowserWindowInterface* browser)
 
 void DaoControlCenterPopup::ApplyTheme() {
   if (card_) {
-    card_->SetBackground(std::make_unique<ControlCenterCardBackground>(
-        PopupBackground(), kCardCornerRadius));
+    card_->SetBackground(std::make_unique<CardBackground>(
+        ControlCenterCardBackground(), ControlCenterCardBorder(),
+        kCardCornerRadius));
   }
-  if (separator_) {
-    separator_->SetBackground(
-        views::CreateSolidBackground(SeparatorColor()));
+  if (extensions_tile_) {
+    extensions_tile_->SetBackground(views::CreateRoundedRectBackground(
+        ControlCenterTileBackground(), kTileCornerRadius));
+  }
+  if (extensions_section_) {
+    extensions_section_->ApplyTheme();
   }
   if (utility_section_) {
     utility_section_->Refresh();
@@ -232,12 +259,8 @@ void DaoControlCenterPopup::Hide() {
 
 void DaoControlCenterPopup::ShowQrView() {
   ClearButtonHoverState(card_);
-  if (extensions_section_) extensions_section_->SetVisible(false);
-  if (utility_section_) utility_section_->SetVisible(false);
+  if (main_panel_) main_panel_->SetVisible(false);
   if (more_menu_) more_menu_->SetVisible(false);
-  if (card_->children().size() > 1) {
-    card_->children()[1]->SetVisible(false);
-  }
   if (qr_view_) {
     qr_view_->SetVisible(true);
     qr_view_->GenerateQrCode();
@@ -248,12 +271,8 @@ void DaoControlCenterPopup::ShowQrView() {
 
 void DaoControlCenterPopup::ShowMoreMenu() {
   ClearButtonHoverState(card_);
-  if (extensions_section_) extensions_section_->SetVisible(false);
-  if (utility_section_) utility_section_->SetVisible(false);
+  if (main_panel_) main_panel_->SetVisible(false);
   if (qr_view_) qr_view_->SetVisible(false);
-  if (card_->children().size() > 1) {
-    card_->children()[1]->SetVisible(false);
-  }
   if (more_menu_) more_menu_->SetVisible(true);
   InvalidateLayout();
   SchedulePaint();
@@ -261,13 +280,9 @@ void DaoControlCenterPopup::ShowMoreMenu() {
 
 void DaoControlCenterPopup::ShowMainPanel() {
   ClearButtonHoverState(card_);
-  if (extensions_section_) extensions_section_->SetVisible(true);
-  if (utility_section_) utility_section_->SetVisible(true);
+  if (main_panel_) main_panel_->SetVisible(true);
   if (qr_view_) qr_view_->SetVisible(false);
   if (more_menu_) more_menu_->SetVisible(false);
-  if (card_->children().size() > 1) {
-    card_->children()[1]->SetVisible(true);
-  }
   if (utility_section_) {
     utility_section_->Refresh();
   }
@@ -318,9 +333,9 @@ void DaoControlCenterPopup::DidGetUserInteraction(
 }
 
 void DaoControlCenterPopup::Layout(PassKey) {
-  gfx::Size card_pref = card_->GetPreferredSize();
   int card_width = kCardWidth;
-  int card_height = card_pref.height();
+  // Measure at the fixed card width so the extensions grid can wrap.
+  int card_height = card_->GetHeightForWidth(card_width);
 
   // Right-align the card so its right edge aligns with the anchor point's x.
   constexpr int kMargin = 16;

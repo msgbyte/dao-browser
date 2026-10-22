@@ -212,11 +212,6 @@ SkColor ControlCenterHoverBg(const BrowserWindowInterface* browser) {
                                       : SkColorSetARGB(20, 0, 0, 0);
 }
 
-SkColor ControlCenterActiveBg() {
-  return IsDarkMode() ? SkColorSetARGB(25, 255, 255, 255)
-                      : SkColorSetARGB(25, 0, 0, 0);
-}
-
 SkColor ControlCenterLabelColor() {
   return IsDarkMode() ? SkColorSetRGB(200, 200, 205)
                       : SkColorSetRGB(100, 100, 100);
@@ -225,6 +220,50 @@ SkColor ControlCenterLabelColor() {
 SkColor ControlCenterSecondaryTextColor() {
   return IsDarkMode() ? SkColorSetRGB(160, 160, 165)
                       : SkColorSetRGB(160, 160, 160);
+}
+
+SkColor ControlCenterCardBackground() {
+  return IsDarkMode() ? SkColorSetARGB(240, 62, 67, 73)
+                      : SkColorSetARGB(242, 246, 248, 250);
+}
+
+SkColor ControlCenterCardBorder() {
+  return IsDarkMode() ? SkColorSetARGB(18, 255, 255, 255)
+                      : SkColorSetARGB(15, 0, 0, 0);
+}
+
+SkColor ControlCenterTileBackground() {
+  return IsDarkMode() ? SkColorSetARGB(18, 255, 255, 255)
+                      : SkColorSetRGB(255, 255, 255);
+}
+
+SkColor ControlCenterTileIconBackground() {
+  return IsDarkMode() ? SkColorSetARGB(31, 255, 255, 255)
+                      : SkColorSetARGB(18, 0, 0, 0);
+}
+
+SkColor ControlCenterTileActiveIconBackground() {
+  return SpaceActive();
+}
+
+SkColor ControlCenterTileTitleColor() {
+  return IsDarkMode() ? SkColorSetARGB(240, 255, 255, 255)
+                      : SkColorSetRGB(28, 30, 34);
+}
+
+SkColor ControlCenterTileLabelColor() {
+  return IsDarkMode() ? SkColorSetRGB(214, 216, 220)
+                      : SkColorSetRGB(72, 76, 82);
+}
+
+SkColor ControlCenterTileSubtitleColor() {
+  return IsDarkMode() ? SkColorSetRGB(186, 189, 195)
+                      : SkColorSetRGB(102, 106, 112);
+}
+
+SkColor ControlCenterTileIconColor() {
+  return IsDarkMode() ? SkColorSetRGB(206, 209, 214)
+                      : SkColorSetRGB(60, 62, 68);
 }
 
 SkColor PopupShadowOuter() {

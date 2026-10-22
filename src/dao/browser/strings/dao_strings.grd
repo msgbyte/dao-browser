@@ -484,6 +484,18 @@
       <message name="IDS_DAO_CONTROL_CENTER_MORE" desc="Label and accessible name for the Control Center utility button that opens additional actions for the current page.">
         More
       </message>
+      <message name="IDS_DAO_CONTROL_CENTER_EXTENSIONS" desc="Heading of the Control Center tile that lists installed browser extensions.">
+        Extensions
+      </message>
+      <message name="IDS_DAO_CONTROL_CENTER_SECURITY_SECURE" desc="Status line under the Control Center Security tile when the current page uses a secure connection.">
+        Secure
+      </message>
+      <message name="IDS_DAO_CONTROL_CENTER_SECURITY_NOT_SECURE" desc="Status line under the Control Center Security tile when the current page's connection is not secure or is flagged as dangerous.">
+        Not secure
+      </message>
+      <message name="IDS_DAO_CONTROL_CENTER_SECURITY_SITE_INFO" desc="Status line under the Control Center Security tile for pages without a connection security state, such as internal or local pages. Clicking the tile opens site information.">
+        Site info
+      </message>
       <message name="IDS_DAO_CONTROL_CENTER_MINI_DAO_FAILED_TOAST" desc="Toast shown when the user clicks the Control Center Mini Dao button but the current tab cannot be moved into a Mini Dao window.">
         Could not open this tab in Mini Dao
       </message>
@@ -529,8 +541,14 @@
       <message name="IDS_DAO_FORCE_DARK_MODE_LABEL" desc="Accessible label for a toggle button that remembers whether Dao should force websites into dark mode while the system appearance is dark.">
         Force dark mode
       </message>
-      <message name="IDS_DAO_FORCE_DARK_MODE_SHORT_LABEL" desc="Short label shown under the Control Center utility button for the force dark mode toggle.">
-        Dark
+      <message name="IDS_DAO_FORCE_DARK_MODE_TITLE" desc="Title of the Control Center tile for the force dark mode toggle, which darkens websites.">
+        Dark Mode
+      </message>
+      <message name="IDS_DAO_FORCE_DARK_MODE_STATUS_ON" desc="Status line under the Control Center Dark Mode tile when websites are being darkened.">
+        On
+      </message>
+      <message name="IDS_DAO_FORCE_DARK_MODE_STATUS_OFF" desc="Status line under the Control Center Dark Mode tile when websites are not being darkened.">
+        Off
       </message>
       <message name="IDS_DAO_FORCE_DARK_MODE_TOOLTIP" desc="Tooltip for the Force dark mode toggle when it can be changed because the system appearance is dark.">
         Darken websites with Auto Dark Mode while the system is in dark mode.

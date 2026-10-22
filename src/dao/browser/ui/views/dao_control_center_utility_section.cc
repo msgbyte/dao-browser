@@ -4,10 +4,13 @@
 
 #include "dao/browser/ui/views/dao_control_center_utility_section.h"
 
+#include <algorithm>
+
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "cc/paint/paint_flags.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ssl/chrome_security_state_util.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -23,20 +26,24 @@
 #include "dao/browser/ui/views/dao_lucide_icons.h"
 #include "dao/browser/ui/views/dao_toast_view.h"
 #include "dao/browser/ui/views/little_dao/dao_little_dao_controller.h"
+#include "ui/accessibility/ax_enums.mojom.h"
 #include "ui/base/base_window.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/geometry/rect_f.h"
 #include "third_party/skia/include/core/SkMatrix.h"
 #include "third_party/skia/include/core/SkPath.h"
 #include "third_party/skia/include/utils/SkParsePath.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/background.h"
 #include "ui/views/bubble/bubble_border.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
 #include "ui/views/controls/button/button.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/layout/box_layout.h"
+#include "ui/views/view_utils.h"
 #include "ui/views/widget/widget.h"
 #include "url/gurl.h"
 
@@ -44,10 +51,23 @@ namespace dao {
 
 namespace {
 
-constexpr int kUtilButtonSize = 48;
-constexpr int kUtilIconSize = 18;
-constexpr int kUtilCornerRadius = 10;
-constexpr int kUtilFontSize = 10;
+// Wide status tile: round icon badge followed by a title and status line.
+constexpr int kStatusTileHeight = 52;
+constexpr int kStatusTileInset = 10;
+constexpr int kStatusBadgeSize = 32;
+constexpr int kStatusIconSize = 16;
+constexpr int kStatusTextGap = 10;
+constexpr int kStatusTextSpacing = 1;
+
+// Compact action tile: icon above a short label.
+constexpr int kActionTileHeight = 56;
+constexpr int kActionTileTopInset = 10;
+constexpr int kActionTileInsetH = 4;
+constexpr int kActionIconSize = 18;
+constexpr int kActionLabelGap = 6;
+
+constexpr int kTitleFontSize = 12;
+constexpr int kLabelFontSize = 11;
 
 void DrawFilledMoonIcon(gfx::Canvas* canvas,
                         const gfx::RectF& rect,
@@ -71,113 +91,220 @@ void DrawFilledMoonIcon(gfx::Canvas* canvas,
   canvas->DrawPath(path, flags);
 }
 
-// A utility button with a Lucide icon and a text label.
-class UtilityButton : public views::Button {
+std::unique_ptr<views::Label> CreateTileLabel(const std::u16string& text,
+                                              int font_size,
+                                              gfx::Font::Weight weight) {
+  auto label = std::make_unique<views::Label>(text);
+  label->SetFontList(
+      gfx::FontList({"system-ui"}, gfx::Font::NORMAL, font_size, weight));
+  label->SetElideBehavior(gfx::ELIDE_TAIL);
+  label->SetSkipSubpixelRenderingOpacityCheck(true);
+  label->SetCanProcessEventsWithinSubtree(false);
+  return label;
+}
+
+std::unique_ptr<views::View> CreateTileRow() {
+  auto row = std::make_unique<views::View>();
+  auto* layout = row->SetLayoutManager(std::make_unique<views::BoxLayout>(
+      views::BoxLayout::Orientation::kHorizontal, gfx::Insets(),
+      DaoControlCenterPopup::kTileSpacing));
+  layout->set_cross_axis_alignment(
+      views::BoxLayout::CrossAxisAlignment::kStretch);
+  // Tiles report a zero preferred width, so equal flex splits the row evenly.
+  layout->SetDefaultFlex(1);
+  return row;
+}
+
+// Base tile: paints the rounded tile surface with a hover tint on top.
+class TileButton : public views::Button {
+  METADATA_HEADER(TileButton, views::Button)
+
  public:
-  UtilityButton(const std::u16string& label_text,
-                LucideIcon icon,
-                views::Button::PressedCallback callback)
-      : Button(std::move(callback)), icon_(icon) {
-    auto* layout = SetLayoutManager(std::make_unique<views::BoxLayout>(
-        views::BoxLayout::Orientation::kVertical, gfx::Insets::VH(6, 0), 2));
-    layout->set_cross_axis_alignment(
-        views::BoxLayout::CrossAxisAlignment::kCenter);
-    layout->set_main_axis_alignment(
-        views::BoxLayout::MainAxisAlignment::kCenter);
-
-    // Spacer for the icon area (painted in PaintButtonContents).
-    auto icon_spacer = std::make_unique<views::View>();
-    icon_spacer->SetPreferredSize(gfx::Size(kUtilIconSize, kUtilIconSize));
-    icon_spacer->SetCanProcessEventsWithinSubtree(false);
-    AddChildView(icon_spacer.release());
-
-    label_ = AddChildView(std::make_unique<views::Label>(label_text));
-    label_->SetFontList(gfx::FontList({"system-ui"}, gfx::Font::NORMAL,
-                                       kUtilFontSize,
-                                       gfx::Font::Weight::NORMAL));
-    label_->SetEnabledColor(ControlCenterLabelColor());
-    label_->SetCanProcessEventsWithinSubtree(false);
-
-    SetPreferredSize(gfx::Size(kUtilButtonSize, kUtilButtonSize));
+  explicit TileButton(views::Button::PressedCallback callback)
+      : Button(std::move(callback)) {
     SetInstallFocusRingOnFocus(false);
-    SetAccessibleName(label_text);
   }
 
-  void SetSelected(bool selected) {
-    if (selected_ == selected) {
-      return;
-    }
-    selected_ = selected;
-    RefreshBackground();
-    SchedulePaint();
-  }
+  // Re-applies theme colors to the tile's labels.
+  virtual void ApplyTheme() {}
 
   void SetVisualEnabled(bool enabled) {
     visually_enabled_ = enabled;
-    label_->SetEnabled(true);
-    label_->SetEnabledColor(ControlCenterLabelColor());
-    RefreshBackground();
+    if (!enabled) {
+      SetBackground(nullptr);
+    }
     SchedulePaint();
   }
 
   void OnMouseEntered(const ui::MouseEvent& event) override {
     Button::OnMouseEntered(event);
     if (visually_enabled_) {
-      hovered_ = true;
-      RefreshBackground();
+      SetBackground(views::CreateRoundedRectBackground(
+          SuggestionHover(), DaoControlCenterPopup::kTileCornerRadius));
       SchedulePaint();
     }
   }
 
   void OnMouseExited(const ui::MouseEvent& event) override {
     Button::OnMouseExited(event);
-    hovered_ = false;
-    RefreshBackground();
+    SetBackground(nullptr);
     SchedulePaint();
   }
 
+  void OnPaintBackground(gfx::Canvas* canvas) override {
+    cc::PaintFlags flags;
+    flags.setAntiAlias(true);
+    flags.setStyle(cc::PaintFlags::kFill_Style);
+    flags.setColor(ControlCenterTileBackground());
+    canvas->DrawRoundRect(gfx::RectF(GetLocalBounds()),
+                          DaoControlCenterPopup::kTileCornerRadius, flags);
+    // The hover tint, when set as the background, paints over the surface.
+    Button::OnPaintBackground(canvas);
+  }
+
+ protected:
+  bool visually_enabled() const { return visually_enabled_; }
+
+ private:
+  bool visually_enabled_ = true;
+};
+
+BEGIN_METADATA(TileButton)
+END_METADATA
+
+// A wide tile with a round icon badge, a title and a status line. When
+// active, the badge switches to the accent color.
+class StatusTile : public TileButton {
+  METADATA_HEADER(StatusTile, TileButton)
+
+ public:
+  StatusTile(const std::u16string& title,
+             LucideIcon icon,
+             views::Button::PressedCallback callback)
+      : TileButton(std::move(callback)), icon_(icon) {
+    title_ = AddChildView(
+        CreateTileLabel(title, kTitleFontSize, gfx::Font::Weight::SEMIBOLD));
+    title_->SetHorizontalAlignment(gfx::ALIGN_LEFT);
+    status_ = AddChildView(CreateTileLabel(std::u16string(), kLabelFontSize,
+                                           gfx::Font::Weight::NORMAL));
+    status_->SetHorizontalAlignment(gfx::ALIGN_LEFT);
+
+    SetPreferredSize(gfx::Size(0, kStatusTileHeight));
+    SetAccessibleName(title);
+    ApplyTheme();
+  }
+
+  void SetIcon(LucideIcon icon) {
+    if (icon_ == icon) {
+      return;
+    }
+    icon_ = icon;
+    SchedulePaint();
+  }
+
+  void SetStatus(const std::u16string& status) { status_->SetText(status); }
+
+  void SetActive(bool active) {
+    if (active_ == active) {
+      return;
+    }
+    active_ = active;
+    SchedulePaint();
+  }
+
+  void ApplyTheme() override {
+    title_->SetEnabledColor(ControlCenterTileTitleColor());
+    status_->SetEnabledColor(ControlCenterTileSubtitleColor());
+  }
+
+  void Layout(PassKey) override {
+    const int text_x = kStatusTileInset + kStatusBadgeSize + kStatusTextGap;
+    const int text_width = std::max(0, width() - text_x - kStatusTileInset);
+    const int title_height = title_->font_list().GetHeight();
+    const int status_height = status_->font_list().GetHeight();
+    int y =
+        (height() - title_height - kStatusTextSpacing - status_height) / 2;
+    title_->SetBounds(text_x, y, text_width, title_height);
+    y += title_height + kStatusTextSpacing;
+    status_->SetBounds(text_x, y, text_width, status_height);
+  }
+
   void PaintButtonContents(gfx::Canvas* canvas) override {
-    // Draw the icon centered in the spacer area (first child).
-    if (!children().empty()) {
-      gfx::Rect icon_bounds = children().front()->bounds();
-      const gfx::RectF icon_rect(icon_bounds.x(), icon_bounds.y(),
-                                 kUtilIconSize, kUtilIconSize);
-      const SkColor icon_color = selected_ && visually_enabled_
-                                     ? ControlCenterIconDefault()
-                                     : ControlCenterIconMuted();
-      if (selected_ && icon_ == LucideIcon::kMoon) {
-        DrawFilledMoonIcon(canvas, icon_rect, icon_color);
-      } else {
-        DrawLucideIcon(canvas, icon_, icon_rect, icon_color);
-      }
+    const bool active = active_ && visually_enabled();
+    const gfx::RectF badge(kStatusTileInset,
+                           (height() - kStatusBadgeSize) / 2.0f,
+                           kStatusBadgeSize, kStatusBadgeSize);
+    cc::PaintFlags flags;
+    flags.setAntiAlias(true);
+    flags.setStyle(cc::PaintFlags::kFill_Style);
+    flags.setColor(active ? ControlCenterTileActiveIconBackground()
+                          : ControlCenterTileIconBackground());
+    canvas->DrawCircle(badge.CenterPoint(), kStatusBadgeSize / 2.0f, flags);
+
+    gfx::RectF icon_rect = badge;
+    icon_rect.Inset((kStatusBadgeSize - kStatusIconSize) / 2.0f);
+    const SkColor icon_color =
+        active ? SK_ColorWHITE : ControlCenterTileIconColor();
+    if (active && icon_ == LucideIcon::kMoon) {
+      DrawFilledMoonIcon(canvas, icon_rect, icon_color);
+    } else {
+      DrawLucideIcon(canvas, icon_, icon_rect, icon_color);
     }
   }
 
  private:
-  void RefreshBackground() {
-    if (!visually_enabled_) {
-      SetBackground(nullptr);
-      return;
-    }
-    if (hovered_) {
-      SetBackground(views::CreateRoundedRectBackground(
-          SuggestionHover(), kUtilCornerRadius));
-      return;
-    }
-    if (selected_) {
-      SetBackground(views::CreateRoundedRectBackground(
-          ControlCenterActiveBg(), kUtilCornerRadius));
-      return;
-    }
-    SetBackground(nullptr);
+  LucideIcon icon_;
+  raw_ptr<views::Label> title_ = nullptr;
+  raw_ptr<views::Label> status_ = nullptr;
+  bool active_ = false;
+};
+
+BEGIN_METADATA(StatusTile)
+END_METADATA
+
+// A compact tile with an icon above a short label.
+class ActionTile : public TileButton {
+  METADATA_HEADER(ActionTile, TileButton)
+
+ public:
+  ActionTile(const std::u16string& label_text,
+             LucideIcon icon,
+             views::Button::PressedCallback callback)
+      : TileButton(std::move(callback)), icon_(icon) {
+    label_ = AddChildView(CreateTileLabel(label_text, kLabelFontSize,
+                                          gfx::Font::Weight::NORMAL));
+    label_->SetHorizontalAlignment(gfx::ALIGN_CENTER);
+
+    SetPreferredSize(gfx::Size(0, kActionTileHeight));
+    SetAccessibleName(label_text);
+    ApplyTheme();
   }
 
+  void ApplyTheme() override {
+    label_->SetEnabledColor(ControlCenterTileLabelColor());
+  }
+
+  void Layout(PassKey) override {
+    label_->SetBounds(kActionTileInsetH,
+                      kActionTileTopInset + kActionIconSize + kActionLabelGap,
+                      std::max(0, width() - 2 * kActionTileInsetH),
+                      label_->font_list().GetHeight());
+  }
+
+  void PaintButtonContents(gfx::Canvas* canvas) override {
+    const gfx::RectF icon_rect((width() - kActionIconSize) / 2.0f,
+                               kActionTileTopInset, kActionIconSize,
+                               kActionIconSize);
+    DrawLucideIcon(canvas, icon_, icon_rect, ControlCenterTileIconColor());
+  }
+
+ private:
   LucideIcon icon_;
   raw_ptr<views::Label> label_ = nullptr;
-  bool selected_ = false;
-  bool hovered_ = false;
-  bool visually_enabled_ = true;
 };
+
+BEGIN_METADATA(ActionTile)
+END_METADATA
 
 }  // namespace
 
@@ -188,66 +315,64 @@ DaoControlCenterUtilitySection::DaoControlCenterUtilitySection(
     DaoControlCenterPopup* popup)
     : popup_(popup) {
   auto* layout = SetLayoutManager(std::make_unique<views::BoxLayout>(
-      views::BoxLayout::Orientation::kHorizontal, gfx::Insets::VH(8, 0), 0));
-  layout->set_main_axis_alignment(
-      views::BoxLayout::MainAxisAlignment::kCenter);
+      views::BoxLayout::Orientation::kVertical, gfx::Insets(),
+      DaoControlCenterPopup::kTileSpacing));
+  layout->set_cross_axis_alignment(
+      views::BoxLayout::CrossAxisAlignment::kStretch);
 
-  AddChildView(static_cast<views::View*>(
-      std::make_unique<UtilityButton>(
-          l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_QR_CODE),
-          LucideIcon::kQrCode,
-          base::BindRepeating(
-              &DaoControlCenterUtilitySection::OnQrClicked,
-              base::Unretained(this)))
-          .release()));
-
-  AddChildView(static_cast<views::View*>(
-      std::make_unique<UtilityButton>(
-          l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_MINI_DAO),
-          LucideIcon::kExternalLink,
-          base::BindRepeating(
-              &DaoControlCenterUtilitySection::OnMiniDaoClicked,
-              base::Unretained(this)))
-          .release()));
-
-  AddChildView(static_cast<views::View*>(
-      std::make_unique<UtilityButton>(
-          l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_SECURITY),
-          LucideIcon::kShieldCheck,
-          base::BindRepeating(
-              &DaoControlCenterUtilitySection::OnLockClicked,
-              base::Unretained(this)))
-          .release()));
-
+  // Wide status tiles: dark mode and security.
+  views::View* status_row = AddChildView(CreateTileRow());
   {
-    auto button = std::make_unique<UtilityButton>(
-        l10n_util::GetStringUTF16(IDS_DAO_FORCE_DARK_MODE_SHORT_LABEL),
+    auto tile = std::make_unique<StatusTile>(
+        l10n_util::GetStringUTF16(IDS_DAO_FORCE_DARK_MODE_TITLE),
         LucideIcon::kMoon,
         base::BindRepeating(
             &DaoControlCenterUtilitySection::OnForceDarkModeClicked,
             base::Unretained(this)));
-    button->SetAccessibleName(
+    tile->SetAccessibleName(
         l10n_util::GetStringUTF16(IDS_DAO_FORCE_DARK_MODE_LABEL));
-    force_dark_mode_button_ = button.get();
-    AddChildView(static_cast<views::View*>(button.release()));
+    tile->GetViewAccessibility().SetRole(ax::mojom::Role::kToggleButton);
+    force_dark_mode_button_ = status_row->AddChildView(std::move(tile));
   }
+  security_button_ = status_row->AddChildView(std::make_unique<StatusTile>(
+      l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_SECURITY),
+      LucideIcon::kShieldCheck,
+      base::BindRepeating(&DaoControlCenterUtilitySection::OnLockClicked,
+                          base::Unretained(this))));
 
-  AddChildView(static_cast<views::View*>(
-      std::make_unique<UtilityButton>(
-          l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_MORE),
-          LucideIcon::kEllipsis,
-          base::BindRepeating(
-              &DaoControlCenterUtilitySection::OnMoreClicked,
-              base::Unretained(this)))
-          .release()));
+  // Compact action tiles: QR code, Mini Dao, more.
+  views::View* action_row = AddChildView(CreateTileRow());
+  action_row->AddChildView(std::make_unique<ActionTile>(
+      l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_QR_CODE),
+      LucideIcon::kQrCode,
+      base::BindRepeating(&DaoControlCenterUtilitySection::OnQrClicked,
+                          base::Unretained(this))));
+  action_row->AddChildView(std::make_unique<ActionTile>(
+      l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_MINI_DAO),
+      LucideIcon::kExternalLink,
+      base::BindRepeating(&DaoControlCenterUtilitySection::OnMiniDaoClicked,
+                          base::Unretained(this))));
+  action_row->AddChildView(std::make_unique<ActionTile>(
+      l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_MORE),
+      LucideIcon::kEllipsis,
+      base::BindRepeating(&DaoControlCenterUtilitySection::OnMoreClicked,
+                          base::Unretained(this))));
 
-  RefreshForceDarkModeState();
+  Refresh();
 }
 
 DaoControlCenterUtilitySection::~DaoControlCenterUtilitySection() = default;
 
 void DaoControlCenterUtilitySection::Refresh() {
+  for (views::View* row : children()) {
+    for (views::View* child : row->children()) {
+      if (auto* tile = views::AsViewClass<TileButton>(child)) {
+        tile->ApplyTheme();
+      }
+    }
+  }
   RefreshForceDarkModeState();
+  RefreshSecurityState();
 }
 
 void DaoControlCenterUtilitySection::OnQrClicked() {
@@ -305,15 +430,54 @@ void DaoControlCenterUtilitySection::RefreshForceDarkModeState() {
     return;
   }
 
-  auto* button = static_cast<UtilityButton*>(force_dark_mode_button_.get());
+  auto* tile = static_cast<StatusTile*>(force_dark_mode_button_.get());
   Profile* profile =
       popup_ && popup_->browser() ? popup_->browser()->GetProfile() : nullptr;
   const bool available = IsForceDarkModeAvailable();
-  button->SetSelected(IsForceDarkModeUserEnabled(profile));
-  button->SetVisualEnabled(available);
-  button->SetTooltipText(l10n_util::GetStringUTF16(
+  const bool enabled = IsForceDarkModeUserEnabled(profile);
+  const bool on = available && enabled;
+  tile->SetActive(enabled);
+  tile->SetVisualEnabled(available);
+  tile->SetStatus(l10n_util::GetStringUTF16(
+      on ? IDS_DAO_FORCE_DARK_MODE_STATUS_ON
+         : IDS_DAO_FORCE_DARK_MODE_STATUS_OFF));
+  tile->GetViewAccessibility().SetCheckedState(
+      on ? ax::mojom::CheckedState::kTrue : ax::mojom::CheckedState::kFalse);
+  tile->SetTooltipText(l10n_util::GetStringUTF16(
       available ? IDS_DAO_FORCE_DARK_MODE_TOOLTIP
                 : IDS_DAO_FORCE_DARK_MODE_DISABLED_TOOLTIP));
+}
+
+void DaoControlCenterUtilitySection::RefreshSecurityState() {
+  if (!security_button_) {
+    return;
+  }
+
+  auto* tile = static_cast<StatusTile*>(security_button_.get());
+  content::WebContents* web_contents =
+      popup_ && popup_->browser()
+          ? popup_->browser()->tab_strip_model()->GetActiveWebContents()
+          : nullptr;
+  const security_state::SecurityLevel level =
+      web_contents ? chrome_security_state::GetSecurityLevel(web_contents)
+                   : security_state::NONE;
+
+  int status_id = IDS_DAO_CONTROL_CENTER_SECURITY_SITE_INFO;
+  LucideIcon icon = LucideIcon::kShieldCheck;
+  switch (level) {
+    case security_state::SECURE:
+      status_id = IDS_DAO_CONTROL_CENTER_SECURITY_SECURE;
+      break;
+    case security_state::WARNING:
+    case security_state::DANGEROUS:
+      status_id = IDS_DAO_CONTROL_CENTER_SECURITY_NOT_SECURE;
+      icon = LucideIcon::kShieldOff;
+      break;
+    default:
+      break;
+  }
+  tile->SetIcon(icon);
+  tile->SetStatus(l10n_util::GetStringUTF16(status_id));
 }
 
 void DaoControlCenterUtilitySection::OnLockClicked() {
