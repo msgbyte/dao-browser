@@ -47,7 +47,7 @@ jobs:
       - name: Validate signed Windows feed and installers
         run: |
           npm ci --prefix ..
-          npm --prefix .. run release:sync-windows-update -- --check
+          npm --prefix .. run release:check-windows-update
 
       - name: Type-check website
         run: npm run check

@@ -92,8 +92,8 @@ describe('CI workflows', () => {
     expect(workflow).toMatch(/jobs:\n  check:/u);
     expect(workflow).toMatch(/\n  deploy:\n/u);
     expect(workflow).toContain('needs: check');
-    expect(workflow).toContain('npm --prefix .. run release:sync-windows-update -- --check');
-    expect(workflow).not.toMatch(/CLOUDFLARE_|R2_BUCKET|wrangler/u);
+    expect(workflow).toContain('npm --prefix .. run release:check-windows-update');
+    expect(workflow).not.toMatch(/CLOUDFLARE_|R2_BUCKET|wrangler|sync-windows-update/u);
     expect(workflow).toContain('run: npm run check');
     expect(workflow).toContain('run: npm run lint');
     expect(workflow).toContain('run: npm run build');

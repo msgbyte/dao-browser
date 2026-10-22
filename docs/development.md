@@ -36,7 +36,7 @@ The legacy R2 update feed is no longer synchronized; clients using that address
 need a manual upgrade to receive future updates from the website.
 
 ```bash
-npm run release:sync-windows-update -- --check  # Validate staged metadata; no writes
+npm run release:check-windows-update  # Validate staged metadata; no writes
 ```
 
 Restoring an older valid signed feed is allowed; clients still reject installation
