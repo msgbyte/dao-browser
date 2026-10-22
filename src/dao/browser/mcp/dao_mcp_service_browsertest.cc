@@ -3287,7 +3287,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
   ASSERT_NE(first, keeper);
   ASSERT_NE(second, keeper);
   tabs->DetachAndDeleteWebContentsAt(tabs->GetIndexOfWebContents(second));
-  ASSERT_TRUE(base::test::RunUntil([this, first] {
+  ASSERT_TRUE(base::test::RunUntil([this] {
     return service_->GetStatus().state == DaoMcpStatus::kLeaseActive &&
            service_->GetControlledTargetCount() == 1u &&
            service_->GetAuthorizedTarget() == nullptr;
@@ -3296,6 +3296,8 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
   EXPECT_FALSE(service_->IsTargetControlled(keeper));
 
   tabs->DetachAndDeleteWebContentsAt(tabs->GetIndexOfWebContents(first));
+  ASSERT_TRUE(base::test::RunUntil(
+      [this] { return service_->GetControlledTargetCount() == 0u; }));
   EXPECT_EQ(1u, service_->GetConnections().size());
   EXPECT_EQ(0u, service_->GetControlledTargetCount());
   EXPECT_EQ(nullptr, service_->GetAuthorizedTarget());
