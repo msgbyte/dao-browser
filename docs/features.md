@@ -21,6 +21,13 @@ Desktop version bumps archive only desktop `Unreleased` entries before packaging
 release failures restore them along with version metadata. Windows attachments and
 `--skip-bump` preserve pending notes. See [the changelog guide](changelog.md).
 
+`npm run release:rollback` selects a historical website download snapshot,
+checks its installers and original signed Windows manifest, and commits/pushes
+`website/public/info.json` plus `windows-update.json` from a clean, synchronized
+`main` to trigger website deployment and legacy Windows feed synchronization.
+It preserves application versions and Mac appcast;
+installed browsers are not downgraded. See [the development guide](development.md#switch-website-downloads-to-a-previous-release).
+
 The development CLI supports native macOS arm64 and an experimental Windows x64 target.
 Windows uses the existing setup/import/rebuild commands, a local `chrome.exe`,
 and separate Dao debug/release profiles. Normal Windows browser windows combine

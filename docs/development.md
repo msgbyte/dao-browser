@@ -54,6 +54,44 @@ feed. Restoring an older valid signed feed is allowed;
 clients still reject installation downgrades. Do not publish concurrently from
 another workflow or signing host.
 
+### Switch website downloads to a previous release
+
+```bash
+npm run release:rollback                           # Select a release, commit, and push main
+npm run release:rollback -- --version 1.0.116 --dry-run
+```
+
+The rollback command lists distinct releases from the local Git history of
+`website/public/info.json`; use a full checkout. It restores the selected file
+exactly, including its release date, Chromium version, platform availability,
+and per-platform download versions. Release tags are not used because they can
+precede their website metadata commit. Pass `--version` to select without a
+terminal; an empty interactive selection cancels. Dry runs work offline and
+leave files and Git history unchanged.
+
+The matching Windows manifest is read from its immutable R2 `.update.json`,
+using the actual Windows platform version in the selected snapshot. Its signature,
+version, original bytes, and installer availability/size are checked before edits.
+Versions without a supported Windows installer or signed manifest are rejected.
+
+Publication requires a clean `main` exactly matching `origin/main`, so unrelated
+local commits cannot be pushed accidentally. Every selected installer must pass
+an HTTPS HEAD availability check. The command commits only `info.json` and
+`windows-update.json`, then
+pushes `main` without tags to trigger **Deploy Website to Vercel**. Check that
+workflow and the public download page before considering the change live.
+A rejected commit restores local metadata; the committed parent, file list, and
+snapshot are checked before publication. A failed push preserves the rollback
+commit and prints a retry pinned to that commit, excluding later local work.
+Selecting matching downloads and a matching feed does nothing; a changed feed
+is restored even when the download version is already selected.
+
+This changes website downloads and Windows update offers. The deployment mirrors
+the Windows feed to R2 for old clients. It does not change `dao.json`, Mac
+`appcast.xml`, GitHub Releases, binaries, tags, or changelogs, and does not downgrade
+installed browsers or recall cached updates. Mac automatic updates remain
+independent. Subsequent normal releases increase the application version from `dao.json`.
+
 ### Recover interrupted desktop publication
 
 If immutable artifact upload has started, local metadata

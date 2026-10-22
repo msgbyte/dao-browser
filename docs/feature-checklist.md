@@ -28,6 +28,13 @@ requirements, not claims that this target has compiled or passed runtime tests.
 
 ## Website downloads
 
+- [ ] `release:rollback -- --dry-run` lists historical website releases without
+  changing files or Git history. In a disposable checkout, verify selection
+  restores the exact platform URLs/date, rejects unavailable installers and
+  dirty or unsynchronized main, and commits/pushes only `info.json` and the original
+  signed Windows manifest without tags. Missing/invalid historical manifests fail
+  before edits; per-platform Windows versions are preserved. Commit failure restores
+  metadata; push failure retains the retryable commit. App versions and Mac appcast remain unchanged.
 - [ ] Production website deployment validates staged signatures and artifact
   availability, then mirrors only the exact live feed to the old R2 address.
   Preview/failed deployments do not mirror; mismatched deployed bytes refuse sync.
