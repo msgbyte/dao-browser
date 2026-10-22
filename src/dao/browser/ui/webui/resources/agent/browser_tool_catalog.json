@@ -820,6 +820,35 @@
       }
     },
     {
+      "name": "request_tab_access",
+      "description": "Request native user approval to control an existing tab in the approved window. Omit tab_id to let the user privately choose a page; unapproved page candidates are never returned. A successful grant becomes the default target. Always provide a reason.",
+      "group": "tabs",
+      "clients": [
+        "mcp"
+      ],
+      "sideEffect": "interaction",
+      "timeoutMs": 65000,
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "description": "Explain why access to the existing page is needed; 1 to 1024 UTF-8 bytes."
+          },
+          "tab_id": {
+            "type": "string",
+            "description": "Exact existing tab ID supplied by the user; omit to open the native page picker."
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      }
+    },
+    {
       "name": "list_tabs",
       "description": "List tabs in the authorized browser window with stable tab ids, current indices, URLs, titles, and active status.",
       "group": "tabs",

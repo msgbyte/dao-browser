@@ -15,15 +15,19 @@
 #include "base/scoped_observation.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/types/expected.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/tab_list/tab_list_interface_observer.h"
 #include "chrome/browser/tab_list/tab_removed_reason.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "components/tabs/public/tab_interface.h"
+#include "content/public/browser/javascript_dialog_manager.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/browser/web_contents_delegate.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "dao/browser/automation/dao_browser_automation_session.h"
 #include "dao/browser/automation/dao_browser_target_policy.h"
+#include "dao/browser/automation/dao_browser_tool_catalog.h"
 #include "dao/browser/ui/views/dao_tab_identity.h"
 #include "url/gurl.h"
 
@@ -67,6 +71,25 @@ base::DictValue SerializeTab(tabs::TabInterface* tab,
       .Set("url", contents->GetURL().spec())
       .Set("title", base::UTF16ToUTF8(contents->GetTitle()))
       .Set("active", tab == active_tab);
+}
+
+// MCP clients see only granted tabs, so their indices skip hidden tabs.
+int GetClientTabIndex(TabListInterface* tab_list,
+                      DaoBrowserAutomationSession* session,
+                      DaoToolClient client,
+                      tabs::TabInterface* tab,
+                      int index) {
+  if (client != DaoToolClient::kMcp) {
+    return index;
+  }
+  int visible_index = 0;
+  for (tabs::TabInterface* entry : tab_list->GetAllTabs()) {
+    if (entry == tab) {
+      break;
+    }
+    visible_index += session->CanAccessTab(entry->GetContents());
+  }
+  return visible_index;
 }
 
 base::expected<ResolvedTab, DaoToolError> ResolveSelectedTab(
@@ -136,7 +159,9 @@ DaoBrowserToolResult SuccessResult(base::DictValue data,
   DaoBrowserToolResult result;
   result.ok = true;
   result.data = base::Value(std::move(data));
-  result.target = MakeTarget(target);
+  if (target) {
+    result.target = MakeTarget(target);
+  }
   return result;
 }
 
@@ -195,6 +220,26 @@ class DaoTabTools::PendingClose : public TabListInterfaceObserver,
   }
 
   void Cancel(DaoToolError error) {
+    // shortcut: dispatched closes cannot be recalled; strict rollback needs
+    // browser close tokens.
+    content::WebContents* contents = web_contents();
+    tab_list_observation_.Reset();
+    Observe(nullptr);
+    base::WeakPtr<PendingClose> weak_this = weak_factory_.GetWeakPtr();
+    // Only an MCP revocation or cancellation withdraws its close request. A
+    // timeout leaves the confirmation for the user to answer.
+    if (client_ == DaoToolClient::kMcp &&
+        error.code != DaoToolErrorCode::kToolTimeout && contents &&
+        contents->GetDelegate()) {
+      if (auto* dialogs =
+              contents->GetDelegate()->GetJavaScriptDialogManager(contents)) {
+        // Reject a pending close confirmation before releasing its permission.
+        dialogs->HandleJavaScriptDialog(contents, false, nullptr);
+      }
+    }
+    if (!weak_this) {
+      return;
+    }
     DaoBrowserToolResult result;
     result.error = std::move(error);
     Complete(std::move(result));
@@ -224,7 +269,7 @@ class DaoTabTools::PendingClose : public TabListInterfaceObserver,
       return;
     }
     if (closes_pinned_target_) {
-      if (session_->tab_scoped()) {
+      if (client_ == DaoToolClient::kMcp || session_->tab_scoped()) {
         DaoBrowserToolResult result;
         result.ok = true;
         result.data = base::Value(base::DictValue()
@@ -404,7 +449,11 @@ DaoBrowserToolResult DaoTabTools::ExecuteSync(
   base::WeakPtr<DaoTabTools> weak_this = weak_factory_.GetWeakPtr();
   base::WeakPtr<DaoBrowserAutomationSession> session_weak =
       session->GetWeakPtr();
-  auto pinned_target = session->ResolveTarget();
+  const bool window_tool =
+      client == DaoToolClient::kMcp && IsDaoMcpWindowTool(name);
+  auto pinned_target =
+      window_tool ? base::expected<content::WebContents*, DaoToolError>(nullptr)
+                  : session->ResolveTarget();
   if (!weak_this || !session_weak) {
     return ErrorResult(
         DaoToolErrorCode::kToolCancelled,
@@ -422,6 +471,13 @@ DaoBrowserToolResult DaoTabTools::ExecuteSync(
     return ErrorResult(DaoToolErrorCode::kTargetGone,
                        "The authorized browser window is no longer available.");
   }
+  if (client == DaoToolClient::kMcp &&
+      (browser_window->GetType() != BrowserWindowInterface::Type::TYPE_NORMAL ||
+       !session_weak->profile() || session_weak->profile()->IsOffTheRecord() ||
+       session_weak->profile()->IsGuestSession())) {
+    return ErrorResult(DaoToolErrorCode::kAuthorizationDenied,
+                       "This browser window cannot be controlled by MCP.");
+  }
 
   if (name == "list_tabs") {
     RepairDuplicateSidebarTabIds(GetTabContentsInOrder(tab_list));
@@ -429,12 +485,18 @@ DaoBrowserToolResult DaoTabTools::ExecuteSync(
     std::vector<tabs::TabInterface*> all_tabs = tab_list->GetAllTabs();
     tabs::TabInterface* active_tab = tab_list->GetActiveTab();
     for (size_t i = 0; i < all_tabs.size(); ++i) {
-      if (session_weak->tab_scoped() &&
+      if (client == DaoToolClient::kMcp &&
+          !session_weak->CanAccessTab(all_tabs[i]->GetContents())) {
+        continue;
+      }
+      if (client != DaoToolClient::kMcp && session_weak->tab_scoped() &&
           all_tabs[i]->GetContents() != *pinned_target) {
         continue;
       }
+      const size_t index =
+          client == DaoToolClient::kMcp ? serialized_tabs.size() : i;
       serialized_tabs.Append(
-          SerializeTab(all_tabs[i], static_cast<int>(i), active_tab));
+          SerializeTab(all_tabs[i], static_cast<int>(index), active_tab));
     }
     const int count = static_cast<int>(serialized_tabs.size());
     return SuccessResult(base::DictValue()
@@ -460,10 +522,10 @@ DaoBrowserToolResult DaoTabTools::ExecuteSync(
                          "The selected tab is no longer available.");
     }
     if (client == DaoToolClient::kMcp) {
-      if (session_weak->tab_scoped() &&
-          selected_tab->GetContents() != *pinned_target) {
-        return ErrorResult(DaoToolErrorCode::kAuthorizationDenied,
-                           "This connection is authorized for only one tab.");
+      if (!session_weak->CanAccessTab(selected_tab->GetContents())) {
+        return ErrorResult(
+            DaoToolErrorCode::kAuthorizationDenied,
+            "This page has not been approved for this connection.");
       }
       BrowserWindowInterface* browser = browser_window;
       auto policy = ValidateExternalTarget(browser, session_weak->profile(),
@@ -519,8 +581,12 @@ DaoBrowserToolResult DaoTabTools::ExecuteSync(
           DaoToolErrorCode::kTargetGone,
           "The selected tab left the authorized browser window.");
     }
-    return SuccessResult(MakeSelectedTabResult(selected_tab, selected->index),
-                         *resolved_target);
+    return SuccessResult(
+        MakeSelectedTabResult(
+            selected_tab,
+            GetClientTabIndex(tab_list, session_weak.get(), client,
+                              selected_tab, selected->index)),
+        *resolved_target);
   }
 
   if (name == "open_tab") {
@@ -547,9 +613,9 @@ DaoBrowserToolResult DaoTabTools::ExecuteSync(
     const tabs::TabHandle active_handle_before =
         active_tab_before ? active_tab_before->GetHandle()
                           : tabs::TabHandle::Null();
-    const bool activate_tab = client == DaoToolClient::kMcp;
+    // New tabs always open in the background.
     const int active_index = tab_list->GetActiveIndex();
-    tab_list->OpenTab(url, active_index, activate_tab);
+    tab_list->OpenTab(url, active_index, false);
     if (!weak_this || !session_weak) {
       return ErrorResult(
           DaoToolErrorCode::kToolCancelled,
@@ -576,10 +642,7 @@ DaoBrowserToolResult DaoTabTools::ExecuteSync(
         opened = tab;
       }
     }
-    if (!opened ||
-        (activate_tab && tab_list->GetActiveTab() != opened) ||
-        (!activate_tab &&
-         tab_list->GetActiveTab() != active_handle_before.Get())) {
+    if (!opened || tab_list->GetActiveTab() != active_handle_before.Get()) {
       return ErrorResult(
           DaoToolErrorCode::kTargetGone,
           "The new tab was not created in the authorized browser window.");
@@ -610,8 +673,10 @@ DaoBrowserToolResult DaoTabTools::ExecuteSync(
                          "The new tab left the authorized browser window.");
     }
     return SuccessResult(
-        MakeSelectedTabResult(opened,
-                              tab_list->GetIndexOfTab(opened->GetHandle())),
+        MakeSelectedTabResult(
+            opened, GetClientTabIndex(
+                        tab_list, session_weak.get(), client, opened,
+                        tab_list->GetIndexOfTab(opened->GetHandle()))),
         new_target);
   }
 
@@ -681,6 +746,12 @@ void DaoTabTools::ExecuteClose(std::string request_id,
     return;
   }
   content::WebContents* closing_contents = selected_tab->GetContents();
+  if (client == DaoToolClient::kMcp &&
+      !session_weak->CanAccessTab(closing_contents)) {
+    reply(ErrorResult(DaoToolErrorCode::kAuthorizationDenied,
+                      "The selected tab has not been approved."));
+    return;
+  }
   if (session_weak->tab_scoped() && closing_contents != *pinned_target) {
     reply(ErrorResult(DaoToolErrorCode::kAuthorizationDenied,
                       "This connection is authorized for only one tab."));
@@ -688,7 +759,9 @@ void DaoTabTools::ExecuteClose(std::string request_id,
   }
   auto pending = std::make_unique<PendingClose>(
       weak_this, request_id, session_weak, tab_list, selected_tab,
-      selected->index, GetOrCreateSidebarTabId(closing_contents),
+      GetClientTabIndex(tab_list, session_weak.get(), client, selected_tab,
+                        selected->index),
+      GetOrCreateSidebarTabId(closing_contents),
       closing_contents == *pinned_target, client, std::move(callback));
   PendingClose* pending_ptr = pending.get();
   pending_closes_.emplace(std::move(request_id), std::move(pending));

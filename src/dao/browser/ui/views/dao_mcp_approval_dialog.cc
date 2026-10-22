@@ -28,6 +28,7 @@
 #include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/base/mojom/ui_base_types.mojom-shared.h"
 #include "ui/gfx/text_constants.h"
+#include "ui/views/controls/button/radio_button.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/controls/scroll_view.h"
 #include "ui/views/layout/box_layout.h"
@@ -83,7 +84,23 @@ DaoMcpApprovalDialog::DaoMcpApprovalDialog(
     const DaoMcpApprovalRequest& request,
     BrowserWindowInterface* browser,
     base::OnceCallback<void(bool)> callback)
+    : DaoMcpApprovalDialog(request,
+                           browser,
+                           base::BindOnce(
+                               [](base::OnceCallback<void(bool)> callback,
+                                  std::optional<std::string> result) {
+                                 std::move(callback).Run(result.has_value());
+                               },
+                               std::move(callback))) {}
+
+DaoMcpApprovalDialog::DaoMcpApprovalDialog(
+    const DaoMcpApprovalRequest& request,
+    BrowserWindowInterface* browser,
+    base::OnceCallback<void(std::optional<std::string>)> callback)
     : callback_(std::move(callback)) {
+  if (request.tab_target) {
+    explicit_tab_id_ = request.tab_target->tab_id;
+  }
   SetTitle(l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_TITLE));
   SetShowCloseButton(true);
   SetModalType(ui::mojom::ModalType::kWindow);
@@ -136,11 +153,12 @@ std::unique_ptr<views::View> DaoMcpApprovalDialog::BuildContents(
   layout->set_cross_axis_alignment(
       views::BoxLayout::CrossAxisAlignment::kStretch);
 
-  contents->AddChildView(CreateLabel(
-      l10n_util::GetStringUTF16(request.tab_target
-                                  ? IDS_DAO_MCP_APPROVAL_TAB_EXPLANATION
-                                  : IDS_DAO_MCP_APPROVAL_EXPLANATION),
-      TextPrimary(), true));
+  contents->AddChildView(
+      CreateLabel(l10n_util::GetStringUTF16(
+                      (request.tab_target || !request.tab_choices.empty())
+                          ? IDS_DAO_MCP_APPROVAL_TAB_EXPLANATION
+                          : IDS_DAO_MCP_APPROVAL_EXPLANATION),
+                  TextPrimary(), true));
   contents->AddChildView(CreateLabel(
       l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_WARNING), TextSecondary(),
       true));
@@ -195,6 +213,29 @@ std::unique_ptr<views::View> DaoMcpApprovalDialog::BuildContents(
         TextSecondary(), false));
   }
 
+  if (!request.tab_choices.empty()) {
+    SetButtonEnabled(ui::mojom::DialogButton::kOk, false);
+    auto* scroll = details->AddChildView(std::make_unique<views::ScrollView>());
+    scroll->ClipHeightTo(0, 200);
+    auto list = std::make_unique<views::View>();
+    list->SetLayoutManager(std::make_unique<views::BoxLayout>(
+        views::BoxLayout::Orientation::kVertical, gfx::Insets(),
+        kDetailSpacing));
+    for (const auto& choice : request.tab_choices) {
+      auto* radio = list->AddChildView(
+          std::make_unique<views::RadioButton>(SanitizeLabel(choice.title), 1));
+      radio->SetCallback(base::BindRepeating(
+          [](DaoMcpApprovalDialog* dialog) {
+            dialog->SetButtonEnabled(ui::mojom::DialogButton::kOk, true);
+          },
+          base::Unretained(this)));
+      list->AddChildView(CreateLabel(SanitizeLabel(choice.target.url),
+                                     TextSecondary(), false));
+      choices_.emplace_back(radio, choice.target.tab_id);
+    }
+    scroll->SetContents(std::move(list));
+  }
+
   std::u16string profile_name;
   if (browser && browser->GetProfile()) {
     if (ProfileAttributesEntry* entry =
@@ -218,7 +259,22 @@ std::unique_ptr<views::View> DaoMcpApprovalDialog::BuildContents(
 
 void DaoMcpApprovalDialog::Resolve(bool allowed) {
   if (callback_) {
-    std::move(callback_).Run(allowed);
+    std::optional<std::string> result;
+    if (allowed) {
+      if (explicit_tab_id_) {
+        result = explicit_tab_id_;
+      } else if (choices_.empty()) {
+        result = std::string();
+      } else {
+        for (const auto& [radio, tab_id] : choices_) {
+          if (radio->GetChecked()) {
+            result = tab_id;
+            break;
+          }
+        }
+      }
+    }
+    std::move(callback_).Run(std::move(result));
   }
 }
 
@@ -235,9 +291,9 @@ DaoMcpApprovalDialogController::PendingRequest::PendingRequest(
     const DaoMcpApprovalRequest& request,
     BrowserWindowInterface* browser,
     std::string connection_id,
-    base::OnceCallback<void(bool)> callback)
+    base::OnceCallback<void(std::optional<std::string>)> callback)
     : approval(request),
-      browser(browser),
+      browser(browser->GetWeakPtr()),
       connection_id(std::move(connection_id)),
       callback(std::move(callback)) {}
 
@@ -257,6 +313,27 @@ void DaoMcpApprovalDialogController::RequestApproval(
     std::move(callback).Run(false);
     return;
   }
+  pending_requests_.emplace_back(
+      request, browser, std::string(connection_id),
+      base::BindOnce(
+          [](base::OnceCallback<void(bool)> callback,
+             std::optional<std::string> result) {
+            std::move(callback).Run(result.has_value());
+          },
+          std::move(callback)));
+  ShowNextApproval();
+}
+
+void DaoMcpApprovalDialogController::RequestTabAccess(
+    const DaoMcpApprovalRequest& request,
+    BrowserWindowInterface* browser,
+    std::string_view connection_id,
+    base::OnceCallback<void(std::optional<std::string>)> callback) {
+  if (!IsEligibleApprovalBrowser(browser) ||
+      (!request.tab_target && request.tab_choices.empty())) {
+    std::move(callback).Run(std::nullopt);
+    return;
+  }
 
   pending_requests_.emplace_back(request, browser, std::string(connection_id),
                                  std::move(callback));
@@ -270,22 +347,23 @@ void DaoMcpApprovalDialogController::ShowNextApproval() {
 
   PendingRequest request = std::move(pending_requests_.front());
   pending_requests_.pop_front();
-  if (!IsEligibleApprovalBrowser(request.browser)) {
-    std::move(request.callback).Run(false);
+  BrowserWindowInterface* browser = request.browser.get();
+  if (!IsEligibleApprovalBrowser(browser)) {
+    std::move(request.callback).Run(std::nullopt);
     ShowNextApproval();
     return;
   }
 
   auto dialog = std::make_unique<DaoMcpApprovalDialog>(
-      request.approval, request.browser,
+      request.approval, browser,
       base::BindOnce(&DaoMcpApprovalDialogController::OnDialogResult,
                      base::Unretained(this), request.connection_id,
                      std::move(request.callback)));
   pending_dialog_ = dialog->GetWeakPtr();
   pending_connection_id_ = std::move(request.connection_id);
-  request.browser->GetWindow()->Activate();
+  browser->GetWindow()->Activate();
   views::Widget* widget = constrained_window::CreateBrowserModalDialogViews(
-      std::move(dialog), request.browser->GetWindow()->GetNativeWindow());
+      std::move(dialog), browser->GetWindow()->GetNativeWindow());
   widget->Show();
 }
 
@@ -312,14 +390,14 @@ void DaoMcpApprovalDialogController::CancelApproval(
 
 void DaoMcpApprovalDialogController::OnDialogResult(
     std::string connection_id,
-    base::OnceCallback<void(bool)> callback,
-    bool allowed) {
+    base::OnceCallback<void(std::optional<std::string>)> callback,
+    std::optional<std::string> tab_id) {
   if (connection_id != pending_connection_id_) {
     return;
   }
   pending_dialog_.reset();
   pending_connection_id_.clear();
-  std::move(callback).Run(allowed);
+  std::move(callback).Run(std::move(tab_id));
   ShowNextApproval();
 }
 

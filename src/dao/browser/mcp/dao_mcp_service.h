@@ -13,6 +13,7 @@
 #include <set>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "base/callback_list.h"
 #include "base/files/file_path.h"
@@ -69,6 +70,20 @@ struct DaoMcpClientInfo {
   std::optional<base::ProcessId> verified_pid;
 };
 
+struct DaoMcpTabGrant {
+  DaoToolTarget target;
+  std::u16string title;
+};
+
+struct DaoMcpConnectionInfo {
+  std::string connection_id;
+  DaoMcpClientInfo client;
+  base::WeakPtr<BrowserWindowInterface> browser_window;
+  bool can_create_tabs = false;
+  std::optional<std::string> latest_tool_name;
+  std::vector<DaoMcpTabGrant> tabs;
+};
+
 struct DaoMcpApprovalRequest {
   DaoMcpApprovalRequest();
   DaoMcpApprovalRequest(DaoMcpClientInfo client,
@@ -83,6 +98,7 @@ struct DaoMcpApprovalRequest {
   base::Time requested_at;
   std::optional<DaoToolTarget> tab_target;
   std::u16string tab_title;
+  std::vector<DaoMcpTabGrant> tab_choices;
 };
 
 struct DaoMcpServiceStatus {
@@ -108,6 +124,11 @@ class DaoMcpApprovalDelegate {
                                std::string_view connection_id,
                                base::OnceCallback<void(bool)> callback) = 0;
   virtual void CancelApproval(std::string_view) {}
+  virtual void RequestTabAccess(
+      const DaoMcpApprovalRequest& request,
+      BrowserWindowInterface* browser,
+      std::string_view approval_id,
+      base::OnceCallback<void(std::optional<std::string>)> callback);
 };
 
 #if BUILDFLAG(IS_MAC)
@@ -135,7 +156,10 @@ class DaoMcpService {
   content::WebContents* GetAuthorizedTarget() const;
   bool IsTargetControlled(content::WebContents* target) const;
   size_t GetControlledTargetCount() const;
-  void StopControl();
+  std::vector<DaoMcpConnectionInfo> GetConnections() const;
+  bool HasWindowPermission(BrowserWindowInterface* browser_window) const;
+  void StopControl(std::string_view connection_id);
+  void RevokeTab(std::string_view connection_id, std::string_view tab_id);
   base::CallbackListSubscription AddObserver(StatusObserver observer);
   void SetApprovalDelegate(DaoMcpApprovalDelegate* delegate);
 #if BUILDFLAG(IS_MAC)
@@ -237,6 +261,14 @@ class DaoMcpService {
   void RequestApproval(ConnectionState& connection,
                        BrowserWindowInterface* browser,
                        std::string reason);
+  void RequestTabAccess(ConnectionState& connection, PendingToolCall pending);
+  void OnTabAccessResult(uint64_t connection_generation,
+                         uint64_t approval_serial,
+                         std::optional<std::string> tab_id);
+  void CancelTabAccess(ConnectionState& connection, DaoToolError error);
+  bool CanAccessTab(uint64_t connection_generation,
+                    content::WebContents* target) const;
+  void OnWindowInvalidated(uint64_t connection_generation, DaoToolError error);
   void OnApprovalResult(uint64_t connection_generation,
                         std::string connection_id,
                         bool allowed);

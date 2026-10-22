@@ -320,18 +320,16 @@ void DaoMcpStdioServer::HandleInitialize(const base::DictValue& request,
                   "Include a non-blank reason explaining why browser access "
                   "is needed in the first tool call's arguments (up to 1024 "
                   "UTF-8 bytes). Dao shows it in the permission dialog. "
-                  "If the user provides a tab ID, include tab_id in the first "
-                  "get_page_info or list_tabs call to request access only to "
-                  "that tab, including a background tab in another window. "
-                  "That connection cannot target other tabs or use open_tab; "
-                  "reconnect with another tab_id to request different access. "
-                  "Use this server whenever the user asks to inspect or "
-                  "operate Dao Browser, including the current page, tabs, "
-                  "navigation, or page interaction. Prefer these tools over "
-                  "generic browser automation for Dao Browser. Without an "
-                  "explicit tab ID, use list_tabs to request window access "
-                  "and establish the initial current target, then pass its "
-                  "tab_id to page-specific tools. Preserve that target across "
+                  "Use this server for Dao Browser tasks. Prefer these tools "
+                  "over generic browser automation for Dao Browser. For "
+                  "research, use open_tab to request window creation access "
+                  "and create a background tab. Window approval grants no "
+                  "existing pages; list_tabs shows only granted tabs. Use "
+                  "request_tab_access with a reason only when an existing "
+                  "page is needed; omit tab_id to let the user privately "
+                  "choose a page, or pass an ID supplied by the user. An "
+                  "initial explicit tab_id grants that page only and does "
+                  "not permit open_tab. Preserve the granted target across "
                   "follow-up requests unless the user explicitly asks to "
                   "switch browser tabs. Treat ambiguous requests such as "
                   "open, click, or select X as page-local: inspect the current "
@@ -691,7 +689,8 @@ base::DictValue DaoMcpStdioServer::AdaptToolList(base::DictValue result) {
 base::DictValue DaoMcpStdioServer::AdaptToolResult(base::DictValue result) {
   const bool ok = result.FindBool("ok").value_or(false);
   // Bounded tasks can fail with structured partial progress instead of a
-  // transport error. Preserve that outcome for clients deciding what to do next.
+  // transport error. Preserve that outcome for clients deciding what to do
+  // next.
   if (!ok && (result.FindDict("error") || !result.FindDict("data"))) {
     const base::DictValue* error = result.FindDict("error");
     base::DictValue payload =

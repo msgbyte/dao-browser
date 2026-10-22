@@ -4,6 +4,10 @@
 
 ### [Unreleased] Unreleased
 
+- MCP window approval now permits new background tabs without exposing your existing pages; grant existing pages separately and revoke individual pages without closing them.
+- Reject ambiguous or changed page identities during MCP approval to prevent granting access to a different page.
+- Keep the MCP permissions popup open during tool calls and show the latest tool for each connection.
+- Manage each MCP connection and revoke access to individual pages from Settings.
 - Keep browser-control approval dialogs compact when tab URLs or other details are long, with full text available on hover.
 
 ### [1.0.116] - 2026-10-22

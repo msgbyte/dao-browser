@@ -5,16 +5,14 @@
 #ifndef DAO_BROWSER_UI_VIEWS_DAO_MCP_CONTROL_BANNER_VIEW_H_
 #define DAO_BROWSER_UI_VIEWS_DAO_MCP_CONTROL_BANNER_VIEW_H_
 
-#include <cstdint>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "base/memory/raw_ptr.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
 
 class BrowserWindowInterface;
-
-namespace content {
-class WebContents;
-}  // namespace content
 
 namespace views {
 class Label;
@@ -23,7 +21,7 @@ class MdTextButton;
 
 namespace dao {
 
-struct DaoMcpServiceStatus;
+struct DaoMcpConnectionInfo;
 
 // Details bubble anchored to the MCP indicator in the address bar.
 class DaoMcpControlBannerView final
@@ -32,16 +30,16 @@ class DaoMcpControlBannerView final
   METADATA_HEADER(DaoMcpControlBannerView, views::View)
 
  public:
-  DaoMcpControlBannerView(views::View* anchor_view,
-                          BrowserWindowInterface* browser,
-                          content::WebContents* target);
+  DaoMcpControlBannerView(views::View* anchor_view, BrowserWindowInterface* browser);
   ~DaoMcpControlBannerView() override;
 
   DaoMcpControlBannerView(const DaoMcpControlBannerView&) = delete;
   DaoMcpControlBannerView& operator=(const DaoMcpControlBannerView&) = delete;
 
-  bool UpdateLatestToolCall(const DaoMcpServiceStatus& status);
   views::MdTextButton* stop_button_for_testing() { return stop_button_; }
+
+  // Returns false when permission rows have changed and the bubble must close.
+  bool UpdateConnections();
 
   // views::BubbleDialogDelegate:
   views::View* GetContentsView() override;
@@ -51,12 +49,15 @@ class DaoMcpControlBannerView final
   const views::Widget* GetWidget() const override;
 
  private:
-  void OnStopPressed();
+  void OnStopPressed(std::string connection_id);
 
   raw_ptr<BrowserWindowInterface> browser_;
-  raw_ptr<views::Label> latest_tool_label_ = nullptr;
-  uint64_t latest_tool_call_serial_ = 0;
   raw_ptr<views::MdTextButton> stop_button_ = nullptr;
+  std::vector<DaoMcpConnectionInfo> connections_;
+  std::vector<raw_ptr<views::Label>> latest_tool_labels_;
+  // Title and URL labels for each granted tab, in connection order.
+  std::vector<std::pair<raw_ptr<views::Label>, raw_ptr<views::Label>>>
+      tab_labels_;
 };
 
 }  // namespace dao

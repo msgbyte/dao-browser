@@ -19,18 +19,23 @@
 #include "base/notreached.h"
 #include "base/path_service.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/values.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/window_metadata/window_metadata_controller.h"
 #include "chrome/common/chrome_paths.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui.h"
 #include "dao/browser/dao_pref_names.h"
+#include "dao/browser/strings/grit/dao_strings.h"
 #include "ui/base/clipboard/clipboard.h"
 #include "ui/base/clipboard/scoped_clipboard_writer.h"
+#include "ui/base/l10n/l10n_util.h"
 
 namespace dao {
 namespace {
@@ -76,7 +81,18 @@ class DaoMcpSettingsServiceImpl final : public DaoMcpSettingsService {
     DaoMcpService::Get()->SetEnabled(enabled);
   }
 
-  void StopControl() override { DaoMcpService::Get()->StopControl(); }
+  std::vector<DaoMcpConnectionInfo> GetConnections() const override {
+    return DaoMcpService::Get()->GetConnections();
+  }
+
+  void StopControl(std::string_view connection_id) override {
+    DaoMcpService::Get()->StopControl(connection_id);
+  }
+
+  void RevokeTab(std::string_view connection_id,
+                 std::string_view tab_id) override {
+    DaoMcpService::Get()->RevokeTab(connection_id, tab_id);
+  }
 
   std::string GetMcpConfiguration() const override {
     return DaoMcpService::Get()->GetMcpConfiguration();
@@ -166,6 +182,10 @@ void DaoMcpSettingsHandler::RegisterMessages() {
       base::BindRepeating(&DaoMcpSettingsHandler::HandleStopDaoMcpControl,
                           base::Unretained(this)));
   web_ui()->RegisterMessageCallback(
+      "revokeDaoMcpTab",
+      base::BindRepeating(&DaoMcpSettingsHandler::HandleRevokeDaoMcpTab,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
       "resetDaoMcpUsageStats",
       base::BindRepeating(
           &DaoMcpSettingsHandler::HandleResetDaoMcpUsageStats,
@@ -229,8 +249,38 @@ void DaoMcpSettingsHandler::HandleCopyDaoMcpSetupContent(
 
 void DaoMcpSettingsHandler::HandleStopDaoMcpControl(
     const base::ListValue& args) {
-  CHECK(args.empty());
-  service_->StopControl();
+  if (args.size() != 1 || !args[0].is_string()) {
+    return;
+  }
+  for (const auto& connection : service_->GetConnections()) {
+    if (connection.connection_id == args[0].GetString() &&
+        IsConnectionInCurrentProfile(connection)) {
+      service_->StopControl(connection.connection_id);
+      return;
+    }
+  }
+}
+
+void DaoMcpSettingsHandler::HandleRevokeDaoMcpTab(const base::ListValue& args) {
+  if (args.size() != 2 || !args[0].is_string() || !args[1].is_string()) {
+    return;
+  }
+  for (const auto& connection : service_->GetConnections()) {
+    if (connection.connection_id == args[0].GetString() &&
+        IsConnectionInCurrentProfile(connection)) {
+      service_->RevokeTab(connection.connection_id, args[1].GetString());
+      return;
+    }
+  }
+}
+
+bool DaoMcpSettingsHandler::IsConnectionInCurrentProfile(
+    const DaoMcpConnectionInfo& connection) {
+  auto* contents = web_ui()->GetWebContents();
+  auto* browser = connection.browser_window.get();
+  return contents && browser &&
+         browser->GetProfile() ==
+             Profile::FromBrowserContext(contents->GetBrowserContext());
 }
 
 void DaoMcpSettingsHandler::HandleResetDaoMcpUsageStats(
@@ -281,16 +331,42 @@ base::DictValue DaoMcpSettingsHandler::CreateStatusValue() {
   result.Set("enabled", service_->IsEnabled());
   result.Set("state", StatusName(status.state));
 
-  const bool can_stop = status.state == DaoMcpStatus::kLeaseActive;
-  result.Set("canStop", can_stop);
   result.Set("usageStats", BuildDaoMcpUsageStats(GetPrefs()));
-  if (can_stop && status.client) {
-    result.Set("clientName", SanitizeClientName(status.client->name));
-    if (status.client->verified_pid) {
-      result.Set("clientPid",
-                 static_cast<int>(*status.client->verified_pid));
+  base::ListValue connections;
+  for (const auto& connection : service_->GetConnections()) {
+    if (!IsConnectionInCurrentProfile(connection)) {
+      continue;
     }
+    base::DictValue item;
+    item.Set("connectionId", connection.connection_id);
+    item.Set("clientName", SanitizeClientName(connection.client.name));
+    item.Set("clientVersion", SanitizeClientName(connection.client.version));
+    if (connection.client.verified_pid) {
+      item.Set("clientPid", static_cast<int>(*connection.client.verified_pid));
+    }
+    auto* browser = connection.browser_window.get();
+    item.Set("windowLabel", l10n_util::GetStringFUTF16(
+                                IDS_DAO_MCP_APPROVAL_WINDOW,
+                                WindowMetadataController::From(browser)
+                                    ->GetWindowTitleForCurrentTab(false)));
+    item.Set("canCreateTabs", connection.can_create_tabs);
+    item.Set("pageCountLabel",
+             l10n_util::GetStringFUTF16(
+                 IDS_DAO_MCP_CONTROL_TAB_COUNT,
+                 base::NumberToString16(connection.tabs.size())));
+    base::ListValue tabs;
+    for (const auto& tab : connection.tabs) {
+      base::DictValue page;
+      page.Set("tabId", tab.target.tab_id);
+      page.Set("title", tab.title);
+      page.Set("url", tab.target.url);
+      tabs.Append(std::move(page));
+    }
+    item.Set("tabs", std::move(tabs));
+    connections.Append(std::move(item));
   }
+  result.Set("canStop", !connections.empty());
+  result.Set("connections", std::move(connections));
   return result;
 }
 

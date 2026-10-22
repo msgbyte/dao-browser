@@ -1029,9 +1029,7 @@ void DaoAddressBarView::OnSecurityButtonPressed() {
 }
 
 void DaoAddressBarView::UpdateMcpControlButton() {
-  content::WebContents* contents =
-      tab_strip_model_ ? tab_strip_model_->GetActiveWebContents() : nullptr;
-  const bool visible = DaoMcpService::Get()->IsTargetControlled(contents);
+  const bool visible = DaoMcpService::Get()->HasWindowPermission(browser_);
   mcp_control_button_->SetVisible(visible);
   if (!visible) {
     CloseMcpControlPopup();
@@ -1118,15 +1116,13 @@ void DaoAddressBarView::OnMcpControlButtonPressed() {
     return;
   }
 
-  content::WebContents* contents =
-      tab_strip_model_ ? tab_strip_model_->GetActiveWebContents() : nullptr;
-  if (!contents || !DaoMcpService::Get()->IsTargetControlled(contents)) {
+  if (!DaoMcpService::Get()->HasWindowPermission(browser_)) {
     UpdateMcpControlButton();
     return;
   }
 
-  auto popup = std::make_unique<DaoMcpControlBannerView>(
-      mcp_control_button_, browser_, contents);
+  auto popup =
+      std::make_unique<DaoMcpControlBannerView>(mcp_control_button_, browser_);
   DaoMcpControlBannerView* popup_ptr = popup.get();
   views::Widget* widget = views::BubbleDialogDelegate::CreateBubbleDeprecated(
       std::move(popup),
@@ -1143,14 +1139,13 @@ void DaoAddressBarView::CloseMcpControlPopup() {
   }
 }
 
-void DaoAddressBarView::OnMcpServiceStatusChanged(
-    const DaoMcpServiceStatus& status) {
+void DaoAddressBarView::OnMcpServiceStatusChanged(const DaoMcpServiceStatus&) {
   UpdateMcpControlButton();
-  auto* popup = mcp_control_popup_for_testing();
-  if (popup && popup->UpdateLatestToolCall(status)) {
-    return;
+  auto* popup = views::AsViewClass<DaoMcpControlBannerView>(
+      mcp_control_popup_tracker_.view());
+  if (popup && !popup->UpdateConnections()) {
+    CloseMcpControlPopup();
   }
-  CloseMcpControlPopup();
 }
 
 void DaoAddressBarView::OnChatButtonPressed() {

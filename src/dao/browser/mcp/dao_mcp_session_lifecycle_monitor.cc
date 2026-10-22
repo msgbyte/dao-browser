@@ -28,9 +28,11 @@ DaoToolError TargetGone(std::string message) {
 
 DaoMcpSessionLifecycleMonitor::DaoMcpSessionLifecycleMonitor(
     DaoBrowserAutomationSession* session,
-    InvalidatedCallback callback)
+    InvalidatedCallback callback,
+    bool window_only)
     : session_(session ? session->GetWeakPtr() : nullptr),
-      callback_(std::move(callback)) {}
+      callback_(std::move(callback)),
+      window_only_(window_only) {}
 
 DaoMcpSessionLifecycleMonitor::~DaoMcpSessionLifecycleMonitor() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -124,6 +126,9 @@ void DaoMcpSessionLifecycleMonitor::Revalidate() {
     return;
   }
 
+  if (window_only_) {
+    return;
+  }
   revalidating_ = true;
   base::WeakPtr<DaoMcpSessionLifecycleMonitor> weak_this =
       weak_factory_.GetWeakPtr();

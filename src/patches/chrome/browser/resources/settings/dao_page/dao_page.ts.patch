@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_page.ts
-@@ -0,0 +1,588 @@
+@@ -0,0 +1,607 @@
 +// Copyright 2026 Dao Browser Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -81,6 +81,17 @@ index 0000000000..0000000001
 +  lastReset: number;
 +}
 +
++export interface DaoMcpConnection {
++  connectionId: string;
++  clientName: string;
++  clientVersion: string;
++  clientPid?: number;
++  windowLabel: string;
++  canCreateTabs: boolean;
++  pageCountLabel: string;
++  tabs: Array<{tabId: string, title: string, url: string}>;
++}
++
 +export interface DaoMcpStatus {
 +  enabled: boolean;
 +  state: DaoMcpStatusState;
@@ -88,6 +99,7 @@ index 0000000000..0000000001
 +  clientPid?: number;
 +  canStop: boolean;
 +  usageStats?: DaoMcpUsageStats;
++  connections?: DaoMcpConnection[];
 +}
 +
 +export interface DaoMcpBrowserProxy {
@@ -95,7 +107,8 @@ index 0000000000..0000000001
 +  setDaoMcpEnabled(enabled: boolean): void;
 +  getDaoMcpSetupContent(option: DaoMcpSetupOption): Promise<string>;
 +  copyDaoMcpSetupContent(option: DaoMcpSetupOption): Promise<boolean>;
-+  stopDaoMcpControl(): void;
++  stopDaoMcpControl(connectionId: string): void;
++  revokeDaoMcpTab(connectionId: string, tabId: string): void;
 +  resetDaoMcpUsageStats(): void;
 +}
 +
@@ -116,8 +129,12 @@ index 0000000000..0000000001
 +    return sendWithPromise('copyDaoMcpSetupContent', option);
 +  }
 +
-+  stopDaoMcpControl(): void {
-+    chrome.send('stopDaoMcpControl');
++  stopDaoMcpControl(connectionId: string): void {
++    chrome.send('stopDaoMcpControl', [connectionId]);
++  }
++
++  revokeDaoMcpTab(connectionId: string, tabId: string): void {
++    chrome.send('revokeDaoMcpTab', [connectionId, tabId]);
 +  }
 +
 +  resetDaoMcpUsageStats(): void {
@@ -202,19 +219,9 @@ index 0000000000..0000000001
 +        value: 'disabled',
 +      },
 +
-+      daoMcpClientDetails_: {
-+        type: String,
-+        value: '',
-+      },
-+
-+      showDaoMcpClient_: {
-+        type: Boolean,
-+        value: false,
-+      },
-+
-+      showDaoMcpStop_: {
-+        type: Boolean,
-+        value: false,
++      daoMcpConnections_: {
++        type: Array,
++        value: () => [],
 +      },
 +
 +      showDaoMcpQuickSetup_: {
@@ -278,9 +285,7 @@ index 0000000000..0000000001
 +      chrome.settingsPrivate.PrefObject<boolean>;
 +  declare private daoMcpStatusText_: string;
 +  declare private daoMcpStatusState_: DaoMcpStatusState;
-+  declare private daoMcpClientDetails_: string;
-+  declare private showDaoMcpClient_: boolean;
-+  declare private showDaoMcpStop_: boolean;
++  declare private daoMcpConnections_: DaoMcpConnection[];
 +  declare private showDaoMcpQuickSetup_: boolean;
 +  declare private daoMcpSetupOption_: DaoMcpSetupOption;
 +  declare private daoMcpSetupContent_: string;
@@ -529,8 +534,32 @@ index 0000000000..0000000001
 +    }
 +  }
 +
-+  private onDaoMcpStopControl_() {
-+    this.daoMcpBrowserProxy_.stopDaoMcpControl();
++  private onDaoMcpStopControl_(event: Event) {
++    const {connectionId} = (event.currentTarget as HTMLElement).dataset;
++    if (connectionId) {
++      this.daoMcpBrowserProxy_.stopDaoMcpControl(connectionId);
++    }
++  }
++
++  private onDaoMcpRevokeTab_(event: Event) {
++    const {connectionId, tabId} =
++        (event.currentTarget as HTMLElement).dataset;
++    if (connectionId && tabId) {
++      this.daoMcpBrowserProxy_.revokeDaoMcpTab(connectionId, tabId);
++    }
++  }
++
++  private getDaoMcpClientDetails_(connection: DaoMcpConnection): string {
++    const name = [connection.clientName, connection.clientVersion]
++        .filter(Boolean).join(' ');
++    return connection.clientPid !== undefined ?
++        loadTimeData.getStringF(
++            'daoMcpClientDetails', name, String(connection.clientPid)) : name;
++  }
++
++  private getDaoMcpScope_(canCreateTabs: boolean): string {
++    return loadTimeData.getString(
++        canCreateTabs ? 'daoMcpCreateAllowed' : 'daoMcpPageOnly');
 +  }
 +
 +  private onDaoMcpResetUsage_() {
@@ -571,17 +600,7 @@ index 0000000000..0000000001
 +      this.daoMcpSetupCopied_ = false;
 +    }
 +
-+    const hasActiveClient =
-+        status.state === 'connected' && status.clientName !== undefined;
-+    this.showDaoMcpClient_ = hasActiveClient;
-+    this.daoMcpClientDetails_ = hasActiveClient ?
-+        status.clientPid !== undefined ?
-+            loadTimeData.getStringF(
-+                'daoMcpClientDetails', status.clientName!,
-+                String(status.clientPid)) :
-+            status.clientName! :
-+        '';
-+    this.showDaoMcpStop_ = status.state === 'connected' && status.canStop;
++    this.daoMcpConnections_ = status.connections ?? [];
 +  }
 +}
 +
