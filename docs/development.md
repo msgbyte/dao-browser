@@ -57,16 +57,17 @@ another workflow or signing host.
 ### Switch website downloads to a previous release
 
 ```bash
-npm run release:rollback                           # Select a release, commit, and push main
-npm run release:rollback -- --version 1.0.116 --dry-run
+npm run release:rollback              # Select a release and commit locally
+npm run release:rollback -- --dry-run  # Preview an interactive selection
 ```
 
 The rollback command lists distinct releases from the local Git history of
 `website/public/info.json`; use a full checkout. It restores the selected file
 exactly, including its release date, Chromium version, platform availability,
 and per-platform download versions. Release tags are not used because they can
-precede their website metadata commit. Pass `--version` to select without a
-terminal; an empty interactive selection cancels. Dry runs work offline and
+precede their website metadata commit. Use Up/Down to choose a version and Enter
+to confirm; Escape or Ctrl+C cancels. Pass `--version` to select without a
+terminal. Dry runs work offline and
 leave files and Git history unchanged.
 
 The matching Windows manifest is read from its immutable R2 `.update.json`,
@@ -74,19 +75,19 @@ using the actual Windows platform version in the selected snapshot. Its signatur
 version, original bytes, and installer availability/size are checked before edits.
 Versions without a supported Windows installer or signed manifest are rejected.
 
-Publication requires a clean `main` exactly matching `origin/main`, so unrelated
-local commits cannot be pushed accidentally. Every selected installer must pass
-an HTTPS HEAD availability check. The command commits only `info.json` and
-`windows-update.json`, then
-pushes `main` without tags to trigger **Deploy Website to Vercel**. Check that
-workflow and the public download page before considering the change live.
-A rejected commit restores local metadata; the committed parent, file list, and
-snapshot are checked before publication. A failed push preserves the rollback
-commit and prints a retry pinned to that commit, excluding later local work.
+Run from a clean `main` checkout. Local commits may be ahead of, behind, or
+diverged from the remote; no remote configuration or synchronization is required.
+Every selected installer must pass an HTTPS HEAD availability check. The command
+commits only `info.json` and `windows-update.json` locally. It never reads or
+writes Git remotes. A rejected commit restores local metadata; the committed
+parent, file list, and snapshot are checked before reporting success.
+Push manually when ready to trigger **Deploy Website to Vercel**, then check
+that workflow and the public download page before considering the change live.
 Selecting matching downloads and a matching feed does nothing; a changed feed
 is restored even when the download version is already selected.
 
-This changes website downloads and Windows update offers. The deployment mirrors
+After manual push and deployment, this changes website downloads and Windows
+update offers. The deployment mirrors
 the Windows feed to R2 for old clients. It does not change `dao.json`, Mac
 `appcast.xml`, GitHub Releases, binaries, tags, or changelogs, and does not downgrade
 installed browsers or recall cached updates. Mac automatic updates remain

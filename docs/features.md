@@ -21,10 +21,11 @@ Desktop version bumps archive only desktop `Unreleased` entries before packaging
 release failures restore them along with version metadata. Windows attachments and
 `--skip-bump` preserve pending notes. See [the changelog guide](changelog.md).
 
-`npm run release:rollback` selects a historical website download snapshot,
-checks its installers and original signed Windows manifest, and commits/pushes
-`website/public/info.json` plus `windows-update.json` from a clean, synchronized
-`main` to trigger website deployment and legacy Windows feed synchronization.
+`npm run release:rollback` uses an interactive arrow-key menu to select a historical
+website download snapshot, checks its installers and original signed Windows
+manifest, and commits `website/public/info.json` plus `windows-update.json` locally
+from a clean `main`. No Git remote access or synchronization is required; push
+manually to trigger website deployment and legacy Windows feed synchronization.
 It preserves application versions and Mac appcast;
 installed browsers are not downgraded. See [the development guide](development.md#switch-website-downloads-to-a-previous-release).
 

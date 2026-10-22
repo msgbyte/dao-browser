@@ -2,6 +2,8 @@
 
 This records the initial website-only scope. The subsequent [Windows website updates plan](2026-10-23-windows-website-updates.md) extends rollback to restore signed Windows metadata and synchronize the legacy update source.
 
+The later user-requested revision replaces numbered input with an arrow-key menu and stops after a local commit. Remote synchronization checks and automatic push are removed; the implementation record below describes the original behavior.
+
 **Goal:** Let maintainers select a previous website download release and publish its metadata through the existing main-branch website deployment.
 
 **Design:** Read distinct versions from the committed history of `website/public/info.json`; desktop tags can precede their metadata commit. Restore the selected snapshot, including actual platform URLs and release dates, after checking installer availability. Only this file enters the rollback commit. Keep browser versions, update feeds, tags, binaries, and changelogs unchanged at runtime.

@@ -1,9 +1,10 @@
 // @vitest-environment node
 import {spawnSync} from 'node:child_process';
 import {generateKeyPairSync, sign} from 'node:crypto';
-import {chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync} from 'node:fs';
+import {chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
+import {PassThrough} from 'node:stream';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {listWebsiteReleases, resolveRollbackVersion, runReleaseRollback} from '../release-rollback.js';
 
@@ -82,15 +83,13 @@ describe('website release rollback', () => {
   it('lists metadata versions instead of the preceding version in release tags', async () => {
     const releases = await listWebsiteReleases(root);
     expect(releases.map(release => release.version)).toEqual(['1.0.10', '1.0.9']);
-    expect(await resolveRollbackVersion(releases, undefined, async () => '2')).toEqual(releases[1]);
     expect(await resolveRollbackVersion(releases, '1.0.10')).toEqual(releases[0]);
-    await expect(resolveRollbackVersion(releases, undefined, async () => '0')).rejects.toThrow();
-    await expect(resolveRollbackVersion(releases, undefined, async () => '')).rejects.toThrow();
     await expect(resolveRollbackVersion(releases, '9.9.9')).rejects.toThrow();
     await expect(resolveRollbackVersion(releases)).rejects.toThrow('--version');
   });
 
-  it('publishes only the exact selected website snapshot without changing appcast, app versions or tags', async () => {
+  it('commits only the selected website snapshot locally without changing appcast, app versions or remote refs', async () => {
+    const before = head();
     git(root, 'config', 'push.followTags', 'true');
     git(root, '-c', 'tag.gpgsign=false', 'tag', '-a', 'v9.9.9', '-m', 'Unpublished');
     await runReleaseRollback({version: '1.0.9'}, root);
@@ -99,7 +98,8 @@ describe('website release rollback', () => {
     expect(readFileSync(path.join(root, FEED), 'utf8')).toBe(oldFeed);
     expect(readFileSync(path.join(root, 'website/public/appcast.xml'), 'utf8')).toBe('<rss/>\n');
     expect(readFileSync(path.join(root, 'dao.json'), 'utf8')).toBe('{"version":"1.0.10"}\n');
-    expect(git(remote, 'rev-parse', 'main')).toBe(head());
+    expect(head()).not.toBe(before);
+    expect(git(remote, 'rev-parse', 'main')).toBe(before);
     expect(git(remote, 'tag', '--list')).toBe('');
     expect(git(root, 'status', '--porcelain')).toBe('');
     expect((await listWebsiteReleases(root)).map(release => release.version)).toEqual(['1.0.9', '1.0.10']);
@@ -145,18 +145,31 @@ describe('website release rollback', () => {
     expect(head()).toBe(before);
   });
 
-  it.each(['dirty', 'ahead', 'behind', 'branch'])('rejects a %s checkout before changing download metadata', async state => {
+  it.each(['dirty', 'branch'])('rejects a %s checkout before changing download metadata', async state => {
     if (state === 'dirty') writeFileSync(path.join(root, 'pending.txt'), 'unrelated work');
-    if (state === 'ahead') git(root, 'commit', '--allow-empty', '-m', 'Unpublished work');
-    if (state === 'behind') {
-      const next = git(root, 'commit-tree', 'HEAD^{tree}', '-p', 'HEAD', '-m', 'Remote work');
-      git(root, 'push', 'origin', `${next}:refs/heads/main`);
-    }
     if (state === 'branch') git(root, 'switch', '-c', 'other');
     const before = head();
     await expect(runReleaseRollback({version: '1.0.9'}, root)).rejects.toThrow();
     expect(info()).toBe(newInfo);
     expect(head()).toBe(before);
+  });
+
+  it.each(['ahead', 'behind', 'diverged', 'no remote', 'unreachable remote'])
+    ('creates a local rollback commit with %s', async state => {
+    if (state === 'ahead' || state === 'diverged') git(root, 'commit', '--allow-empty', '-m', 'Unpublished work');
+    if (state === 'behind' || state === 'diverged') {
+      const next = git(root, 'commit-tree', 'HEAD^{tree}', '-p', 'origin/main', '-m', 'Remote work');
+      git(root, 'push', 'origin', `${next}:refs/heads/main`);
+    }
+    if (state === 'no remote') git(root, 'remote', 'remove', 'origin');
+    if (state === 'unreachable remote') git(root, 'remote', 'set-url', 'origin', path.join(directory, 'missing.git'));
+    const remoteHead = git(remote, 'rev-parse', 'main');
+    const before = head();
+    await runReleaseRollback({version: '1.0.9'}, root);
+    expect(git(root, 'rev-parse', 'HEAD^')).toBe(before);
+    expect(info()).toBe(oldInfo);
+    expect(readFileSync(path.join(root, FEED), 'utf8')).toBe(oldFeed);
+    expect(git(remote, 'rev-parse', 'main')).toBe(remoteHead);
   });
 
   it.each(['missing', 'network'])('rejects a %s Windows installer even when the Mac installer exists', async failure => {
@@ -195,25 +208,17 @@ describe('website release rollback', () => {
     expect(git(root, 'status', '--porcelain')).toBe('');
   });
 
-  it('keeps a failed push locally and provides a retry without claiming deployment', async () => {
-    hook(path.join(remote, 'hooks'), 'pre-receive');
+  it('does not invoke push hooks or claim that the rollback was published', async () => {
+    hook(path.join(root, '.git/hooks'), 'pre-push');
+    const output = vi.spyOn(console, 'log').mockImplementation(() => {});
     const before = head();
-    let retry = '';
-    try { await runReleaseRollback({version: '1.0.9'}, root); }
-    catch (cause) { retry = (cause as Error).message.split('\n').at(-1)!; }
-    const rollbackCommit = head();
-    expect(retry).toBe(`git push --no-follow-tags origin ${rollbackCommit}:refs/heads/main`);
+    await runReleaseRollback({version: '1.0.9'}, root);
     expect(info()).toBe(oldInfo);
-    expect(rollbackCommit).not.toBe(before);
+    expect(head()).not.toBe(before);
     expect(git(remote, 'rev-parse', 'main')).toBe(before);
     expect(git(root, 'status', '--porcelain')).toBe('');
-    writeFileSync(path.join(root, 'private-unrelated.txt'), 'Unpublished work');
-    git(root, 'add', 'private-unrelated.txt');
-    git(root, 'commit', '-m', 'Unpublished work');
-    unlinkSync(path.join(remote, 'hooks/pre-receive'));
-    git(root, ...retry.split(' ').slice(1));
-    expect(git(remote, 'rev-parse', 'main')).toBe(rollbackCommit);
-    expect(git(remote, 'diff', '--name-only', before, 'main')).toBe(`${INFO}\n${FEED}`);
+    expect(output.mock.calls.flat().join('\n')).toContain('locally');
+    expect(output.mock.calls.flat().join('\n')).not.toContain('Pushed');
   });
 
   it('does not publish extra files added by a commit hook', async () => {
@@ -223,5 +228,48 @@ describe('website release rollback', () => {
     const before = head();
     await expect(runReleaseRollback({version: '1.0.9'}, root)).rejects.toThrow('Inspect the local commit');
     expect(git(remote, 'rev-parse', 'main')).toBe(before);
+  });
+});
+
+describe('interactive rollback selection', () => {
+  const releases = [
+    {version: '1.0.10', releasedAt: '2026-10-02', contents: newInfo, urls: []},
+    {version: '1.0.9', releasedAt: '2026-10-01', contents: oldInfo, urls: []},
+  ];
+  function terminal() {
+    const input = Object.assign(new PassThrough(), {
+      isTTY: true, isRaw: false,
+      setRawMode(mode: boolean) {this.isRaw = mode; return this;},
+    });
+    const output = Object.assign(new PassThrough(), {isTTY: true});
+    const select = () => resolveRollbackVersion(releases, undefined,
+      input as unknown as NodeJS.ReadStream, output as unknown as NodeJS.WriteStream);
+    return {input, output, select};
+  }
+
+  it.each([
+    {keys: '\x1b[B\r', version: '1.0.9', action: 'Down'},
+    {keys: '\x1b[B\x1b[A\r', version: '1.0.10', action: 'Down then Up'},
+    {keys: '\x1b[A\r', version: '1.0.9', action: 'Up wrapping to the last version'},
+  ])('selects $version using $action and Enter', async ({keys, version}) => {
+    const {input, output, select} = terminal();
+    const selected = select();
+    const result = expect(selected).resolves.toMatchObject({version});
+    input.write(keys);
+    await result;
+    expect(output.read().toString()).toContain('1.0.9');
+    expect(input.isRaw).toBe(false);
+    expect(input.isPaused()).toBe(true);
+    expect(input.listenerCount('keypress')).toBe(0);
+  });
+
+  it.each(['\x03', '\x1b', 'EOF'])('cancels on %j and restores terminal input', async key => {
+    const {input, select} = terminal();
+    const result = expect(select()).rejects.toThrow(/cancel/i);
+    if (key === 'EOF') input.end(); else input.write(key);
+    await result;
+    expect(input.isRaw).toBe(false);
+    expect(input.isPaused()).toBe(true);
+    expect(input.listenerCount('keypress')).toBe(0);
   });
 });

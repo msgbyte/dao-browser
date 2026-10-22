@@ -1,6 +1,6 @@
 import {execFile} from 'node:child_process';
 import path from 'node:path';
-import {createInterface} from 'node:readline/promises';
+import {clearScreenDown, cursorTo, emitKeypressEvents, moveCursor, type Key} from 'node:readline';
 import {promisify} from 'node:util';
 import {Command} from 'commander';
 import {ROOT_DIR, error, log, success} from '../utils.js';
@@ -73,19 +73,58 @@ export async function listWebsiteReleases(root = ROOT_DIR): Promise<WebsiteRelea
 }
 
 export async function resolveRollbackVersion(
-  releases: WebsiteRelease[], version?: string, ask?: (message: string) => Promise<string>,
+  releases: WebsiteRelease[], version?: string,
+  input: NodeJS.ReadStream = process.stdin, output: NodeJS.WriteStream = process.stdout,
 ): Promise<WebsiteRelease> {
   if (version !== undefined) {
     const release = releases.find(candidate => candidate.version === version);
     if (!release) throw new Error(`Website release ${version} was not found in local Git history.`);
     return release;
   }
-  if (!ask) throw new Error('Pass --version when not running in an interactive terminal.');
-  const answer = (await ask('Select the website release number (empty to cancel): ')).trim();
-  if (!answer) throw new Error('Rollback cancelled.');
-  const release = /^[1-9]\d*$/.test(answer) ? releases[Number(answer) - 1] : undefined;
-  if (!release) throw new Error('Invalid website release number.');
-  return release;
+  if (!input.isTTY || !output.isTTY) throw new Error('Pass --version when not running in an interactive terminal.');
+  const wasRaw = input.isRaw;
+  const wasFlowing = input.readableFlowing === true;
+  return new Promise((resolve, reject) => {
+    let selected = 0;
+    let rows = 0;
+    const render = () => {
+      if (rows) moveCursor(output, 0, -rows);
+      cursorTo(output, 0);
+      clearScreenDown(output);
+      const start = Math.max(0, Math.min(selected - 3, releases.length - 7));
+      const visible = releases.slice(start, start + 7);
+      for (const [index, release] of visible.entries()) {
+        output.write(`${start + index === selected ? '>' : ' '} ${release.version} (${release.releasedAt})\n`);
+      }
+      rows = visible.length;
+    };
+    const finish = (cause?: Error) => {
+      input.off('keypress', onKey);
+      input.off('end', cancel);
+      input.off('error', finish);
+      input.setRawMode(wasRaw);
+      if (!wasFlowing) input.pause();
+      output.write('\n');
+      if (cause) reject(cause); else resolve(releases[selected]);
+    };
+    const cancel = () => finish(new Error('Rollback cancelled.'));
+    const onKey = (_text: string, key: Key) => {
+      if (key.name === 'return' || key.name === 'enter') finish();
+      else if (key.name === 'escape' || (key.ctrl && (key.name === 'c' || key.name === 'd'))) cancel();
+      else if (key.name === 'up' || key.name === 'down') {
+        selected = (selected + (key.name === 'up' ? -1 : 1) + releases.length) % releases.length;
+        render();
+      }
+    };
+    emitKeypressEvents(input);
+    input.on('keypress', onKey);
+    input.once('end', cancel);
+    input.once('error', finish);
+    input.setRawMode(true);
+    input.resume();
+    output.write('Select a website release (Up/Down, Enter to select, Esc to cancel):\n');
+    render();
+  });
 }
 
 export async function runReleaseRollback(options: RollbackOptions, root = ROOT_DIR): Promise<void> {
@@ -97,21 +136,13 @@ export async function runReleaseRollback(options: RollbackOptions, root = ROOT_D
   const current = parseRelease(original.toString('utf8'));
   const releases = await listWebsiteReleases(root);
   log(`Current website download version: ${current.version}`);
-  if (!options.version) releases.forEach((release, index) => log(`${index + 1}. ${release.version} (${release.releasedAt})`));
-  const terminal = process.stdin.isTTY && process.stdout.isTTY && !process.env.CI
-    ? createInterface({input: process.stdin, output: process.stdout}) : undefined;
-  let selected: WebsiteRelease;
-  try {
-    selected = await resolveRollbackVersion(releases, options.version, terminal && (message => terminal.question(message)));
-  } finally {
-    terminal?.close();
-  }
+  const selected = await resolveRollbackVersion(releases, options.version);
   if (!selected.windowsVersion) throw new Error('This website release has no supported Windows installer. Select a version with a signed Windows update.');
   log(`${INFO_FILE}: ${current.version} -> ${selected.version} (${selected.releasedAt})`);
   for (const url of selected.urls) log(url);
   log(`${FEED_FILE}: restore the original signed Windows ${selected.windowsVersion} manifest from R2.`);
   log('Website downloads and the Windows feed change. Application versions and Mac appcast stay unchanged.');
-  log(`Commit ${INFO_FILE} and ${FEED_FILE}, then push only that commit to origin/main for deployment and legacy feed synchronization.`);
+  log(`Commit ${INFO_FILE} and ${FEED_FILE} locally. Push and deployment remain manual.`);
   if (options.dryRun) return;
 
   const head = (await git(root, 'rev-parse', 'HEAD')).trim();
@@ -123,8 +154,6 @@ export async function runReleaseRollback(options: RollbackOptions, root = ROOT_D
     }
   };
   await assertCleanMain();
-  const remote = (await git(root, 'ls-remote', 'origin', 'refs/heads/main')).trim().split(/\s+/)[0];
-  if (remote !== head) throw new Error('Local main must exactly match origin/main. Synchronize before website rollback.');
   for (const url of selected.urls) {
     try {
       const response = await fetch(url, {method: 'HEAD', cache: 'no-store', signal: AbortSignal.timeout(15000)});
@@ -165,17 +194,11 @@ export async function runReleaseRollback(options: RollbackOptions, root = ROOT_D
       (await git(root, 'diff-tree', '--no-commit-id', '--name-only', '-r', commit)).trim() !== changed.sort().join('\n') || !matching) {
     throw new Error('Inspect the local commit: it contains unexpected changes. Nothing was pushed.');
   }
-  const push = ['push', '--no-follow-tags', 'origin', `${commit}:refs/heads/main`];
-  try {
-    await git(root, ...push);
-  } catch (cause) {
-    throw new Error(`${cause}\nThe rollback commit is preserved locally. Resolve the push failure and retry:\ngit ${push.join(' ')}`);
-  }
-  success(`Pushed website download version ${selected.version}. Follow the Deploy Website to Vercel workflow to confirm deployment.`);
+  success(`Committed website download version ${selected.version} locally (${commit.slice(0, 7)}). Nothing was pushed.`);
 }
 
 export const releaseRollbackCommand = new Command('release-rollback')
-  .description('Restore historical website downloads and the signed Windows feed, then push main for deployment')
+  .description('Select historical website downloads and the signed Windows feed, then commit locally')
   .option('--version <version>', 'Website release version (prompt when omitted)')
   .option('--dry-run', 'Preview the selection without changes or network access')
   .action(async (options: RollbackOptions) => {
