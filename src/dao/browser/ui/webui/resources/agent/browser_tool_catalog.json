@@ -834,8 +834,6 @@
         "properties": {
           "reason": {
             "type": "string",
-            "minLength": 1,
-            "maxLength": 1024,
             "description": "Explain why access to the existing page is needed; 1 to 1024 UTF-8 bytes."
           },
           "tab_id": {

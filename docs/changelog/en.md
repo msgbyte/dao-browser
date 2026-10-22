@@ -4,6 +4,8 @@
 
 ### [Unreleased] Unreleased
 
+- Fix a browser crash shortly after startup or when opening the AI sidebar.
+
 ### [1.0.117] - 2026-10-23
 
 - MCP window approval now permits new background tabs without exposing your existing pages; grant existing pages separately and revoke individual pages without closing them.

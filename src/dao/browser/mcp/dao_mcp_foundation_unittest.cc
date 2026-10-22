@@ -190,6 +190,25 @@ TEST_F(DaoMcpCatalogTest, EmbeddedSchemasEnforceRequiredFieldsAndTypes) {
                   .has_value());
 }
 
+TEST_F(DaoMcpCatalogTest, PageAccessRequestsLoadAndRequireAReason) {
+  auto catalog = DaoBrowserToolCatalog::LoadFromResourceBundle();
+  ASSERT_TRUE(catalog.has_value()) << catalog.error().message;
+  const DaoBrowserToolDefinition* request =
+      catalog.value()->Find("request_tab_access", DaoToolClient::kMcp);
+  ASSERT_NE(nullptr, request);
+  EXPECT_EQ(nullptr, catalog.value()->Find("request_tab_access",
+                                          DaoToolClient::kDaoAgent));
+
+  EXPECT_FALSE(ValidateToolArguments(*request, base::DictValue()).has_value());
+  EXPECT_FALSE(ValidateToolArguments(*request, base::DictValue().Set("reason", 7))
+                   .has_value());
+  base::DictValue arguments =
+      base::DictValue().Set("reason", "Read the page for the requested task.");
+  EXPECT_TRUE(ValidateToolArguments(*request, arguments).has_value());
+  arguments.Set("tab_id", "requested-tab");
+  EXPECT_TRUE(ValidateToolArguments(*request, arguments).has_value());
+}
+
 TEST_F(DaoMcpCatalogTest,
        MissingResourceIsObservableAndDoesNotPoisonAResourceRetry) {
   DaoBrowserToolCatalog::Cache cache;
