@@ -254,6 +254,7 @@ void DaoMiniDaoSiteCenterPopup::BuildMainPanel() {
   extensions_section_ = main_panel_->AddChildView(
       std::make_unique<DaoControlCenterExtensionsSection>(
           browser_,
+          DaoControlCenterExtensionsSection::ActionsPlacement::kGrid,
           base::BindRepeating(&DaoMiniDaoSiteCenterPopup::Hide,
                               base::Unretained(this)),
           base::BindRepeating(

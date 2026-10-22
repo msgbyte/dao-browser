@@ -91,9 +91,19 @@ SkColor ControlCenterIconDefault();
 SkColor ControlCenterIconMuted();
 SkColor ControlCenterHoverBg();
 SkColor ControlCenterHoverBg(const BrowserWindowInterface* browser);
-SkColor ControlCenterActiveBg();
 SkColor ControlCenterLabelColor();
 SkColor ControlCenterSecondaryTextColor();
+
+// Control center card and its tiles (macOS Control Center style).
+SkColor ControlCenterCardBackground();
+SkColor ControlCenterCardBorder();
+SkColor ControlCenterTileBackground();
+SkColor ControlCenterTileIconBackground();
+SkColor ControlCenterTileActiveIconBackground();
+SkColor ControlCenterTileTitleColor();
+SkColor ControlCenterTileLabelColor();
+SkColor ControlCenterTileSubtitleColor();
+SkColor ControlCenterTileIconColor();
 
 // Generic drop-shadow colors used across popups.
 SkColor PopupShadowOuter();  // 40px blur step

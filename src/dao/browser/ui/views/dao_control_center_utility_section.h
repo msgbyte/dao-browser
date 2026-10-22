@@ -16,7 +16,8 @@ namespace dao {
 
 class DaoControlCenterPopup;
 
-// A row of utility buttons: QR Code, Mini Dao, Security, dark mode, More.
+// Utility tiles: wide dark mode and security tiles with a status line, above
+// compact QR Code, Mini Dao and More tiles.
 class DaoControlCenterUtilitySection : public views::View {
   METADATA_HEADER(DaoControlCenterUtilitySection, views::View)
 
@@ -28,6 +29,7 @@ class DaoControlCenterUtilitySection : public views::View {
       const DaoControlCenterUtilitySection&) = delete;
   ~DaoControlCenterUtilitySection() override;
 
+  // Re-applies theme colors and refreshes the dark mode and security status.
   void Refresh();
 
  private:
@@ -35,11 +37,13 @@ class DaoControlCenterUtilitySection : public views::View {
   void OnMiniDaoClicked();
   void OnForceDarkModeClicked();
   void RefreshForceDarkModeState();
+  void RefreshSecurityState();
   void OnLockClicked();
   void OnMoreClicked();
 
   raw_ptr<DaoControlCenterPopup> popup_;
   raw_ptr<views::Button> force_dark_mode_button_ = nullptr;
+  raw_ptr<views::Button> security_button_ = nullptr;
 };
 
 }  // namespace dao

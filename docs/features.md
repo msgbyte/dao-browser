@@ -1093,9 +1093,21 @@ macOS-style floating control center panel bundling extensions and utilities.
   boost. Normal garbage collection, OS memory management, system sleep, hardware
   limits, crashes, and websites' own focus-based behavior remain unchanged.
 - **DaoControlCenterButton** — Trigger button
-- **DaoControlCenterPopup** — Floating popup with transparent overlay click-to-close
-- **DaoControlCenterExtensionsSection** — Extensions grid
-- **DaoControlCenterUtilitySection** — Utility buttons (share, QR, lock, more)
+- **DaoControlCenterPopup** — Floating popup with transparent overlay click-to-close.
+  The main panel is a 16px-radius frosted card with a hairline border holding
+  rounded tiles in a macOS Control Center layout; the QR and More sub-panels
+  replace the tiles inside the same card
+- **DaoControlCenterExtensionsSection** — Extensions tile: a localized
+  Extensions header keeps Add and Manage visible at its trailing edge, and
+  extension icons wrap onto extra rows of eight instead of pushing items out of
+  view. Mini Dao's site center reuses the section in its single-row layout
+  with inline Add and Manage buttons
+- **DaoControlCenterUtilitySection** — Utility tiles: wide Dark Mode and
+  Security tiles show a localized status line (On / Off; Secure / Not secure /
+  Site info, from the active tab's connection security level, with a
+  shield-off icon when not secure). Dark Mode fills its badge with the Dao
+  accent while websites are being darkened and exposes toggle state to
+  accessibility. Compact QR Code, Mini Dao, and More tiles sit below
 - **DaoControlCenterQrView** — QR code generation
 - **DaoControlCenterMoreMenu** — High Performance Mode appears directly below Share on macOS. A divider separates cache and cookie cleanup from the other actions; cleanup stays scoped to the active page's current site with completion toast feedback.
 - **DaoPinnedExtensionsContainer** — Pinned extension icon container

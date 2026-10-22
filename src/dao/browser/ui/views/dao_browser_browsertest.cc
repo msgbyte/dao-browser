@@ -483,6 +483,19 @@ views::ImageButton* FindImageButtonWithAccessibleName(
   return nullptr;
 }
 
+void CollectDescendantImageButtons(views::View* root,
+                                   std::vector<views::ImageButton*>* buttons) {
+  if (!root) {
+    return;
+  }
+  if (auto* button = views::AsViewClass<views::ImageButton>(root)) {
+    buttons->push_back(button);
+  }
+  for (views::View* child : root->children()) {
+    CollectDescendantImageButtons(child, buttons);
+  }
+}
+
 views::Button* FindButtonWithAccessibleName(
     views::View* root,
     std::u16string_view accessible_name) {
@@ -9016,14 +9029,18 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
   auto* utility_section =
       FindDescendantViewOfClass<DaoControlCenterUtilitySection>(popup);
   ASSERT_NE(nullptr, utility_section);
+  ASSERT_EQ(2u, utility_section->children().size());
+  EXPECT_EQ((std::vector<std::u16string>{
+                label,
+                l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_SECURITY),
+            }),
+            GetDirectButtonAccessibleNames(utility_section->children()[0]));
   EXPECT_EQ((std::vector<std::u16string>{
                 l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_QR_CODE),
                 l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_MINI_DAO),
-                l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_SECURITY),
-                label,
                 l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_MORE),
             }),
-            GetDirectButtonAccessibleNames(utility_section));
+            GetDirectButtonAccessibleNames(utility_section->children()[1]));
   views::Button* button = FindButtonWithAccessibleName(popup, label);
   ASSERT_NE(nullptr, button);
   EXPECT_TRUE(button->IsDrawn());
@@ -9031,9 +9048,13 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
   EXPECT_EQ(l10n_util::GetStringUTF16(IDS_DAO_FORCE_DARK_MODE_DISABLED_TOOLTIP),
             button->GetTooltipText());
   auto* button_label = FindDescendantLabelWithText(
-      button, l10n_util::GetStringUTF16(IDS_DAO_FORCE_DARK_MODE_SHORT_LABEL));
+      button, l10n_util::GetStringUTF16(IDS_DAO_FORCE_DARK_MODE_TITLE));
   ASSERT_NE(nullptr, button_label);
-  EXPECT_EQ(ControlCenterLabelColor(), button_label->GetEnabledColor());
+  EXPECT_EQ(ControlCenterTileTitleColor(), button_label->GetEnabledColor());
+  EXPECT_NE(nullptr,
+            FindDescendantLabelWithText(
+                button, l10n_util::GetStringUTF16(
+                            IDS_DAO_FORCE_DARK_MODE_STATUS_OFF)));
   EXPECT_EQ(nullptr, FindDescendantViewOfClass<views::Checkbox>(popup));
 
   views::test::ButtonTestApi(button).NotifyClick(
@@ -9282,12 +9303,82 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
                      ui::EF_LEFT_MOUSE_BUTTON));
   EXPECT_TRUE(prefs->GetBoolean(prefs::kDaoForceDarkModeEnabled));
   EXPECT_TRUE(IsForceDarkModeEffective(browser()->GetProfile()));
+  EXPECT_NE(nullptr,
+            FindDescendantLabelWithText(
+                button,
+                l10n_util::GetStringUTF16(IDS_DAO_FORCE_DARK_MODE_STATUS_ON)));
 
   views::test::ButtonTestApi(button).NotifyClick(
       ui::MouseEvent(ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
                      ui::EventTimeForNow(), ui::EF_LEFT_MOUSE_BUTTON,
                      ui::EF_LEFT_MOUSE_BUTTON));
   EXPECT_FALSE(prefs->GetBoolean(prefs::kDaoForceDarkModeEnabled));
+
+  popup->Hide();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
+                       SecurityTileShowsNotSecureStatusForHttpPage) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), embedded_test_server()->GetURL("example.com", "/title1.html")));
+
+  auto* popup = GetBrowserView(browser())->dao_control_center_popup();
+  ASSERT_NE(nullptr, popup);
+  popup->ShowAt(gfx::Point(100, 100));
+
+  views::Button* security_button = FindButtonWithAccessibleName(
+      popup, l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_SECURITY));
+  ASSERT_NE(nullptr, security_button);
+  EXPECT_NE(nullptr, FindDescendantLabelWithText(
+                         security_button,
+                         l10n_util::GetStringUTF16(
+                             IDS_DAO_CONTROL_CENTER_SECURITY_NOT_SECURE)));
+
+  popup->Hide();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
+                       ExtensionsTileWrapsIconsBelowHeaderActions) {
+  // One more extension than fits in a single row of the tile.
+  constexpr size_t kExtensionCount = 9;
+  std::vector<std::unique_ptr<extensions::TestExtensionDir>> extension_dirs;
+  for (size_t i = 0; i < kExtensionCount; ++i) {
+    extension_dirs.push_back(std::make_unique<extensions::TestExtensionDir>());
+    ASSERT_TRUE(LoadActionExtension(browser()->GetProfile(),
+                                    extension_dirs.back().get()));
+  }
+
+  BrowserView* browser_view = GetBrowserView(browser());
+  auto* popup = browser_view->dao_control_center_popup();
+  ASSERT_NE(nullptr, popup);
+  popup->ShowAt(gfx::Point(100, 100));
+  browser_view->DeprecatedLayoutImmediately();
+
+  auto* extensions_section =
+      FindDescendantViewOfClass<DaoControlCenterExtensionsSection>(popup);
+  ASSERT_NE(nullptr, extensions_section);
+  EXPECT_NE(nullptr,
+            FindDescendantLabelWithText(
+                extensions_section,
+                l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_EXTENSIONS)));
+  for (int message_id : {IDS_DAO_CONTROL_CENTER_ADD_EXTENSION,
+                         IDS_DAO_CONTROL_CENTER_MANAGE_EXTENSIONS}) {
+    views::Button* action_button = FindButtonWithAccessibleName(
+        extensions_section, l10n_util::GetStringUTF16(message_id));
+    ASSERT_NE(nullptr, action_button);
+    EXPECT_TRUE(action_button->IsDrawn());
+    EXPECT_FALSE(action_button->GetVisibleBounds().IsEmpty());
+  }
+
+  std::vector<views::ImageButton*> extension_buttons;
+  CollectDescendantImageButtons(extensions_section, &extension_buttons);
+  ASSERT_EQ(kExtensionCount, extension_buttons.size());
+  for (views::ImageButton* extension_button : extension_buttons) {
+    EXPECT_TRUE(extension_button->IsDrawn());
+    EXPECT_FALSE(extension_button->GetVisibleBounds().IsEmpty());
+  }
+  EXPECT_GT(extension_buttons.back()->y(), extension_buttons.front()->y());
 
   popup->Hide();
 }

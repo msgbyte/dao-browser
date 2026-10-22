@@ -4,6 +4,8 @@
 
 #include "dao/browser/ui/views/dao_control_center_extensions_section.h"
 
+#include <algorithm>
+
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/extensions/extension_action_runner.h"
 #include "chrome/browser/extensions/extension_context_menu_model.h"
@@ -32,6 +34,7 @@
 #include "extensions/browser/extension_registry.h"
 #include "extensions/common/extension.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/image_model.h"
 #include "ui/gfx/canvas.h"
@@ -59,6 +62,28 @@ constexpr int kExtIconPadding = 8;
 constexpr int kExtGridItemSize = kExtIconSize + kExtIconPadding * 2;
 constexpr int kExtBtnRadius = 8;
 
+// Header layout used with ActionsPlacement::kHeader.
+constexpr int kHeaderTitleInsetLeft = 6;
+constexpr int kHeaderTitleFontSize = 11;
+constexpr int kHeaderActionSize = 22;
+constexpr int kHeaderActionIconSize = 14;
+constexpr int kHeaderActionRadius = 6;
+constexpr int kHeaderActionSpacing = 2;
+constexpr int kHeaderToGridSpacing = 2;
+
+struct ActionButtonStyle {
+  int size;
+  int icon_size;
+  int corner_radius;
+  SkColor (*icon_color)();
+};
+
+constexpr ActionButtonStyle kGridActionButtonStyle = {
+    kExtGridItemSize, kExtIconSize, kExtBtnRadius, &ControlCenterIconMuted};
+constexpr ActionButtonStyle kHeaderActionButtonStyle = {
+    kHeaderActionSize, kHeaderActionIconSize, kHeaderActionRadius,
+    &ControlCenterTileSubtitleColor};
+
 // An ImageButton that shows a rounded-rect hover highlight.
 class ExtIconButton : public views::ImageButton {
  public:
@@ -78,19 +103,21 @@ class ExtIconButton : public views::ImageButton {
   }
 };
 
-// A grid action button that draws a Lucide icon and has hover highlight.
+// An action button that draws a Lucide icon and has hover highlight.
 class GridActionButton : public views::Button {
  public:
-  GridActionButton(LucideIcon icon, PressedCallback callback)
-      : Button(std::move(callback)), icon_(icon) {
-    SetPreferredSize(gfx::Size(kExtGridItemSize, kExtGridItemSize));
+  GridActionButton(LucideIcon icon,
+                   const ActionButtonStyle& style,
+                   PressedCallback callback)
+      : Button(std::move(callback)), icon_(icon), style_(style) {
+    SetPreferredSize(gfx::Size(style_.size, style_.size));
     SetInstallFocusRingOnFocus(false);
   }
 
   void OnMouseEntered(const ui::MouseEvent& event) override {
     Button::OnMouseEntered(event);
-    SetBackground(
-        views::CreateRoundedRectBackground(SuggestionHover(), kExtBtnRadius));
+    SetBackground(views::CreateRoundedRectBackground(SuggestionHover(),
+                                                     style_.corner_radius));
     SchedulePaint();
   }
 
@@ -101,16 +128,73 @@ class GridActionButton : public views::Button {
   }
 
   void PaintButtonContents(gfx::Canvas* canvas) override {
-    float icon_size = static_cast<float>(kExtIconSize);
+    float icon_size = static_cast<float>(style_.icon_size);
     float ox = (width() - icon_size) / 2.0f;
     float oy = (height() - icon_size) / 2.0f;
     DrawLucideIcon(canvas, icon_, gfx::RectF(ox, oy, icon_size, icon_size),
-                   ControlCenterIconMuted());
+                   style_.icon_color());
   }
 
  private:
   LucideIcon icon_;
+  ActionButtonStyle style_;
 };
+
+// Lays out equally sized cells left to right, wrapping to a new row when the
+// next cell would overflow the available width.
+class WrappingGridView : public views::View {
+  METADATA_HEADER(WrappingGridView, views::View)
+
+ public:
+  explicit WrappingGridView(int cell_size) : cell_size_(cell_size) {}
+
+  gfx::Size CalculatePreferredSize(
+      const views::SizeBounds& available_size) const override {
+    const int count = GetVisibleChildCount();
+    if (count == 0) {
+      return gfx::Size();
+    }
+    const int columns = available_size.width().is_bounded()
+                            ? GetColumnCount(available_size.width().value())
+                            : count;
+    const int rows = (count + columns - 1) / columns;
+    return gfx::Size(std::min(count, columns) * cell_size_,
+                     rows * cell_size_);
+  }
+
+  void Layout(PassKey) override {
+    const int columns = GetColumnCount(width());
+    int index = 0;
+    for (views::View* child : children()) {
+      if (!child->GetVisible()) {
+        continue;
+      }
+      child->SetBounds((index % columns) * cell_size_,
+                       (index / columns) * cell_size_, cell_size_, cell_size_);
+      ++index;
+    }
+  }
+
+ private:
+  int GetColumnCount(int width) const {
+    return std::max(1, width / cell_size_);
+  }
+
+  int GetVisibleChildCount() const {
+    int count = 0;
+    for (const views::View* child : children()) {
+      if (child->GetVisible()) {
+        ++count;
+      }
+    }
+    return count;
+  }
+
+  const int cell_size_;
+};
+
+BEGIN_METADATA(WrappingGridView)
+END_METADATA
 
 }  // namespace
 
@@ -119,26 +203,61 @@ END_METADATA
 
 DaoControlCenterExtensionsSection::DaoControlCenterExtensionsSection(
     BrowserWindowInterface* browser,
+    ActionsPlacement actions_placement,
     base::RepeatingClosure close_host_callback,
     base::RepeatingCallback<views::View*()> anchor_view_callback)
     : browser_(browser),
+      actions_placement_(actions_placement),
       close_host_callback_(std::move(close_host_callback)),
       anchor_view_callback_(std::move(anchor_view_callback)) {
-  auto* layout = SetLayoutManager(std::make_unique<views::BoxLayout>(
-      views::BoxLayout::Orientation::kVertical, gfx::Insets::VH(4, 0), 4));
-  layout->set_cross_axis_alignment(
-      views::BoxLayout::CrossAxisAlignment::kStretch);
+  if (actions_placement_ == ActionsPlacement::kHeader) {
+    auto* layout = SetLayoutManager(std::make_unique<views::BoxLayout>(
+        views::BoxLayout::Orientation::kVertical, gfx::Insets(),
+        kHeaderToGridSpacing));
+    layout->set_cross_axis_alignment(
+        views::BoxLayout::CrossAxisAlignment::kStretch);
 
-  // Grid area for extension icons (uses FlexLayout for wrapping)
-  grid_ = AddChildView(std::make_unique<views::View>());
-  auto* grid_layout =
-      grid_->SetLayoutManager(std::make_unique<views::FlexLayout>());
-  grid_layout->SetOrientation(views::LayoutOrientation::kHorizontal);
-  grid_layout->SetDefault(
-      views::kFlexBehaviorKey,
-      views::FlexSpecification(views::MinimumFlexSizeRule::kPreferred,
-                               views::MaximumFlexSizeRule::kPreferred,
-                               /*adjust_height_for_width=*/true));
+    // Header: title on the left, Add / Manage shortcuts on the right.
+    auto* header = AddChildView(std::make_unique<views::View>());
+    auto* header_layout =
+        header->SetLayoutManager(std::make_unique<views::BoxLayout>(
+            views::BoxLayout::Orientation::kHorizontal,
+            gfx::Insets::TLBR(0, kHeaderTitleInsetLeft, 0, 0),
+            kHeaderActionSpacing));
+    header_layout->set_cross_axis_alignment(
+        views::BoxLayout::CrossAxisAlignment::kCenter);
+
+    header_title_ = header->AddChildView(std::make_unique<views::Label>(
+        l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_EXTENSIONS)));
+    header_title_->SetFontList(
+        gfx::FontList({"system-ui"}, gfx::Font::NORMAL, kHeaderTitleFontSize,
+                      gfx::Font::Weight::SEMIBOLD));
+    header_title_->SetHorizontalAlignment(gfx::ALIGN_LEFT);
+    header_title_->SetElideBehavior(gfx::ELIDE_TAIL);
+    header_title_->SetSkipSubpixelRenderingOpacityCheck(true);
+    header_layout->SetFlexForView(header_title_.get(), 1);
+    AddActionButtons(header);
+
+    grid_ =
+        AddChildView(std::make_unique<WrappingGridView>(kExtGridItemSize));
+    ApplyTheme();
+  } else {
+    auto* layout = SetLayoutManager(std::make_unique<views::BoxLayout>(
+        views::BoxLayout::Orientation::kVertical, gfx::Insets::VH(4, 0), 4));
+    layout->set_cross_axis_alignment(
+        views::BoxLayout::CrossAxisAlignment::kStretch);
+
+    // Single row of extension icons followed by the Add / Manage buttons.
+    grid_ = AddChildView(std::make_unique<views::View>());
+    auto* grid_layout =
+        grid_->SetLayoutManager(std::make_unique<views::FlexLayout>());
+    grid_layout->SetOrientation(views::LayoutOrientation::kHorizontal);
+    grid_layout->SetDefault(
+        views::kFlexBehaviorKey,
+        views::FlexSpecification(views::MinimumFlexSizeRule::kPreferred,
+                                 views::MaximumFlexSizeRule::kPreferred,
+                                 /*adjust_height_for_width=*/true));
+  }
 
   // Observe toolbar model for changes
   auto* profile = browser_->GetProfile();
@@ -160,6 +279,12 @@ void DaoControlCenterExtensionsSection::Refresh() {
     return;
   }
   UpdateAllButtonIcons();
+}
+
+void DaoControlCenterExtensionsSection::ApplyTheme() {
+  if (header_title_) {
+    header_title_->SetEnabledColor(ControlCenterTileSubtitleColor());
+  }
 }
 
 void DaoControlCenterExtensionsSection::OnToolbarActionAdded(
@@ -244,29 +369,41 @@ void DaoControlCenterExtensionsSection::RebuildGrid() {
     id_to_button_[ext_id] = btn_ptr;
   }
 
-  // "Add" action button — appended after extension icons.
+  // The header placement keeps its Add / Manage buttons outside the grid.
+  if (actions_placement_ == ActionsPlacement::kGrid) {
+    AddActionButtons(grid_);
+  }
+
+  InvalidateLayout();
+}
+
+void DaoControlCenterExtensionsSection::AddActionButtons(views::View* parent) {
+  const ActionButtonStyle& style =
+      actions_placement_ == ActionsPlacement::kHeader
+          ? kHeaderActionButtonStyle
+          : kGridActionButtonStyle;
+
+  // "Add" action button.
   auto add_btn = std::make_unique<GridActionButton>(
-      LucideIcon::kPlus,
+      LucideIcon::kPlus, style,
       base::BindRepeating(&DaoControlCenterExtensionsSection::OnAddClicked,
                           base::Unretained(this)));
   std::u16string add_label =
       l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_ADD_EXTENSION);
   add_btn->SetAccessibleName(add_label);
   add_btn->SetTooltipText(add_label);
-  grid_->AddChildView(static_cast<views::View*>(add_btn.release()));
+  parent->AddChildView(static_cast<views::View*>(add_btn.release()));
 
   // "Manage" action button.
   auto manage_btn = std::make_unique<GridActionButton>(
-      LucideIcon::kSettings,
+      LucideIcon::kSettings, style,
       base::BindRepeating(&DaoControlCenterExtensionsSection::OnManageClicked,
                           base::Unretained(this)));
   std::u16string manage_label =
       l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_MANAGE_EXTENSIONS);
   manage_btn->SetAccessibleName(manage_label);
   manage_btn->SetTooltipText(manage_label);
-  grid_->AddChildView(static_cast<views::View*>(manage_btn.release()));
-
-  InvalidateLayout();
+  parent->AddChildView(static_cast<views::View*>(manage_btn.release()));
 }
 
 gfx::ImageSkia DaoControlCenterExtensionsSection::GetIconForExtension(
