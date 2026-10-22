@@ -61,8 +61,7 @@ class DaoWindowsUpdaterTest : public testing::Test {
   network::TestURLLoaderFactory factory_;
   base::ScopedTempDir directory_;
   DaoWindowsUpdater updater_;
-  const std::string feed_ =
-      std::string(kWindowsUpdateOrigin) + "/windows-update.json";
+  const std::string feed_ = "https://dao.msgbyte.com/windows-update.json";
 };
 
 TEST_F(DaoWindowsUpdaterTest, PortableExecutableIsUnsupported) {
@@ -97,6 +96,7 @@ TEST_F(DaoWindowsUpdaterTest, DueCheckWaitsAndOmitsCredentials) {
   environment_.FastForwardBy(base::Seconds(1));
   ASSERT_EQ(1, factory_.NumPending());
   const auto& request = factory_.GetPendingRequest(0)->request;
+  EXPECT_EQ(GURL("https://dao.msgbyte.com/windows-update.json"), request.url);
   EXPECT_EQ(network::mojom::CredentialsMode::kOmit, request.credentials_mode);
   EXPECT_TRUE(request.load_flags & net::LOAD_DISABLE_CACHE);
   updater_.CheckForUpdates(true);

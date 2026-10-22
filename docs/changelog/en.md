@@ -4,6 +4,7 @@
 
 ### [Unreleased] Unreleased
 
+- Keep Windows update offers aligned with published releases when a problematic version is withdrawn.
 - Fix a browser crash shortly after startup or when opening the AI sidebar.
 
 ### [1.0.117] - 2026-10-23

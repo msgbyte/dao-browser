@@ -8,7 +8,7 @@ On a configured macOS signing host with the Windows cross toolchain ready:
 
 ```bash
 npm run release -- --dry-run
-npm run release          # One version, Mac DMG + Windows EXE, then R2 publication
+npm run release          # One version, immutable R2 artifacts, then staged website feeds
 npm run release:mac      # Mac DMG only
 npm run release:windows  # Attach Windows EXE to an existing desktop tag
 ```
@@ -16,32 +16,61 @@ npm run release:windows  # Attach Windows EXE to an existing desktop tag
 The combined command uses normal import, preserves each platform's build cache,
 and completes both packages before uploading. It signs the Windows JSON payload
 with the existing Sparkle keychain key, uploads immutable installers, checksums,
-versioned Windows metadata and Mac deltas, and publishes `windows-update.json`
-last after Wrangler succeeds. It does not download artifacts for verification
-or recheck their public URLs after upload. Existing artifacts are checked with
-HEAD for uncompressed size when provided and skipped on retry; local Windows signatures/checksums and the
-public update feed are still verified. The website metadata points both platforms
+versioned Windows metadata and Mac deltas, and stages the exact signed envelope
+in `website/public/windows-update.json`. Uploading artifacts does not advance an
+update feed. Existing artifacts are checked with HEAD for uncompressed size when
+provided and skipped on retry; local Windows signatures/checksums are verified.
+The website metadata points both platforms
 to R2. A pushed desktop tag archives available Mac and Windows installers on
 GitHub after verifying the signed Windows metadata. The `.sha256` and
 `.update.json` files stay in R2 and are not attached to GitHub Releases;
 a genuine HTTP 404 for Windows metadata permits older Mac-only tags.
-Commit/push and website deployment remain manual.
+Commit/push remain manual; pushing website metadata to main triggers deployment.
+New Windows clients read `https://dao.msgbyte.com/windows-update.json` while
+installers stay on R2. The website feed has explicit browser/CDN `no-store` headers.
 
-If immutable artifact upload has started but the feed has not, local metadata
+Before merging this workflow, configure the repository Actions secrets
+`CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`, and `R2_BUCKET` (the release
+bucket). Use an R2 write token scoped to that bucket. Production deployment
+fails before publishing if these are absent. No Sparkle private key is needed
+in CI: the feed is already signed locally.
+
+The workflow validates the staged signature, immutable manifest, and installer
+availability/size, deploys the website, then runs `release:sync-windows-update`.
+That command requires the public production feed to exactly match the checked-out
+bytes before mirroring it to `https://dao-release.msgbyte.com/windows-update.json`.
+It checks the public legacy result after upload. Preview deployments never mirror.
+Old Windows clients continue receiving HTTP 200 at their original address; they
+cannot follow a redirect. A failed mirror leaves the website deployed and the
+legacy source potentially stale; retry the sync from the deployed checkout:
+
+```bash
+npm run release:sync-windows-update -- --check  # Validate staged metadata; no writes
+npm run release:sync-windows-update            # Mirror only the deployed signed bytes
+```
+
+Mirroring identical bytes is safe to retry and can repair a corrupted legacy
+feed. Restoring an older valid signed feed is allowed;
+clients still reject installation downgrades. Do not publish concurrently from
+another workflow or signing host.
+
+### Recover interrupted desktop publication
+
+If immutable artifact upload has started, local metadata
 rolls back and recovery adds `--skip-build` while keeping the original bump.
 Preflight blocks rebuilding an already public candidate; preserve its `dist/`
 files so a retry uses identical bytes.
 
-Before the Windows feed upload starts, failures restore local release metadata.
-Once it starts (or the candidate is already public), failures retain the version
-and archived notes because remote publication may have succeeded. Inspect the
-remote feed and retry the same candidate with
-`npm run release -- --skip-bump --skip-build`; retain the original `dist/` files.
+Release failures restore local metadata, including the website Windows feed,
+without overwriting concurrent edits. The release command never publishes a latest
+feed directly. Follow the reported retry command, retaining the original `dist/`
+files; after automatic metadata rollback, keep the original version bump and add
+`--skip-build` when uploads may exist.
 Different reported artifact sizes are rejected; a missing Content-Length is
 accepted, and same-size content changes are not detected by HEAD. Network
 failures include the request method, URL, and underlying error. Do not run simultaneous
-publishers; the command rejects a changed feed snapshot but object storage does
-not provide a transaction across uploads. Combined `--skip-build` requires both
+publishers; object storage does not provide a transaction across uploads.
+Combined `--skip-build` requires both
 installers, the Windows checksum and signed metadata. Mac notarization recovery
 uses `release:mac -- --resume-from-staple`.
 

@@ -14,6 +14,8 @@
 #include "url/gurl.h"
 
 namespace dao {
+inline constexpr char kWindowsUpdateFeedUrl[] =
+    "https://dao.msgbyte.com/windows-update.json";
 inline constexpr char kWindowsUpdateOrigin[] =
     "https://dao-release.msgbyte.com";
 inline constexpr char kWindowsUpdatePublicKey[] =

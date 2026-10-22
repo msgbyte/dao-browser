@@ -27,23 +27,23 @@ embedded public key before accepting it. Do not export the private key for
 Windows builds. The versioned `.update.json`, EXE, checksum, DMG and applicable
 Mac deltas are immutable. The command requests uncompressed HEAD responses,
 checks existing artifact sizes when provided, and skips their upload on retry.
-It trusts Wrangler upload success without
-downloading artifacts or rechecking their public URLs, then promotes the signed
-JSON to `windows-update.json`. Local Windows signatures/checksums and the public
-feed remain verified; HEAD cannot detect same-size content changes, so retries
-must retain the original `dist/` files. This makes the Windows release live
-independently of website deployment. Commit/push and deploying the Mac appcast
-remain manual. The pushed tag archives only the available installers on GitHub;
+It trusts Wrangler artifact upload success and stages the signed JSON at
+`website/public/windows-update.json`. Local Windows signatures/checksums remain
+verified; HEAD cannot detect same-size content changes, so retries must retain
+the original `dist/` files. Windows update offers become live with website
+deployment. The deployment validates the immutable manifest and installer,
+publishes the website, then mirrors the exact live signed feed to the old R2
+address for existing clients. See the development guide for required Actions
+secrets and mirror recovery. Commit/push remain manual. The pushed tag archives only the available installers on GitHub;
 Windows checksums and signed metadata remain in R2 for verification and updates.
 
-If immutable artifact upload has started but the feed has not, local metadata
+If immutable artifact upload has started, local metadata
 rolls back and recovery adds `--skip-build` while keeping the original bump.
 Preflight blocks rebuilding an already public candidate; preserve its `dist/`
 files so a retry uses identical bytes.
 
-A failed or interrupted latest-feed upload may already be public. The command
-retains the candidate version and notes; verify the feed and retry with
-`npm run release -- --skip-bump --skip-build` using the original artifacts.
+A failed or interrupted deployment mirror may already be public. Verify both
+feed URLs and retry `npm run release:sync-windows-update` from the deployed checkout.
 Never overwrite an existing version with rebuilt bytes. Concurrent publishers
 are unsupported. The update signature authenticates downloads for Dao; it does
 not Authenticode-sign the Windows EXE or suppress Windows security prompts.
@@ -83,9 +83,8 @@ see the [changelog guide](changelog.md) for formatting and generated locales.
 
 `npm run release` archives desktop entries under `### [<version>] - YYYY-MM-DD`
 when it bumps `dao.json`. All changelog locales join the release metadata
-transaction, so a failure before Windows feed publication restores their pending
-entries along with the old version without overwriting concurrent edits. Once
-Windows publication starts, candidate metadata is retained for recovery. Other
+transaction, so a release failure restores their pending entries along with
+the old version and website feed without overwriting concurrent edits. Other
 platforms stay pending.
 Commit the finalized changelogs with the successful release's version and
 website metadata. Dry runs, `--skip-bump`, and Windows asset attachment leave

@@ -51,6 +51,7 @@
     "release:mac": "tsx scripts/cli.ts release --platform mac",
     "release:windows": "tsx scripts/cli.ts release --platform windows",
     "release:android": "tsx scripts/cli.ts release-android",
+    "release:sync-windows-update": "tsx scripts/cli.ts sync-windows-update",
     "release:github": "tsx scripts/cli.ts github-release publish",
     "release:github:backfill": "tsx scripts/cli.ts github-release backfill",
     "release:minor": "tsx scripts/cli.ts release --bump minor",

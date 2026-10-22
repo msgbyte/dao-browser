@@ -11,7 +11,7 @@ import path from "node:path";
 import chalk from "chalk";
 import { windowsInstallerName } from "./package-windows.js";
 import {createWindowsUpdatePayload, signWindowsUpdatePayload, validateWindowsUpdateArtifact,
-  windowsUpdateManifestName, WINDOWS_UPDATE_ORIGIN, publishWindowsUpdate, assertUnpublishedReleaseArtifacts} from '../windows-update.js';
+  windowsUpdateManifestName, WINDOWS_UPDATE_ORIGIN, WINDOWS_UPDATE_FEED, uploadWindowsReleaseArtifacts, assertUnpublishedReleaseArtifacts} from '../windows-update.js';
 import { formatReleaseDate, planChangelogRelease } from "../changelog.js";
 import {
   ROOT_DIR,
@@ -205,7 +205,7 @@ export interface ReleasePhaseContext {
   appcastPath: string;
   signal?: AbortSignal;
   chromiumVersion?: string;
-  publication?: {started: boolean; artifactsStarted: boolean};
+  publication?: {artifactsStarted: boolean};
 }
 
 export interface ReleaseResult {
@@ -436,6 +436,7 @@ function collectReleasePreflightProblems(
 export function desktopReleaseSourcesMatch(rootDir: string, tagCommit: string, head: string): boolean {
   const diff = spawnSync("git", ["diff", "--name-only", tagCommit, head, "--", ".",
     ":(exclude)dao.json", ":(exclude)website/public/info.json", ":(exclude)website/public/appcast.xml",
+    ":(exclude)website/public/windows-update.json",
     ":(exclude,glob)docs/changelog/*.md"],
     {cwd: rootDir, encoding: "utf8"});
   if (diff.status !== 0 || diff.stdout.trim()) return false;
@@ -457,6 +458,7 @@ export function hasUnreleasedDesktopChanges(rootDir: string): boolean {
   const options = {cwd: rootDir, encoding: "utf8" as const};
   const diff = spawnSync("git", ["diff", "--name-only", "HEAD", "--", ".",
     ":(exclude)dao.json", ":(exclude)website/public/info.json", ":(exclude)website/public/appcast.xml",
+    ":(exclude)website/public/windows-update.json",
     ":(exclude,glob)docs/changelog/*.md"], options);
   const untracked = spawnSync("git", ["ls-files", "--others", "--exclude-standard"], options);
   if (diff.status !== 0 || untracked.status !== 0 || diff.stdout.trim() || untracked.stdout.trim()) return true;
@@ -690,6 +692,10 @@ function applyCanonicalPhaseMutation(
   if (phase === "appcast") {
     transaction.writeFile(publicAppcast, readFileSync(context.appcastPath));
   }
+  if (phase === 'update-manifest') {
+    transaction.writeFile(path.join(path.dirname(infoPath), WINDOWS_UPDATE_FEED),
+      readFileSync(path.join(path.dirname(context.dmgPath), windowsUpdateManifestName(context.newVersion))));
+  }
   if (phase === "metadata") {
     const originalInfo = transaction.originalFileContents(infoPath);
     if (!originalInfo) {
@@ -735,7 +741,7 @@ export async function runRelease(
     readdirSync(changelogDirectory).filter((name) => name.endsWith(".md"))
       .map((name) => path.join(changelogDirectory, name));
   const transaction = createReleaseTransaction(
-    [daoPath, publicAppcast, infoPath, ...changelogPaths],
+    [daoPath, publicAppcast, infoPath, path.join(path.dirname(infoPath), WINDOWS_UPDATE_FEED), ...changelogPaths],
     dependencies
   );
   const config = readReleaseConfig(
@@ -759,7 +765,7 @@ export async function runRelease(
   );
   success("Pre-flight check passed");
   let currentPhase: ReleasePhase = "version";
-  const publication = {started: false, artifactsStarted: false};
+  const publication = {artifactsStarted: false};
 
   try {
     throwIfReleaseAborted(dependencies.signal, currentPhase);
@@ -862,11 +868,6 @@ export async function runRelease(
       currentPhase,
       dependencies.signal
     );
-    if (publication.started) {
-      throw new ReleaseError(failure.phase, `${failure.message}\nWindows update publication may already be public. ` +
-        `Candidate ${newVersion} and local metadata were retained; verify the remote feed before retrying ` +
-        `npm run release -- --skip-bump --skip-build. No remote rollback was attempted.`, {cause: failure});
-    }
     // Retain the original signed artifacts if immutable uploads may exist.
     const retryOptions = publication.artifactsStarted ? {...options, skipBuild: true} : options;
     let rollback: ReturnType<ReleaseTransaction["rollback"]>;
@@ -1151,7 +1152,7 @@ export function formatReleaseSuccessInstructions(
     "  - Commit + push (one-liner):",
     `      git add . && git commit -m "chore: dump to version v${newVersion}" && git push origin main v${newVersion}`,
     "  - The pushed tag automatically archives available R2 desktop installers on GitHub Releases.",
-    "  - Deploy the website so dao.msgbyte.com/appcast.xml updates.",
+    "  - Website deployment publishes appcast.xml and the staged Windows feed, then mirrors Windows metadata to legacy R2 clients.",
   ];
 }
 
@@ -1809,18 +1810,13 @@ export async function uploadReleaseArtifacts(
       path.join(directory, windowsUpdateManifestName(context.newVersion))];
     if (context.options.dryRun) {
       log(`[dry-run] Upload immutable desktop artifacts: ${files.join(', ')}`);
-      log('[dry-run] Publish signed windows-update.json last');
+      log('[dry-run] Stage signed windows-update.json for website deployment');
       return;
     }
     await validateWindowsUpdateArtifact(files[files.length - 1], files[files.length - 3],
       context.newVersion, context.chromiumVersion!);
-    await publishWindowsUpdate(files, context.options.bucket || dependencies.env.R2_BUCKET!,
-      stage => {
-        if (context.publication) {
-          if (stage === 'feed') context.publication.started = true;
-          else context.publication.artifactsStarted = true;
-        }
-      }, context.signal,
+    await uploadWindowsReleaseArtifacts(files, context.options.bucket || dependencies.env.R2_BUCKET!,
+      () => { if (context.publication) context.publication.artifactsStarted = true; }, context.signal,
       async args => {
         await runReleaseStep('upload', false, 'Uploading desktop release', 'npx',
           ['tsx', 'scripts/cli.ts', 'upload', ...args], runner, context.signal);

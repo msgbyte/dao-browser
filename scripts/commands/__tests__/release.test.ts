@@ -149,6 +149,10 @@ function releaseFixture(): ReleaseFixture {
       if (phase === 'package') {
         writeFileSync(context.dmgPath, 'signed dmg');
       }
+      if (phase === 'update-manifest') {
+        writeFileSync(path.join(fixture.root, `dist/dao-browser-${context.newVersion}-windows-x64.update.json`),
+          'opaque signed manifest\n');
+      }
       if (phase === 'appcast') {
         writeFileSync(
           context.appcastPath,
@@ -266,7 +270,7 @@ describe('release helpers', () => {
       '  - Commit + push (one-liner):',
       '      git add . && git commit -m "chore: dump to version v1.0.102" && git push origin main v1.0.102',
       '  - The pushed tag automatically archives available R2 desktop installers on GitHub Releases.',
-      '  - Deploy the website so dao.msgbyte.com/appcast.xml updates.',
+      '  - Website deployment publishes appcast.xml and the staged Windows feed, then mirrors Windows metadata to legacy R2 clients.',
     ]);
   });
 
@@ -1844,6 +1848,8 @@ describe('combined release transaction', () => {
     const info = JSON.parse(readFileSync(fixture.infoPath, 'utf8'));
     expect(info.platforms.macArm64.url).toContain('1.0.71-mac-arm64.dmg');
     expect(info.platforms.win.url).toBe('https://dao-release.msgbyte.com/dao-browser-1.0.71-windows-x64.exe');
+    expect(readFileSync(path.join(fixture.root, 'website/public/windows-update.json'), 'utf8'))
+      .toBe('opaque signed manifest\n');
     expect(fixture.createdTags).toEqual(['v1.0.71']);
   });
 
@@ -1862,22 +1868,26 @@ describe('combined release transaction', () => {
     expect(fixture.createdTags).toEqual([]);
   });
 
-  it('retains a possibly published version and completes its missing tag on an identical retry', async () => {
+  it('restores the website feed after upload failure and reuses the immutable artifacts on retry', async () => {
     const fixture = combinedFixture();
+    const feed = path.join(fixture.root, 'website/public/windows-update.json');
+    writeFileSync(feed, 'previous signed manifest\n');
     const phase = fixture.dependencies.runPhase;
     fixture.dependencies.runPhase = async (name, context) => {
       if (name === 'upload') {
-        context.publication!.started = true;
+        context.publication!.artifactsStarted = true;
         throw new Error('connection lost');
       }
       await phase(name, context);
     };
-    await expect(runRelease({platform: 'all'}, fixture.dependencies)).rejects.toThrow(/may already be public/);
-    expect(JSON.parse(readFileSync(fixture.daoPath, 'utf8')).version.display).toBe('1.0.71');
+    await expect(runRelease({platform: 'all'}, fixture.dependencies)).rejects.toThrow(/connection lost/);
+    expect(JSON.parse(readFileSync(fixture.daoPath, 'utf8')).version.display).toBe('1.0.70');
+    expect(readFileSync(feed, 'utf8')).toBe('previous signed manifest\n');
     expect(fixture.deletedTags).toEqual([]);
     fixture.dependencies.runPhase = phase;
-    await runRelease({platform: 'all', skipBump: true, skipBuild: true}, fixture.dependencies);
+    await runRelease({platform: 'all', skipBuild: true}, fixture.dependencies);
     expect(fixture.createdTags).toEqual(['v1.0.71']);
+    expect(readFileSync(feed, 'utf8')).toBe('opaque signed manifest\n');
   });
 });
 

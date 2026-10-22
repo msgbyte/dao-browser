@@ -4,7 +4,7 @@ import {mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
-import {createWindowsUpdatePayload, publishWindowsUpdate, validateWindowsUpdateArtifact,
+import {createWindowsUpdatePayload, uploadWindowsReleaseArtifacts, validateWindowsUpdateArtifact,
   assertUnpublishedReleaseArtifacts, WINDOWS_UPDATE_FEED, WINDOWS_UPDATE_ORIGIN, windowsUpdateManifestName} from '../../windows-update.js';
 
 const testKey = vi.hoisted(() => ({publicKey: undefined as unknown}));
@@ -20,7 +20,6 @@ let remote: Map<string, string | Buffer>;
 let uploads: string[][];
 let promoted: boolean;
 let fetchError: number | undefined;
-let feedError: boolean;
 function signed(payload: object) {
   const text = JSON.stringify(payload);
   return JSON.stringify({payload: text, signature: sign(null, Buffer.from(text), keys.privateKey).toString('base64')});
@@ -40,14 +39,13 @@ async function upload(args: string[]) {
   uploads.push(args);
   const key = args.includes('--key') ? args[args.indexOf('--key') + 1] : undefined;
   for (const file of args.slice(0, args.indexOf('--bucket'))) remote.set(key ?? path.basename(file), readFileSync(file));
-  if (key && feedError) throw new Error('Lost the response after publishing');
 }
 function publish(input: string[]) {
-  return publishWindowsUpdate(input, 'releases', stage => {if (stage === 'feed') promoted = true;}, undefined, upload);
+  return uploadWindowsReleaseArtifacts(input, 'releases', () => {promoted = true;}, undefined, upload);
 }
 beforeEach(() => {
   directory = mkdtempSync(path.join(os.tmpdir(), 'dao-publication-'));
-  remote = new Map(); uploads = []; promoted = false; fetchError = undefined; feedError = false;
+  remote = new Map(); uploads = []; promoted = false; fetchError = undefined;
   vi.stubGlobal('fetch', vi.fn(async (url: string, options?: RequestInit) => {
     const key = url.slice(WINDOWS_UPDATE_ORIGIN.length + 1);
     const body = fetchError ? '' : remote.get(key)?.toString() ?? '';
@@ -66,16 +64,16 @@ describe('Windows update publication', () => {
     await expect(assertUnpublishedReleaseArtifacts(['installer.exe'])).rejects.toThrow(/--skip-build/);
     expect(fetch).toHaveBeenLastCalledWith(expect.any(String), expect.objectContaining({method: 'HEAD'}));
   });
-  it('publishes immutable files before the latest feed and allows an identical retry', async () => {
+  it('uploads immutable files without changing the latest feed and allows an identical retry', async () => {
     const input = await files();
     await publish(input);
-    expect(uploads).toHaveLength(2);
+    expect(uploads).toHaveLength(1);
     expect(uploads[0].slice(0, 4)).toEqual(input);
-    expect(uploads[1]).toContain(WINDOWS_UPDATE_FEED);
+    expect(remote.has(WINDOWS_UPDATE_FEED)).toBe(false);
     expect(promoted).toBe(true);
     uploads = [];
     await publish(input);
-    expect(uploads).toHaveLength(1);
+    expect(uploads).toHaveLength(0);
     const artifactRequests = vi.mocked(fetch).mock.calls.filter(([url]) => !String(url).endsWith(WINDOWS_UPDATE_FEED));
     expect(artifactRequests).toHaveLength(input.length * 2);
     for (const [, options] of artifactRequests) expect(options?.method).toBe('HEAD');
@@ -87,8 +85,8 @@ describe('Windows update publication', () => {
       ? publicFetch(url, options) : Promise.resolve(new Response(null, {status: 404})));
     await publish(input);
     expect(promoted).toBe(true);
-    expect(remote.get(WINDOWS_UPDATE_FEED)).toEqual(readFileSync(input[3]));
-    expect(uploads).toHaveLength(2);
+    expect(remote.has(WINDOWS_UPDATE_FEED)).toBe(false);
+    expect(uploads).toHaveLength(1);
   });
   it.each(['', 'bad', 'oversized installer'])('rejects an existing artifact with a different size (%j)', async content => {
     const input = await files();
@@ -107,13 +105,12 @@ describe('Windows update publication', () => {
       return response;
     });
     await publish(input);
-    expect(uploads).toHaveLength(1);
-    expect(uploads[0]).toContain(WINDOWS_UPDATE_FEED);
+    expect(uploads).toHaveLength(0);
     for (const [, options] of vi.mocked(fetch).mock.calls) {
       expect(new Headers(options?.headers).get('accept-encoding')).toBe('identity');
     }
   });
-  it.each(['GET', 'HEAD'])('reports the failing %s URL and underlying network error', async method => {
+  it.each(['HEAD'])('reports the failing %s URL and underlying network error', async method => {
     const input = await files();
     const cause = new TypeError('fetch failed', {cause: new Error('connect ETIMEDOUT')});
     const publicFetch = vi.mocked(fetch).getMockImplementation()!;
@@ -126,25 +123,9 @@ describe('Windows update publication', () => {
     expect(uploads).toHaveLength(0);
     expect(promoted).toBe(false);
   });
-  it.each([403, 500])('does not treat HTTP %s as a missing feed', async status => {
+  it.each([403, 500])('does not treat HTTP %s as a missing artifact', async status => {
     fetchError = status;
     await expect(publish(await files())).rejects.toThrow(`HTTP ${status}`);
-    expect(uploads).toHaveLength(0);
-  });
-  it('retains the publication boundary when the upload succeeds remotely but throws locally', async () => {
-    feedError = true;
-    await expect(publish(await files())).rejects.toThrow(/Lost the response/);
-    expect(promoted).toBe(true);
-    expect(remote.has(WINDOWS_UPDATE_FEED)).toBe(true);
-  });
-  it('refuses older and conflicting versions', async () => {
-    const input = await files();
-    const candidate = JSON.parse(JSON.parse(readFileSync(input[3], 'utf8')).payload);
-    remote.set(WINDOWS_UPDATE_FEED, signed({...candidate, version: '1.2.4',
-      url: candidate.url.replace('1.2.3', '1.2.4')}));
-    await expect(publish(input)).rejects.toThrow(/newer or different/);
-    remote.set(WINDOWS_UPDATE_FEED, signed({...candidate, size: 123}));
-    await expect(publish(input)).rejects.toThrow(/newer or different/);
     expect(uploads).toHaveLength(0);
   });
   it('requires the matching checksum sidecar before publication', async () => {
@@ -152,12 +133,5 @@ describe('Windows update publication', () => {
     writeFileSync(input[2], 'invalid checksum');
     await expect(validateWindowsUpdateArtifact(input[3], input[1], '1.2.3', '149.0.7827.201'))
       .rejects.toThrow(/checksum/);
-  });
-  it('recognizes a previously public candidate before a later failure', async () => {
-    const input = await files();
-    remote.set(WINDOWS_UPDATE_FEED, readFileSync(input[3]));
-    remote.set(path.basename(input[0]), 'conflict');
-    await expect(publish(input)).rejects.toThrow();
-    expect(promoted).toBe(true);
   });
 });

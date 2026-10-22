@@ -220,11 +220,11 @@ void DaoWindowsUpdater::StartRequest(const GURL& url, base::TimeDelta timeout) {
       net::DefineNetworkTrafficAnnotation("dao_windows_update", R"(
     semantics {
       sender: "Dao Windows Updater"
-      description: "Checks signed Dao release metadata and downloads verified installers."
+      description: "Fetches signed website update metadata and verified R2 installers."
       trigger: "Once per day in a registered installation or a manual update check."
       data: "No user data; the requested installer version."
       destination: OTHER
-      destination_other: "Dao release storage at dao-release.msgbyte.com"
+      destination_other: "Dao website at dao.msgbyte.com and R2 storage at dao-release.msgbyte.com"
     }
     policy { cookies_allowed: NO setting: "Only active in installed Dao builds."
       policy_exception_justification: "Not implemented." }
@@ -254,8 +254,7 @@ void DaoWindowsUpdater::CheckForUpdates(bool user_initiated) {
   }
   timer_.Stop();
   SetState(DaoUpdateState::kChecking);
-  StartRequest(GURL(std::string(kWindowsUpdateOrigin) + "/windows-update.json"),
-               base::Seconds(30));
+  StartRequest(GURL(kWindowsUpdateFeedUrl), base::Seconds(30));
   loader_->DownloadToString(factory_.get(),
                             base::BindOnce(&DaoWindowsUpdater::OnManifest,
                                            weak_factory_.GetWeakPtr()),

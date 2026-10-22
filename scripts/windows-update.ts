@@ -10,6 +10,7 @@ import {windowsInstallerName} from './commands/package-windows.js';
 export const WINDOWS_UPDATE_ORIGIN = 'https://dao-release.msgbyte.com';
 export const WINDOWS_UPDATE_PUBLIC_KEY = 'dz3KV6hBHuxJGYXru/dOYip1oSBH5o02nrdGZdWF8x4=';
 export const WINDOWS_UPDATE_FEED = 'windows-update.json';
+export const WINDOWS_UPDATE_URL = `https://dao.msgbyte.com/${WINDOWS_UPDATE_FEED}`;
 export const MAX_UPDATE_SIZE = 1024 ** 3;
 export interface WindowsUpdatePayload {
   schema: 1;
@@ -100,8 +101,7 @@ export async function validateWindowsUpdateArtifact(manifestPath: string, artifa
   return value;
 }
 
-async function publicObject(name: string, limit: number, method: 'GET' | 'HEAD', signal?: AbortSignal): Promise<Response | null> {
-  const url = `${WINDOWS_UPDATE_ORIGIN}/${name}`;
+async function publicObject(url: string, limit: number, method: 'GET' | 'HEAD', signal?: AbortSignal): Promise<Response | null> {
   const response = await fetch(url, {method, redirect: 'error', cache: 'no-store', headers: {'accept-encoding': 'identity'},
     signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(600_000)]) : AbortSignal.timeout(600_000)})
     .catch((cause: unknown) => {
@@ -109,13 +109,13 @@ async function publicObject(name: string, limit: number, method: 'GET' | 'HEAD',
       throw new Error(`Cannot ${method} ${url}: ${String(reason)}`, {cause});
     });
   if (response.status === 404) return null;
-  if (!response.ok) throw new Error(`Cannot verify published ${name}: HTTP ${response.status}`);
-  if (Number(response.headers.get('content-length')) > limit) throw new Error(`Published ${name} exceeds the size limit.`);
+  if (!response.ok) throw new Error(`Cannot verify published ${url}: HTTP ${response.status}`);
+  if (Number(response.headers.get('content-length')) > limit) throw new Error(`Published ${url} exceeds the size limit.`);
   return response;
 }
 
-async function readPublicFeed(signal?: AbortSignal): Promise<string | null> {
-  const response = await publicObject(WINDOWS_UPDATE_FEED, 65536, 'GET', signal);
+export async function readWindowsUpdateFeed(url: string, signal?: AbortSignal): Promise<string | null> {
+  const response = await publicObject(url, 65536, 'GET', signal);
   if (!response) return null;
   const chunks: Uint8Array[] = [];
   let size = 0;
@@ -129,16 +129,18 @@ async function readPublicFeed(signal?: AbortSignal): Promise<string | null> {
   return text;
 }
 
-function compareVersions(a: string, b: string): number {
-  const right = b.split('.').map(Number);
-  for (const [i, part] of a.split('.').map(Number).entries()) {
-    if (part !== right[i]) return part < right[i] ? -1 : 1;
-  }
-  return 0;
+export async function verifyPublishedWindowsUpdate(envelope: string, signal?: AbortSignal): Promise<WindowsUpdatePayload> {
+  const payload = verifyWindowsUpdateEnvelope(envelope);
+  const archive = await readWindowsUpdateFeed(`${WINDOWS_UPDATE_ORIGIN}/${windowsUpdateManifestName(payload.version)}`, signal);
+  if (archive !== envelope) throw new Error('Website feed does not match its immutable signed manifest.');
+  const installer = await publicObject(payload.url, payload.size, 'HEAD', signal);
+  const size = installer?.headers.get('content-length');
+  if (!installer || (size !== null && Number(size) !== payload.size)) throw new Error('Published Windows installer is missing or has a different size.');
+  return payload;
 }
 
-/** Immutable objects first; the small signed feed is the publication boundary. */
-export async function publishWindowsUpdate(files: string[], bucket: string, onPublication: (stage: 'artifacts' | 'feed') => void,
+/** The website deployment publishes the feed after these immutable uploads. */
+export async function uploadWindowsReleaseArtifacts(files: string[], bucket: string, onArtifacts: () => void,
     signal: AbortSignal | undefined, upload: (args: string[]) => Promise<void>): Promise<void> {
   const manifest = files.at(-1)!;
   const candidateText = readFileSync(manifest, 'utf8');
@@ -146,36 +148,23 @@ export async function publishWindowsUpdate(files: string[], bucket: string, onPu
   const installer = path.join(path.dirname(manifest), windowsInstallerName(candidate.version));
   if (!files.includes(installer) || !files.includes(installer + '.sha256'))
     throw new Error('Windows publication requires the installer and checksum sidecar.');
-  const previous = await readPublicFeed(signal);
-  if (previous) {
-    const current = verifyWindowsUpdateEnvelope(previous);
-    if (current.version === candidate.version) onPublication('feed');
-    if (compareVersions(current.version, candidate.version) > 0 ||
-        (current.version === candidate.version && previous !== candidateText))
-      throw new Error('A newer or different update is already published; refusing to overwrite it.');
-  }
   await validateWindowsUpdateArtifact(manifest, installer, candidate.version, candidate.chromiumVersion);
   const missing: string[] = [];
   for (const file of files) {
     signal?.throwIfAborted();
     const size = statSync(file).size;
-    const remote = await publicObject(path.basename(file), size, 'HEAD', signal);
+    const remote = await publicObject(`${WINDOWS_UPDATE_ORIGIN}/${path.basename(file)}`, size, 'HEAD', signal);
     if (!remote) { missing.push(file); continue; }
     // shortcut: HEAD cannot detect same-size changes; use remote checksums if retries must prove byte equality.
     const remoteSize = remote.headers.get('content-length');
     if (remoteSize !== null && Number(remoteSize) !== size)
       throw new Error(`Different artifact already published: ${path.basename(file)}`);
-    onPublication('artifacts');
+    onArtifacts();
   }
   if (missing.length) {
-    onPublication('artifacts');
+    onArtifacts();
     await upload([...missing, '--bucket', bucket]);
   }
-  if (await readPublicFeed(signal) !== previous) throw new Error('The update feed changed during publication; retry after checking the other publisher.');
-  signal?.throwIfAborted();
-  onPublication('feed');
-  await upload([manifest, '--bucket', bucket, '--key', WINDOWS_UPDATE_FEED, '--content-type', 'application/json']);
-  if (await readPublicFeed(signal) !== candidateText) throw new Error('The public update feed did not confirm the candidate; verify publication before retrying.');
 }
 
 /** Check before rebuilding so an interrupted upload cannot lose its original bytes. */

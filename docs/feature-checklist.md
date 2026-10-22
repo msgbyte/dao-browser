@@ -28,6 +28,11 @@ requirements, not claims that this target has compiled or passed runtime tests.
 
 ## Website downloads
 
+- [ ] Production website deployment validates staged signatures and artifact
+  availability, then mirrors only the exact live feed to the old R2 address.
+  Preview/failed deployments do not mirror; mismatched deployed bytes refuse sync.
+  Configure the required Actions secrets before deploying. Verify no-store headers,
+  legacy HTTP 200 responses, and old/new Windows clients after a withdrawal.
 - [ ] Visit `/download` on macOS and confirm the configured Mac download starts,
   with manual links still available. Windows, Linux, mobile, and unknown devices
   must show manual platform links without starting a download, including iPads
@@ -190,8 +195,8 @@ These are acceptance checks, not a claim that the port has passed them.
   launch, custom-directory install, repair, upgrade, fallback UI and uninstall.
   Run the focused cross-build/toolchain/installer/release script tests.
 - [ ] In `scripts/commands/__tests__/windows-toolchain.test.ts`, verify Windows requirements parsing accepts single-line and multiline `MSVS_VERSIONS = collections.OrderedDict(...)`, selects the first Visual Studio entry, and preserves the pinned toolchain hash/SDK version. Malformed requirements must still fail before configuration.
-- [ ] Default `release` builds Mac and Windows before uploading and bumps/archives/tags once; `release:mac` retains Mac-only behavior. Fail the Windows build after Mac packaging and verify local rollback and no upload. Interrupt the latest-feed upload after the server accepts it and verify the candidate is retained and an identical retry completes its tag.
-- [ ] Combined releases request uncompressed HEAD responses for existing artifact sizes and skip their upload on retry without downloading their bodies; a missing Content-Length is accepted. A successful upload proceeds even if artifact URLs still return 404; there is no post-upload artifact request. Different reported sizes, invalid local Windows signatures/checksums, and conflicting or invalid public feeds still block publication. Network failures identify the request method, URL, and underlying error. Run the focused Windows publication and release script tests.
+- [ ] Default `release` builds Mac and Windows before uploading and bumps/archives/tags once; `release:mac` retains Mac-only behavior. Fail the Windows build after Mac packaging and verify local rollback and no upload. Interrupt immutable uploads and verify local metadata is restored, original artifacts are retained, and a retry with the original bump plus `--skip-build` completes the release.
+- [ ] Combined releases upload immutable artifacts and stage the signed website feed without advancing either public feed. Existing artifact HEAD requests use uncompressed sizes and skip uploads on retry; missing Content-Length is accepted. Local signatures/checksums and reported sizes are validated. Website deployment separately verifies the immutable signed manifest and installer availability/size. Failures restore local metadata while retaining original artifacts for retry. Run the Windows publication, mirror, rollback, and release tests.
 - [ ] Signed Windows updates: reject tampered signatures, wrong origin/platform/architecture, replay/downgrade, wrong size/hash, redirects, truncated transfers and a modified cached EXE. Test offline/manual retry, daily checks, cached ready state after restart, and portable/component/system/private-only exclusions.
 - [ ] Windows update handoff on a disposable installed profile: cancel beforeunload and then quit later (no install), time out or disconnect before commit (no install), verify original PID/creation time and pipe peer, block other running Dao processes, reject changed registration, and preserve a non-ASCII custom path. Upgrade Dao while Chromium stays fixed; verify changed browser bytes, bookmarks/profile/session preservation, one relaunch, no forced process termination, and localized failure/log guidance. Cross compilation alone does not satisfy this check.
 - [ ] Settings About announces checking/downloading/current/error/unsupported/ready states in English and Chinese; repeat clicks and multiple windows cannot apply twice. Transient states leave no sidebar update gap; cancelling exit restores its ready action. Mac still uses Sparkle.
