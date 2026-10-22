@@ -63,6 +63,9 @@ std::unique_ptr<views::Label> CreateLabel(std::u16string text,
   label->SetElideBehavior(gfx::ELIDE_TAIL);
   if (multiline) {
     label->SetMaximumWidth(kDialogWidth);
+  } else {
+    label->SetMaximumWidthSingleLine(kDialogWidth);
+    label->SetCustomTooltipText(label->GetText());
   }
   return label;
 }

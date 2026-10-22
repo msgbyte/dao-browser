@@ -4,6 +4,8 @@
 
 ### [Unreleased] Unreleased
 
+- Keep browser-control approval dialogs compact when tab URLs or other details are long, with full text available on hover.
+
 ### [1.0.116] - 2026-10-22
 
 - Prevent AI browser tools from timing out on a matching network response when optional result or error fields are absent.
