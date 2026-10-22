@@ -64,7 +64,6 @@
 <translation id="2809346626032021864">正在读取</translation>
 <translation id="2820330532305477229">你要从哪里迁移？</translation>
 <translation id="2882207023658691113">恢复为新版本</translation>
-<translation id="2904931165000922387"><ph name="CLIENT" /> 正在控制浏览器标签页</translation>
 <translation id="2973324205039581528">将网站静音</translation>
 <translation id="2976307543842414852">运行时机</translation>
 <translation id="3007771295016901659">复制标签页</translation>
@@ -157,7 +156,6 @@
 <translation id="6299569859560607348">这个主页想打开一个外部页面。继续前请确认目标地址。</translation>
 <translation id="6325047129563993580">根据我最近的浏览主题创建 Dao 主页。只使用经过隐私精简的主页浏览材料，先简要说明设计方向，再构建并发布第一个版本。</translation>
 <translation id="642671119120438272">导入的标签页</translation>
-<translation id="648743804821442565">本地自动化客户端正在请求访问此 Dao 窗口。</translation>
 <translation id="6527303717912515753">分享</translation>
 <translation id="6586201961110912838">恢复这个版本</translation>
 <translation id="9021647662655874951">选择这台电脑上的一个浏览器配置文件。每个配置文件会单独列出，让你清楚控制要迁移的来源。</translation>
@@ -205,7 +203,6 @@
 <translation id="8138892305328483863">Dao 会把迁移内容与你已有的数据安全合并，不会覆盖现有数据。</translation>
 <translation id="8175534235396780357">AI 控制详情</translation>
 <translation id="8237260373784588552">主页设置</translation>
-<translation id="824895471210913946">目标：<ph name="TARGET" /></translation>
 <translation id="8261506727792406068">删除</translation>
 <translation id="831684326378391082">暂不连接，继续创建</translation>
 <translation id="8349478524212888083">导入的项目会成为一个新版本。来源权限不会随项目导入，需要你重新确认。</translation>
@@ -297,7 +294,6 @@
 <translation id="4118056334668149949">没有可分类的标签页</translation>
 <translation id="2138282385481288588">标签页分类失败，请重试。</translation>
 <translation id="1964416750705529726">标签页或文件夹已变更，请重新分类。</translation>
-<translation id="2840970850699819939">本地自动化客户端正在申请仅控制下方标签页。其他标签页不能作为自动化操作目标。</translation>
 <translation id="3696233115467211566">标签页：<ph name="TAB"/></translation>
 <translation id="1589170129806173037">网址：<ph name="URL"/></translation>
 <translation id="8803639129939845298">连接安全</translation>
@@ -306,4 +302,9 @@
 <translation id="5887866489674258948">深色模式</translation>
 <translation id="5916664084637901428">已开启</translation>
 <translation id="5860033963881614850">已关闭</translation>
+<translation id="738384066462672702">允许此客户端在本窗口中新建并控制自己的标签页。访问已有页面需要单独授权。</translation>
+<translation id="7850208613707054603">允许此客户端使用你的当前登录状态读取和操作所选页面，页面跳转后授权仍然有效。其他页面需要单独授权。</translation>
+<translation id="5736359348982754275">可在本窗口中新建标签页</translation>
+<translation id="806986595966998735">仅可访问已授权页面</translation>
+<translation id="33311346807537223">撤销页面授权</translation>
 </translationbundle>

@@ -32,6 +32,11 @@ enum class DaoBrowserToolSideEffect {
   kDestructive,
 };
 
+// MCP tab tools that act on the approved window instead of a granted page.
+inline bool IsDaoMcpWindowTool(std::string_view name) {
+  return name == "list_tabs" || name == "open_tab";
+}
+
 struct DaoBrowserToolDefinition {
   DaoBrowserToolDefinition();
   ~DaoBrowserToolDefinition();

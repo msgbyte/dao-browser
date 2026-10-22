@@ -52,15 +52,15 @@ describe('browser_tool_catalog', () => {
     await initializeBrowserToolCatalog();
 
     expect(injectedCatalog.getString).toHaveBeenCalledTimes(2);
-    expect(getBrowserToolDefinitions('mcp')).toHaveLength(34);
+    expect(getBrowserToolDefinitions('mcp')).toHaveLength(35);
   });
 
-  it('exposes exactly 34 browser tools to MCP', async () => {
+  it('exposes exactly 35 browser tools to MCP', async () => {
     await initializeBrowserToolCatalog();
     const names = getBrowserToolDefinitions('mcp').map(
         tool => tool.function.name);
 
-    expect(names).toHaveLength(34);
+    expect(names).toHaveLength(35);
     expect(names).not.toContain('resolve_element_context');
     expect([...names].sort()).toEqual([
       'agent_click',
@@ -88,6 +88,7 @@ describe('browser_tool_catalog', () => {
       'open_tab',
       'press_key_chord',
       'query_elements',
+      'request_tab_access',
       'run_browser_task',
       'scroll_down',
       'scroll_to_element',
@@ -101,6 +102,18 @@ describe('browser_tool_catalog', () => {
     expect([...new Set(getCatalogEntries('mcp').map(entry => entry.group))]
                .sort())
         .toEqual(['devtools', 'page', 'tabs']);
+  });
+
+  it('keeps page approval MCP-only and requires a reason', async () => {
+    await initializeBrowserToolCatalog();
+    const tool = getCatalogEntries('mcp').find(
+        entry => entry.name === 'request_tab_access');
+    expect(tool?.clients).toEqual(['mcp']);
+    expect(tool?.group).toBe('tabs');
+    expect(tool?.inputSchema.required).toEqual(['reason']);
+    expect(tool?.inputSchema.properties).toHaveProperty('tab_id');
+    expect(getCatalogEntries('dao_agent').some(
+        entry => entry.name === 'request_tab_access')).toBe(false);
   });
 
   it('shares the bounded Jev task with Agent and MCP', () => {

@@ -74,16 +74,19 @@ while Dao Settings or another ineligible page is active, discovery still
 returns all tools. Initialization and `tools/list` do not display an approval
 dialog or start the approval timeout, so an idle discovery connection remains
 available. Without a `tab_id`, the first `tools/call` snapshots the exact
-last-active eligible normal browser window and active tab and requests window
-approval. Changing focus
-after target selection does not move the approved target. Approval is required
-before every connection can execute tools, and Allow is not the default dialog
-action.
+last-active eligible normal browser window and requests permission to create
+new tabs there. The active page can be an internal page: window approval grants
+no access to existing pages. New MCP tabs open in the background and become the
+connection's default target without changing your active tab. Approval is
+required before execution, and Allow is not the default dialog action. A first
+page tool, `switch_tab`, or `close_tab` call without `tab_id` returns
+`AUTHORIZATION_DENIED` without prompting, because window approval would grant
+it no page.
 
 The first tool call must include `reason` in its arguments, for example:
 
 ```json
-{"name":"list_tabs","arguments":{"reason":"Find the documentation tab to answer your question."}}
+{"name":"open_tab","arguments":{"url":"https://example.com/","reason":"Research the documentation in a new background tab."}}
 ```
 
 Use non-blank text within 1024 UTF-8 bytes. Missing, blank, or invalid reasons
@@ -115,29 +118,57 @@ or ineligible targets fail before prompting; Dao never falls back to another
 tab. The normal Profile and URL restrictions still apply.
 
 After approval, page tools can omit `tab_id` or keep passing the authorized ID.
-`list_tabs` returns only that tab. Switching to or closing another tab, including
-by index, and opening a new tab are denied. Closing the authorized tab ends the
-connection without granting access to its replacement. Access lasts for the
-connection and follows the tab across eligible page navigations, not just the
-URL displayed in the dialog. This limits MCP automation targets, not the
-approved page's web capabilities: scripts and links still follow normal browser
-rules for opening windows and interacting with same-origin pages. To access another tab, reconnect and request it
-with a new first-call `tab_id` and `reason`.
+`list_tabs` returns only granted, eligible tabs. Tab indices in MCP requests and
+results count granted tabs only, so they never reveal unapproved tabs; a
+non-integer or out-of-range index returns `INVALID_ARGUMENT`. Switching to or
+closing another tab by ID is denied. An initial explicit page grant does not
+permit `open_tab`. Grants follow the tab across eligible navigation, not just
+the URL displayed in the dialog. New tabs share the normal profile's login
+state; page grants do not isolate cookies or same-origin web capabilities.
 
-First calls without `tab_id` retain the existing window authorization, which
-allows switching to and controlling additional eligible tabs in that window.
-Adding `tab_id` after window approval routes a call; it does not narrow or replace
-the existing permission.
+### Request an existing page after connecting
+
+Use `request_tab_access` with a fresh non-blank `reason` whenever an existing
+page is needed. An optional `tab_id` pins approval to that exact page in the
+approved window. Without an ID, Dao opens a native page picker: candidate titles,
+URLs, and IDs are never returned to the MCP client. Approval returns the chosen
+page's `tab_id`, title, and URL and makes it the connection's default target.
+Ambiguous explicit tab IDs are rejected; the picker repairs duplicated IDs
+before listing pages. IDs changed or duplicated while approval is
+pending cannot receive a grant. Denied, cancelled, expired, or stale approvals
+grant nothing and preserve all
+previous grants. A page leased by another controller remains unavailable.
+
+```json
+{"name":"request_tab_access","arguments":{"reason":"Read the page you want me to summarize."}}
+```
+
+### Manage grants
+
+The native MCP controls show each connection, its window creation permission,
+and its granted pages. Revoke a page to cancel its pending work and release its
+lease without initiating a page close. Revocation or client cancellation rejects
+an already-visible close confirmation, but cannot roll back actions already
+dispatched to the renderer, including a close that has not yet shown its
+confirmation. A `close_tab` timeout leaves the confirmation for you to answer.
+Revoking one page does not cancel a pending request for a different page. Stop a
+connection to revoke all its grants.
+Revoking or closing the default target clears default routing; choose another
+granted ID or create a new tab. Losing the final page preserves window creation
+permission, and a page-only connection may request another page. A revoked page
+always needs fresh approval, even if this connection originally created it.
+Disconnecting, disabling MCP, closing the approved window, or destroying its
+profile ends the connection and releases all grants.
 
 ## Tool scope
 
-MCP exposes 34 native browser tools from the same versioned catalog used by Dao
+MCP exposes 35 native browser tools from the same versioned catalog used by Dao
 Agent:
 
 - page information, HTML, accessibility, scoped semantic queries, screenshots,
   guarded clicks, script execution, input, scrolling, highlighting, and cursor
   interaction;
-- window-scoped tab listing, switching, opening, and closing;
+- granted-tab listing, switching, opening, closing, and native existing-page approval;
 - network and console capture, including cursor-based response waits;
 - page-resource listing, reading, and search;
 - bounded Jev browser subtasks through `run_browser_task` (requires explicit
@@ -246,13 +277,13 @@ are rejected. Dao never searches for or falls back to another eligible tab.
 A forbidden `switch_tab` candidate is rejected before the active tab or
 session target changes.
 
-Closing the approved window, unexpectedly losing the target, destroying its
-Profile, or navigating the target to a forbidden URL terminates that
-connection. A successful `close_tab` may instead retarget the eligible active
-replacement in the same approved window; no replacement or a forbidden
-replacement fails closed. Terminal cleanup cancels work, removes temporary
-input locks and overlays, detaches DevTools, releases the lease, and returns to
-Ready only after the accepted socket actually closes.
+Closing the approved window or destroying its Profile terminates the connection.
+Closing a granted page or navigating it to a forbidden URL revokes only that page.
+The connection remains available with any creation capability and other page grants
+intact, even when no pages remain. Closing or revoking the default page clears the
+default target; Dao never grants or selects a replacement automatically. Revocation
+cancels work on that page and removes its input locks, overlays, DevTools session,
+and lease. Terminal connection cleanup returns to Ready after its socket closes.
 
 ## Stop, revoke, and disable
 

@@ -149,7 +149,11 @@ bool DaoBrowserToolExecutor::Execute(DaoBrowserAutomationSession* session,
   base::WeakPtr<DaoBrowserToolExecutor> weak_this = weak_factory_.GetWeakPtr();
   base::WeakPtr<DaoBrowserAutomationSession> session_weak =
       session->GetWeakPtr();
-  auto target = ResolveTargetForClient(session, client);
+  const bool window_tool =
+      client == DaoToolClient::kMcp && IsDaoMcpWindowTool(call.name);
+  auto target =
+      window_tool ? base::expected<content::WebContents*, DaoToolError>(nullptr)
+                  : ResolveTargetForClient(session, client);
   if (!weak_this || !session_weak) {
     DaoBrowserToolResult result;
     result.error = MakeDaoToolError(

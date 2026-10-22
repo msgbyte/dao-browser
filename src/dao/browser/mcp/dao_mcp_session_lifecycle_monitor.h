@@ -37,7 +37,8 @@ class DaoMcpSessionLifecycleMonitor : public ProfileObserver,
   using InvalidatedCallback = base::OnceCallback<void(DaoToolError)>;
 
   DaoMcpSessionLifecycleMonitor(DaoBrowserAutomationSession* session,
-                                InvalidatedCallback callback);
+                                InvalidatedCallback callback,
+                                bool window_only = false);
   ~DaoMcpSessionLifecycleMonitor() override;
 
   DaoMcpSessionLifecycleMonitor(const DaoMcpSessionLifecycleMonitor&) = delete;
@@ -83,6 +84,7 @@ class DaoMcpSessionLifecycleMonitor : public ProfileObserver,
   base::ScopedObservation<TabListInterface, TabListInterfaceObserver>
       tab_list_observation_{this};
   bool started_ = false;
+  const bool window_only_;
   bool invalidated_ = false;
   bool revalidating_ = false;
   uint64_t revalidation_generation_ = 0;

@@ -7,8 +7,11 @@
 
 #include <deque>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
+#include <vector>
 
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
@@ -17,6 +20,9 @@
 #include "ui/views/window/dialog_delegate.h"
 
 class BrowserWindowInterface;
+namespace views {
+class RadioButton;
+}
 
 namespace dao {
 
@@ -25,6 +31,10 @@ class DaoMcpApprovalDialog final : public views::DialogDelegate {
   DaoMcpApprovalDialog(const DaoMcpApprovalRequest& request,
                        BrowserWindowInterface* browser,
                        base::OnceCallback<void(bool)> callback);
+  DaoMcpApprovalDialog(
+      const DaoMcpApprovalRequest& request,
+      BrowserWindowInterface* browser,
+      base::OnceCallback<void(std::optional<std::string>)> callback);
   ~DaoMcpApprovalDialog() override;
 
   DaoMcpApprovalDialog(const DaoMcpApprovalDialog&) = delete;
@@ -39,7 +49,9 @@ class DaoMcpApprovalDialog final : public views::DialogDelegate {
       BrowserWindowInterface* browser);
   void Resolve(bool allowed);
 
-  base::OnceCallback<void(bool)> callback_;
+  base::OnceCallback<void(std::optional<std::string>)> callback_;
+  std::optional<std::string> explicit_tab_id_;
+  std::vector<std::pair<raw_ptr<views::RadioButton>, std::string>> choices_;
   base::WeakPtrFactory<DaoMcpApprovalDialog> weak_factory_{this};
 };
 
@@ -56,6 +68,11 @@ class DaoMcpApprovalDialogController final : public DaoMcpApprovalDelegate {
                        BrowserWindowInterface* browser,
                        std::string_view connection_id,
                        base::OnceCallback<void(bool)> callback) override;
+  void RequestTabAccess(
+      const DaoMcpApprovalRequest& request,
+      BrowserWindowInterface* browser,
+      std::string_view approval_id,
+      base::OnceCallback<void(std::optional<std::string>)> callback) override;
   void CancelApproval(std::string_view connection_id) override;
 
   size_t queued_approval_count_for_testing() const {
@@ -69,10 +86,11 @@ class DaoMcpApprovalDialogController final : public DaoMcpApprovalDelegate {
   ~DaoMcpApprovalDialogController() override;
 
   struct PendingRequest {
-    PendingRequest(const DaoMcpApprovalRequest& request,
-                   BrowserWindowInterface* browser,
-                   std::string connection_id,
-                   base::OnceCallback<void(bool)> callback);
+    PendingRequest(
+        const DaoMcpApprovalRequest& request,
+        BrowserWindowInterface* browser,
+        std::string connection_id,
+        base::OnceCallback<void(std::optional<std::string>)> callback);
     ~PendingRequest();
     PendingRequest(PendingRequest&&);
     PendingRequest& operator=(PendingRequest&&);
@@ -81,15 +99,16 @@ class DaoMcpApprovalDialogController final : public DaoMcpApprovalDelegate {
     PendingRequest& operator=(const PendingRequest&) = delete;
 
     DaoMcpApprovalRequest approval;
-    raw_ptr<BrowserWindowInterface> browser;
+    base::WeakPtr<BrowserWindowInterface> browser;
     std::string connection_id;
-    base::OnceCallback<void(bool)> callback;
+    base::OnceCallback<void(std::optional<std::string>)> callback;
   };
 
   void ShowNextApproval();
-  void OnDialogResult(std::string connection_id,
-                      base::OnceCallback<void(bool)> callback,
-                      bool allowed);
+  void OnDialogResult(
+      std::string connection_id,
+      base::OnceCallback<void(std::optional<std::string>)> callback,
+      std::optional<std::string> tab_id);
 
   std::deque<PendingRequest> pending_requests_;
   std::string pending_connection_id_;

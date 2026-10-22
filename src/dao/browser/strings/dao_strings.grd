@@ -579,10 +579,10 @@
         Allow browser control?
       </message>
       <message name="IDS_DAO_MCP_APPROVAL_EXPLANATION" desc="Explanation in the MCP connection approval dialog.">
-        A local automation client is requesting access to this Dao window.
+        Allow this client to create and control its own new tabs in this window. Existing pages need separate approval.
       </message>
       <message name="IDS_DAO_MCP_APPROVAL_TAB_EXPLANATION" desc="Explanation when an MCP connection requests access only to one specific tab.">
-        A local automation client is requesting control of only the tab below. Other tabs cannot be selected as automation targets.
+        Allow this client to read and interact with the selected page using your current login, including after navigation. Other pages need separate approval.
       </message>
       <message name="IDS_DAO_MCP_APPROVAL_TAB" desc="Exact tab requested by a local MCP client. TAB is the page title recorded at request time.">
         Tab: <ph name="TAB">$1<ex>Example page</ex></ph>
@@ -614,20 +614,23 @@
       <message name="IDS_DAO_MCP_APPROVAL_DENY" desc="Button that denies one local MCP connection.">
         Deny
       </message>
-      <message name="IDS_DAO_MCP_CONTROL_TITLE" desc="Title in the popup shown while a local MCP client controls browser tabs. CLIENT is the client-reported name.">
-        <ph name="CLIENT">$1<ex>Codex</ex></ph> is controlling browser tabs
-      </message>
       <message name="IDS_DAO_MCP_CONTROL_BUTTON_ACCESSIBLE_NAME" desc="Accessible name and tooltip for the robot button that opens active MCP browser-control details.">
         AI control details
-      </message>
-      <message name="IDS_DAO_MCP_CONTROL_TARGET" desc="Current browser tab shown in the MCP active-control popup. TARGET is the current tab title.">
-        Target: <ph name="TARGET">$1<ex>Project dashboard</ex></ph>
       </message>
       <message name="IDS_DAO_MCP_CONTROL_LATEST_TOOL" desc="Latest browser tool accepted for execution by the active MCP connection. TOOL is the tool name.">
         Latest MCP call: <ph name="TOOL">$1<ex>execute_script</ex></ph>
       </message>
       <message name="IDS_DAO_MCP_CONTROL_TAB_COUNT" desc="Number of browser tabs controlled by the active MCP connection. COUNT is the number of tabs.">
         Controlled tabs: <ph name="COUNT">$1<ex>3</ex></ph>
+      </message>
+      <message name="IDS_DAO_MCP_CONTROL_CREATE_ALLOWED" desc="MCP page permission management label.">
+        May create tabs in this window
+      </message>
+      <message name="IDS_DAO_MCP_CONTROL_PAGE_ONLY" desc="MCP page permission management label.">
+        Access to approved pages only
+      </message>
+      <message name="IDS_DAO_MCP_CONTROL_REVOKE_TAB" desc="MCP page permission management label.">
+        Revoke page access
       </message>
       <message name="IDS_DAO_MCP_CONTROL_STOP" desc="Button that revokes the active local MCP browser-control connection.">
         Stop

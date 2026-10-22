@@ -5,6 +5,7 @@
 #include "dao/browser/automation/dao_tab_tools.h"
 
 #include <array>
+#include <initializer_list>
 #include <map>
 #include <memory>
 #include <optional>
@@ -28,6 +29,7 @@
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/javascript_dialogs/app_modal_dialog_controller.h"
+#include "components/javascript_dialogs/app_modal_dialog_queue.h"
 #include "components/javascript_dialogs/app_modal_dialog_view.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
@@ -158,8 +160,29 @@ class DaoMcpTabToolsBrowserTest : public InProcessBrowserTest {
       CHECK(active);
       target = active->GetContents();
     }
-    return std::make_unique<DaoBrowserAutomationSession>(authorized_window,
-                                                         target);
+    auto session = std::make_unique<DaoBrowserAutomationSession>(
+        authorized_window, target);
+    GrantTabs(session.get(), {target});
+    return session;
+  }
+
+  void GrantTabs(DaoBrowserAutomationSession* session,
+                 std::initializer_list<content::WebContents*> targets) {
+    std::vector<base::WeakPtr<content::WebContents>> grants;
+    for (content::WebContents* target : targets) {
+      grants.push_back(target->GetWeakPtr());
+    }
+    session->SetTabAccessCheck(base::BindRepeating(
+        [](const std::vector<base::WeakPtr<content::WebContents>>& grants,
+           content::WebContents* candidate) {
+          for (const auto& grant : grants) {
+            if (grant && grant.get() == candidate) {
+              return true;
+            }
+          }
+          return false;
+        },
+        std::move(grants)));
   }
 
   DaoBrowserToolResult Execute(DaoBrowserAutomationSession* session,
@@ -374,11 +397,58 @@ IN_PROC_BROWSER_TEST_F(DaoMcpTabToolsBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpTabToolsBrowserTest,
+                       McpMissingGrantCallbackFailsClosed) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
+  content::WebContents* target = tabs()->GetActiveTab()->GetContents();
+  tabs::TabInterface* other = OpenTab(browser(), second_url());
+  DaoBrowserAutomationSession session(browser(), target);
+  DaoBrowserToolResult listed = Execute(&session, "list_tabs");
+  ASSERT_TRUE(listed.ok);
+  EXPECT_TRUE(listed.data.GetDict().FindList("tabs")->empty());
+  for (std::string_view tool : {"switch_tab", "close_tab"}) {
+    DaoBrowserToolResult result = Execute(
+        &session, std::string(tool),
+        base::DictValue().Set("tab_id", GetOrCreateSidebarTabId(target)));
+    ASSERT_FALSE(result.ok);
+    ASSERT_TRUE(result.error.has_value());
+    EXPECT_EQ(DaoToolErrorCode::kAuthorizationDenied, result.error->code);
+  }
+  EXPECT_EQ(target, tabs()->GetActiveTab()->GetContents());
+  EXPECT_TRUE(ContainsContents(tabs(), other->GetContents()));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpTabToolsBrowserTest,
+                       McpTabIndexesSkipUngrantedTabs) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
+  content::WebContents* first = tabs()->GetActiveTab()->GetContents();
+  OpenTab(browser(), second_url());
+  tabs::TabInterface* third = OpenTab(browser(), third_url());
+  auto session = MakeSession(browser(), first);
+  GrantTabs(session.get(), {first, third->GetContents()});
+
+  DaoBrowserToolResult listed = Execute(session.get(), "list_tabs");
+  ASSERT_TRUE(listed.ok) << listed.error->message;
+  const base::ListValue* listed_tabs = listed.data.GetDict().FindList("tabs");
+  ASSERT_NE(nullptr, listed_tabs);
+  ASSERT_EQ(2u, listed_tabs->size());
+  EXPECT_EQ(0, (*listed_tabs)[0].GetDict().FindInt("index").value_or(-1));
+  EXPECT_EQ(1, (*listed_tabs)[1].GetDict().FindInt("index").value_or(-1));
+
+  DaoBrowserToolResult switched = Execute(
+      session.get(), "switch_tab",
+      base::DictValue().Set("tab_id",
+                            GetOrCreateSidebarTabId(third->GetContents())));
+  ASSERT_TRUE(switched.ok) << switched.error->message;
+  EXPECT_EQ(1, switched.data.GetDict().FindInt("index").value_or(-1));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpTabToolsBrowserTest,
                        ListTabsKeepsStableIdsAcrossReorder) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
   tabs::TabInterface* first = tabs()->GetActiveTab();
   tabs::TabInterface* second = OpenTab(browser(), second_url());
   auto session = MakeSession(browser(), first->GetContents());
+  GrantTabs(session.get(), {first->GetContents(), second->GetContents()});
 
   DaoBrowserToolResult before = Execute(session.get(), "list_tabs");
   ASSERT_TRUE(before.ok) << before.error->message;
@@ -474,6 +544,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpTabToolsBrowserTest,
   tabs::TabInterface* first = tabs()->GetActiveTab();
   tabs::TabInterface* duplicate = OpenTab(browser(), second_url());
   auto session = MakeSession();
+  GrantTabs(session.get(), {first->GetContents(), duplicate->GetContents()});
   const std::string duplicate_id =
       GetOrCreateSidebarTabId(first->GetContents());
   SetSidebarTabId(duplicate->GetContents(), duplicate_id);
@@ -527,6 +598,8 @@ IN_PROC_BROWSER_TEST_F(
   ASSERT_EQ(historical_id,
             GetOrCreateSidebarTabId(historical_restore_contents));
   auto session = MakeSession(browser(), pinned_reopen->GetContents());
+  GrantTabs(session.get(),
+            {pinned_reopen->GetContents(), historical_restore_contents});
 
   DaoBrowserToolResult listed = Execute(session.get(), "list_tabs");
 
@@ -568,6 +641,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpTabToolsBrowserTest,
   tabs::TabInterface* first = tabs()->GetActiveTab();
   tabs::TabInterface* second = OpenTab(browser(), second_url());
   auto session = MakeSession(browser(), first->GetContents());
+  GrantTabs(session.get(), {first->GetContents(), second->GetContents()});
   const std::string second_id = GetOrCreateSidebarTabId(second->GetContents());
   const int old_second_index = tabs()->GetIndexOfTab(second->GetHandle());
   tabs()->MoveTab(second->GetHandle(),
@@ -608,6 +682,7 @@ IN_PROC_BROWSER_TEST_F(
   ASSERT_NE(nullptr, pinned);
   tabs::TabInterface* forbidden = OpenTab(browser(), GURL("chrome://version/"));
   auto session = MakeSession(browser(), pinned->GetContents());
+  GrantTabs(session.get(), {pinned->GetContents(), forbidden->GetContents()});
   const std::string forbidden_id =
       GetOrCreateSidebarTabId(forbidden->GetContents());
   ASSERT_NE(forbidden, tabs()->GetActiveTab());
@@ -678,6 +753,7 @@ IN_PROC_BROWSER_TEST_F(
   tabs::TabInterface* first = tabs()->GetActiveTab();
   tabs::TabInterface* second = OpenTab(browser(), second_url());
   auto session = MakeSession(browser(), first->GetContents());
+  GrantTabs(session.get(), {first->GetContents(), second->GetContents()});
   session->SetTargetChangedCallback(base::BindRepeating(
       [](std::unique_ptr<DaoBrowserToolExecutor>* owned_executor,
          std::unique_ptr<DaoBrowserAutomationSession>* owned_session,
@@ -734,6 +810,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpTabToolsBrowserTest,
                        OpenTabStaysInWindowAndUpdatesTarget) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
   auto session = MakeSession();
+  tabs::TabInterface* foreground = tabs()->GetActiveTab();
   BrowserWindowInterface* other_window = CreateBrowser(browser()->GetProfile());
   const int source_count = tabs()->GetTabCount();
   const int other_count = tabs(other_window)->GetTabCount();
@@ -745,8 +822,12 @@ IN_PROC_BROWSER_TEST_F(DaoMcpTabToolsBrowserTest,
   ASSERT_TRUE(result.ok) << result.error->message;
   EXPECT_EQ(source_count + 1, tabs()->GetTabCount());
   EXPECT_EQ(other_count, tabs(other_window)->GetTabCount());
-  tabs::TabInterface* opened = tabs()->GetActiveTab();
+  ASSERT_TRUE(session->ResolveTarget().has_value());
+  tabs::TabInterface* opened =
+      tabs::TabInterface::GetFromContents(session->ResolveTarget().value());
   ASSERT_NE(nullptr, opened);
+  EXPECT_EQ(foreground, tabs()->GetActiveTab());
+  EXPECT_NE(foreground, opened);
   ASSERT_TRUE(session->ResolveTarget().has_value());
   EXPECT_EQ(opened->GetContents(), session->ResolveTarget().value());
   EXPECT_TRUE(ContainsContents(tabs(), session->ResolveTarget().value()));
@@ -820,6 +901,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpTabToolsBrowserTest,
                        OpenTabAllowsHttpHttpsMissingAndLiteralBlank) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
   auto session = MakeSession();
+  content::WebContents* foreground = tabs()->GetActiveTab()->GetContents();
   const int original_count = tabs()->GetTabCount();
 
   std::array<base::DictValue, 4> arguments = {
@@ -835,16 +917,15 @@ IN_PROC_BROWSER_TEST_F(DaoMcpTabToolsBrowserTest,
     ASSERT_TRUE(result.ok) << (result.error ? result.error->message
                                             : "missing error");
     if (i + 1 < arguments.size()) {
-      ASSERT_TRUE(
-          content::WaitForLoadStop(tabs()->GetActiveTab()->GetContents()));
+      ASSERT_TRUE(content::WaitForLoadStop(session->ResolveTarget().value()));
     }
   }
 
   EXPECT_EQ(original_count + static_cast<int>(arguments.size()),
             tabs()->GetTabCount());
   ASSERT_TRUE(session->ResolveTarget().has_value());
-  EXPECT_EQ(tabs()->GetActiveTab()->GetContents(),
-            session->ResolveTarget().value());
+  EXPECT_EQ(foreground, tabs()->GetActiveTab()->GetContents());
+  EXPECT_NE(foreground, session->ResolveTarget().value());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpTabToolsBrowserTest,
@@ -863,9 +944,12 @@ IN_PROC_BROWSER_TEST_F(DaoMcpTabToolsBrowserTest,
 
   ASSERT_TRUE(result.ok) << result.error->message;
   EXPECT_EQ(original_count + 1, tabs()->GetTabCount());
-  tabs::TabInterface* opened = tabs()->GetActiveTab();
+  ASSERT_TRUE(session->ResolveTarget().has_value());
+  tabs::TabInterface* opened =
+      tabs::TabInterface::GetFromContents(session->ResolveTarget().value());
   ASSERT_NE(nullptr, opened);
   EXPECT_NE(pinned, opened);
+  EXPECT_EQ(pinned, tabs()->GetActiveTab());
   EXPECT_EQ(second_url(), opened->GetContents()->GetVisibleURL());
   ASSERT_TRUE(session->ResolveTarget().has_value());
   EXPECT_EQ(opened->GetContents(), session->ResolveTarget().value());
@@ -883,6 +967,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpTabToolsBrowserTest,
   tabs::TabInterface* second = OpenTab(browser(), second_url());
   tabs::TabInterface* third = OpenTab(browser(), third_url());
   auto session = MakeSession(browser(), pinned->GetContents());
+  GrantTabs(session.get(), {pinned->GetContents(), second->GetContents()});
   base::WeakPtr<content::WebContents> second_contents =
       second->GetContents()->GetWeakPtr();
   const std::string second_id = GetOrCreateSidebarTabId(second->GetContents());
@@ -912,7 +997,8 @@ IN_PROC_BROWSER_TEST_F(DaoMcpTabToolsBrowserTest,
   content::WebContents* other_contents =
       tabs(other_window)->GetActiveTab()->GetContents();
 
-  DaoBrowserToolResult result = Execute(session.get(), "close_tab");
+  DaoBrowserToolResult result = Execute(
+      session.get(), "close_tab", base::DictValue(), DaoToolClient::kDaoAgent);
 
   ASSERT_TRUE(result.ok) << result.error->message;
   EXPECT_FALSE(pinned_contents);
@@ -927,13 +1013,13 @@ IN_PROC_BROWSER_TEST_F(DaoMcpTabToolsBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpTabToolsBrowserTest,
-                       CloseWaitsForBeforeUnloadAcceptanceBeforeRetargeting) {
+                       McpCloseWaitsForBeforeUnloadWithoutGrantingReplacement) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), embedded_test_server()->GetURL("/beforeunload.html")));
   tabs::TabInterface* closing_tab = tabs()->GetActiveTab();
   ASSERT_NE(nullptr, closing_tab);
   content::WebContents* closing_contents = closing_tab->GetContents();
-  tabs::TabInterface* replacement = OpenTab(browser(), second_url());
+  OpenTab(browser(), second_url());
   auto session = MakeSession(browser(), closing_contents);
   base::WeakPtr<content::WebContents> closing_weak =
       closing_contents->GetWeakPtr();
@@ -955,11 +1041,8 @@ IN_PROC_BROWSER_TEST_F(DaoMcpTabToolsBrowserTest,
   ASSERT_TRUE(result.ok) << result.error->message;
   EXPECT_EQ(1, callback_count);
   EXPECT_FALSE(closing_weak);
-  ASSERT_TRUE(session->ResolveTarget().has_value());
-  EXPECT_EQ(replacement->GetContents(), session->ResolveTarget().value());
-  ASSERT_TRUE(result.target.has_value());
-  EXPECT_EQ(GetOrCreateSidebarTabId(replacement->GetContents()),
-            result.target->tab_id);
+  EXPECT_FALSE(session->ResolveTarget().has_value());
+  EXPECT_FALSE(result.target.has_value());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpTabToolsBrowserTest,
@@ -996,8 +1079,9 @@ IN_PROC_BROWSER_TEST_F(DaoMcpTabToolsBrowserTest,
   EXPECT_EQ(target, session->ResolveTarget().value());
 }
 
-IN_PROC_BROWSER_TEST_F(DaoMcpTabToolsBrowserTest,
-                       PendingCloseExplicitCancellationCompletesOnce) {
+IN_PROC_BROWSER_TEST_F(
+    DaoMcpTabToolsBrowserTest,
+    RevokedPendingCloseCancellationKeepsPageAndCompletesOnce) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), embedded_test_server()->GetURL("/beforeunload.html")));
   content::WebContents* target = tabs()->GetActiveTab()->GetContents();
@@ -1013,10 +1097,12 @@ IN_PROC_BROWSER_TEST_F(DaoMcpTabToolsBrowserTest,
   javascript_dialogs::AppModalDialogController* dialog =
       ui_test_utils::WaitForAppModalDialog();
   ASSERT_NE(nullptr, dialog);
+  GrantTabs(session.get(), {});
   executor_->Cancel(request_id);
   DaoBrowserToolResult result = future.Take();
-  dialog->view()->CancelAppModalDialog();
   base::RunLoop().RunUntilIdle();
+  EXPECT_FALSE(javascript_dialogs::AppModalDialogQueue::GetInstance()
+                     ->HasActiveDialog());
   ASSERT_TRUE(content::ExecJs(target, "window.onbeforeunload = null;"));
 
   ASSERT_FALSE(result.ok);
@@ -1045,6 +1131,10 @@ IN_PROC_BROWSER_TEST_F(DaoMcpTabToolsBrowserTest,
       ui_test_utils::WaitForAppModalDialog();
   ASSERT_NE(nullptr, dialog);
   DaoBrowserToolResult result = future.Take();
+  base::RunLoop().RunUntilIdle();
+  // A timeout leaves the page's close confirmation for the user to answer.
+  ASSERT_TRUE(javascript_dialogs::AppModalDialogQueue::GetInstance()
+                    ->HasActiveDialog());
   dialog->view()->CancelAppModalDialog();
   base::RunLoop().RunUntilIdle();
   ASSERT_TRUE(content::ExecJs(target, "window.onbeforeunload = null;"));
@@ -1116,7 +1206,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpTabToolsBrowserTest, RejectsClosingLastTab) {
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpTabToolsBrowserTest,
-                       MovedTargetFailsEveryTabToolWithoutFallback) {
+                       AgentMovedTargetFailsEveryTabToolWithoutFallback) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
   tabs::TabInterface* target = tabs()->GetActiveTab();
   OpenTab(browser(), second_url());
@@ -1141,7 +1231,8 @@ IN_PROC_BROWSER_TEST_F(DaoMcpTabToolsBrowserTest,
   };
   for (CallCase& call : calls) {
     DaoBrowserToolResult result =
-        Execute(session.get(), call.name, std::move(call.arguments));
+        Execute(session.get(), call.name, std::move(call.arguments),
+                DaoToolClient::kDaoAgent);
     ASSERT_FALSE(result.ok) << call.name;
     ASSERT_TRUE(result.error.has_value()) << call.name;
     EXPECT_EQ(DaoToolErrorCode::kTargetGone, result.error->code) << call.name;
@@ -1173,6 +1264,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpTabToolsBrowserTest,
   ASSERT_EQ(original_contents, discarded.get());
   ASSERT_TRUE(content::NavigateToURL(replacement_contents, first_url()));
 
+  GrantTabs(session.get(), {replacement_contents});
   DaoBrowserToolResult page = Execute(session.get(), "get_page_info");
   ASSERT_TRUE(page.ok) << page.error->message;
   EXPECT_EQ(first_url().spec(), *page.data.GetDict().FindString("url"));

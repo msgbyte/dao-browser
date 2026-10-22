@@ -522,26 +522,13 @@ TEST_F(DaoMcpHelperBrowserTest,
   EXPECT_EQ(kMcpProtocolVersion, *result->FindString("protocolVersion"));
   const std::string* instructions = result->FindString("instructions");
   ASSERT_TRUE(instructions);
-  EXPECT_EQ(
-      "Include a non-blank reason explaining why browser access is needed in "
-      "the first tool call's arguments (up to 1024 UTF-8 bytes). Dao shows it "
-      "in the permission dialog. If the user provides a tab ID, include "
-      "tab_id in the first get_page_info or list_tabs call to request access "
-      "only to that tab, including a background tab in another window. That "
-      "connection cannot target other tabs or use open_tab; reconnect with "
-      "another tab_id to request different access. "
-      "Use this server whenever the user asks to inspect or operate Dao "
-      "Browser, including the current page, tabs, navigation, or page "
-      "interaction. Prefer these tools over generic browser automation for "
-      "Dao Browser. Without an explicit tab ID, use list_tabs to request "
-      "window access and establish the initial current target, then pass its "
-      "tab_id to page-specific tools. Preserve that target "
-      "across follow-up requests unless the user explicitly asks to switch "
-      "browser tabs. Treat ambiguous requests such as open, click, or select "
-      "X as page-local: inspect the current target with "
-      "query_elements, then pass its document_id, snapshot_id, and ref_id to "
-      "click_by_ref. Use switch_tab only for explicit browser-tab navigation.",
-      *instructions);
+  EXPECT_NE(std::string::npos, instructions->find("open_tab"));
+  EXPECT_NE(std::string::npos, instructions->find("background tab"));
+  EXPECT_NE(std::string::npos, instructions->find("request_tab_access"));
+  EXPECT_NE(std::string::npos,
+            instructions->find("Window approval grants no existing pages"));
+  EXPECT_NE(std::string::npos, instructions->find("query_elements"));
+  EXPECT_NE(std::string::npos, instructions->find("click_by_ref"));
   const base::DictValue* server_info = result->FindDict("serverInfo");
   ASSERT_TRUE(server_info);
   EXPECT_EQ("dao-browser", *server_info->FindString("name"));
