@@ -3,8 +3,16 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_page.html
-@@ -0,0 +1,864 @@
+@@ -0,0 +1,891 @@
 +<style include="settings-shared">
++  .dao-mcp-page {
++    margin-top: 12px;
++  }
++
++  .dao-mcp-page-url {
++    overflow-wrap: anywhere;
++  }
++
 +  .dao-tab-categories {
 +    border-top: var(--cr-separator-line);
 +    padding: 16px 20px;
@@ -695,25 +703,44 @@ index 0000000000..0000000001
 +        class="dao-mcp-section dao-mcp-status-section">
 +      <div class="dao-mcp-status-copy">
 +        <div class="dao-mcp-section-title">$i18n{daoMcpStatusLabel}</div>
-+        <template is="dom-if" if="[[showDaoMcpClient_]]" restamp>
-+          <div id="daoMcpClient" class="dao-mcp-client">
-+            [[daoMcpClientDetails_]]
-+          </div>
-+        </template>
 +      </div>
 +      <div class="dao-mcp-status-actions">
 +        <span id="daoMcpStatusValue"
 +            class$="dao-mcp-status-badge [[daoMcpStatusState_]]">
 +          [[daoMcpStatusText_]]
 +        </span>
-+        <template is="dom-if" if="[[showDaoMcpStop_]]" restamp>
-+          <cr-button id="daoMcpStopControl"
++      </div>
++    </div>
++    <template is="dom-repeat" items="[[daoMcpConnections_]]" as="connection">
++      <div class="dao-mcp-section dao-mcp-connection">
++        <div class="dao-mcp-usage-header">
++          <div>
++            <div class="dao-mcp-client">[[getDaoMcpClientDetails_(connection)]]</div>
++            <div>[[connection.windowLabel]]</div>
++            <div>[[getDaoMcpScope_(connection.canCreateTabs)]]</div>
++            <div>[[connection.pageCountLabel]]</div>
++          </div>
++          <cr-button class="dao-mcp-stop-control"
++              data-connection-id$="[[connection.connectionId]]"
 +              on-click="onDaoMcpStopControl_">
 +            $i18n{daoMcpStopControl}
 +          </cr-button>
++        </div>
++        <template is="dom-repeat" items="[[connection.tabs]]" as="tab">
++          <div class="dao-mcp-usage-header dao-mcp-page">
++            <div class="dao-mcp-status-copy">
++              <div>[[tab.title]]</div>
++              <div class="dao-mcp-page-url">[[tab.url]]</div>
++            </div>
++            <cr-button class="dao-mcp-revoke-tab"
++                data-connection-id$="[[connection.connectionId]]"
++                data-tab-id$="[[tab.tabId]]" on-click="onDaoMcpRevokeTab_">
++              $i18n{daoMcpRevokeTab}
++            </cr-button>
++          </div>
 +        </template>
 +      </div>
-+    </div>
++    </template>
 +    <div id="daoMcpUsageSection" class="dao-mcp-section">
 +      <div class="dao-mcp-usage-header">
 +        <div>

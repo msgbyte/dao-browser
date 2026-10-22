@@ -54,7 +54,7 @@ diff --git a/chrome/browser/ui/webui/settings/settings_localized_strings_provide
  
    std::u16string license = l10n_util::GetStringFUTF16(
        IDS_VERSION_UI_LICENSE, chrome::kChromiumProjectURL,
-@@ -4451,6 +4461,301 @@
+@@ -4451,6 +4461,304 @@
                                    IDS_SETTINGS_EXTENSIONS_CHECKBOX_LABEL);
  }
  
@@ -284,6 +284,9 @@ diff --git a/chrome/browser/ui/webui/settings/settings_localized_strings_provide
 +      {"daoMcpClientDetails", IDS_SETTINGS_DAO_MCP_CLIENT_DETAILS},
 +      {"daoMcpCopyConfiguration", IDS_SETTINGS_DAO_MCP_COPY_CONFIG},
 +      {"daoMcpStopControl", IDS_SETTINGS_DAO_MCP_STOP_CONTROL},
++      {"daoMcpCreateAllowed", IDS_DAO_MCP_CONTROL_CREATE_ALLOWED},
++      {"daoMcpPageOnly", IDS_DAO_MCP_CONTROL_PAGE_ONLY},
++      {"daoMcpRevokeTab", IDS_DAO_MCP_CONTROL_REVOKE_TAB},
 +      {"daoMcpQuickSetupTitle", IDS_SETTINGS_DAO_MCP_QUICK_SETUP_TITLE},
 +      {"daoMcpQuickSetupDescription",
 +       IDS_SETTINGS_DAO_MCP_QUICK_SETUP_DESCRIPTION},
@@ -356,7 +359,7 @@ diff --git a/chrome/browser/ui/webui/settings/settings_localized_strings_provide
  void AddSecurityKeysStrings(content::WebUIDataSource* html_source) {
    static constexpr webui::LocalizedString kSecurityKeysStrings[] = {
        {"securityBundleResetToDefaultsButtonLabel",
-@@ -4600,6 +4905,7 @@
+@@ -4600,6 +4908,7 @@
    AddClearBrowsingDataStrings(html_source, profile);
    AddCommonStrings(html_source, profile);
    AddDownloadsStrings(html_source);

@@ -512,7 +512,7 @@ describe('settings i18n patches', () => {
     expect(handler).toContain('DaoMcpService::Get()->SetEnabled(enabled)');
   });
 
-  it('hides MCP client details outside an active connection', () => {
+  it('renders profile-scoped MCP connections and sends explicit permission IDs', () => {
     const pagePatchPath = path.join(
         process.cwd(),
         'src/patches/chrome/browser/resources/settings/dao_page/' +
@@ -523,10 +523,13 @@ describe('settings i18n patches', () => {
 
     const pagePatch = readFileSync(pagePatchPath, 'utf-8');
     const handler = readFileSync(handlerPath, 'utf-8');
-    expect(pagePatch).toContain("status.state === 'connected'");
-    expect(handler).toContain(
-        'status.state == DaoMcpStatus::kLeaseActive');
-    expect(handler).toContain('result.Set("canStop", can_stop);');
+    expect(pagePatch).toContain('status.connections ?? []');
+    expect(pagePatch).toContain("chrome.send('stopDaoMcpControl', [connectionId])");
+    expect(pagePatch).toContain(
+        "chrome.send('revokeDaoMcpTab', [connectionId, tabId])");
+    expect(handler).toContain('IsConnectionInCurrentProfile(connection)');
+    expect(handler).toContain('result.Set("connections", std::move(connections))');
+    expect(handler).not.toContain('status.client');
   });
 
   it('localizes and wires the enabled-only MCP quick setup command preview', () => {

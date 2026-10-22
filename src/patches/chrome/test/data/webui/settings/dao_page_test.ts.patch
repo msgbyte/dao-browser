@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/test/data/webui/settings/dao_page_test.ts
-@@ -0,0 +1,734 @@
+@@ -0,0 +1,757 @@
 +// Copyright 2026 Dao Browser Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -36,6 +36,7 @@ index 0000000000..0000000001
 +  SiteSettingsBrowserProxyImpl,
 +} from 'chrome://settings/lazy_load.js';
 +import {
++  assertDeepEquals,
 +  assertEquals,
 +  assertFalse,
 +  assertNull,
@@ -73,6 +74,7 @@ index 0000000000..0000000001
 +      'getDaoMcpSetupContent',
 +      'copyDaoMcpSetupContent',
 +      'stopDaoMcpControl',
++      'revokeDaoMcpTab',
 +      'resetDaoMcpUsageStats',
 +    ]);
 +  }
@@ -114,8 +116,12 @@ index 0000000000..0000000001
 +    resolve(copied);
 +  }
 +
-+  stopDaoMcpControl(): void {
-+    this.methodCalled('stopDaoMcpControl');
++  stopDaoMcpControl(connectionId: string): void {
++    this.methodCalled('stopDaoMcpControl', connectionId);
++  }
++
++  revokeDaoMcpTab(connectionId: string, tabId: string): void {
++    this.methodCalled('revokeDaoMcpTab', connectionId, tabId);
 +  }
 +
 +  resetDaoMcpUsageStats(): void {
@@ -280,11 +286,11 @@ index 0000000000..0000000001
 +    assertEquals(
 +        loadTimeData.getString('daoMcpStatusApprovalRequested'),
 +        status.textContent.trim());
-+    assertNull(page.shadowRoot!.querySelector('#daoMcpClient'));
-+    assertNull(page.shadowRoot!.querySelector('#daoMcpStopControl'));
++    assertNull(page.shadowRoot!.querySelector('.dao-mcp-client'));
++    assertNull(page.shadowRoot!.querySelector('.dao-mcp-stop-control'));
 +  });
 +
-+  test('mcpShowsClientAndStopOnlyWhileConnected', function() {
++  test('mcpShowsEachAuthorizedConnection', function() {
 +    sendMcpStatus({
 +      enabled: true,
 +      state: 'approval_requested',
@@ -292,15 +298,19 @@ index 0000000000..0000000001
 +      clientPid: 99,
 +      canStop: false,
 +    });
-+    assertNull(page.shadowRoot!.querySelector('#daoMcpClient'));
-+    assertNull(page.shadowRoot!.querySelector('#daoMcpStopControl'));
++    assertNull(page.shadowRoot!.querySelector('.dao-mcp-client'));
++    assertNull(page.shadowRoot!.querySelector('.dao-mcp-stop-control'));
 +
 +    sendMcpStatus({
 +      enabled: true,
 +      state: 'connected',
-+      clientName: 'Codex',
-+      clientPid: 12345,
 +      canStop: true,
++      connections: [{
++        connectionId: 'approved-connection', clientName: 'Codex',
++        clientVersion: '', clientPid: 12345, windowLabel: 'Window',
++        canCreateTabs: true, pageCountLabel: '1 page',
++        tabs: [{tabId: 'approved-tab', title: 'Example', url: 'https://example.com'}],
++      }],
 +    });
 +
 +    const status =
@@ -310,21 +320,21 @@ index 0000000000..0000000001
 +        loadTimeData.getString('daoMcpStatusConnected'),
 +        status.textContent.trim());
 +    const client =
-+        page.shadowRoot!.querySelector<HTMLElement>('#daoMcpClient');
++        page.shadowRoot!.querySelector<HTMLElement>('.dao-mcp-client');
 +    assertTrue(!!client);
 +    assertEquals(
 +        loadTimeData.getStringF('daoMcpClientDetails', 'Codex', '12345'),
 +        client.textContent.trim());
 +    assertTrue(
-+        !!page.shadowRoot!.querySelector('#daoMcpStopControl'));
++        !!page.shadowRoot!.querySelector('.dao-mcp-stop-control'));
 +
 +    sendMcpStatus({
 +      enabled: true,
 +      state: 'ready',
 +      canStop: false,
 +    });
-+    assertNull(page.shadowRoot!.querySelector('#daoMcpClient'));
-+    assertNull(page.shadowRoot!.querySelector('#daoMcpStopControl'));
++    assertNull(page.shadowRoot!.querySelector('.dao-mcp-client'));
++    assertNull(page.shadowRoot!.querySelector('.dao-mcp-stop-control'));
 +  });
 +
 +  test('mcpShowsAndResetsUsageStats', async function() {
@@ -536,16 +546,29 @@ index 0000000000..0000000001
 +    sendMcpStatus({
 +      enabled: true,
 +      state: 'connected',
-+      clientName: 'Codex',
-+      clientPid: 12345,
 +      canStop: true,
++      connections: [{
++        connectionId: 'approved-connection', clientName: 'Codex',
++        clientVersion: '', clientPid: 12345, windowLabel: 'Window',
++        canCreateTabs: true, pageCountLabel: '1 page',
++        tabs: [{tabId: 'approved-tab', title: 'Example', url: 'https://example.com'}],
++      }],
 +    });
 +    const button =
-+        page.shadowRoot!.querySelector<HTMLElement>('#daoMcpStopControl');
++        page.shadowRoot!.querySelector<HTMLElement>('.dao-mcp-stop-control');
 +    assertTrue(!!button);
 +    button.click();
 +
-+    await mcpBrowserProxy.whenCalled('stopDaoMcpControl');
++    assertEquals(
++        'approved-connection',
++        await mcpBrowserProxy.whenCalled('stopDaoMcpControl'));
++    const revoke = page.shadowRoot!.querySelector<HTMLElement>(
++        '.dao-mcp-revoke-tab');
++    assertTrue(!!revoke);
++    revoke.click();
++    assertDeepEquals(
++        ['approved-connection', 'approved-tab'],
++        await mcpBrowserProxy.whenCalled('revokeDaoMcpTab'));
 +  });
 +
 +  test('littleDaoToggleBindsToDaoPref', function() {

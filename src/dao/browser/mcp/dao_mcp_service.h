@@ -158,7 +158,6 @@ class DaoMcpService {
   size_t GetControlledTargetCount() const;
   std::vector<DaoMcpConnectionInfo> GetConnections() const;
   bool HasWindowPermission(BrowserWindowInterface* browser_window) const;
-  void StopControl();
   void StopControl(std::string_view connection_id);
   void RevokeTab(std::string_view connection_id, std::string_view tab_id);
   base::CallbackListSubscription AddObserver(StatusObserver observer);

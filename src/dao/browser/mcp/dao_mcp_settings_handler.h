@@ -9,6 +9,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "base/callback_list.h"
 #include "base/files/file_path.h"
@@ -34,7 +35,10 @@ class DaoMcpSettingsService {
   virtual bool IsEnabled() const = 0;
   virtual DaoMcpServiceStatus GetStatus() const = 0;
   virtual void SetEnabled(bool enabled) = 0;
-  virtual void StopControl() = 0;
+  virtual std::vector<DaoMcpConnectionInfo> GetConnections() const = 0;
+  virtual void StopControl(std::string_view connection_id) = 0;
+  virtual void RevokeTab(std::string_view connection_id,
+                         std::string_view tab_id) = 0;
   virtual std::string GetMcpConfiguration() const = 0;
   virtual base::CallbackListSubscription AddObserver(
       StatusObserver observer) = 0;
@@ -61,10 +65,12 @@ class DaoMcpSettingsHandler : public settings::SettingsPageUIHandler {
   void HandleGetDaoMcpSetupContent(const base::ListValue& args);
   void HandleCopyDaoMcpSetupContent(const base::ListValue& args);
   void HandleStopDaoMcpControl(const base::ListValue& args);
+  void HandleRevokeDaoMcpTab(const base::ListValue& args);
   void HandleResetDaoMcpUsageStats(const base::ListValue& args);
 
  private:
   PrefService* GetPrefs();
+  bool IsConnectionInCurrentProfile(const DaoMcpConnectionInfo& connection);
   std::optional<std::string> GetSetupContent(
       std::string_view option_id) const;
   base::DictValue CreateStatusValue();

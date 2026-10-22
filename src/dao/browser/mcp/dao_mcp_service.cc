@@ -616,13 +616,6 @@ bool DaoMcpService::HasWindowPermission(BrowserWindowInterface* window) const {
          });
 }
 
-void DaoMcpService::StopControl() {
-  ConnectionState* connection = GetDisplayConnection();
-  if (connection) {
-    StopControl(connection->connection_id);
-  }
-}
-
 void DaoMcpService::StopControl(std::string_view connection_id) {
   for (auto& [_, connection] : connections_) {
     if (connection->connection_id == connection_id) {
@@ -2532,8 +2525,6 @@ std::vector<DaoMcpConnectionInfo> DaoMcpService::GetConnections() const {
 bool DaoMcpService::HasWindowPermission(BrowserWindowInterface*) const {
   return false;
 }
-void DaoMcpService::StopControl() {}
-
 void DaoMcpService::StopControl(std::string_view) {}
 void DaoMcpService::RevokeTab(std::string_view, std::string_view) {}
 base::CallbackListSubscription DaoMcpService::AddObserver(

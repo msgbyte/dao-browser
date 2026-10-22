@@ -62,7 +62,28 @@ class FakeDaoMcpSettingsService : public DaoMcpSettingsService {
     ++set_enabled_call_count_;
   }
 
-  void StopControl() override { ++stop_control_call_count_; }
+  std::vector<DaoMcpConnectionInfo> GetConnections() const override {
+    return connections_;
+  }
+
+  void SetConnections(std::vector<DaoMcpConnectionInfo> connections) {
+    connections_ = std::move(connections);
+  }
+
+  void StopControl(std::string_view connection_id) override {
+    ++stop_control_call_count_;
+    stopped_connection_id_ = connection_id;
+  }
+
+  void RevokeTab(std::string_view connection_id,
+                 std::string_view tab_id) override {
+    revoked_connection_id_ = connection_id;
+    revoked_tab_id_ = tab_id;
+  }
+
+  std::string stopped_connection_id_;
+  std::string revoked_connection_id_;
+  std::string revoked_tab_id_;
 
   std::string GetMcpConfiguration() const override {
     return mcp_configuration_;
@@ -88,6 +109,7 @@ class FakeDaoMcpSettingsService : public DaoMcpSettingsService {
   bool enabled_ = false;
   std::string mcp_configuration_ = kTestMcpConfiguration;
   DaoMcpServiceStatus status_;
+  std::vector<DaoMcpConnectionInfo> connections_;
   int set_enabled_call_count_ = 0;
   int stop_control_call_count_ = 0;
   base::RepeatingCallbackList<void(const DaoMcpServiceStatus&)> observers_;
@@ -98,10 +120,11 @@ class TestDaoMcpSettingsHandler : public DaoMcpSettingsHandler {
   explicit TestDaoMcpSettingsHandler(DaoMcpSettingsService* service)
       : DaoMcpSettingsHandler(service) {}
 
-  using DaoMcpSettingsHandler::HandleGetDaoMcpStatus;
-  using DaoMcpSettingsHandler::HandleGetDaoMcpSetupContent;
   using DaoMcpSettingsHandler::HandleCopyDaoMcpSetupContent;
+  using DaoMcpSettingsHandler::HandleGetDaoMcpSetupContent;
+  using DaoMcpSettingsHandler::HandleGetDaoMcpStatus;
   using DaoMcpSettingsHandler::HandleResetDaoMcpUsageStats;
+  using DaoMcpSettingsHandler::HandleRevokeDaoMcpTab;
   using DaoMcpSettingsHandler::HandleSetDaoMcpEnabled;
   using DaoMcpSettingsHandler::HandleStopDaoMcpControl;
   using DaoMcpSettingsHandler::set_web_ui;
@@ -189,33 +212,10 @@ TEST_F(DaoMcpSettingsHandlerTest, ReportsAllStatesAndOnlyExposesActiveClient) {
   web_ui()->ClearTrackedCalls();
   const base::DictValue& connected_result = GetStatus();
   EXPECT_EQ("connected", *connected_result.FindString("state"));
-  EXPECT_EQ("Codex", *connected_result.FindString("clientName"));
-  EXPECT_EQ(12345, connected_result.FindInt("clientPid").value());
-  EXPECT_TRUE(connected_result.FindBool("canStop").value());
-}
-
-TEST_F(DaoMcpSettingsHandlerTest, SanitizesConnectedClientNameForWebUi) {
-  constexpr std::string_view kReportedName =
-      "  Codex\r\n\t\xe2\x80\xaeInjected";
-  service()->SetEnabled(true);
-  DaoMcpServiceStatus connected;
-  connected.state = DaoMcpStatus::kLeaseActive;
-  connected.client = DaoMcpClientInfo{
-      .name = std::string(kReportedName),
-      .version = "1",
-      .verified_pid = 12345,
-  };
-  service()->SetStatus(std::move(connected));
-  web_ui()->ClearTrackedCalls();
-
-  const base::DictValue& result = GetStatus();
-  std::u16string expected =
-      base::CollapseWhitespace(base::UTF8ToUTF16(kReportedName), true);
-  base::i18n::SanitizeUserSuppliedString(&expected);
-  EXPECT_EQ(base::UTF16ToUTF8(expected), *result.FindString("clientName"));
-  EXPECT_EQ(std::string::npos, result.FindString("clientName")->find('\n'));
-  EXPECT_EQ(std::string::npos, result.FindString("clientName")->find('\r'));
-  EXPECT_EQ(std::string::npos, result.FindString("clientName")->find('\t'));
+  EXPECT_FALSE(connected_result.contains("clientName"));
+  EXPECT_FALSE(connected_result.contains("clientPid"));
+  EXPECT_FALSE(connected_result.FindBool("canStop").value());
+  EXPECT_TRUE(connected_result.FindList("connections")->empty());
 }
 
 TEST_F(DaoMcpSettingsHandlerTest, WritesGlobalEnabledStateThroughService) {
@@ -227,10 +227,13 @@ TEST_F(DaoMcpSettingsHandlerTest, WritesGlobalEnabledStateThroughService) {
   EXPECT_EQ(1, service()->set_enabled_call_count());
 }
 
-TEST_F(DaoMcpSettingsHandlerTest, StopsControlThroughService) {
+TEST_F(DaoMcpSettingsHandlerTest, RejectsStopWithoutExplicitConnection) {
   handler()->HandleStopDaoMcpControl(base::ListValue());
 
-  EXPECT_EQ(1, service()->stop_control_call_count());
+  base::ListValue unknown_connection;
+  unknown_connection.Append("unknown-connection");
+  handler()->HandleStopDaoMcpControl(unknown_connection);
+  EXPECT_EQ(0, service()->stop_control_call_count());
 }
 
 TEST_F(DaoMcpSettingsHandlerTest, ReturnsAndCopiesValidatedCliSetupContent) {
@@ -512,6 +515,53 @@ TEST(DaoMcpInstallCommandTest, RejectsUnknownClient) {
 class DaoMcpSettingsPageBrowserTest : public InProcessBrowserTest {};
 
 IN_PROC_BROWSER_TEST_F(DaoMcpSettingsPageBrowserTest,
+                       ListsPermissionsAndTargetsExplicitConnection) {
+  FakeDaoMcpSettingsService service;
+  DaoMcpConnectionInfo connection;
+  connection.connection_id = "approved-connection";
+  connection.client.name = "Codex";
+  connection.browser_window = browser()->GetWeakPtr();
+  connection.can_create_tabs = true;
+  connection.tabs.push_back(
+      {.target = {.tab_id = "approved-tab", .url = "https://example.com/"},
+       .title = u"Example"});
+  DaoMcpConnectionInfo stale;
+  stale.connection_id = "closed-window";
+  service.SetConnections({connection, stale});
+
+  content::TestWebUI web_ui;
+  web_ui.set_web_contents(browser()->tab_strip_model()->GetActiveWebContents());
+  TestDaoMcpSettingsHandler handler(&service);
+  handler.set_web_ui(&web_ui);
+  base::ListValue status_args;
+  status_args.Append("permissions");
+  handler.HandleGetDaoMcpStatus(status_args);
+  const auto* connections =
+      web_ui.call_data().back()->arg3()->GetDict().FindList("connections");
+  ASSERT_TRUE(connections);
+  ASSERT_EQ(1u, connections->size());
+  EXPECT_EQ("approved-connection",
+            *(*connections)[0].GetDict().FindString("connectionId"));
+  EXPECT_EQ(1u, (*connections)[0].GetDict().FindList("tabs")->size());
+
+  base::ListValue revoke_args;
+  revoke_args.Append("approved-connection");
+  revoke_args.Append("approved-tab");
+  handler.HandleRevokeDaoMcpTab(revoke_args);
+  EXPECT_EQ("approved-connection", service.revoked_connection_id_);
+  EXPECT_EQ("approved-tab", service.revoked_tab_id_);
+  base::ListValue stop_args;
+  stop_args.Append("approved-connection");
+  handler.HandleStopDaoMcpControl(stop_args);
+  EXPECT_EQ("approved-connection", service.stopped_connection_id_);
+
+  base::ListValue stale_args;
+  stale_args.Append("closed-window");
+  handler.HandleStopDaoMcpControl(stale_args);
+  EXPECT_EQ(1, service.stop_control_call_count());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpSettingsPageBrowserTest,
                        RendersAndEnablesMcpServer) {
   ui::TestClipboard* clipboard = ui::TestClipboard::CreateForCurrentThread();
   PrefService* local_state = g_browser_process->local_state();
@@ -572,7 +622,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpSettingsPageBrowserTest,
           !page.shadowRoot.querySelector('.dao-mcp-title') &&
           !page.shadowRoot.querySelector('#daoMcpCopyConfig') &&
           !page.shadowRoot.querySelector('#daoMcpQuickSetup') &&
-          !page.shadowRoot.querySelector('#daoMcpStopControl'));
+          !page.shadowRoot.querySelector('.dao-mcp-stop-control'));
     })()
   )JS"));
 
@@ -719,20 +769,23 @@ IN_PROC_BROWSER_TEST_F(DaoMcpSettingsPageBrowserTest,
             configuration_clipboard_text.Get());
 
   EXPECT_EQ(
-      R"([{"message":"stopDaoMcpControl","args":[]}])",
+      R"([{"message":"stopDaoMcpControl","args":["test-connection"]},{"message":"revokeDaoMcpTab","args":["test-connection","test-tab"]}])",
       content::EvalJs(contents, R"JS(
     (async () => {
       const page = window.daoMcpPageForTest;
       window.cr.webUIListenerCallback('dao-mcp-status-changed', {
         enabled: true,
         state: 'connected',
-        clientName: 'Codex',
-        clientPid: 12345,
-        canStop: true,
+        connections: [{
+          connectionId: 'test-connection', clientName: 'Codex',
+          clientVersion: '1', clientPid: 12345, windowLabel: 'Window',
+          canCreateTabs: true, pageCountLabel: '1 page',
+          tabs: [{tabId: 'test-tab', title: 'Example', url: 'https://example.com'}],
+        }],
       });
       await new Promise(resolve => setTimeout(resolve, 0));
-      const client = page.shadowRoot.querySelector('#daoMcpClient');
-      const stop = page.shadowRoot.querySelector('#daoMcpStopControl');
+      const client = page.shadowRoot.querySelector('.dao-mcp-client');
+      const stop = page.shadowRoot.querySelector('.dao-mcp-stop-control');
       if (!client || !client.textContent.includes('Codex') ||
           !client.textContent.includes('12345') ||
           page.shadowRoot.querySelector('#daoMcpCopyConfig') || !stop) {
@@ -746,6 +799,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpSettingsPageBrowserTest,
       };
       try {
         stop.click();
+        page.shadowRoot.querySelector('.dao-mcp-revoke-tab').click();
       } finally {
         window.chrome.send = originalSend;
       }
@@ -753,20 +807,21 @@ IN_PROC_BROWSER_TEST_F(DaoMcpSettingsPageBrowserTest,
     })()
   )JS"));
 
-  EXPECT_EQ(
-      "ok",
-      content::EvalJs(contents, R"JS(
+  EXPECT_EQ("ok", content::EvalJs(contents, R"JS(
     (async () => {
       const page = window.daoMcpPageForTest;
 
       window.cr.webUIListenerCallback('dao-mcp-status-changed', {
         enabled: true,
         state: 'connected',
-        clientName: 'Codex for macOS',
-        canStop: false,
+        connections: [{
+          connectionId: 'page-only', clientName: 'Codex for macOS',
+          clientVersion: '', windowLabel: 'Window', canCreateTabs: false,
+          pageCountLabel: '0 pages', tabs: [],
+        }],
       });
       await new Promise(resolve => setTimeout(resolve, 0));
-      let client = page.shadowRoot.querySelector('#daoMcpClient');
+      let client = page.shadowRoot.querySelector('.dao-mcp-client');
       if (!client || client.textContent.trim() !== 'Codex for macOS') {
         return 'missing name-only client';
       }
@@ -777,7 +832,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpSettingsPageBrowserTest,
         canStop: false,
       });
       await new Promise(resolve => setTimeout(resolve, 0));
-      if (page.shadowRoot.querySelector('#daoMcpClient')) {
+      if (page.shadowRoot.querySelector('.dao-mcp-client')) {
         return 'rendered empty client';
       }
 
@@ -818,6 +873,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpSettingsPageBrowserTest,
           copyResolvers.push({option, resolve});
         }),
         stopDaoMcpControl: () => {},
+        revokeDaoMcpTab: () => {},
       };
 
       const selector =
@@ -879,7 +935,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpSettingsPageBrowserTest,
       return 'ok';
     })()
   )JS")
-          .ExtractString());
+                      .ExtractString());
 
   ui::Clipboard::DestroyClipboardForCurrentThread();
 }
