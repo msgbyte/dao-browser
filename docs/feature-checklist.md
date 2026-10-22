@@ -37,11 +37,9 @@ requirements, not claims that this target has compiled or passed runtime tests.
   must not block rollback; remote refs remain unchanged. Missing/invalid manifests fail
   before edits; per-platform Windows versions are preserved. Commit failure restores
   metadata. App versions and Mac appcast remain unchanged.
-- [ ] Production website deployment validates staged signatures and artifact
-  availability, then mirrors only the exact live feed to the old R2 address.
-  Preview/failed deployments do not mirror; mismatched deployed bytes refuse sync.
-  Configure the required Actions secrets before deploying. Verify no-store headers,
-  legacy HTTP 200 responses, and old/new Windows clients after a withdrawal.
+- [ ] Website deployment validates staged signatures and artifact availability
+  without Cloudflare Actions secrets or writes to the legacy R2 feed. Verify
+  no-store headers and website-feed Windows clients after a withdrawal.
 - [ ] Visit `/download` on macOS and confirm the configured Mac download starts,
   with manual links still available. Windows, Linux, mobile, and unknown devices
   must show manual platform links without starting a download, including iPads

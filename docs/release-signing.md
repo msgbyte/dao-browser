@@ -31,10 +31,10 @@ It trusts Wrangler artifact upload success and stages the signed JSON at
 `website/public/windows-update.json`. Local Windows signatures/checksums remain
 verified; HEAD cannot detect same-size content changes, so retries must retain
 the original `dist/` files. Windows update offers become live with website
-deployment. The deployment validates the immutable manifest and installer,
-publishes the website, then mirrors the exact live signed feed to the old R2
-address for existing clients. See the development guide for required Actions
-secrets and mirror recovery. Commit/push remain manual. The pushed tag archives only the available installers on GitHub;
+deployment. The deployment validates the immutable manifest and installer before
+publishing the website, without writing to R2 or requiring Cloudflare Actions
+secrets. The legacy R2 feed is no longer synchronized. Commit/push remain manual.
+The pushed tag archives only the available installers on GitHub;
 Windows checksums and signed metadata remain in R2 for verification and updates.
 
 If immutable artifact upload has started, local metadata
@@ -42,8 +42,6 @@ rolls back and recovery adds `--skip-build` while keeping the original bump.
 Preflight blocks rebuilding an already public candidate; preserve its `dist/`
 files so a retry uses identical bytes.
 
-A failed or interrupted deployment mirror may already be public. Verify both
-feed URLs and retry `npm run release:sync-windows-update` from the deployed checkout.
 Never overwrite an existing version with rebuilt bytes. Concurrent publishers
 are unsupported. The update signature authenticates downloads for Dao; it does
 not Authenticode-sign the Windows EXE or suppress Windows security prompts.

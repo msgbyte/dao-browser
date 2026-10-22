@@ -29,30 +29,18 @@ Commit/push remain manual; pushing website metadata to main triggers deployment.
 New Windows clients read `https://dao.msgbyte.com/windows-update.json` while
 installers stay on R2. The website feed has explicit browser/CDN `no-store` headers.
 
-Before merging this workflow, configure the repository Actions secrets
-`CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`, and `R2_BUCKET` (the release
-bucket). Use an R2 write token scoped to that bucket. Production deployment
-fails before publishing if these are absent. No Sparkle private key is needed
-in CI: the feed is already signed locally.
-
 The workflow validates the staged signature, immutable manifest, and installer
-availability/size, deploys the website, then runs `release:sync-windows-update`.
-That command requires the public production feed to exactly match the checked-out
-bytes before mirroring it to `https://dao-release.msgbyte.com/windows-update.json`.
-It checks the public legacy result after upload. Preview deployments never mirror.
-Old Windows clients continue receiving HTTP 200 at their original address; they
-cannot follow a redirect. A failed mirror leaves the website deployed and the
-legacy source potentially stale; retry the sync from the deployed checkout:
+availability/size before deploying the website. It does not write to R2 and needs
+no Cloudflare Actions secrets or Sparkle private key: the feed is signed locally.
+The legacy R2 update feed is no longer synchronized; clients using that address
+need a manual upgrade to receive future updates from the website.
 
 ```bash
 npm run release:sync-windows-update -- --check  # Validate staged metadata; no writes
-npm run release:sync-windows-update            # Mirror only the deployed signed bytes
 ```
 
-Mirroring identical bytes is safe to retry and can repair a corrupted legacy
-feed. Restoring an older valid signed feed is allowed;
-clients still reject installation downgrades. Do not publish concurrently from
-another workflow or signing host.
+Restoring an older valid signed feed is allowed; clients still reject installation
+downgrades. Do not publish concurrently from another workflow or signing host.
 
 ### Switch website downloads to a previous release
 
@@ -87,8 +75,7 @@ Selecting matching downloads and a matching feed does nothing; a changed feed
 is restored even when the download version is already selected.
 
 After manual push and deployment, this changes website downloads and Windows
-update offers. The deployment mirrors
-the Windows feed to R2 for old clients. It does not change `dao.json`, Mac
+update offers. It does not change `dao.json`, Mac
 `appcast.xml`, GitHub Releases, binaries, tags, or changelogs, and does not downgrade
 installed browsers or recall cached updates. Mac automatic updates remain
 independent. Subsequent normal releases increase the application version from `dao.json`.

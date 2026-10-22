@@ -4,6 +4,8 @@
 
 ### [Unreleased] Unreleased
 
+- Windows installations using the old update address need one manual upgrade to continue receiving automatic updates.
+
 ### [1.0.118] - 2026-10-23
 
 - Keep Windows update offers aligned with published releases when a problematic version is withdrawn.

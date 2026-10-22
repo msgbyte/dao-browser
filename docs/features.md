@@ -25,7 +25,7 @@ release failures restore them along with version metadata. Windows attachments a
 website download snapshot, checks its installers and original signed Windows
 manifest, and commits `website/public/info.json` plus `windows-update.json` locally
 from a clean `main`. No Git remote access or synchronization is required; push
-manually to trigger website deployment and legacy Windows feed synchronization.
+manually to trigger website deployment.
 It preserves application versions and Mac appcast;
 installed browsers are not downgraded. See [the development guide](development.md#switch-website-downloads-to-a-previous-release).
 
@@ -107,9 +107,8 @@ staging the signed Windows feed for website deployment. Artifact uploads rely on
 the release command does not download them for verification. Existing objects
 are checked with HEAD for uncompressed size when provided and skipped on retry; local Windows signatures
 and checksums remain verified. Website deployment verifies the signed feed against
-its immutable R2 manifest and available installer before publishing, then mirrors
-the exact deployed bytes to the legacy R2 feed. Preview deployments never mirror;
-production requires the Cloudflare account/token and R2 bucket Actions secrets.
+its immutable R2 manifest and available installer before publishing. Deployment
+does not write to R2 or require Cloudflare Actions secrets.
 `release:mac` retains the Mac-only workflow;
 `release:windows` retains the existing tag attachment workflow without advancing
 the Windows feed. Windows does not use Apple signing, notarization, or Sparkle
@@ -139,8 +138,8 @@ See [`development.md`](development.md) for setup and verification requirements.
 `https://dao.msgbyte.com/windows-update.json` after a 30-second startup
 delay when due, then daily. It runs only for registered per-user x64 installations
 using the default user-data directory, excluding component builds and
-Guest/Incognito-only starts. The separate installer origin remains R2, and old
-clients continue using the mirrored R2 feed without redirects. Website feed
+Guest/Incognito-only starts. The separate installer origin remains R2. The legacy
+R2 feed is no longer synchronized; clients using it need a manual upgrade. Website feed
 responses explicitly disable browser/CDN caching. macOS continues using Sparkle.
 
 The updater verifies an Ed25519 signature over the exact metadata payload,

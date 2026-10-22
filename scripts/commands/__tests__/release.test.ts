@@ -270,7 +270,7 @@ describe('release helpers', () => {
       '  - Commit + push (one-liner):',
       '      git add . && git commit -m "chore: dump to version v1.0.102" && git push origin main v1.0.102',
       '  - The pushed tag automatically archives available R2 desktop installers on GitHub Releases.',
-      '  - Website deployment publishes appcast.xml and the staged Windows feed, then mirrors Windows metadata to legacy R2 clients.',
+      '  - Website deployment publishes appcast.xml and the staged Windows feed.',
     ]);
   });
 

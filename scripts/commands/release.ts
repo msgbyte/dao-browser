@@ -1152,7 +1152,7 @@ export function formatReleaseSuccessInstructions(
     "  - Commit + push (one-liner):",
     `      git add . && git commit -m "chore: dump to version v${newVersion}" && git push origin main v${newVersion}`,
     "  - The pushed tag automatically archives available R2 desktop installers on GitHub Releases.",
-    "  - Website deployment publishes appcast.xml and the staged Windows feed, then mirrors Windows metadata to legacy R2 clients.",
+    "  - Website deployment publishes appcast.xml and the staged Windows feed.",
   ];
 }
 
