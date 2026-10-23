@@ -714,6 +714,7 @@ TEST_F(DaoLocalAgentIntegrationTest, InstallsAndRemovesSelectedIntegration) {
   ASSERT_TRUE(base::ReadFileToString(SkillPath(".agents"), &contents));
   EXPECT_EQ(BuildDaoEntrySkill(helper_), contents);
   EXPECT_TRUE(base::PathExists(home_.Append(".agents/skills/dao-lite/SKILL.md")));
+  EXPECT_EQ(false, SharedStatus().FindBool("needsUpdate"));
   EXPECT_FALSE(base::PathExists(home_.Append(".codex")));
   EXPECT_FALSE(base::PathExists(home_.Append(".claude")));
   EXPECT_FALSE(base::PathExists(home_.Append(".local")));
@@ -737,22 +738,39 @@ TEST_F(DaoLocalAgentIntegrationTest, InstallsAndRemovesSelectedIntegration) {
 
 TEST_F(DaoLocalAgentIntegrationTest, RepairsPartialSkillPairAndPreservesCustomLite) {
   WriteSkill(".agents", BuildDaoEntrySkill(helper_));
+  EXPECT_EQ(true, SharedStatus().FindBool("needsUpdate"));
   ASSERT_TRUE(UpdateDaoLocalAgentIntegration(home_, helper_, "shared", true));
   const auto lite = home_.Append(".agents/skills/dao-lite/SKILL.md");
   std::string contents;
   ASSERT_TRUE(base::ReadFileToString(lite, &contents));
   EXPECT_EQ(BuildDaoEntrySkill(helper_, true), contents);
+  EXPECT_EQ(false, SharedStatus().FindBool("needsUpdate"));
   ASSERT_TRUE(base::WriteFile(lite, "custom lite skill"));
   EXPECT_FALSE(UpdateDaoLocalAgentIntegration(home_, helper_, "shared", true));
+  EXPECT_EQ(true, SharedStatus().FindBool("needsUpdate"));
   ASSERT_TRUE(UpdateDaoLocalAgentIntegration(home_, helper_, "shared", false));
   EXPECT_FALSE(base::PathExists(SkillPath(".agents")));
   ASSERT_TRUE(base::ReadFileToString(lite, &contents));
   EXPECT_EQ("custom lite skill", contents);
 }
 
+TEST_F(DaoLocalAgentIntegrationTest, DetectsAndUpdatesOutdatedSkills) {
+  WriteSkill(".agents", BuildDaoEntrySkill(helper_) + "old content\n");
+  EXPECT_EQ(true, SharedStatus().FindBool("needsUpdate"));
+  ASSERT_TRUE(UpdateDaoLocalAgentIntegration(home_, helper_, "shared", true));
+  EXPECT_EQ(false, SharedStatus().FindBool("needsUpdate"));
+  // An app move also makes the embedded fallback command stale.
+  const auto moved =
+      temp_.GetPath().Append("Moved.app/Contents/Helpers/dao-browser");
+  auto status = GetDaoLocalAgentIntegrationStatus(home_, moved);
+  EXPECT_EQ(true,
+            (*status.FindList("agents"))[0].GetDict().FindBool("needsUpdate"));
+}
+
 TEST_F(DaoLocalAgentIntegrationTest, MigratesOnlyManagedCodexSkillOnRequest) {
   WriteSkill(".codex", BuildDaoEntrySkill(helper_));
   EXPECT_EQ(true, SharedStatus().FindBool("installed"));
+  EXPECT_EQ(true, SharedStatus().FindBool("needsUpdate"));
   EXPECT_FALSE(base::PathExists(SkillPath(".agents")));
   EXPECT_TRUE(base::PathExists(SkillPath(".codex")));
   ASSERT_TRUE(UpdateDaoLocalAgentIntegration(home_, helper_, "shared", true));
@@ -819,7 +837,10 @@ TEST_F(DaoLocalAgentIntegrationTest, DetectsOldCliLinksAndPreservesCustomCommand
   ASSERT_TRUE(base::CreateSymbolicLink(old, link));
   auto status = GetDaoLocalAgentIntegrationStatus(home_, helper_);
   EXPECT_EQ(true, status.FindBool("cliLinked"));
+  EXPECT_EQ(true, status.FindBool("cliNeedsUpdate"));
   ASSERT_TRUE(UpdateDaoLocalAgentIntegration(home_, helper_, "cli", true));
+  EXPECT_EQ(false, GetDaoLocalAgentIntegrationStatus(home_, helper_)
+                       .FindBool("cliNeedsUpdate"));
   ASSERT_TRUE(base::DeleteFile(link));
   ASSERT_TRUE(base::WriteFile(link, "custom command"));
   EXPECT_FALSE(UpdateDaoLocalAgentIntegration(home_, helper_, "cli", true));

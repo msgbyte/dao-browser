@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/test/data/webui/settings/dao_page_test.ts
-@@ -0,0 +1,820 @@
+@@ -0,0 +1,822 @@
 +// Copyright 2026 Dao Browser Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -128,17 +128,19 @@ index 0000000000..0000000001
 +
 +  getDaoLocalAgents(): Promise<{
 +    agents: Array<{
-+      id: string, detected: boolean, installed: boolean,
++      id: string, detected: boolean, installed: boolean, needsUpdate: boolean,
 +    }>,
 +    cliLinked: boolean,
++    cliNeedsUpdate: boolean,
 +  }> {
 +    this.methodCalled('getDaoLocalAgents');
 +    return Promise.resolve({
 +      agents: [
-+        {id: 'claude', detected: true, installed: true},
-+        {id: 'shared', detected: true, installed: false},
++        {id: 'claude', detected: true, installed: true, needsUpdate: false},
++        {id: 'shared', detected: true, installed: true, needsUpdate: true},
 +      ],
 +      cliLinked: true,
++      cliNeedsUpdate: false,
 +    });
 +  }
 +
@@ -407,7 +409,7 @@ index 0000000000..0000000001
 +    assertTrue(rows[0]!.textContent.includes(
 +        loadTimeData.getString('daoLocalAgentInstalled')));
 +    assertTrue(rows[1]!.textContent.includes(
-+        loadTimeData.getString('daoLocalAgentNotInstalled')));
++        loadTimeData.getString('daoLocalAgentNeedsUpdate')));
 +    assertTrue(rows[2]!.textContent.includes(
 +        loadTimeData.getString('daoLocalAgentLinked')));
 +  });
@@ -416,19 +418,19 @@ index 0000000000..0000000001
 +    sendMcpStatus({enabled: false, state: 'disabled', canStop: false});
 +    await flushTasks();
 +    assertEquals(0, mcpBrowserProxy.getCallCount('setDaoLocalAgentInstalled'));
-+    const install = page.shadowRoot!.querySelector<HTMLElement>(
++    const update = page.shadowRoot!.querySelector<HTMLElement>(
 +        '.dao-local-agent-install[data-id="shared"]')!;
-+    assertFalse(install.hidden);
-+    assertEquals(loadTimeData.getString('daoLocalAgentInstall'),
-+                 install.textContent.trim());
-+    install.click();
++    assertFalse(update.hidden);
++    assertEquals(loadTimeData.getString('daoLocalAgentUpdate'),
++                 update.textContent.trim());
++    update.click();
 +    assertDeepEquals(['shared', true],
 +        await mcpBrowserProxy.whenCalled('setDaoLocalAgentInstalled'));
 +    await flushTasks();
 +    mcpBrowserProxy.resetResolver('setDaoLocalAgentInstalled');
 +    page.shadowRoot!.querySelector<HTMLElement>(
-+        '.dao-local-agent-uninstall[data-id="claude"]')!.click();
-+    assertDeepEquals(['claude', false],
++        '.dao-local-agent-uninstall[data-id="shared"]')!.click();
++    assertDeepEquals(['shared', false],
 +        await mcpBrowserProxy.whenCalled('setDaoLocalAgentInstalled'));
 +  });
 +

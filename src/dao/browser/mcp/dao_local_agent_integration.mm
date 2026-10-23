@@ -166,6 +166,7 @@ void RequestDaoLocalAgentIntegrationUpdate(
     std::move(callback).Run(base::DictValue()
                                 .Set("agents", base::ListValue())
                                 .Set("cliLinked", false)
+                                .Set("cliNeedsUpdate", false)
                                 .Set("success", false));
     return;
   }
@@ -193,18 +194,23 @@ base::DictValue GetDaoLocalAgentIntegrationStatus(
       IsDaoManagedFile(home.Append(".codex/skills/dao-lite/SKILL.md"));
   auto add = [&](std::string_view id, const base::FilePath& root, bool shared) {
     bool installed = shared && legacy;
+    bool complete = true;
     for (bool lite : {false, true}) {
       const auto skill = root.Append("skills")
                              .Append(lite ? "dao-lite" : "dao-browser")
                              .Append("SKILL.md");
       const bool managed = IsDaoManagedFile(skill);
       installed |= managed;
+      std::string contents;
+      complete &= managed && base::ReadFileToString(skill, &contents) &&
+                  contents == BuildDaoEntrySkill(helper_path, lite);
     }
     agents.Append(
         base::DictValue()
             .Set("id", id)
             .Set("detected", shared || base::DirectoryExists(root))
-            .Set("installed", installed));
+            .Set("installed", installed)
+            .Set("needsUpdate", installed && (!complete || (shared && legacy))));
   };
   add("shared", home.Append(".agents"), true);
   add("claude", home.Append(".claude"), false);
@@ -215,7 +221,8 @@ base::DictValue GetDaoLocalAgentIntegrationStatus(
                       base::EndsWith(target.value(), kHelperSuffix);
   return base::DictValue()
       .Set("agents", std::move(agents))
-      .Set("cliLinked", linked);
+      .Set("cliLinked", linked)
+      .Set("cliNeedsUpdate", linked && target != helper_path);
 }
 
 void RequestDaoLocalAgentIntegrationStatus(
@@ -225,7 +232,8 @@ void RequestDaoLocalAgentIntegrationStatus(
       !base::PathService::Get(base::DIR_HOME, &home)) {
     std::move(callback).Run(base::DictValue()
                                 .Set("agents", base::ListValue())
-                                .Set("cliLinked", false));
+                                .Set("cliLinked", false)
+                                .Set("cliNeedsUpdate", false));
     return;
   }
   GetIntegrationTaskRunner()->PostTaskAndReplyWithResult(

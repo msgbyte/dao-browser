@@ -34,7 +34,8 @@ void RequestDaoLocalAgentIntegrationUpdate(
     bool installed,
     base::OnceCallback<void(base::DictValue)> callback);
 
-// Read-only status: {agents: [{id, detected, installed}], cliLinked}. Blocking.
+// Read-only status: {agents: [{id, detected, installed, needsUpdate}],
+// cliLinked, cliNeedsUpdate}. Blocking.
 base::DictValue GetDaoLocalAgentIntegrationStatus(
     const base::FilePath& home,
     const base::FilePath& helper_path);

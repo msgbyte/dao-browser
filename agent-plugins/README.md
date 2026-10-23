@@ -1,10 +1,10 @@
 # Agent plugins
 
-Dao settings provide manual installation and removal of the entry skills and
-command link independently of the MCP server switch. Codex and other compatible
-agents share `~/.agents/skills/{dao-lite,dao-browser}`; Claude Code has a separate
-manual entry that also installs both skills. Installing or uninstalling the
-shared skills removes Dao-managed legacy copies from
+Dao settings provide manual installation, updates, and removal of the entry
+skills and command link independently of the MCP server switch. Codex and other
+compatible agents share `~/.agents/skills/{dao-lite,dao-browser}`; Claude Code
+has a separate manual entry that also installs both skills. Opening settings or checking for updates flags stale installed
+copies. Updating the shared skill also removes Dao-managed legacy copies from
 `~/.codex/skills/{dao-lite,dao-browser}`, while preserving user-owned files.
 
 These packages are an additional distribution channel: they add a marketplace

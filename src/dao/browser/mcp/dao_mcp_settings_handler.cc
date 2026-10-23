@@ -313,7 +313,8 @@ void DaoMcpSettingsHandler::HandleGetDaoLocalAgents(
   OnLocalAgentStatus(std::move(callback_id),
                      base::DictValue()
                          .Set("agents", base::ListValue())
-                         .Set("cliLinked", false));
+                         .Set("cliLinked", false)
+                         .Set("cliNeedsUpdate", false));
 #endif
 }
 
@@ -335,6 +336,7 @@ void DaoMcpSettingsHandler::HandleSetDaoLocalAgentInstalled(
                      base::DictValue()
                          .Set("agents", base::ListValue())
                          .Set("cliLinked", false)
+                         .Set("cliNeedsUpdate", false)
                          .Set("success", false));
 #endif
 }

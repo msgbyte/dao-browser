@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_page.ts
-@@ -0,0 +1,724 @@
+@@ -0,0 +1,730 @@
 +// Copyright 2026 Dao Browser Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -104,9 +104,10 @@ index 0000000000..0000000001
 +
 +export interface DaoLocalAgentStatus {
 +  agents: Array<{
-+    id: string, detected: boolean, installed: boolean,
++    id: string, detected: boolean, installed: boolean, needsUpdate: boolean,
 +  }>;
 +  cliLinked: boolean;
++  cliNeedsUpdate: boolean;
 +}
 +
 +export interface DaoMcpBrowserProxy {
@@ -399,6 +400,7 @@ index 0000000000..0000000001
 +    };
 +    const agents = [...status.agents, {
 +      id: 'cli', detected: true, installed: status.cliLinked,
++      needsUpdate: status.cliNeedsUpdate,
 +    }];
 +    this.daoLocalAgents_ = agents.filter(agent => nameKeys[agent.id])
 +        .map(agent => {
@@ -412,11 +414,15 @@ index 0000000000..0000000001
 +          return {
 +            id: agent.id,
 +            name: loadTimeData.getString(nameKeys[agent.id]),
-+            status: loadTimeData.getString(statusKey),
-+            badge: agent.installed ? 'connected' : 'disabled',
++            status: loadTimeData.getString(
++                agent.needsUpdate ? 'daoLocalAgentNeedsUpdate' : statusKey),
++            badge: agent.needsUpdate ? 'approval_requested' :
++                agent.installed ? 'connected' : 'disabled',
 +            installed: agent.installed,
-+            canInstall: !agent.installed,
-+            action: loadTimeData.getString('daoLocalAgentInstall'),
++            canInstall: !agent.installed || agent.needsUpdate,
++            action: loadTimeData.getString(
++                agent.needsUpdate ? 'daoLocalAgentUpdate' :
++                                    'daoLocalAgentInstall'),
 +          };
 +        });
 +  }

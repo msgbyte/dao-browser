@@ -6,8 +6,8 @@
 
 - Allow a local agent to use Dao Lite background tasks for one hour across reconnects, without repeated prompts or extending the time as it works; access to your own tabs still needs separate approval.
 - Use the dao-lite skill for background searches and web tasks, and dao-browser when you explicitly want an agent to work on your existing tabs.
-- Install or uninstall local agent skills and the dao-browser command manually in settings, independently of the MCP server switch.
-- Codex now uses the shared skill in ~/.agents; installing or uninstalling it removes the duplicate copy previously installed by Dao in ~/.codex.
+- Manage local agent skills and the dao-browser command manually in settings, with install, uninstall, and update controls and a notice when an installed copy needs updating.
+- Codex now uses the shared skill in ~/.agents; updating or uninstalling it removes the duplicate copy previously installed by Dao in ~/.codex.
 
 ### [1.0.120] - 2026-10-24
 

@@ -6,10 +6,11 @@ import {describe, expect, it, vi} from 'vitest';
 
 const status = {
   agents: [
-    {id: 'shared', detected: true, installed: true},
-    {id: 'claude', detected: false, installed: false},
+    {id: 'shared', detected: true, installed: true, needsUpdate: true},
+    {id: 'claude', detected: false, installed: false, needsUpdate: false},
   ],
   cliLinked: true,
+  cliNeedsUpdate: false,
 };
 
 function createPage() {
@@ -39,19 +40,19 @@ function createPage() {
     getDaoLocalAgents: vi.fn().mockResolvedValue(status),
     setDaoLocalAgentInstalled: vi.fn().mockResolvedValue({
       ...status, success: true,
-      agents: [{...status.agents[0]}],
+      agents: [{...status.agents[0], needsUpdate: false}],
     }),
   };
   return page;
 }
 
 describe('manual local agent integration', () => {
-  it('shows installed skills and leaves files unchanged while checking status', async () => {
+  it('shows stale skills and leaves files unchanged while checking status', async () => {
     const page = createPage();
     await page.refreshDaoLocalAgents_();
     expect(page.daoLocalAgents_[0]).toMatchObject({
-      id: 'shared', installed: true, canInstall: false,
-      status: 'daoLocalAgentInstalled', action: 'daoLocalAgentInstall',
+      id: 'shared', installed: true, canInstall: true,
+      status: 'daoLocalAgentNeedsUpdate', action: 'daoLocalAgentUpdate',
     });
     expect(page.daoLocalAgents_[1]).toMatchObject({
       id: 'claude', installed: false, canInstall: true,
@@ -84,7 +85,7 @@ describe('manual local agent integration', () => {
       currentTarget: {dataset: {id: 'shared', install: 'true'}},
     });
     expect(page.daoLocalAgentsError_).toBe('daoLocalAgentsError');
-    expect(page.daoLocalAgents_[0].installed).toBe(true);
+    expect(page.daoLocalAgents_[0].action).toBe('daoLocalAgentUpdate');
   });
 
   it('reports read and mutation rejections and permits retry', async () => {
