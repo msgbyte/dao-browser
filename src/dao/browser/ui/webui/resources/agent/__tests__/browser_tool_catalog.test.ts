@@ -52,15 +52,15 @@ describe('browser_tool_catalog', () => {
     await initializeBrowserToolCatalog();
 
     expect(injectedCatalog.getString).toHaveBeenCalledTimes(2);
-    expect(getBrowserToolDefinitions('mcp')).toHaveLength(35);
+    expect(getBrowserToolDefinitions('mcp')).toHaveLength(43);
   });
 
-  it('exposes exactly 35 browser tools to MCP', async () => {
+  it('exposes exactly 43 browser tools to MCP', async () => {
     await initializeBrowserToolCatalog();
     const names = getBrowserToolDefinitions('mcp').map(
         tool => tool.function.name);
 
-    expect(names).toHaveLength(35);
+    expect(names).toHaveLength(43);
     expect(names).not.toContain('resolve_element_context');
     expect([...names].sort()).toEqual([
       'agent_click',
@@ -70,10 +70,12 @@ describe('browser_tool_catalog', () => {
       'click_by_ref',
       'click_element',
       'close_tab',
+      'create_space',
       'enable_console_tracking',
       'enable_network_tracking',
       'execute_script',
       'fill_by_ref',
+      'finish_space',
       'get_accessibility_tree',
       'get_console_messages',
       'get_network_body',
@@ -81,19 +83,25 @@ describe('browser_tool_catalog', () => {
       'get_page_html',
       'get_page_info',
       'get_resource_content',
+      'get_site_skills',
+      'handle_dialog',
       'highlight_element',
       'list_page_resources',
+      'list_spaces',
       'list_tabs',
       'move_cursor',
       'open_tab',
       'press_key_chord',
       'query_elements',
       'request_tab_access',
+      'request_user_help',
+      'run_browser_script',
       'run_browser_task',
       'scroll_down',
       'scroll_to_element',
       'scroll_up',
       'search_in_resources',
+      'set_space_status',
       'switch_tab',
       'type_text',
       'wait_for_element',
@@ -101,7 +109,7 @@ describe('browser_tool_catalog', () => {
     ]);
     expect([...new Set(getCatalogEntries('mcp').map(entry => entry.group))]
                .sort())
-        .toEqual(['devtools', 'page', 'tabs']);
+        .toEqual(['devtools', 'page', 'space', 'tabs']);
   });
 
   it('keeps page approval MCP-only and requires a reason', async () => {
@@ -191,7 +199,7 @@ describe('browser_tool_catalog', () => {
       expect(entry.name).toBeTruthy();
       expect(entry.description).toBeTruthy();
       expect(entry.inputSchema.type).toBe('object');
-      expect(entry.group).toMatch(/^(devtools|page|tabs)$/);
+      expect(entry.group).toMatch(/^(devtools|page|space|tabs)$/);
       expect(entry.clients.length).toBeGreaterThan(0);
       expect(entry.sideEffect).toMatch(/^(read|interaction|destructive)$/);
       expect(entry.timeoutMs).toBeGreaterThan(0);

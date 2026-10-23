@@ -22,6 +22,7 @@ build_webui("build") {
     "sidebar.ts",
     "sidebar_bridge.ts",
     "dao_sidebar_app.ts",
+    "dao_agent_spaces.ts",
     "dao_new_tab_button.ts",
     "dao_sidebar_section.ts",
     "dao_favorites_view.ts",

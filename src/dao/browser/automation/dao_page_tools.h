@@ -49,6 +49,9 @@ class DaoPageTools {
     virtual bool IsTargetLocked(content::WebContents* target) = 0;
     virtual void LockTarget(content::WebContents* target) = 0;
     virtual void UnlockTarget(content::WebContents* target) = 0;
+    // True when guarded clicks act as the user's own clicks, so pages can
+    // open popups and new tabs from them, as in Agent Space task windows.
+    virtual bool GrantsUserActivation();
   };
 
   using ResultCallback = base::OnceCallback<void(DaoBrowserToolResult)>;

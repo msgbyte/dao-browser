@@ -28,6 +28,16 @@ namespace dao {
 
 class DaoMcpApprovalDialog final : public views::DialogDelegate {
  public:
+  using ConsentCallback = base::OnceCallback<void(bool allowed, bool remember)>;
+
+  // Asks before the built-in Dao Agent starts its first background task,
+  // since pages in a task window use the user's sign-ins. "Don't ask again"
+  // maps to the "start background tasks without asking" AI setting. Runs
+  // `callback` with false when `browser` cannot show the dialog.
+  static void ShowAgentSpaceConsent(BrowserWindowInterface* browser,
+                                    const std::u16string& task_name,
+                                    ConsentCallback callback);
+
   DaoMcpApprovalDialog(const DaoMcpApprovalRequest& request,
                        BrowserWindowInterface* browser,
                        base::OnceCallback<void(bool)> callback);
@@ -35,6 +45,8 @@ class DaoMcpApprovalDialog final : public views::DialogDelegate {
       const DaoMcpApprovalRequest& request,
       BrowserWindowInterface* browser,
       base::OnceCallback<void(std::optional<std::string>)> callback);
+  DaoMcpApprovalDialog(const std::u16string& task_name,
+                       ConsentCallback callback);
   ~DaoMcpApprovalDialog() override;
 
   DaoMcpApprovalDialog(const DaoMcpApprovalDialog&) = delete;
@@ -52,6 +64,10 @@ class DaoMcpApprovalDialog final : public views::DialogDelegate {
   base::OnceCallback<void(std::optional<std::string>)> callback_;
   std::optional<std::string> explicit_tab_id_;
   std::vector<std::pair<raw_ptr<views::RadioButton>, std::string>> choices_;
+  ConsentCallback consent_callback_;
+  // Background-space requests can be remembered for the reported client.
+  std::string remember_client_name_;
+  bool remember_ = false;
   base::WeakPtrFactory<DaoMcpApprovalDialog> weak_factory_{this};
 };
 

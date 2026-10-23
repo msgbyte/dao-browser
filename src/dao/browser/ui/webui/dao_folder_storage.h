@@ -10,6 +10,7 @@
 
 #include "base/files/file_path.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/values.h"
 
 namespace base {
 class SequencedTaskRunner;
@@ -39,6 +40,13 @@ std::optional<std::string> ReadFolderFile(const base::FilePath& path);
 bool UpdateFolderFile(const base::FilePath& path,
                       const std::string& base_json,
                       const std::string& json);
+
+// Moves `tabs` (tab items with tabId, url and title) into the folder
+// `folder_id` in the latest file, creating it at the top as `folder_name`.
+bool AddTabsToFolderFile(const base::FilePath& path,
+                         const std::string& folder_id,
+                         const std::string& folder_name,
+                         const base::ListValue& tabs);
 
 // Classification commits only if the latest normalized snapshot matches base.
 bool UpdateFolderFileIfUnchanged(const base::FilePath& path,

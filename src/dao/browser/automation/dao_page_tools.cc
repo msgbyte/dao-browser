@@ -799,6 +799,10 @@ DaoPageTools::HighlightEntry::HighlightEntry(HighlightEntry&& other) noexcept =
 DaoPageTools::HighlightEntry& DaoPageTools::HighlightEntry::operator=(
     HighlightEntry&& other) noexcept = default;
 
+bool DaoPageTools::UiDelegate::GrantsUserActivation() {
+  return false;
+}
+
 DaoPageTools::DaoPageTools(DaoDevToolsClient* devtools_client,
                            UiDelegate* ui_delegate)
     : devtools_client_(devtools_client),
@@ -1746,6 +1750,9 @@ void DaoPageTools::ExecuteRefAction(std::string_view request_id) {
   base::DictValue params;
   params.Set("expression", script);
   params.Set("returnByValue", true);
+  if (ui_delegate_ && ui_delegate_->GrantsUserActivation()) {
+    params.Set("userGesture", true);
+  }
   SendCommand(request_id, "Runtime.evaluate", std::move(params),
               base::BindOnce(
                   [](base::WeakPtr<DaoPageTools> self, std::string request_id,

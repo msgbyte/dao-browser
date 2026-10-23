@@ -29,7 +29,7 @@ afterEach(() => {
 describe('tool_catalog: enable/disable semantics', () => {
   it('keeps built-in browser groups aligned with the catalog and plugins separate', () => {
     const browserGroups = TOOL_GROUPS.filter(
-        group => ['page', 'tabs', 'devtools'].includes(group.id));
+        group => ['page', 'tabs', 'space', 'devtools'].includes(group.id));
     const browserTools = browserGroups.flatMap(group => group.toolNames);
     const catalogTools = browserToolCatalog.tools
         .filter(tool => tool.clients.includes('dao_agent') && !isPluginTool(tool.name))

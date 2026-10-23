@@ -1,0 +1,53 @@
+# Copyright 2026 Dao Browser Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//dao/browser/dao_version.gni")
+
+# Embeds the agent guide so `dao-browser skill` always matches this build.
+action("dao_browser_guide") {
+  script = "embed_text.py"
+  sources = [ "dao_browser_guide.md" ]
+  outputs = [ "$target_gen_dir/dao_browser_guide.h" ]
+  args = [
+    rebase_path("dao_browser_guide.md", root_build_dir),
+    rebase_path(outputs[0], root_build_dir),
+    "kDaoBrowserGuide",
+  ]
+}
+
+# The entry skill Dao installs for local agents. agent-plugins/ ships the
+# same file.
+action("dao_browser_entry_skill") {
+  script = "embed_text.py"
+  sources = [ "dao_browser_entry_skill.md" ]
+  outputs = [ "$target_gen_dir/dao_browser_entry_skill.h" ]
+  args = [
+    rebase_path("dao_browser_entry_skill.md", root_build_dir),
+    rebase_path(outputs[0], root_build_dir),
+    "kDaoBrowserEntrySkill",
+  ]
+}
+
+if (is_mac) {
+  executable("dao_browser_cli") {
+    output_name = "dao-browser"
+    sources = [ "dao_browser_cli.cc" ]
+
+    defines = [ "DAO_MCP_VERSION=\"$dao_display_version\"" ]
+    frameworks = [ "Foundation.framework" ]
+
+    deps = [
+      ":dao_browser_guide",
+      "//base",
+      "//chrome/common:constants",
+      "//dao/browser/mcp:mcp_helper_core",
+    ]
+  }
+
+  bundle_data("dao_browser_cli_bundle_data") {
+    sources = [ "$root_out_dir/dao-browser" ]
+    outputs = [ "{{bundle_contents_dir}}/Helpers/{{source_file_part}}" ]
+    public_deps = [ ":dao_browser_cli" ]
+  }
+}

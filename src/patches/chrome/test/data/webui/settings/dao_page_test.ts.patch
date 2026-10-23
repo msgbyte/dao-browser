@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/test/data/webui/settings/dao_page_test.ts
-@@ -0,0 +1,757 @@
+@@ -0,0 +1,791 @@
 +// Copyright 2026 Dao Browser Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -76,6 +76,7 @@ index 0000000000..0000000001
 +      'stopDaoMcpControl',
 +      'revokeDaoMcpTab',
 +      'resetDaoMcpUsageStats',
++      'getDaoLocalAgents',
 +    ]);
 +  }
 +
@@ -122,6 +123,20 @@ index 0000000000..0000000001
 +
 +  revokeDaoMcpTab(connectionId: string, tabId: string): void {
 +    this.methodCalled('revokeDaoMcpTab', connectionId, tabId);
++  }
++
++  getDaoLocalAgents(): Promise<{
++    agents: Array<{id: string, detected: boolean, installed: boolean}>,
++    cliLinked: boolean,
++  }> {
++    this.methodCalled('getDaoLocalAgents');
++    return Promise.resolve({
++      agents: [
++        {id: 'claude', detected: true, installed: true},
++        {id: 'codex', detected: false, installed: false},
++      ],
++      cliLinked: true,
++    });
 +  }
 +
 +  resetDaoMcpUsageStats(): void {
@@ -367,6 +382,25 @@ index 0000000000..0000000001
 +    page.shadowRoot!
 +        .querySelector<HTMLElement>('#daoMcpResetUsage')!.click();
 +    await mcpBrowserProxy.whenCalled('resetDaoMcpUsageStats');
++  });
++
++  test('mcpListsLocalAgentsWithTheirStatus', async function() {
++    mcpBrowserProxy.resetResolver('getDaoLocalAgents');
++    sendMcpStatus({enabled: true, state: 'ready', canStop: false});
++    await mcpBrowserProxy.whenCalled('getDaoLocalAgents');
++    await flushTasks();
++
++    const rows = page.shadowRoot!.querySelectorAll<HTMLElement>(
++        '#daoLocalAgentList .dao-local-agent-row');
++    assertEquals(3, rows.length);
++    assertTrue(rows[0]!.textContent.includes(
++        loadTimeData.getString('daoLocalAgentClaude')));
++    assertTrue(rows[0]!.textContent.includes(
++        loadTimeData.getString('daoLocalAgentInstalled')));
++    assertTrue(rows[1]!.textContent.includes(
++        loadTimeData.getString('daoLocalAgentNotFound')));
++    assertTrue(rows[2]!.textContent.includes(
++        loadTimeData.getString('daoLocalAgentLinked')));
 +  });
 +
 +  test('mcpQuickSetupPreviewsAndCopiesSelectedClient', async function() {

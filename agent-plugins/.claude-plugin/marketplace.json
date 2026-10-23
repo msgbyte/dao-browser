@@ -1,0 +1,13 @@
+{
+  "name": "dao-browser",
+  "owner": {
+    "name": "Dao Browser"
+  },
+  "plugins": [
+    {
+      "name": "dao-browser",
+      "source": "./claude-code",
+      "description": "Use the Dao browser from Claude Code."
+    }
+  ]
+}

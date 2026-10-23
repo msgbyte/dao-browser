@@ -529,6 +529,9 @@ TEST_F(DaoMcpHelperBrowserTest,
             instructions->find("Window approval grants no existing pages"));
   EXPECT_NE(std::string::npos, instructions->find("query_elements"));
   EXPECT_NE(std::string::npos, instructions->find("click_by_ref"));
+  EXPECT_NE(std::string::npos, instructions->find("create_space"));
+  EXPECT_NE(std::string::npos, instructions->find("request_user_help"));
+  EXPECT_NE(std::string::npos, instructions->find("SPACE_USER_IN_CONTROL"));
   const base::DictValue* server_info = result->FindDict("serverInfo");
   ASSERT_TRUE(server_info);
   EXPECT_EQ("dao-browser", *server_info->FindString("name"));

@@ -55,7 +55,7 @@ constexpr char kUsageStatsTotalTokens[] = "totalTokens";
 constexpr char kUsageStatsEstimatedCost[] = "estimatedCost";
 constexpr char kUsageStatsLastReset[] = "lastReset";
 
-constexpr std::array<std::string_view, 17> kManagedStringSettings = {
+constexpr std::array<std::string_view, 18> kManagedStringSettings = {
     "dao_agent_providers",      "dao_agent_active_provider",
     "dao_agent_api_key",        "dao_agent_base_url",
     "dao_agent_model",          "dao_agent_soul",
@@ -64,7 +64,7 @@ constexpr std::array<std::string_view, 17> kManagedStringSettings = {
     "dao_resume_stale_hours",   "dao_proactive_enabled",
     "dao_page_context_enabled", "dao_conversation_enabled",
     "dao_proactive_threshold",  "dao_search_source",
-    "dao_jina_api_key",
+    "dao_jina_api_key",         "dao_agent_space_allowed",
 };
 
 // dao://agent handlers whose page can run a connection test, newest last.

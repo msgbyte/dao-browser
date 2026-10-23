@@ -25,6 +25,7 @@
 #include "dao/browser/agent/dao_agent_proactive_engine.h"
 #include "dao/browser/agent/dao_agent_workspace_types.h"
 #include "dao/browser/agent/dao_dream_service.h"
+#include "dao/browser/automation/dao_browser_tool_types.h"
 #include "dao/browser/automation/dao_devtools_client.h"
 #include "dao/browser/automation/dao_page_tools.h"
 #include "pdf/mojom/pdf.mojom-forward.h"
@@ -156,6 +157,14 @@ class DaoAgentUIHandler : public content::WebUIMessageHandler,
   void HandleEndAgentTurn(const base::ListValue& args);
   void HandleExecuteHomeTool(const base::ListValue& args);
   void HandleCancelBrowserTool(const base::ListValue& args);
+  // Space tools and browser tools that name a space_id. Spaces outlive Agent
+  // turns, so this path does not require the active-tab turn lease.
+  void HandleExecuteSpaceTool(const base::ListValue& args);
+  // The first background task needs the user's consent, since its pages use
+  // their sign-ins.
+  bool HasSpaceConsent();
+  void RunSpaceTool(std::string callback_id, DaoBrowserToolCall call);
+  void OnSpaceConsent(bool allowed, bool remember);
   void HandleGetPageInfo(const base::ListValue& args);
   void HandleClickElement(const base::ListValue& args);
   void HandleExecuteScript(const base::ListValue& args);
@@ -346,6 +355,12 @@ class DaoAgentUIHandler : public content::WebUIMessageHandler,
 
   std::unique_ptr<DaoDevToolsClient> devtools_client_;
   std::unique_ptr<DaoBrowserToolExecutor> browser_tool_executor_;
+  // Scopes cancellation of this UI's calls into Agent Spaces.
+  const std::string space_client_key_;
+  bool space_consent_granted_ = false;
+  bool space_consent_pending_ = false;
+  std::vector<std::pair<std::string, DaoBrowserToolCall>>
+      calls_waiting_for_consent_;
   base::WeakPtrFactory<DaoAgentUIHandler> weak_factory_{this};
 };
 

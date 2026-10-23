@@ -38,7 +38,8 @@ base::expected<void, DaoToolError> ValidateExternalTarget(
     BrowserWindowInterface* browser,
     Profile* profile,
     content::WebContents* contents,
-    bool allow_uncommitted_url) {
+    bool allow_uncommitted_url,
+    bool allow_off_the_record) {
   if (!browser || !profile || !contents || browser->GetProfile() != profile ||
       contents->GetBrowserContext() != profile) {
     return TargetGone();
@@ -54,7 +55,8 @@ base::expected<void, DaoToolError> ValidateExternalTarget(
   }
 
   if (!(browser->GetType() == BrowserWindowInterface::TYPE_NORMAL) ||
-      profile->IsOffTheRecord() || profile->IsGuestSession()) {
+      (profile->IsOffTheRecord() && !allow_off_the_record) ||
+      profile->IsGuestSession()) {
     return TargetForbidden();
   }
   if (!allow_uncommitted_url || !contents->GetLastCommittedURL().is_empty()) {

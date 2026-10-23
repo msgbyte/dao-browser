@@ -1,0 +1,32 @@
+diff --git a/ui/views/cocoa/native_widget_mac_ns_window_host.mm b/ui/views/cocoa/native_widget_mac_ns_window_host.mm
+--- a/ui/views/cocoa/native_widget_mac_ns_window_host.mm
++++ b/ui/views/cocoa/native_widget_mac_ns_window_host.mm
+@@ -697,6 +697,19 @@
+       base::BindOnce(lambda, base::Unretained(this)));
+ }
+ 
++void NativeWidgetMacNSWindowHost::SetCompositorActiveWhileHidden(
++    bool active) {
++  compositor_active_while_hidden_ = active;
++  if (!compositor_ || is_visible_) {
++    return;
++  }
++  if (active) {
++    compositor_->Unsuspend();
++  } else if (!display::Screen::Get()->IsHeadless()) {
++    compositor_->Suspend();
++  }
++}
++
+ void NativeWidgetMacNSWindowHost::UpdateCompositorProperties() {
+   if (!compositor_) {
+     return;
+@@ -1116,7 +1129,7 @@
+     if (window_visible) {
+       compositor_->Unsuspend();
+       layer()->SchedulePaint(layer()->bounds());
+-    } else {
++    } else if (!compositor_active_while_hidden_) {
+       compositor_->Suspend();
+     }
+   }

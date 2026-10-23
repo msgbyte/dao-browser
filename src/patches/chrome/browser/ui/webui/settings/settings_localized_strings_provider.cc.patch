@@ -54,7 +54,7 @@ diff --git a/chrome/browser/ui/webui/settings/settings_localized_strings_provide
  
    std::u16string license = l10n_util::GetStringFUTF16(
        IDS_VERSION_UI_LICENSE, chrome::kChromiumProjectURL,
-@@ -4451,6 +4461,304 @@
+@@ -4451,6 +4461,317 @@
                                    IDS_SETTINGS_EXTENSIONS_CHECKBOX_LABEL);
  }
  
@@ -150,6 +150,8 @@ diff --git a/chrome/browser/ui/webui/settings/settings_localized_strings_provide
 +       IDS_SETTINGS_DAO_AGENT_RESUME_HOURS_LABEL},
 +      {"daoAgentToolDetailsLabel",
 +       IDS_SETTINGS_DAO_AGENT_TOOL_DETAILS_LABEL},
++      {"daoAgentSpaceAllowedLabel",
++       IDS_SETTINGS_DAO_AGENT_SPACE_ALLOWED_LABEL},
 +      {"daoAgentDebugLabel", IDS_SETTINGS_DAO_AGENT_DEBUG_LABEL},
 +      {"daoAgentSoulTitle", IDS_SETTINGS_DAO_AGENT_SOUL_TITLE},
 +      {"daoAgentSoulDescription",
@@ -288,6 +290,17 @@ diff --git a/chrome/browser/ui/webui/settings/settings_localized_strings_provide
 +      {"daoMcpPageOnly", IDS_DAO_MCP_CONTROL_PAGE_ONLY},
 +      {"daoMcpRevokeTab", IDS_DAO_MCP_CONTROL_REVOKE_TAB},
 +      {"daoMcpQuickSetupTitle", IDS_SETTINGS_DAO_MCP_QUICK_SETUP_TITLE},
++      {"daoLocalAgentsTitle", IDS_SETTINGS_DAO_LOCAL_AGENTS_TITLE},
++      {"daoLocalAgentsDescription", IDS_SETTINGS_DAO_LOCAL_AGENTS_DESCRIPTION},
++      {"daoLocalAgentClaude", IDS_SETTINGS_DAO_LOCAL_AGENT_CLAUDE},
++      {"daoLocalAgentCodex", IDS_SETTINGS_DAO_LOCAL_AGENT_CODEX},
++      {"daoLocalAgentShared", IDS_SETTINGS_DAO_LOCAL_AGENT_SHARED},
++      {"daoLocalAgentCli", IDS_SETTINGS_DAO_LOCAL_AGENT_CLI},
++      {"daoLocalAgentInstalled", IDS_SETTINGS_DAO_LOCAL_AGENT_INSTALLED},
++      {"daoLocalAgentNotInstalled", IDS_SETTINGS_DAO_LOCAL_AGENT_NOT_INSTALLED},
++      {"daoLocalAgentNotFound", IDS_SETTINGS_DAO_LOCAL_AGENT_NOT_FOUND},
++      {"daoLocalAgentLinked", IDS_SETTINGS_DAO_LOCAL_AGENT_LINKED},
++      {"daoLocalAgentNotLinked", IDS_SETTINGS_DAO_LOCAL_AGENT_NOT_LINKED},
 +      {"daoMcpQuickSetupDescription",
 +       IDS_SETTINGS_DAO_MCP_QUICK_SETUP_DESCRIPTION},
 +      {"daoMcpClientLabel", IDS_SETTINGS_DAO_MCP_CLIENT_LABEL},
@@ -359,7 +372,7 @@ diff --git a/chrome/browser/ui/webui/settings/settings_localized_strings_provide
  void AddSecurityKeysStrings(content::WebUIDataSource* html_source) {
    static constexpr webui::LocalizedString kSecurityKeysStrings[] = {
        {"securityBundleResetToDefaultsButtonLabel",
-@@ -4600,6 +4908,7 @@
+@@ -4600,6 +4921,7 @@
    AddClearBrowsingDataStrings(html_source, profile);
    AddCommonStrings(html_source, profile);
    AddDownloadsStrings(html_source);

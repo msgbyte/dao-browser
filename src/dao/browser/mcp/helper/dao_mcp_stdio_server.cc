@@ -335,7 +335,14 @@ void DaoMcpStdioServer::HandleInitialize(const base::DictValue& request,
                   "open, click, or select X as page-local: inspect the current "
                   "target with query_elements, then pass its document_id, "
                   "snapshot_id, and ref_id to click_by_ref. Use switch_tab "
-                  "only for explicit browser-tab navigation.")
+                  "only for explicit browser-tab navigation. For multi-step "
+                  "work that should not take over the user's tabs, call "
+                  "create_space and pass its space_id to browser tools; the "
+                  "user can watch and take over. Use request_user_help for "
+                  "sign-ins, codes, payments or irreversible steps, and "
+                  "finish_space when done. If a call returns "
+                  "SPACE_USER_IN_CONTROL, stop without retrying and wait for "
+                  "the user.")
               .Set("serverInfo", base::DictValue()
                                      .Set("name", "dao-browser")
                                      .Set("version", server_version_))));

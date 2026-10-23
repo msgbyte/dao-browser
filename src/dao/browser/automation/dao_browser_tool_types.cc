@@ -59,6 +59,16 @@ std::string_view DaoToolErrorCodeToString(DaoToolErrorCode code) {
       return "TOOL_CANCELLED";
     case DaoToolErrorCode::kInternalError:
       return "INTERNAL_ERROR";
+    case DaoToolErrorCode::kSpaceNotFound:
+      return "SPACE_NOT_FOUND";
+    case DaoToolErrorCode::kSpaceUserInControl:
+      return "SPACE_USER_IN_CONTROL";
+    case DaoToolErrorCode::kSpaceClosed:
+      return "SPACE_CLOSED";
+    case DaoToolErrorCode::kSpaceLimitReached:
+      return "SPACE_LIMIT_REACHED";
+    case DaoToolErrorCode::kPageDialogOpen:
+      return "PAGE_DIALOG_OPEN";
   }
   return "INTERNAL_ERROR";
 }

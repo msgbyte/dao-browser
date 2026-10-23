@@ -6,6 +6,16 @@
 
 - Use an opaque main window on macOS so the desktop does not show through when browser content is not drawn.
 - Windows installations using the old update address need one manual upgrade to continue receiving automatic updates.
+- AI agents can now work in background task windows that use your sign-ins without taking over your tabs. The sidebar lists each task with its progress; hover to see it live, open it to watch the page and steps, take over, hand it back, or stop it.
+- Background AI tasks pause and let you know when they need you, such as signing in or answering a site's permission request, and continue after you hand them back.
+- Background AI tasks also hand over to you when a site asks you to pick a file or a device, or shows a sign-in, security key or certificate prompt, and they can answer a page's simple confirmation dialogs.
+- When an AI task needs you, Dao also sends a system notification that opens the task.
+- Files that background AI tasks download are saved without a prompt into a folder for each task in your Downloads.
+- Finished AI tasks can move their result pages into an "AI results" folder in your sidebar, with a short notice of what was added, and finished tasks stay listed after Dao restarts.
+- Dao Agent asks before it starts its first background task, and you can let it skip the question in AI settings.
+- AI tasks can work in a clean window that does not use your sign-ins.
+- Local agents such as Claude Code and Codex can use Dao through the new `dao-browser` command, which runs a whole multi-step browser script in one go; turning on the MCP server installs the command and a skill for these agents that stays current as Dao updates, and the settings show which agents are set up.
+- Local agents can ask to work in background task windows only, and you can always allow a trusted agent to do so; turning off the MCP server takes that permission back.
 
 ### [1.0.118] - 2026-10-23
 

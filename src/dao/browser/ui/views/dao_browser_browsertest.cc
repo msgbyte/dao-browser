@@ -12689,7 +12689,7 @@ IN_PROC_BROWSER_TEST_F(DaoAgentSidebarViewBrowserTest,
     EXPECT_EQ(original_url, original_tab->GetLastCommittedURL());
     EXPECT_EQ(GURL("dao://agent/"), agent_contents_->GetLastCommittedURL());
     EXPECT_TRUE(sidebar_->is_expanded());
-    EXPECT_EQ(other_tab_count, other_browser->tab_strip_model()->count());
+    EXPECT_EQ(other_tab_count, other_browser->GetTabStripModel()->count());
   }
 }
 

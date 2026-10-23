@@ -75,6 +75,10 @@ void StopTabDragWatchdog();
 // Move macOS traffic light buttons (close/minimize/zoom) to the given
 // origin within the window's content view. Call after the widget is shown.
 void SetTrafficLightsPosition(gfx::NativeWindow window, int x, int y);
+
+// A never-shown window keeps its compositor suspended, which freezes its
+// pages. Agent task windows keep it producing frames while hidden.
+void SetCompositorActiveWhileHidden(gfx::NativeWindow window, bool active);
 #endif
 
 }  // namespace dao

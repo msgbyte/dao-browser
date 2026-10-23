@@ -1,0 +1,22 @@
+diff --git a/components/javascript_dialogs/tab_modal_dialog_manager_delegate.h b/components/javascript_dialogs/tab_modal_dialog_manager_delegate.h
+--- a/components/javascript_dialogs/tab_modal_dialog_manager_delegate.h
++++ b/components/javascript_dialogs/tab_modal_dialog_manager_delegate.h
+@@ -50,6 +50,18 @@
+ 
+   // Returns true if the dialog can be shown as a modal UI.
+   virtual bool CanShowModalUI() = 0;
++
++  // Dao: returns true when nobody can see this page, as for pages in hidden
++  // Agent task windows. Their confirm and prompt dialogs wait, instead of
++  // being suppressed, until HandleJavaScriptDialog() answers them or the
++  // page becomes visible to the user.
++  virtual bool IsOffScreen();
++
++  // Dao: called when an off-screen page opens a dialog. Alerts have already
++  // been accepted by then.
++  virtual void DidRunOffScreenDialog(content::JavaScriptDialogType dialog_type,
++                                     const std::u16string& message_text,
++                                     const std::u16string& default_prompt_text);
+ };
+ 
+ }  // namespace javascript_dialogs

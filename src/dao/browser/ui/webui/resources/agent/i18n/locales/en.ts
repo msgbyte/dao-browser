@@ -507,6 +507,7 @@ const dict: Dictionary = {
   // catalog itself).
   'settings.tools.group.page': 'Page',
   'settings.tools.group.tabs': 'Tabs',
+  'settings.tools.group.space': 'Agent Spaces',
   'settings.tools.group.devtools': 'DevTools',
   'settings.tools.group.memory-skills': 'Memory & Skills',
   'settings.tools.group.web': 'Web',

@@ -41,6 +41,11 @@ enum class DaoToolErrorCode {
   kToolTimeout,
   kToolCancelled,
   kInternalError,
+  kSpaceNotFound,
+  kSpaceUserInControl,
+  kSpaceClosed,
+  kSpaceLimitReached,
+  kPageDialogOpen,
 };
 
 std::string_view DaoToolErrorCodeToString(DaoToolErrorCode code);

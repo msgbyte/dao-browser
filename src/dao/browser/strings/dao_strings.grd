@@ -590,6 +590,12 @@
       <message name="IDS_DAO_MCP_APPROVAL_TAB_URL" desc="URL of the exact tab requested by a local MCP client. URL is recorded at request time.">
         URL: <ph name="URL">$1<ex>https://example.com/</ex></ph>
       </message>
+      <message name="IDS_DAO_MCP_APPROVAL_SPACE_EXPLANATION" desc="Explanation when a local AI agent asks to work in background task windows (Agent Spaces) instead of the user's own window.">
+        A local AI agent wants to work in background task windows. It can use your sign-ins there, and you can watch, take over or stop each task from the sidebar.
+      </message>
+      <message name="IDS_DAO_MCP_APPROVAL_SPACE_REMEMBER" desc="Checkbox in the approval dialog that skips this question next time for the same local AI agent. CLIENT is the client-reported agent name.">
+        Always allow <ph name="CLIENT">$1<ex>Claude Code</ex></ph> to use background task windows
+      </message>
       <message name="IDS_DAO_MCP_APPROVAL_WARNING" desc="Security warning in the MCP connection approval dialog.">
         If allowed, it can read and interact with websites using your current login, including by running JavaScript.
       </message>
@@ -640,6 +646,152 @@
       </message>
       <message name="IDS_DAO_MCP_CONTROL_REVOKED" desc="Toast shown after the user stops an active local MCP browser-control connection.">
         Browser control stopped
+      </message>
+
+      <!-- Agent Spaces: hidden task windows used by AI agents -->
+      <message name="IDS_DAO_AGENT_SPACE_OWNER_DAO_AGENT" desc="Name of Dao's built-in AI agent, shown as the owner of a background task it started.">
+        Dao Agent
+      </message>
+      <message name="IDS_DAO_AGENT_SPACES_TITLE" desc="Sidebar section heading above the list of AI tasks running in background windows.">
+        AI tasks
+      </message>
+      <message name="IDS_DAO_AGENT_SPACE_STATE_RUNNING" desc="Status shown under an AI task in the sidebar while the AI is working and has not reported progress yet.">
+        Working
+      </message>
+      <message name="IDS_DAO_AGENT_SPACE_STATE_YOU_HAVE_CONTROL" desc="Status shown for an AI task after the user took control of its window.">
+        You're in control
+      </message>
+      <message name="IDS_DAO_AGENT_SPACE_STATE_FINISHED" desc="Status shown for an AI task that finished.">
+        Done
+      </message>
+      <message name="IDS_DAO_AGENT_SPACE_STATE_STOPPED" desc="Status shown for an AI task that was stopped.">
+        Stopped
+      </message>
+      <message name="IDS_DAO_AGENT_SPACE_STATE_STOPPED_INACTIVE" desc="Status shown for an AI task that Dao stopped because the AI agent stopped using it for a long time.">
+        Stopped after a long time without activity
+      </message>
+      <message name="IDS_DAO_AGENT_SPACE_NEEDS_YOU" desc="Status shown for an AI task that asked the user to do a step. REASON is the step, written by the agent.">
+        Needs you: <ph name="REASON">$1<ex>Sign in to your airline account</ex></ph>
+      </message>
+      <message name="IDS_DAO_AGENT_SPACE_DIALOG_PENDING" desc="Status shown for an AI task while a page in it waits for an answer to its confirm or prompt dialog. QUESTION is the page's own dialog text.">
+        Page is asking: <ph name="QUESTION">$1<ex>Delete this item?</ex></ph>
+      </message>
+      <message name="IDS_DAO_AGENT_SPACE_NEEDS_PERMISSION" desc="Status shown for an AI task that paused because a page in it asked for a permission such as location or camera.">
+        Needs you: a site is asking for permission
+      </message>
+      <message name="IDS_DAO_AGENT_SPACE_NEEDS_FILE" desc="Status shown for an AI task that paused because a page in it opened a file picker, which only the user can answer.">
+        Needs you: a site wants you to choose a file
+      </message>
+      <message name="IDS_DAO_AGENT_SPACE_NEEDS_DEVICE" desc="Status shown for an AI task that paused because a page in it asked to connect to a USB, Bluetooth, serial or HID device.">
+        Needs you: a site wants to connect to a device
+      </message>
+      <message name="IDS_DAO_AGENT_SPACE_NEEDS_BROWSER_DIALOG" desc="Status shown for an AI task that paused because the browser shows a dialog for a page in it that only the user can answer, such as a site sign-in, security key or certificate prompt.">
+        Needs you: a site is waiting for your answer
+      </message>
+      <message name="IDS_DAO_AGENT_SPACE_RESULTS_FOLDER" desc="Name of the sidebar folder that collects pages a background AI task kept for the user when it finished.">
+        AI results
+      </message>
+      <message name="IDS_DAO_AGENT_SPACE_DOWNLOADS_FOLDER" desc="Name of the folder inside the user's Downloads folder where files downloaded by background AI tasks are saved. Each task gets a subfolder named after it.">
+        AI Tasks
+      </message>
+      <message name="IDS_DAO_AGENT_SPACE_OPEN_WINDOW" desc="Button that shows the hidden window an AI task works in.">
+        Open window
+      </message>
+      <message name="IDS_DAO_AGENT_SPACE_HIDE_WINDOW" desc="Button in an AI task's window that hides the window again while the task continues in the background.">
+        Hide window
+      </message>
+      <message name="IDS_DAO_AGENT_SPACE_TAKE_OVER" desc="Button that pauses the AI and gives the user control of the AI task's window.">
+        Take over
+      </message>
+      <message name="IDS_DAO_AGENT_SPACE_HAND_BACK" desc="Button that returns control of a task window to the AI after the user finished a step.">
+        Hand back to AI
+      </message>
+      <message name="IDS_DAO_AGENT_SPACE_STOP" desc="Button that stops an AI task and closes its window.">
+        Stop task
+      </message>
+      <message name="IDS_DAO_AGENT_SPACE_DISMISS" desc="Button that removes a finished or stopped AI task from the sidebar list.">
+        Remove from list
+      </message>
+      <message name="IDS_DAO_AGENT_SPACE_LIVE" desc="Small badge on the live view of an AI task's page, showing that the image updates in real time.">
+        Live
+      </message>
+      <message name="IDS_DAO_AGENT_SPACE_NOW" desc="Small label in front of what an AI task is doing right now, in its open sidebar card.">
+        Now
+      </message>
+      <message name="IDS_DAO_AGENT_SPACE_SHOW_ALL_STEPS" desc="Link in an AI task's open sidebar card that shows more of the steps the AI has taken.">
+        Show all steps
+      </message>
+      <message name="IDS_DAO_AGENT_SPACE_SHOW_FEWER_STEPS" desc="Link in an AI task's open sidebar card that goes back to showing only the latest steps.">
+        Show fewer steps
+      </message>
+      <message name="IDS_DAO_AGENT_SPACE_RESOLVE" desc="Button on an AI task in the sidebar that needs the user. Opens the task's window so the user can do the step the AI cannot do.">
+        Resolve
+      </message>
+      <message name="IDS_DAO_AGENT_SPACE_STARTED_BY" desc="Line under the name of an open AI task in the sidebar. OWNER is the app that started the task, TIME is the time of day it started.">
+        <ph name="OWNER">$1<ex>Claude Code</ex></ph> · started <ph name="TIME">$2<ex>11:08</ex></ph>
+      </message>
+      <message name="IDS_DAO_AGENT_SPACE_STARTED_AT" desc="Line under the name of an open AI task in the sidebar when the app that started it is unknown. TIME is the time of day it started.">
+        Started <ph name="TIME">$1<ex>11:08</ex></ph>
+      </message>
+      <message name="IDS_DAO_AGENT_SPACE_STEP_START" desc="Timeline entry for the first step of an AI task.">
+        Started the task
+      </message>
+      <message name="IDS_DAO_AGENT_SPACE_STEP_READ" desc="Timeline entry when the AI read the page without changing it.">
+        Reading the page
+      </message>
+      <message name="IDS_DAO_AGENT_SPACE_STEP_NAVIGATE" desc="Timeline entry when the AI opened, switched or closed a page in its task window.">
+        Changing pages
+      </message>
+      <message name="IDS_DAO_AGENT_SPACE_STEP_ACT" desc="Timeline entry when the AI clicked, typed or otherwise used the page.">
+        Using the page
+      </message>
+      <message name="IDS_DAO_AGENT_SPACE_TASK_WINDOW_LABEL" desc="Label at the top of the sidebar in a window an AI task works in.">
+        AI task window
+      </message>
+      <message name="IDS_DAO_AGENT_SPACE_TASK_WINDOW_AGENT_HINT" desc="Hint in an AI task's window while the AI controls it.">
+        The AI is working here. Take over to use this window yourself.
+      </message>
+      <message name="IDS_DAO_AGENT_SPACE_TASK_WINDOW_USER_HINT" desc="Hint in an AI task's window while the user controls it.">
+        You're in control. Hand back to the AI when you're done.
+      </message>
+      <message name="IDS_DAO_AGENT_SPACE_HELP_TOAST" desc="Toast shown when an AI task running in a background Agent Space asks the user to do a step. TASK is the task name and REASON is what the user needs to do, both written by the agent.">
+        <ph name="TASK">$1<ex>Compare flight prices</ex></ph> needs you: <ph name="REASON">$2<ex>Sign in to your airline account</ex></ph>
+      </message>
+      <message name="IDS_DAO_AGENT_SPACE_PERMISSION_TOAST" desc="Toast shown when a page inside a background AI task asks for a permission such as location or camera, so the user must answer it. TASK is the task name written by the agent.">
+        <ph name="TASK">$1<ex>Compare flight prices</ex></ph> needs you to answer a site permission request
+      </message>
+      <message name="IDS_DAO_AGENT_SPACE_FILE_TOAST" desc="Toast and system notification shown when a page inside a background AI task opens a file picker, so the user must choose the file. TASK is the task name written by the agent.">
+        <ph name="TASK">$1<ex>Compare flight prices</ex></ph> needs you to choose a file for a site
+      </message>
+      <message name="IDS_DAO_AGENT_SPACE_DEVICE_TOAST" desc="Toast and system notification shown when a page inside a background AI task asks to connect to a USB, Bluetooth, serial or HID device. TASK is the task name written by the agent.">
+        <ph name="TASK">$1<ex>Compare flight prices</ex></ph> needs you to choose a device for a site
+      </message>
+      <message name="IDS_DAO_AGENT_SPACE_BROWSER_DIALOG_TOAST" desc="Toast and system notification shown when the browser shows a dialog for a page inside a background AI task that only the user can answer, such as a site sign-in, security key or certificate prompt. TASK is the task name written by the agent.">
+        <ph name="TASK">$1<ex>Compare flight prices</ex></ph> needs you to answer a site's sign-in or security prompt
+      </message>
+      <message name="IDS_DAO_AGENT_SPACE_CONSENT_TITLE" desc="Title of the dialog that asks before Dao's built-in AI agent starts its first background task in a hidden window.">
+        Let Dao Agent work in the background?
+      </message>
+      <message name="IDS_DAO_AGENT_SPACE_CONSENT_BODY" desc="Explains what the built-in AI agent wants to do. TASK is the task name written by the agent.">
+        Dao Agent wants to start “<ph name="TASK">$1<ex>Compare flight prices</ex></ph>” in a hidden window. Pages there use your sign-ins.
+      </message>
+      <message name="IDS_DAO_AGENT_SPACE_CONSENT_DETAIL" desc="Second paragraph of the dialog that asks before the built-in AI agent starts a background task.">
+        You can watch, take over or stop each task from the sidebar at any time.
+      </message>
+      <message name="IDS_DAO_AGENT_SPACE_CONSENT_REMEMBER" desc="Checkbox in the dialog that asks before the built-in AI agent starts a background task. When checked, the agent no longer asks; the user can change this in AI settings.">
+        Don't ask again
+      </message>
+      <message name="IDS_DAO_AGENT_SPACE_CONSENT_ALLOW" desc="Button that lets the built-in AI agent start a background task.">
+        Allow
+      </message>
+      <message name="IDS_DAO_AGENT_SPACE_CONSENT_DENY" desc="Button that stops the built-in AI agent from starting a background task.">
+        Don't allow
+      </message>
+      <message name="IDS_DAO_AGENT_SPACE_FINISHED_TOAST" desc="Toast shown when a background AI task finishes without keeping any pages. TASK is the task name written by the agent.">
+        <ph name="TASK">$1<ex>Compare flight prices</ex></ph> is done
+      </message>
+      <message name="IDS_DAO_AGENT_SPACE_FINISHED_KEPT_TOAST" desc="Toast shown when a background AI task finishes and moves its result pages into the user's window. TASK is the task name written by the agent and COUNT is the number of pages added.">
+        <ph name="TASK">$1<ex>Compare flight prices</ex></ph> is done and added <ph name="COUNT">$2<ex>2</ex></ph> pages to this window
       </message>
 
       <!-- Little Dao mini-browser window -->

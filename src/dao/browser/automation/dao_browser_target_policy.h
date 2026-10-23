@@ -27,7 +27,8 @@ base::expected<void, DaoToolError> ValidateExternalTarget(
     BrowserWindowInterface* browser,
     Profile* profile,
     content::WebContents* contents,
-    bool allow_uncommitted_url = false);
+    bool allow_uncommitted_url = false,
+    bool allow_off_the_record = false);
 
 }  // namespace dao
 

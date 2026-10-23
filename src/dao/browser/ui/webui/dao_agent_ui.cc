@@ -42,6 +42,7 @@
 #include "components/history/core/browser/history_types.h"
 #include "components/pdf/browser/pdf_document_helper.h"
 #include "components/prefs/pref_service.h"
+#include "components/prefs/scoped_user_pref_update.h"
 #include "components/sessions/content/session_tab_helper.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/render_frame_host.h"
@@ -66,6 +67,7 @@
 #include "dao/browser/agent/dao_dream_service_factory.h"
 #include "dao/browser/agent/workspace/text_only_filter.h"
 #include "dao/browser/agent/workspace/workspace_quota.h"
+#include "dao/browser/agent_space/dao_agent_space_service.h"
 #include "dao/browser/automation/dao_agent_lease_manager.h"
 #include "dao/browser/automation/dao_browser_automation_session.h"
 #include "dao/browser/automation/dao_browser_tool_executor.h"
@@ -78,6 +80,7 @@
 #include "dao/browser/ui/views/dao_address_bar_view.h"
 #include "dao/browser/ui/views/dao_agent_cursor_view.h"
 #include "dao/browser/ui/views/dao_agent_sidebar_view.h"
+#include "dao/browser/ui/views/dao_mcp_approval_dialog.h"
 #include "dao/browser/ui/webui/dao_home_ui.h"
 #include "net/base/load_flags.h"
 #include "net/cookies/site_for_cookies.h"
@@ -401,7 +404,9 @@ DaoAgentUIHandler::DaoAgentUIHandler()
     : devtools_client_(std::make_unique<DaoDevToolsClient>()),
       browser_tool_executor_(
           std::make_unique<DaoBrowserToolExecutor>(devtools_client_.get(),
-                                                   this)) {}
+                                                   this)),
+      space_client_key_("agent-ui-" +
+                        base::Uuid::GenerateRandomV4().AsLowercaseString()) {}
 
 DaoAgentUIHandler::~DaoAgentUIHandler() {
   weak_factory_.InvalidateWeakPtrs();
@@ -421,6 +426,10 @@ void DaoAgentUIHandler::RegisterMessages() {
   web_ui()->RegisterMessageCallback(
       "beginAgentTurn",
       base::BindRepeating(&DaoAgentUIHandler::HandleBeginAgentTurn,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "executeSpaceTool",
+      base::BindRepeating(&DaoAgentUIHandler::HandleExecuteSpaceTool,
                           base::Unretained(this)));
   web_ui()->RegisterMessageCallback(
       "cancelBeginAgentTurn",
@@ -724,6 +733,12 @@ void DaoAgentUIHandler::AbortAgentTurn(DaoToolError error) {
   if (browser_tool_executor_) {
     browser_tool_executor_->CancelAll(error);
     browser_tool_executor_->ClearSessionState(agent_turn_session_.get());
+  }
+  if (web_ui() && web_ui()->GetWebContents()) {
+    if (DaoAgentSpaceService* spaces = DaoAgentSpaceService::GetForProfile(
+            Profile::FromWebUI(web_ui()))) {
+      spaces->CancelClientTools(space_client_key_);
+    }
   }
   agent_turn_session_.reset();
   agent_turn_lease_.reset();
@@ -1306,6 +1321,117 @@ void DaoAgentUIHandler::HandleCancelBrowserTool(const base::ListValue& args) {
   browser_tool_executor_->Cancel(
       args[0].GetString(), MakeDaoToolError(DaoToolErrorCode::kToolCancelled,
                                             "Browser tool call was aborted."));
+  if (DaoAgentSpaceService* spaces =
+          DaoAgentSpaceService::GetForProfile(Profile::FromWebUI(web_ui()))) {
+    spaces->CancelTool({DaoToolClient::kDaoAgent, space_client_key_, ""},
+                       args[0].GetString());
+  }
+}
+
+void DaoAgentUIHandler::HandleExecuteSpaceTool(const base::ListValue& args) {
+  AllowJavascript();
+  if (args.size() < 2 || !args[0].is_string() || !args[1].is_dict()) {
+    return;
+  }
+  const std::string callback_id = args[0].GetString();
+  const base::DictValue& request = args[1].GetDict();
+  const std::string* name = request.FindString("name");
+  const base::DictValue* arguments = request.FindDict("arguments");
+  if (!name || !arguments) {
+    ResolvePageToolError(callback_id,
+                         MakeDaoToolError(DaoToolErrorCode::kInvalidArgument,
+                                          "Invalid Agent Space tool request."));
+    return;
+  }
+  DaoAgentSpaceService* spaces =
+      DaoAgentSpaceService::GetForProfile(Profile::FromWebUI(web_ui()));
+  if (!spaces) {
+    ResolvePageToolError(
+        callback_id,
+        MakeDaoToolError(DaoToolErrorCode::kTargetForbidden,
+                         "Agent Spaces are unavailable in this profile."));
+    return;
+  }
+  DaoBrowserToolCall call;
+  call.request_id = callback_id;
+  call.name = *name;
+  call.arguments = arguments->Clone();
+  if (call.name != "create_space" || HasSpaceConsent()) {
+    RunSpaceTool(callback_id, std::move(call));
+    return;
+  }
+  const std::string* task_name = call.arguments.FindString("name");
+  const std::u16string title = base::UTF8ToUTF16(task_name ? *task_name : "");
+  calls_waiting_for_consent_.emplace_back(callback_id, std::move(call));
+  if (space_consent_pending_) {
+    return;
+  }
+  space_consent_pending_ = true;
+  DaoMcpApprovalDialog::ShowAgentSpaceConsent(
+      GlobalBrowserCollection::GetInstance()->GetLastActiveBrowser(), title,
+      base::BindOnce(&DaoAgentUIHandler::OnSpaceConsent,
+                     weak_factory_.GetWeakPtr()));
+}
+
+bool DaoAgentUIHandler::HasSpaceConsent() {
+  if (space_consent_granted_) {
+    return true;
+  }
+  const std::string* allowed =
+      Profile::FromWebUI(web_ui())
+          ->GetPrefs()
+          ->GetDict(prefs::kDaoAgentSettings)
+          .FindString("dao_agent_space_allowed");
+  return allowed && *allowed == "true";
+}
+
+void DaoAgentUIHandler::RunSpaceTool(std::string callback_id,
+                                     DaoBrowserToolCall call) {
+  DaoAgentSpaceService* spaces =
+      DaoAgentSpaceService::GetForProfile(Profile::FromWebUI(web_ui()));
+  if (!spaces) {
+    ResolvePageToolError(
+        callback_id,
+        MakeDaoToolError(DaoToolErrorCode::kTargetForbidden,
+                         "Agent Spaces are unavailable in this profile."));
+    return;
+  }
+  spaces->ExecuteTool(
+      {DaoToolClient::kDaoAgent, space_client_key_,
+       l10n_util::GetStringUTF8(IDS_DAO_AGENT_SPACE_OWNER_DAO_AGENT)},
+      std::move(call),
+      base::BindOnce(&DaoAgentUIHandler::OnPageToolComplete,
+                     weak_factory_.GetWeakPtr(), callback_id));
+}
+
+void DaoAgentUIHandler::OnSpaceConsent(bool allowed, bool remember) {
+  space_consent_pending_ = false;
+  if (allowed) {
+    space_consent_granted_ = true;
+  }
+  if (remember) {
+    ScopedDictPrefUpdate(Profile::FromWebUI(web_ui())->GetPrefs(),
+                         prefs::kDaoAgentSettings)
+        ->Set("dao_agent_space_allowed", "true");
+  }
+  std::vector<std::pair<std::string, DaoBrowserToolCall>> calls =
+      std::exchange(calls_waiting_for_consent_, {});
+  base::WeakPtr<DaoAgentUIHandler> weak_this = weak_factory_.GetWeakPtr();
+  for (auto& [callback_id, call] : calls) {
+    if (!weak_this) {
+      return;
+    }
+    if (allowed) {
+      RunSpaceTool(callback_id, std::move(call));
+    } else {
+      ResolvePageToolError(
+          callback_id,
+          MakeDaoToolError(
+              DaoToolErrorCode::kAuthorizationDenied,
+              "The user did not allow background tasks. Work on the current "
+              "tab instead, or ask the user how to continue."));
+    }
+  }
 }
 
 void DaoAgentUIHandler::HandleGetPageInfo(const base::ListValue& args) {

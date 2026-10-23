@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_agent_page.ts
-@@ -0,0 +1,975 @@
+@@ -0,0 +1,979 @@
 +// Copyright 2026 Dao Browser Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -84,6 +84,7 @@ index 0000000000..0000000001
 +      agentSoulResetSucceeded_: {type: Boolean, value: false},
 +      agentSoulResetError_: {type: Boolean, value: false},
 +      agentShowToolDetails_: {type: Boolean, value: false},
++      agentSpaceAllowed_: {type: Boolean, value: false},
 +      agentDebugMode_: {type: Boolean, value: false},
 +      agentResumeLastSession_: {type: Boolean, value: true},
 +      agentResumeStaleHours_: {type: String, value: '3'},
@@ -188,6 +189,7 @@ index 0000000000..0000000001
 +  declare private agentSoulResetSucceeded_: boolean;
 +  declare private agentSoulResetError_: boolean;
 +  declare private agentShowToolDetails_: boolean;
++  declare private agentSpaceAllowed_: boolean;
 +  declare private agentDebugMode_: boolean;
 +  declare private agentResumeLastSession_: boolean;
 +  declare private agentResumeStaleHours_: string;
@@ -740,6 +742,8 @@ index 0000000000..0000000001
 +    this.agentSoul_ = this.agentSettingsValues_['dao_agent_soul'] || '';
 +    this.agentShowToolDetails_ =
 +        this.readAgentBoolean_('dao_tool_call_show_details', false);
++    this.agentSpaceAllowed_ =
++        this.readAgentBoolean_('dao_agent_space_allowed', false);
 +    this.agentDebugMode_ =
 +        this.readAgentBoolean_('dao_agent_debug_mode', false);
 +    this.agentResumeLastSession_ =

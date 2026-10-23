@@ -1,0 +1,21 @@
+diff --git a/chrome/browser/ui/browser_window/internal/browser_window_interface_iterator_non_android.cc b/chrome/browser/ui/browser_window/internal/browser_window_interface_iterator_non_android.cc
+--- a/chrome/browser/ui/browser_window/internal/browser_window_interface_iterator_non_android.cc
++++ b/chrome/browser/ui/browser_window/internal/browser_window_interface_iterator_non_android.cc
+@@ -5,6 +5,7 @@
+ #include "base/functional/function_ref.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
+ #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
++#include "dao/browser/agent_space/dao_hidden_browser.h"
+ 
+ std::vector<BrowserWindowInterface*> GetAllBrowserWindowInterfaces() {
+   std::vector<BrowserWindowInterface*> results;
+@@ -38,6 +39,9 @@
+   BrowserWindowInterface* last_active = nullptr;
+   ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
+       [&](BrowserWindowInterface* browser) {
++        if (IsDaoHiddenBrowser(browser)) {
++          return true;
++        }
+         last_active = browser;
+         return false;  // stop iterating
+       });

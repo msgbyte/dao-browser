@@ -299,8 +299,10 @@ class DaoTabTools::PendingClose : public TabListInterfaceObserver,
       if (client_ == DaoToolClient::kMcp) {
         BrowserWindowInterface* browser_window = session_->browser_window();
         BrowserWindowInterface* browser = browser_window;
-        auto policy = ValidateExternalTarget(browser, session_->profile(),
-                                        replacement->GetContents());
+        auto policy = ValidateExternalTarget(
+            browser, session_->profile(), replacement->GetContents(),
+            /*allow_uncommitted_url=*/false,
+            session_->allows_off_the_record());
         if (!policy.has_value()) {
           DaoBrowserToolResult result;
           result.error = std::move(policy).error();
@@ -528,8 +530,10 @@ DaoBrowserToolResult DaoTabTools::ExecuteSync(
             "This page has not been approved for this connection.");
       }
       BrowserWindowInterface* browser = browser_window;
-      auto policy = ValidateExternalTarget(browser, session_weak->profile(),
-                                      selected_tab->GetContents());
+      auto policy = ValidateExternalTarget(
+          browser, session_weak->profile(), selected_tab->GetContents(),
+          /*allow_uncommitted_url=*/false,
+          session_weak->allows_off_the_record());
       if (!policy.has_value()) {
         DaoBrowserToolResult result;
         result.error = std::move(policy).error();

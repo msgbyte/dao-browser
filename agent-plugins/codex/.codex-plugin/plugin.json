@@ -1,0 +1,23 @@
+{
+  "name": "dao-browser",
+  "version": "1.0.0",
+  "description": "Let Codex work in the user's Dao browser: background task windows with the user's sign-ins that the user can watch and take over.",
+  "author": {
+    "name": "Dao Browser"
+  },
+  "homepage": "https://github.com/msgbyte/dao-browser",
+  "repository": "https://github.com/msgbyte/dao-browser",
+  "keywords": ["browser", "automation", "dao"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Dao Browser",
+    "shortDescription": "Work in the user's Dao browser",
+    "longDescription": "Run multi-step browser tasks in Dao's background task windows, which use the user's sign-ins without touching their tabs. The user can watch every task from Dao's sidebar and take over at any time.",
+    "developerName": "Dao Browser",
+    "category": "Developer Tools",
+    "capabilities": ["Interactive", "Read", "Write"],
+    "defaultPrompt": [
+      "Use dao-browser to open https://example.com in a background task and report its title."
+    ]
+  }
+}

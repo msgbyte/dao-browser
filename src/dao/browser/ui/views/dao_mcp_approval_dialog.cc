@@ -13,6 +13,7 @@
 #include "base/no_destructor.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_attributes_entry.h"
 #include "chrome/browser/ui/browser_window.h"
@@ -20,6 +21,9 @@
 #include "chrome/browser/ui/profiles/profile_view_utils.h"
 #include "chrome/browser/ui/window_metadata/window_metadata_controller.h"
 #include "components/constrained_window/constrained_window_views.h"
+#include "components/prefs/pref_service.h"
+#include "components/prefs/scoped_user_pref_update.h"
+#include "dao/browser/dao_pref_names.h"
 #include "dao/browser/strings/grit/dao_strings.h"
 #include "dao/browser/ui/views/dao_colors.h"
 #include "dao/browser/ui/views/dao_system_dialog.h"
@@ -28,6 +32,7 @@
 #include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/base/mojom/ui_base_types.mojom-shared.h"
 #include "ui/gfx/text_constants.h"
+#include "ui/views/controls/button/checkbox.h"
 #include "ui/views/controls/button/radio_button.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/controls/scroll_view.h"
@@ -127,6 +132,74 @@ DaoMcpApprovalDialog::DaoMcpApprovalDialog(
   SetContentsView(BuildContents(request, browser));
 }
 
+// static
+void DaoMcpApprovalDialog::ShowAgentSpaceConsent(
+    BrowserWindowInterface* browser,
+    const std::u16string& task_name,
+    ConsentCallback callback) {
+  if (!IsEligibleApprovalBrowser(browser)) {
+    std::move(callback).Run(false, false);
+    return;
+  }
+  browser->GetWindow()->Activate();
+  views::Widget* widget = constrained_window::CreateBrowserModalDialogViews(
+      std::make_unique<DaoMcpApprovalDialog>(task_name, std::move(callback)),
+      browser->GetWindow()->GetNativeWindow());
+  widget->Show();
+}
+
+DaoMcpApprovalDialog::DaoMcpApprovalDialog(const std::u16string& task_name,
+                                           ConsentCallback callback)
+    : consent_callback_(std::move(callback)) {
+  SetTitle(l10n_util::GetStringUTF16(IDS_DAO_AGENT_SPACE_CONSENT_TITLE));
+  SetShowCloseButton(true);
+  SetModalType(ui::mojom::ModalType::kWindow);
+  SetOwnedByWidget(OwnedByWidgetPassKey());
+  SetButtons(static_cast<int>(ui::mojom::DialogButton::kOk) |
+             static_cast<int>(ui::mojom::DialogButton::kCancel));
+  SetButtonLabel(ui::mojom::DialogButton::kOk,
+                 l10n_util::GetStringUTF16(IDS_DAO_AGENT_SPACE_CONSENT_ALLOW));
+  SetButtonLabel(ui::mojom::DialogButton::kCancel,
+                 l10n_util::GetStringUTF16(IDS_DAO_AGENT_SPACE_CONSENT_DENY));
+  SetButtonStyle(ui::mojom::DialogButton::kOk, ui::ButtonStyle::kProminent);
+  SetDefaultButton(static_cast<int>(ui::mojom::DialogButton::kNone));
+  SetAcceptCallback(base::BindOnce(&DaoMcpApprovalDialog::Resolve,
+                                   base::Unretained(this), true));
+  SetCancelCallback(base::BindOnce(&DaoMcpApprovalDialog::Resolve,
+                                   base::Unretained(this), false));
+  SetCloseCallback(base::BindOnce(&DaoMcpApprovalDialog::Resolve,
+                                  base::Unretained(this), false));
+  ConfigureDaoSystemDialog(this, {.show_enter_for_default = false,
+                                  .show_esc_for_cancel = true,
+                                  .center_in_web_contents = true});
+
+  auto contents = std::make_unique<views::View>();
+  contents
+      ->SetLayoutManager(std::make_unique<views::BoxLayout>(
+          views::BoxLayout::Orientation::kVertical, gfx::Insets(),
+          kContentSpacing))
+      ->set_cross_axis_alignment(
+          views::BoxLayout::CrossAxisAlignment::kStretch);
+  contents->AddChildView(
+      CreateLabel(l10n_util::GetStringFUTF16(IDS_DAO_AGENT_SPACE_CONSENT_BODY,
+                                             SanitizeLabel(task_name)),
+                  TextPrimary(), true));
+  contents->AddChildView(
+      CreateLabel(l10n_util::GetStringUTF16(IDS_DAO_AGENT_SPACE_CONSENT_DETAIL),
+                  TextSecondary(), true));
+  auto* checkbox = contents->AddChildView(std::make_unique<views::Checkbox>(
+      l10n_util::GetStringUTF16(IDS_DAO_AGENT_SPACE_CONSENT_REMEMBER)));
+  checkbox->SetCallback(base::BindRepeating(
+      [](DaoMcpApprovalDialog* dialog, views::Checkbox* checkbox) {
+        dialog->remember_ = checkbox->GetChecked();
+      },
+      base::Unretained(this), base::Unretained(checkbox)));
+  contents->SetPreferredSize(
+      gfx::Size(kDialogWidth, contents->GetPreferredSize().height()));
+  ConfigureDaoSystemDialogContent(contents.get());
+  SetContentsView(std::move(contents));
+}
+
 DaoMcpApprovalDialog::~DaoMcpApprovalDialog() {
   Resolve(false);
 }
@@ -153,12 +226,13 @@ std::unique_ptr<views::View> DaoMcpApprovalDialog::BuildContents(
   layout->set_cross_axis_alignment(
       views::BoxLayout::CrossAxisAlignment::kStretch);
 
-  contents->AddChildView(
-      CreateLabel(l10n_util::GetStringUTF16(
-                      (request.tab_target || !request.tab_choices.empty())
-                          ? IDS_DAO_MCP_APPROVAL_TAB_EXPLANATION
-                          : IDS_DAO_MCP_APPROVAL_EXPLANATION),
-                  TextPrimary(), true));
+  contents->AddChildView(CreateLabel(
+      l10n_util::GetStringUTF16(
+          request.background_space ? IDS_DAO_MCP_APPROVAL_SPACE_EXPLANATION
+          : (request.tab_target || !request.tab_choices.empty())
+              ? IDS_DAO_MCP_APPROVAL_TAB_EXPLANATION
+              : IDS_DAO_MCP_APPROVAL_EXPLANATION),
+      TextPrimary(), true));
   contents->AddChildView(CreateLabel(
       l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_WARNING), TextSecondary(),
       true));
@@ -194,14 +268,16 @@ std::unique_ptr<views::View> DaoMcpApprovalDialog::BuildContents(
           TextPrimary(), true))
       ->SetSubpixelRenderingEnabled(false);
 
-  std::u16string window_title =
-      browser ? WindowMetadataController::From(browser)
-                    ->GetWindowTitleForCurrentTab(false)
-              : std::u16string();
-  window_title = SanitizeLabel(std::move(window_title));
-  details->AddChildView(CreateLabel(
-      l10n_util::GetStringFUTF16(IDS_DAO_MCP_APPROVAL_WINDOW, window_title),
-      TextSecondary(), false));
+  if (!request.background_space) {
+    std::u16string window_title = browser
+                                      ? WindowMetadataController::From(browser)
+                                            ->GetWindowTitleForCurrentTab(false)
+                                      : std::u16string();
+    window_title = SanitizeLabel(std::move(window_title));
+    details->AddChildView(CreateLabel(
+        l10n_util::GetStringFUTF16(IDS_DAO_MCP_APPROVAL_WINDOW, window_title),
+        TextSecondary(), false));
+  }
   if (request.tab_target) {
     details->AddChildView(CreateLabel(
         l10n_util::GetStringFUTF16(IDS_DAO_MCP_APPROVAL_TAB,
@@ -251,6 +327,18 @@ std::unique_ptr<views::View> DaoMcpApprovalDialog::BuildContents(
                                  SanitizeLabel(std::move(profile_name))),
       TextSecondary(), false));
 
+  if (request.background_space) {
+    remember_client_name_ = request.client.name;
+    auto* checkbox = contents->AddChildView(std::make_unique<views::Checkbox>(
+        l10n_util::GetStringFUTF16(IDS_DAO_MCP_APPROVAL_SPACE_REMEMBER,
+                                   SanitizeLabel(request.client.name))));
+    checkbox->SetCallback(base::BindRepeating(
+        [](DaoMcpApprovalDialog* dialog, views::Checkbox* checkbox) {
+          dialog->remember_ = checkbox->GetChecked();
+        },
+        base::Unretained(this), base::Unretained(checkbox)));
+  }
+
   contents->SetPreferredSize(
       gfx::Size(kDialogWidth, contents->GetPreferredSize().height()));
   ConfigureDaoSystemDialogContent(contents.get());
@@ -258,24 +346,38 @@ std::unique_ptr<views::View> DaoMcpApprovalDialog::BuildContents(
 }
 
 void DaoMcpApprovalDialog::Resolve(bool allowed) {
-  if (callback_) {
-    std::optional<std::string> result;
-    if (allowed) {
-      if (explicit_tab_id_) {
-        result = explicit_tab_id_;
-      } else if (choices_.empty()) {
-        result = std::string();
-      } else {
-        for (const auto& [radio, tab_id] : choices_) {
-          if (radio->GetChecked()) {
-            result = tab_id;
-            break;
-          }
+  if (consent_callback_) {
+    std::move(consent_callback_).Run(allowed, allowed && remember_);
+    return;
+  }
+  if (!callback_) {
+    return;
+  }
+  if (allowed && remember_ && !remember_client_name_.empty()) {
+    if (PrefService* local_state = g_browser_process->local_state()) {
+      ScopedListPrefUpdate update(local_state,
+                                  prefs::kDaoAgentSpaceAllowedClients);
+      if (!update->contains(remember_client_name_)) {
+        update->Append(remember_client_name_);
+      }
+    }
+  }
+  std::optional<std::string> result;
+  if (allowed) {
+    if (explicit_tab_id_) {
+      result = explicit_tab_id_;
+    } else if (choices_.empty()) {
+      result = std::string();
+    } else {
+      for (const auto& [radio, tab_id] : choices_) {
+        if (radio->GetChecked()) {
+          result = tab_id;
+          break;
         }
       }
     }
-    std::move(callback_).Run(std::move(result));
   }
+  std::move(callback_).Run(std::move(result));
 }
 
 // static
