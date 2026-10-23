@@ -63,6 +63,14 @@ function templateToHtml(
       });
       continue;
     }
+    const booleanMatch = result.strings[i]!.match(/\?([a-zA-Z][\w-]*)=$/);
+    if (booleanMatch) {
+      markup += result.strings[i]!.slice(0, -booleanMatch[0].length);
+      if (value) {
+        markup += `${booleanMatch[1]}=""`;
+      }
+      continue;
+    }
     const propertyMatch =
         result.strings[i]!.match(/\.([a-zA-Z_$][\w$]*)=$/);
     if (propertyMatch) {
