@@ -1649,17 +1649,60 @@ IN_PROC_BROWSER_TEST_F(DaoMcpControlBannerTest,
   base::RunLoop().RunUntilIdle();
 
   EXPECT_EQ(nullptr, service_->GetAuthorizedTarget());
-  EXPECT_TRUE(address_bar->mcp_control_button_for_testing()->GetVisible());
+  EXPECT_FALSE(address_bar->mcp_control_button_for_testing()->GetVisible());
   EXPECT_EQ(nullptr, address_bar->mcp_control_popup_for_testing());
   ClickButton(address_bar->mcp_control_button_for_testing());
-  popup = address_bar->mcp_control_popup_for_testing();
-  ASSERT_NE(nullptr, popup);
-  EXPECT_TRUE(HasDescendantLabelText(
-      popup,
-      l10n_util::GetStringFUTF16(IDS_DAO_MCP_CONTROL_TAB_COUNT, u"0")));
-  ClickButton(popup->stop_button_for_testing());
-  WaitUntilListeningWithoutClient();
-  EXPECT_FALSE(address_bar->mcp_control_button_for_testing()->GetVisible());
+  EXPECT_EQ(nullptr, address_bar->mcp_control_popup_for_testing());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpControlBannerTest,
+                       ShowsIndicatorOnlyForControlledActivePage) {
+  FakeApprovalDelegate approval;
+  service_->SetApprovalDelegate(&approval);
+  EnableService();
+  auto client = ConnectClient();
+  ASSERT_TRUE(client);
+  ASSERT_TRUE(client->Send(HelloRequest(nonce())));
+  ASSERT_TRUE(client->Read());
+
+  DaoAddressBarView* address_bar =
+      BrowserView::GetBrowserViewForBrowser(browser())->dao_address_bar();
+  ASSERT_NE(nullptr, address_bar);
+  views::Button* indicator = address_bar->mcp_control_button_for_testing();
+  ASSERT_NE(nullptr, indicator);
+  EXPECT_FALSE(indicator->GetVisible());
+
+  ApproveWindow(client.get(), &approval);
+  ASSERT_TRUE(service_->HasWindowPermission(browser()));
+  EXPECT_FALSE(indicator->GetVisible());
+  ClickButton(indicator);
+  EXPECT_EQ(nullptr, address_bar->mcp_control_popup_for_testing());
+
+  TabStripModel* tabs = browser()->tab_strip_model();
+  content::WebContents* target = tabs->GetActiveWebContents();
+  ApprovePage(client.get(), &approval, target);
+  ASSERT_TRUE(indicator->GetVisible());
+  ClickButton(indicator);
+  ASSERT_NE(nullptr, address_bar->mcp_control_popup_for_testing());
+
+  chrome::AddTabAt(browser(), GURL("about:blank"), -1, true);
+  EXPECT_FALSE(indicator->GetVisible());
+  EXPECT_EQ(nullptr, address_bar->mcp_control_popup_for_testing());
+  ClickButton(indicator);
+  EXPECT_EQ(nullptr, address_bar->mcp_control_popup_for_testing());
+
+  tabs->ActivateTabAt(tabs->GetIndexOfWebContents(target));
+  ASSERT_TRUE(indicator->GetVisible());
+  ClickButton(indicator);
+  ASSERT_NE(nullptr, address_bar->mcp_control_popup_for_testing());
+
+  const auto connections = service_->GetConnections();
+  ASSERT_EQ(1u, connections.size());
+  service_->RevokeTab(connections[0].connection_id,
+                      GetOrCreateSidebarTabId(target));
+  EXPECT_TRUE(service_->HasWindowPermission(browser()));
+  EXPECT_FALSE(indicator->GetVisible());
+  EXPECT_EQ(nullptr, address_bar->mcp_control_popup_for_testing());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpControlBannerTest,

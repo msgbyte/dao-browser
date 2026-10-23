@@ -881,6 +881,7 @@ void DaoAddressBarView::ObserveActiveWebContents() {
 void DaoAddressBarView::WebContentsDestroyed() {
   high_performance_subscription_ = {};
   content::WebContentsObserver::Observe(nullptr);
+  UpdateMcpControlButton();
   UpdateHighPerformanceIndicator(false);
 }
 
@@ -1029,7 +1030,7 @@ void DaoAddressBarView::OnSecurityButtonPressed() {
 }
 
 void DaoAddressBarView::UpdateMcpControlButton() {
-  const bool visible = DaoMcpService::Get()->HasWindowPermission(browser_);
+  const bool visible = DaoMcpService::Get()->IsTargetControlled(web_contents());
   mcp_control_button_->SetVisible(visible);
   if (!visible) {
     CloseMcpControlPopup();
@@ -1116,7 +1117,7 @@ void DaoAddressBarView::OnMcpControlButtonPressed() {
     return;
   }
 
-  if (!DaoMcpService::Get()->HasWindowPermission(browser_)) {
+  if (!DaoMcpService::Get()->IsTargetControlled(web_contents())) {
     UpdateMcpControlButton();
     return;
   }

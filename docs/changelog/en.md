@@ -4,6 +4,7 @@
 
 ### [Unreleased] Unreleased
 
+- Show the address-bar AI control icon only when the current page is under agent control.
 ### [1.0.119] - 2026-10-24
 
 - Use an opaque main window on macOS so the desktop does not show through when browser content is not drawn.
