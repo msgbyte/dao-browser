@@ -10,10 +10,12 @@ function read(relative: string): string {
 
 describe('agent plugins', () => {
   it('ships the same entry skill Dao installs for local agents', () => {
-    const entry = read('src/dao/browser/cli/dao_browser_entry_skill.md');
-    for (const host of ['claude-code', 'codex', 'cursor']) {
-      expect(read(`agent-plugins/${host}/skills/dao-browser/SKILL.md`), host)
-        .toBe(entry);
+    for (const skill of ['dao-browser', 'dao-lite']) {
+      const entry = read(`src/dao/browser/cli/${skill.replace('-', '_')}_entry_skill.md`);
+      for (const host of ['claude-code', 'codex', 'cursor']) {
+        expect(read(`agent-plugins/${host}/skills/${skill}/SKILL.md`), `${host}/${skill}`)
+          .toBe(entry);
+      }
     }
   });
 

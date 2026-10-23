@@ -13,11 +13,10 @@
 
 namespace dao {
 
-// Content of the entry skill Dao installs for local agents. It only tells
-// the agent to run `dao-browser skill`, so it never needs to change when Dao
-// updates; `helper_path` is a fallback for agents without ~/.local/bin on
-// PATH.
-std::string BuildDaoEntrySkill(const base::FilePath& helper_path);
+// Entry skill with this app's CLI path as a fallback for agents without
+// ~/.local/bin on PATH.
+std::string BuildDaoEntrySkill(const base::FilePath& helper_path,
+                              bool lite = false);
 
 // Installs or removes what local agents need to find Dao: the
 // ~/.local/bin/dao-browser link to the CLI inside this app, and the entry

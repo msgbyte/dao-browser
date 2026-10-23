@@ -5,6 +5,7 @@
 ### [Unreleased] Unreleased
 
 - Allow a local agent to use Dao Lite background tasks for one hour across reconnects, without repeated prompts or extending the time as it works; access to your own tabs still needs separate approval.
+- Use the dao-lite skill for background searches and web tasks, and dao-browser when you explicitly want an agent to work on your existing tabs.
 
 ### [1.0.120] - 2026-10-24
 

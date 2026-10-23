@@ -40,6 +40,7 @@
 #include "base/values.h"
 #include "chrome/common/chrome_paths.h"
 #include "dao/browser/cli/dao_browser_guide.h"
+#include "dao/browser/cli/dao_lite_guide.h"
 #include "dao/browser/mcp/dao_mcp_protocol.h"
 #include "dao/browser/mcp/helper/dao_mcp_browser_client.h"
 #include "dao/browser/mcp/helper/dao_mcp_stdio_server.h"
@@ -71,7 +72,7 @@ constexpr char kUsage[] =
     "Usage: dao-browser <command> [options]\n"
     "\n"
     "Commands:\n"
-    "  skill                 Print the usage guide for this Dao version.\n"
+    "  skill [--lite]        Print the existing-page or Dao Lite guide.\n"
     "  run [FILE|-]          Run a JavaScript snippet (stdin when FILE is -\n"
     "                        or omitted).\n"
     "      --space ID        Preset `space` to an existing Agent Space.\n"
@@ -304,9 +305,10 @@ base::FilePath GuideVersionFile(const Options& options) {
   return options.user_data_dir.Append("dao_browser_guide_version");
 }
 
-int RunSkill(const Options& options) {
+int RunSkill(const Options& options, bool lite) {
   std::cout << "<!-- dao-browser guide " << DAO_MCP_VERSION << " -->\n"
-            << kDaoBrowserGuide << "\n<!-- end of dao-browser guide "
+            << (lite ? kDaoLiteGuide : kDaoBrowserGuide)
+            << "\n<!-- end of dao-browser guide "
             << DAO_MCP_VERSION << " -->" << std::endl;
   if (!options.user_data_dir.empty() &&
       base::DirectoryExists(options.user_data_dir)) {
@@ -323,13 +325,14 @@ void PrintNotices(const Options& options, const SyncBrowser& browser) {
       base::TrimWhitespaceASCII(read_version, base::TRIM_ALL) !=
           DAO_MCP_VERSION) {
     std::cerr << "[dao-browser:notice] This Dao version's guide has not been "
-                 "read yet. Run `dao-browser skill` and follow it."
+                 "read yet. Run `dao-browser skill --lite` for background tasks, or "
+                 "`dao-browser skill` for existing pages."
               << std::endl;
   }
   if (browser.update_ready()) {
     std::cerr << "[dao-browser:notice] A Dao update is ready. When the task "
                  "is done, tell the user they can restart Dao to finish "
-                 "updating, then read `dao-browser skill` again."
+                 "updating, then read the relevant `dao-browser skill` guide again."
               << std::endl;
   }
 }
@@ -545,7 +548,7 @@ int main(int argc, char** argv) {
     base::PathService::Get(chrome::DIR_USER_DATA, &options.user_data_dir);
   }
   if (command == "skill") {
-    return dao::RunSkill(options);
+    return dao::RunSkill(options, command_line.HasSwitch("lite"));
   }
   if (options.user_data_dir.empty()) {
     dao::PrintError("could not find the Dao profile directory.");

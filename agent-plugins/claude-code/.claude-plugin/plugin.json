@@ -1,7 +1,7 @@
 {
   "name": "dao-browser",
   "version": "1.0.0",
-  "description": "Let Claude Code work in the user's Dao browser: background task windows with the user's sign-ins that the user can watch and take over.",
+  "description": "Use Dao Lite for background web tasks, or Dao Browser for explicitly requested existing tabs.",
   "author": {
     "name": "Dao Browser"
   },

@@ -708,10 +708,26 @@ TEST(DaoLocalAgentIntegrationTest, InstallsAndRemovesOnlyDaoFiles) {
   EXPECT_EQ("my own notes", user_contents);
   EXPECT_FALSE(base::PathExists(home.Append(".codex")));
 
+  const base::FilePath lite_skill = home.Append(".agents/skills/dao-lite/SKILL.md");
+  ASSERT_TRUE(base::ReadFileToString(lite_skill, &contents));
+  EXPECT_EQ(BuildDaoEntrySkill(helper, true), contents);
+  ASSERT_TRUE(base::DeleteFile(lite_skill));
+  UpdateDaoLocalAgentIntegration(home, helper, /*enabled=*/true);
+  ASSERT_TRUE(base::ReadFileToString(lite_skill, &contents));
+  EXPECT_EQ(BuildDaoEntrySkill(helper, true), contents);
+  const base::FilePath custom_lite = home.Append(".claude/skills/dao-lite/SKILL.md");
+  ASSERT_TRUE(base::WriteFile(custom_lite, "custom lite skill"));
+  UpdateDaoLocalAgentIntegration(home, helper, /*enabled=*/true);
+  ASSERT_TRUE(base::ReadFileToString(custom_lite, &contents));
+  EXPECT_EQ("custom lite skill", contents);
+
   UpdateDaoLocalAgentIntegration(home, helper, /*enabled=*/false);
 
   EXPECT_FALSE(base::IsLink(link));
   EXPECT_FALSE(base::PathExists(shared_skill));
+  EXPECT_FALSE(base::PathExists(lite_skill));
+  ASSERT_TRUE(base::ReadFileToString(custom_lite, &contents));
+  EXPECT_EQ("custom lite skill", contents);
   ASSERT_TRUE(base::ReadFileToString(user_skill, &user_contents));
   EXPECT_EQ("my own notes", user_contents);
 }

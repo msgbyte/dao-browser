@@ -1,7 +1,7 @@
 {
   "name": "dao-browser",
   "version": "1.0.0",
-  "description": "Let Codex work in the user's Dao browser: background task windows with the user's sign-ins that the user can watch and take over.",
+  "description": "Use Dao Lite for background web tasks, or Dao Browser for explicitly requested existing tabs.",
   "author": {
     "name": "Dao Browser"
   },
@@ -12,12 +12,12 @@
   "interface": {
     "displayName": "Dao Browser",
     "shortDescription": "Work in the user's Dao browser",
-    "longDescription": "Run multi-step browser tasks in Dao's background task windows, which use the user's sign-ins without touching their tabs. The user can watch every task from Dao's sidebar and take over at any time.",
+    "longDescription": "Use dao-lite for searches and multi-step web tasks in background windows with your sign-ins. Use dao-browser only for existing tabs you explicitly choose to share. You can watch, take over, or stop background tasks from the sidebar.",
     "developerName": "Dao Browser",
     "category": "Developer Tools",
     "capabilities": ["Interactive", "Read", "Write"],
     "defaultPrompt": [
-      "Use dao-browser to open https://example.com in a background task and report its title."
+      "Use dao-lite to open https://example.com in a background task and report its title."
     ]
   }
 }

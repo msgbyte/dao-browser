@@ -2,7 +2,7 @@
   "name": "dao-browser",
   "displayName": "Dao Browser",
   "version": "1.0.0",
-  "description": "Let Cursor work in the user's Dao browser: background task windows with the user's sign-ins that the user can watch and take over.",
+  "description": "Use Dao Lite for background web tasks, or Dao Browser for explicitly requested existing tabs.",
   "author": {
     "name": "Dao Browser"
   },

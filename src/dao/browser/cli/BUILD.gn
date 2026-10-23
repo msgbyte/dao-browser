@@ -29,6 +29,28 @@ action("dao_browser_entry_skill") {
   ]
 }
 
+action("dao_lite_guide") {
+  script = "embed_text.py"
+  sources = [ "dao_lite_guide.md" ]
+  outputs = [ "$target_gen_dir/dao_lite_guide.h" ]
+  args = [
+    rebase_path("dao_lite_guide.md", root_build_dir),
+    rebase_path(outputs[0], root_build_dir),
+    "kDaoLiteGuide",
+  ]
+}
+
+action("dao_lite_entry_skill") {
+  script = "embed_text.py"
+  sources = [ "dao_lite_entry_skill.md" ]
+  outputs = [ "$target_gen_dir/dao_lite_entry_skill.h" ]
+  args = [
+    rebase_path("dao_lite_entry_skill.md", root_build_dir),
+    rebase_path(outputs[0], root_build_dir),
+    "kDaoLiteEntrySkill",
+  ]
+}
+
 if (is_mac) {
   executable("dao_browser_cli") {
     output_name = "dao-browser"
@@ -39,6 +61,7 @@ if (is_mac) {
 
     deps = [
       ":dao_browser_guide",
+      ":dao_lite_guide",
       "//base",
       "//chrome/common:constants",
       "//dao/browser/mcp:mcp_helper_core",

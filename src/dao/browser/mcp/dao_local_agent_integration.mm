@@ -18,6 +18,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "dao/browser/cli/dao_browser_entry_skill.h"
+#include "dao/browser/cli/dao_lite_entry_skill.h"
 
 namespace dao {
 namespace {
@@ -82,12 +83,14 @@ bool IsDaoManagedFile(const base::FilePath& path) {
 }
 
 void UpdateSkill(const base::FilePath& skills_dir,
+                 std::string_view name,
                  const std::string& contents,
                  bool enabled) {
-  const base::FilePath skill_dir = skills_dir.Append("dao-browser");
+  const base::FilePath skill_dir = skills_dir.Append(name);
   const base::FilePath skill = skill_dir.Append("SKILL.md");
   const bool exists = base::PathExists(skill);
-  if (exists && !IsDaoManagedFile(skill)) {
+  if (base::IsLink(skill_dir) || base::IsLink(skill) ||
+      (exists && !IsDaoManagedFile(skill))) {
     return;
   }
   if (!enabled) {
@@ -111,10 +114,10 @@ void UpdateSkill(const base::FilePath& skills_dir,
 
 }  // namespace
 
-std::string BuildDaoEntrySkill(const base::FilePath& helper_path) {
+std::string BuildDaoEntrySkill(const base::FilePath& helper_path, bool lite) {
   // Mark the copy as Dao's right after the front matter, and point agents
   // without ~/.local/bin on PATH at this app's CLI.
-  std::string skill = kDaoBrowserEntrySkill;
+  std::string skill = lite ? kDaoLiteEntrySkill : kDaoBrowserEntrySkill;
   const size_t front_matter_end = skill.find("\n---\n", 3);
   if (front_matter_end != std::string::npos) {
     skill.insert(front_matter_end + 5, base::StrCat({kSkillMarker, "\n"}));
@@ -131,14 +134,17 @@ void UpdateDaoLocalAgentIntegration(const base::FilePath& home,
     return;
   }
   UpdateHelperLink(home, helper_path, enabled);
-  const std::string skill = BuildDaoEntrySkill(helper_path);
-  // The shared folder used by several agents is always maintained; agent
-  // specific folders only when that agent is installed.
-  UpdateSkill(home.Append(".agents").Append("skills"), skill, enabled);
-  for (const char* agent_dir : {".claude", ".codex"}) {
-    const base::FilePath root = home.Append(agent_dir);
-    if (base::DirectoryExists(root)) {
-      UpdateSkill(root.Append("skills"), skill, enabled);
+  for (bool lite : {false, true}) {
+    const char* name = lite ? "dao-lite" : "dao-browser";
+    const std::string skill = BuildDaoEntrySkill(helper_path, lite);
+    // Always maintain the shared folder and only existing agent folders.
+    UpdateSkill(home.Append(".agents").Append("skills"), name, skill,
+                enabled);
+    for (const char* agent_dir : {".claude", ".codex"}) {
+      const base::FilePath root = home.Append(agent_dir);
+      if (base::DirectoryExists(root)) {
+        UpdateSkill(root.Append("skills"), name, skill, enabled);
+      }
     }
   }
 }
@@ -163,14 +169,17 @@ base::DictValue GetDaoLocalAgentIntegrationStatus(
   base::ListValue agents;
   auto add = [&](std::string_view id, const base::FilePath& root,
                  bool always_present) {
-    const base::FilePath skill =
-        root.Append("skills").Append("dao-browser").Append("SKILL.md");
+    bool installed = true;
+    for (const char* name : {"dao-browser", "dao-lite"}) {
+      const base::FilePath skill =
+          root.Append("skills").Append(name).Append("SKILL.md");
+      installed &= base::PathExists(skill) && IsDaoManagedFile(skill);
+    }
     agents.Append(
         base::DictValue()
             .Set("id", id)
             .Set("detected", always_present || base::DirectoryExists(root))
-            .Set("installed",
-                 base::PathExists(skill) && IsDaoManagedFile(skill)));
+            .Set("installed", installed));
   };
   add("claude", home.Append(".claude"), false);
   add("codex", home.Append(".codex"), false);

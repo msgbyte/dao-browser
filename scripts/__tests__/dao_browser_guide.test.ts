@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-// `dao-browser skill` prints a hand-written guide; the script runtime lives in
+// `dao-browser skill --lite` prints a hand-written guide; the script runtime lives in
 // dao_agent_script_run.cc. Keep the two describing the same API.
 const root = path.resolve(__dirname, '..', '..');
 
@@ -11,7 +11,7 @@ function read(relative: string): string {
 }
 
 const runtime = read('src/dao/browser/agent_space/dao_agent_script_run.cc');
-const guide = read('src/dao/browser/cli/dao_browser_guide.md');
+const guide = read('src/dao/browser/cli/dao_lite_guide.md');
 const catalog = JSON.parse(read(
     'src/dao/browser/ui/webui/resources/agent/browser_tool_catalog.json')) as {
   tools: Array<{ name: string; clients: string[] }>;
@@ -31,7 +31,7 @@ function runtimeMethods(body: string): string[] {
       .filter(name => name !== 'constructor');
 }
 
-describe('dao-browser guide', () => {
+describe('dao-lite guide', () => {
   const spaceMethods =
       runtimeMethods(between(runtime, 'class Space {', '\n  }\n'));
   const daoMethods = [

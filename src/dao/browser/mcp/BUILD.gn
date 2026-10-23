@@ -42,6 +42,7 @@ source_set("browser_mcp") {
       "//crypto",
       "//dao/browser/automation:browser_automation",
       "//dao/browser/cli:dao_browser_entry_skill",
+      "//dao/browser/cli:dao_lite_entry_skill",
       "//net",
     ]
   }
