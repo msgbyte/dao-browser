@@ -117,6 +117,7 @@
 #include "components/strings/grit/components_strings.h"
 #include "content/public/browser/document_picture_in_picture_window_controller.h"
 #include "content/public/browser/download_manager.h"
+#include "content/public/browser/media_player_id.h"
 #include "content/public/browser/page_navigator.h"
 #include "content/public/browser/picture_in_picture_window_controller.h"
 #include "content/public/browser/render_frame_host.h"
@@ -278,6 +279,64 @@ class DaoSidebarContextMenuTestApi {
                                         .Append(base::ListValue())
                                         .Append(base::ListValue().Append(0)));
     return handler.tab_context_menu_model_.get();
+  }
+};
+
+class DaoSidebarMediaTestApi {
+ public:
+  static void SetSessionInfo(
+      DaoSidebarUIHandler& handler,
+      content::WebContents* contents,
+      media_session::mojom::MediaSessionInfo::SessionState state,
+      media_session::mojom::MediaPlaybackState playback,
+      bool controllable = true) {
+    auto info = media_session::mojom::MediaSessionInfo::New();
+    info->state = state;
+    info->playback_state = playback;
+    info->is_controllable = controllable;
+    handler.UpdateMediaSessionInfo(
+        handler.media_tabs_.at(GetSidebarTabId(contents)), std::move(info));
+    handler.PushMediaPlaybackState();
+  }
+
+  static void Dismiss(DaoSidebarUIHandler& handler) {
+    handler.HandleMediaDismiss(base::ListValue());
+  }
+
+  static void SetEnded(DaoSidebarUIHandler& handler,
+                       content::WebContents* contents,
+                       bool ended) {
+    handler.UpdateMediaSessionPosition(
+        handler.media_tabs_.at(GetSidebarTabId(contents)),
+        media_session::MediaPosition(ended ? 0.0 : 1.0, base::Seconds(60),
+                                     base::Seconds(ended ? 60 : 0), ended));
+    handler.PushMediaPlaybackState();
+  }
+
+  static void SetPlayerPlaying(DaoSidebarUIHandler& handler,
+                               content::WebContents* contents,
+                               const content::MediaPlayerId& id,
+                               bool playing,
+                               bool ended = false) {
+    auto* observer = handler.media_tabs_.at(GetSidebarTabId(contents))
+                         .playback_observer.get();
+    content::WebContentsObserver::MediaPlayerInfo info(false, true);
+    if (playing) {
+      observer->MediaStartedPlaying(info, id);
+    } else {
+      observer->MediaStoppedPlaying(
+          info, id,
+          ended ? content::WebContentsObserver::MediaStoppedReason::
+                      kReachedEndOfStream
+                : content::WebContentsObserver::MediaStoppedReason::kUnspecified);
+    }
+  }
+
+  static void DestroyPlayer(DaoSidebarUIHandler& handler,
+                            content::WebContents* contents,
+                            const content::MediaPlayerId& id) {
+    handler.media_tabs_.at(GetSidebarTabId(contents))
+        .playback_observer->MediaDestroyed(id);
   }
 };
 
@@ -5868,6 +5927,222 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 // =============================================================================
 
 class DaoTabBrowserTest : public InProcessBrowserTest {};
+
+class DaoSidebarMediaBrowserTest : public InProcessBrowserTest {
+ protected:
+  using SessionState = media_session::mojom::MediaSessionInfo::SessionState;
+  using PlaybackState = media_session::mojom::MediaPlaybackState;
+
+  void SetUpOnMainThread() override {
+    InProcessBrowserTest::SetUpOnMainThread();
+    model_ = browser()->tab_strip_model();
+    media_ = model_->GetActiveWebContents();
+    chrome::AddTabAt(browser(), GURL("about:blank#notification"), -1, true);
+    notification_ = model_->GetActiveWebContents();
+    chrome::AddTabAt(browser(), GURL("about:blank#foreground"), -1, true);
+    handler_.set_web_ui(&web_ui_);
+    AttachSidebarHandlerForTesting(browser(), &handler_);
+    ASSERT_TRUE(handler_.LoadPinnedItemsForTesting(
+        R"({"version":2,"items":[]})"));
+    handler_.AllowJavascriptForTesting();
+    for (int i = 0; i < model_->count(); ++i) {
+      content::MediaSession::FlushObserversForTesting(
+          model_->GetWebContentsAt(i));
+    }
+    web_ui_.ClearTrackedCalls();
+  }
+
+  void TearDownOnMainThread() override {
+    handler_.SetBrowser(nullptr);
+    InProcessBrowserTest::TearDownOnMainThread();
+  }
+
+  void SetState(content::WebContents* contents,
+                SessionState state,
+                PlaybackState playback,
+                bool controllable = true) {
+    DaoSidebarMediaTestApi::SetSessionInfo(handler_, contents, state, playback,
+                                          controllable);
+  }
+
+  void Wait(base::TimeDelta delay) {
+    base::RunLoop loop;
+    base::OneShotTimer timer;
+    timer.Start(FROM_HERE, delay, loop.QuitClosure());
+    loop.Run();
+  }
+
+  const base::DictValue* LastMediaState() const {
+    for (auto it = web_ui_.call_data().rbegin();
+         it != web_ui_.call_data().rend(); ++it) {
+      if ((*it)->arg1() && (*it)->arg1()->is_string() &&
+          (*it)->arg1()->GetString() == "mediaPlaybackChanged") {
+        return &(*it)->arg2()->GetDict();
+      }
+    }
+    return nullptr;
+  }
+
+  bool IsVisible() const {
+    const auto* state = LastMediaState();
+    return state && state->FindInt("tabIndex").has_value();
+  }
+
+  content::TestWebUI web_ui_;
+  TestDaoSidebarUIHandler handler_;
+  raw_ptr<TabStripModel> model_ = nullptr;
+  raw_ptr<content::WebContents> media_ = nullptr;
+  raw_ptr<content::WebContents> notification_ = nullptr;
+};
+
+IN_PROC_BROWSER_TEST_F(DaoSidebarMediaBrowserTest,
+                       ShortOrUncontrollableSoundsDoNotShowCard) {
+  SetState(media_, SessionState::kActive, PlaybackState::kPlaying, false);
+  Wait(base::Milliseconds(1100));
+  EXPECT_FALSE(IsVisible());
+
+  SetState(media_, SessionState::kActive, PlaybackState::kPlaying);
+  Wait(base::Milliseconds(100));
+  EXPECT_FALSE(IsVisible());
+  SetState(media_, SessionState::kSuspended, PlaybackState::kPaused);
+  Wait(base::Milliseconds(1100));
+  EXPECT_FALSE(IsVisible());
+
+  SetState(media_, SessionState::kActive, PlaybackState::kPlaying);
+  EXPECT_FALSE(IsVisible());
+  Wait(base::Milliseconds(1100));
+  EXPECT_TRUE(IsVisible());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSidebarMediaBrowserTest,
+                       PauseAndOtherSoundsKeepTheSameMediaSource) {
+  SetState(media_, SessionState::kActive, PlaybackState::kPlaying);
+  Wait(base::Milliseconds(1100));
+  ASSERT_TRUE(IsVisible());
+  // No audible signal is supplied: silence must not look like a pause.
+  EXPECT_EQ(true, LastMediaState()->FindBool("isPlaying"));
+
+  SetState(media_, SessionState::kSuspended, PlaybackState::kPaused);
+  SetState(notification_, SessionState::kActive, PlaybackState::kPlaying);
+  Wait(base::Milliseconds(1100));
+  ASSERT_TRUE(IsVisible());
+  EXPECT_EQ(model_->GetIndexOfWebContents(media_),
+            LastMediaState()->FindInt("tabIndex"));
+  EXPECT_EQ(false, LastMediaState()->FindBool("isPlaying"));
+
+  model_->MoveWebContentsAt(model_->GetIndexOfWebContents(media_), 1, false);
+  ASSERT_TRUE(IsVisible());
+  EXPECT_EQ(model_->GetIndexOfWebContents(media_),
+            LastMediaState()->FindInt("tabIndex"));
+
+  SetState(notification_, SessionState::kInactive, PlaybackState::kPaused);
+  const int media_index = model_->GetIndexOfWebContents(media_);
+  media_ = nullptr;
+  model_->CloseWebContentsAt(media_index, TabCloseTypes::CLOSE_NONE);
+  EXPECT_FALSE(IsVisible());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSidebarMediaBrowserTest,
+                       EndedSessionHidesEvenIfStillControllable) {
+  SetState(media_, SessionState::kActive, PlaybackState::kPlaying);
+  Wait(base::Milliseconds(1100));
+  ASSERT_TRUE(IsVisible());
+  SetState(media_, SessionState::kSuspended, PlaybackState::kPaused);
+  DaoSidebarMediaTestApi::SetEnded(handler_, media_, true);
+  EXPECT_TRUE(IsVisible());
+  Wait(base::Milliseconds(600));
+  EXPECT_FALSE(IsVisible());
+
+  DaoSidebarMediaTestApi::SetPlayerPlaying(
+      handler_, media_, content::MediaPlayerId::CreateMediaPlayerIdForTests(),
+      true);
+  SetState(media_, SessionState::kActive, PlaybackState::kPlaying);
+  EXPECT_FALSE(IsVisible());
+  Wait(base::Milliseconds(1100));
+  EXPECT_TRUE(IsVisible());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSidebarMediaBrowserTest,
+                       MutingRetainsPlaybackUntilThePlayerEnds) {
+  const auto player = content::MediaPlayerId::CreateMediaPlayerIdForTests();
+  DaoSidebarMediaTestApi::SetPlayerPlaying(handler_, media_, player, true);
+  SetState(media_, SessionState::kActive, PlaybackState::kPlaying);
+  Wait(base::Milliseconds(1100));
+  ASSERT_TRUE(IsVisible());
+
+  media_->SetAudioMuted(true);
+  SetState(media_, SessionState::kInactive, PlaybackState::kPaused, false);
+  Wait(base::Milliseconds(600));
+  ASSERT_TRUE(IsVisible());
+  EXPECT_EQ(true, LastMediaState()->FindBool("isMuted"));
+  EXPECT_EQ(true, LastMediaState()->FindBool("isPlaying"));
+  EXPECT_EQ(false, LastMediaState()->FindBool("canPlayPause"));
+
+  DaoSidebarMediaTestApi::SetPlayerPlaying(handler_, media_, player, false);
+  EXPECT_EQ(false, LastMediaState()->FindBool("isPlaying"));
+  Wait(base::Milliseconds(600));
+  EXPECT_TRUE(IsVisible());
+
+  DaoSidebarMediaTestApi::SetPlayerPlaying(handler_, media_, player, true);
+  EXPECT_EQ(true, LastMediaState()->FindBool("isPlaying"));
+  DaoSidebarMediaTestApi::SetPlayerPlaying(handler_, media_, player, false, true);
+  Wait(base::Milliseconds(600));
+  EXPECT_FALSE(IsVisible());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSidebarMediaBrowserTest,
+                       DestroyingMutedPlayerClearsTheCard) {
+  const auto player = content::MediaPlayerId::CreateMediaPlayerIdForTests();
+  DaoSidebarMediaTestApi::SetPlayerPlaying(handler_, media_, player, true);
+  SetState(media_, SessionState::kActive, PlaybackState::kPlaying);
+  Wait(base::Milliseconds(1100));
+  ASSERT_TRUE(IsVisible());
+  media_->SetAudioMuted(true);
+  SetState(media_, SessionState::kInactive, PlaybackState::kPaused, false);
+  DaoSidebarMediaTestApi::SetPlayerPlaying(handler_, media_, player, false);
+  DaoSidebarMediaTestApi::DestroyPlayer(handler_, media_, player);
+  Wait(base::Milliseconds(600));
+  EXPECT_FALSE(IsVisible());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSidebarMediaBrowserTest,
+                       NavigatingClearsRetainedMutedPlayback) {
+  SetState(media_, SessionState::kActive, PlaybackState::kPlaying);
+  Wait(base::Milliseconds(1100));
+  ASSERT_TRUE(IsVisible());
+  media_->SetAudioMuted(true);
+  SetState(media_, SessionState::kInactive, PlaybackState::kPaused, false);
+  ASSERT_TRUE(content::NavigateToURL(media_, GURL("data:text/html,Next page")));
+  Wait(base::Milliseconds(600));
+  EXPECT_FALSE(IsVisible());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSidebarMediaBrowserTest,
+                       InactiveSessionHasGracePeriodAndDismissalPersists) {
+  SetState(media_, SessionState::kActive, PlaybackState::kPlaying);
+  Wait(base::Milliseconds(1100));
+  ASSERT_TRUE(IsVisible());
+  SetState(media_, SessionState::kInactive, PlaybackState::kPaused);
+  Wait(base::Milliseconds(100));
+  EXPECT_TRUE(IsVisible());
+  SetState(media_, SessionState::kActive, PlaybackState::kPlaying);
+  Wait(base::Milliseconds(600));
+  EXPECT_TRUE(IsVisible());
+
+  DaoSidebarMediaTestApi::Dismiss(handler_);
+  EXPECT_FALSE(IsVisible());
+  SetState(media_, SessionState::kActive, PlaybackState::kPlaying);
+  Wait(base::Milliseconds(1100));
+  EXPECT_FALSE(IsVisible());
+
+  SetState(media_, SessionState::kInactive, PlaybackState::kPaused);
+  SetState(media_, SessionState::kActive, PlaybackState::kPlaying);
+  Wait(base::Milliseconds(1100));
+  ASSERT_TRUE(IsVisible());
+  SetState(media_, SessionState::kInactive, PlaybackState::kPaused);
+  Wait(base::Milliseconds(600));
+  EXPECT_FALSE(IsVisible());
+}
 
 IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest, NewTabCreation) {
   TabStripModel* model = browser()->tab_strip_model();

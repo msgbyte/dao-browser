@@ -302,7 +302,7 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
   `stale`, Chromium's normal choice is kept and the folder expands to it.
 - **dao_new_tab_button.ts** — New-tab button
 - **dao_download_button.ts** — Download flyout trigger
-- **dao_media_control.ts** — Per-tab media playback controls
+- **dao_media_control.ts** — Background-tab media playback controls driven by controllable MediaSessions. Playback must continue for one second before the card appears; brief notification sounds do not qualify. The current source stays selected through pause, mute, silence, and other tabs playing. Ended or inactive sessions hide after 500ms, while closed or foreground tabs disappear immediately. Media controls follow tab identity across reordering. When tab muting removes the controllable session, the card retains playback state while play/pause is disabled until control becomes available again; ending or destroying the player and navigating to a new page clear the card.
 
 ### 1.3 Tab System Foundations
 - **New-tab placement** — Ordinary new tabs default to the top of the unpinned

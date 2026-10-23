@@ -19,6 +19,7 @@ function mediaState(extra: Partial<MediaPlaybackState> = {}):
     MediaPlaybackState {
   return {
     isPlaying: true,
+    canPlayPause: true,
     tabIndex: 3,
     title: 'Video',
     sourceTitle: 'example.com',
@@ -66,6 +67,28 @@ describe('dao-media-control', () => {
     expect(headerButtons[0]!.classList.contains('pip-btn')).toBe(true);
     expect(headerButtons[1]!.classList.contains('dismiss-btn')).toBe(true);
   });
+
+  it('keeps muted media visible while playback control is unavailable',
+      async () => {
+        const {el, send} = await createMediaControl();
+        el.mediaState_ = mediaState({isMuted: true, canPlayPause: false});
+        await el.updateComplete;
+
+        let button =
+            el.shadowRoot!.querySelector<HTMLButtonElement>('.play-pause')!;
+        expect(el.shadowRoot!.querySelector('.media-card')).not.toBeNull();
+        expect(button.disabled).toBe(true);
+        button.click();
+        expect(send).not.toHaveBeenCalled();
+
+        el.mediaState_ = mediaState();
+        await el.updateComplete;
+        button =
+            el.shadowRoot!.querySelector<HTMLButtonElement>('.play-pause')!;
+        expect(button.disabled).toBe(false);
+        button.click();
+        expect(send).toHaveBeenCalledWith('mediaPlayPause', []);
+      });
 
   it('requests picture-in-picture without bubbling to tab activation',
       async () => {

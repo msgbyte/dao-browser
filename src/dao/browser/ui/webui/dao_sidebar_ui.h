@@ -18,16 +18,18 @@
 #include "base/files/file_path.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/timer/timer.h"
 #include "base/values.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "components/download/content/public/all_download_item_notifier.h"
 #include "content/public/browser/media_session.h"
+#include "content/public/browser/web_contents_observer.h"
 #include "content/public/browser/web_ui_controller.h"
 #include "content/public/browser/web_ui_message_handler.h"
 #include "content/public/browser/webui_config.h"
 #include "dao/browser/updater/dao_updater_service.h"
 #include "dao/browser/ui/webui/dao_pinned_tab_model.h"
-#include "mojo/public/cpp/bindings/receiver.h"
+#include "mojo/public/cpp/bindings/receiver_set.h"
 #include "services/media_session/public/mojom/media_session.mojom.h"
 #include "ui/gfx/geometry/point.h"
 #include "ui/menus/simple_menu_model.h"
@@ -126,7 +128,7 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
 
   // media_session::mojom::MediaSessionObserver:
   void MediaSessionInfoChanged(
-      media_session::mojom::MediaSessionInfoPtr session_info) override {}
+      media_session::mojom::MediaSessionInfoPtr session_info) override;
   void MediaSessionMetadataChanged(
       const std::optional<media_session::MediaMetadata>& metadata) override {}
   void MediaSessionActionsChanged(
@@ -137,7 +139,7 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
                            std::vector<media_session::MediaImage>>& images)
       override {}
   void MediaSessionPositionChanged(
-      const std::optional<media_session::MediaPosition>& position) override {}
+      const std::optional<media_session::MediaPosition>& position) override;
 
   // DaoUpdaterServiceObserver:
   void OnDaoUpdateStatusChanged(const DaoUpdateStatus& status) override;
@@ -165,6 +167,7 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
 
  private:
   friend class DaoSidebarContextMenuTestApi;
+  friend class DaoSidebarMediaTestApi;
 
   // Returns the split view for this browser, or nullptr.
   DaoSplitView* GetSplitView() const;
@@ -220,11 +223,28 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   void OnMcpServiceStatusChanged(const DaoMcpServiceStatus& status);
 
   // Media playback widget.
-  int FindAudibleTabIndex() const;
+  class MediaPlaybackObserver;
+  struct MediaTabState {
+    base::WeakPtr<content::WebContents> contents;
+    std::unique_ptr<content::WebContentsObserver> playback_observer;
+    mojo::ReceiverId receiver_id = 0;
+    media_session::mojom::MediaSessionInfoPtr info;
+    std::optional<media_session::mojom::MediaPlaybackState> muted_playback;
+    base::TimeTicks playing_since;
+    bool ended = false;
+    bool dismissed = false;
+    bool has_prev = false;
+    bool has_next = false;
+  };
   void PushMediaPlaybackState();
-  // Bind/reset the Mojo observer on the given tab's MediaSession.
-  void BindMediaSessionObserver(int tab_index);
-  void ResetMediaSessionObserver();
+  void SyncMediaSessionObservers();
+  void ResetMediaSessionObservers();
+  void UpdateMediaSessionInfo(
+      MediaTabState& tab,
+      media_session::mojom::MediaSessionInfoPtr info);
+  void UpdateMediaSessionPosition(
+      MediaTabState& tab,
+      const std::optional<media_session::MediaPosition>& position);
   base::ListValue BuildActiveDownloadList();
 
   // JS message handlers
@@ -342,15 +362,14 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
 
   // Media widget state.
   int media_widget_tab_index_ = -1;
-  bool media_widget_dismissed_ = false;
-  bool media_widget_user_paused_ = false;
-  // Tab whose MediaSession is currently being observed via Mojo.
-  int observed_media_tab_index_ = -1;
-  // Actions registered by the currently observed MediaSession.
+  std::string media_widget_tab_id_;
+  base::TimeTicks media_inactive_since_;
+  base::OneShotTimer media_widget_timer_;
   bool has_prev_action_ = false;
   bool has_next_action_ = false;
-  mojo::Receiver<media_session::mojom::MediaSessionObserver>
-      media_session_observer_receiver_{this};
+  std::map<std::string, MediaTabState> media_tabs_;
+  mojo::ReceiverSet<media_session::mojom::MediaSessionObserver, std::string>
+      media_session_observers_;
   std::unique_ptr<download::AllDownloadItemNotifier> download_notifier_;
   std::set<uint32_t> in_progress_download_ids_;
   std::optional<std::pair<int, gfx::Point>> pending_download_animation_;
