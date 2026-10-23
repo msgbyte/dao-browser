@@ -63,6 +63,7 @@
 #include "components/sessions/content/session_tab_helper.h"
 #include "content/public/browser/download_item_utils.h"
 #include "content/public/browser/download_manager.h"
+#include "content/public/browser/media_player_id.h"
 #include "content/public/browser/visibility.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
@@ -148,6 +149,86 @@ class DaoSidebarUIHandler::DuplicateTabCloseObserver
   }
 
   base::OnceCallback<void(bool)> callback_;
+};
+
+class DaoSidebarUIHandler::MediaPlaybackObserver
+    : public content::WebContentsObserver {
+ public:
+  MediaPlaybackObserver(DaoSidebarUIHandler* handler, MediaTabState* tab)
+      : content::WebContentsObserver(tab->contents.get()),
+        handler_(handler),
+        tab_(tab) {}
+
+  void DidUpdateAudioMutingState(bool muted) override {
+    // Tab muting removes players from MediaSession without stopping playback.
+    if (muted && tab_->info && tab_->info->is_controllable && !tab_->ended &&
+        tab_->info->state !=
+            media_session::mojom::MediaSessionInfo::SessionState::kInactive) {
+      tab_->muted_playback = tab_->info->playback_state;
+    } else if (!muted) {
+      tab_->muted_playback.reset();
+    }
+    handler_->PushMediaPlaybackState();
+  }
+
+  void MediaStartedPlaying(const MediaPlayerInfo& info,
+                           const content::MediaPlayerId& id) override {
+    players_.insert(id);
+    playing_players_.insert(id);
+    tab_->ended = false;
+    if (tab_->muted_playback) {
+      tab_->muted_playback = media_session::mojom::MediaPlaybackState::kPlaying;
+    }
+    handler_->UpdateMediaSessionInfo(*tab_, std::move(tab_->info));
+    handler_->PushMediaPlaybackState();
+  }
+
+  void MediaStoppedPlaying(const MediaPlayerInfo& info,
+                           const content::MediaPlayerId& id,
+                           MediaStoppedReason reason) override {
+    players_.insert(id);
+    playing_players_.erase(id);
+    if (playing_players_.empty()) {
+      if (tab_->muted_playback) {
+        tab_->muted_playback = media_session::mojom::MediaPlaybackState::kPaused;
+      }
+      if (reason == MediaStoppedReason::kReachedEndOfStream) {
+        tab_->ended = true;
+        tab_->playing_since = base::TimeTicks();
+        tab_->dismissed = false;
+      }
+      handler_->PushMediaPlaybackState();
+    }
+  }
+
+  void MediaDestroyed(const content::MediaPlayerId& id) override {
+    players_.erase(id);
+    playing_players_.erase(id);
+    if (players_.empty() && tab_->muted_playback) {
+      tab_->muted_playback.reset();
+      tab_->playing_since = base::TimeTicks();
+      tab_->ended = true;
+      tab_->dismissed = false;
+      handler_->PushMediaPlaybackState();
+    }
+  }
+
+  void PrimaryPageChanged(content::Page& page) override {
+    players_.clear();
+    playing_players_.clear();
+    tab_->muted_playback.reset();
+    tab_->info.reset();
+    tab_->playing_since = base::TimeTicks();
+    tab_->ended = true;
+    tab_->dismissed = false;
+    handler_->PushMediaPlaybackState();
+  }
+
+ private:
+  const raw_ptr<DaoSidebarUIHandler> handler_;
+  const raw_ptr<MediaTabState> tab_;
+  std::set<content::MediaPlayerId> players_;
+  std::set<content::MediaPlayerId> playing_players_;
 };
 
 class DeleteFolderDialog : public views::DialogDelegate {
@@ -642,6 +723,7 @@ DaoSidebarUIHandler::~DaoSidebarUIHandler() {
 void DaoSidebarUIHandler::SetBrowser(BrowserWindowInterface* browser) {
   const bool browser_changed = browser_ != browser;
   if (browser_changed) {
+    ResetMediaSessionObservers();
     UnregisterPinnedItemsProfileHandler();
     weak_factory_.InvalidateWeakPtrs();
     duplicate_tab_close_observers_.clear();
@@ -1064,6 +1146,7 @@ void DaoSidebarUIHandler::OnJavascriptAllowed() {
 }
 
 void DaoSidebarUIHandler::OnJavascriptDisallowed() {
+  ResetMediaSessionObservers();
   classification_in_progress_ = false;
   ++classification_generation_;
   classification_tab_urls_.clear();
@@ -1140,6 +1223,7 @@ void DaoSidebarUIHandler::OnTabStripModelChanged(
   }
 
   if (!stale_tab_selected_after_close.empty()) {
+    PushMediaPlaybackState();
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE,
         base::BindOnce(&DaoSidebarUIHandler::SelectNonStaleTab,
@@ -3487,142 +3571,229 @@ void DaoSidebarUIHandler::HandleHideTabTooltip(const base::ListValue& args) {
   bv->dao_tab_tooltip()->HideTooltip();
 }
 
-int DaoSidebarUIHandler::FindAudibleTabIndex() const {
-  if (!browser_) {
-    return -1;
-  }
+void DaoSidebarUIHandler::SyncMediaSessionObservers() {
   TabStripModel* model = browser_->tab_strip_model();
-  int active_index = model->active_index();
-
+  std::set<std::string> live_ids;
   for (int i = 0; i < model->count(); ++i) {
-    if (i == active_index) {
-      continue;
-    }
     content::WebContents* contents = model->GetWebContentsAt(i);
-    if (!contents) {
+    const std::string id = GetSidebarTabId(contents);
+    live_ids.insert(id);
+    auto [it, inserted] = media_tabs_.try_emplace(id);
+    MediaTabState& tab = it->second;
+    if (!inserted && tab.contents.get() == contents) {
       continue;
     }
-    if (IsTabAudible(contents)) {
-      return i;
+    if (!inserted) {
+      media_session_observers_.Remove(tab.receiver_id);
+      tab = MediaTabState();
+      // A replacement WebContents must qualify as a new media source.
+      if (media_widget_tab_id_ == id) {
+        media_widget_tab_id_.clear();
+      }
     }
+    tab.contents = contents->GetWeakPtr();
+    tab.playback_observer = std::make_unique<MediaPlaybackObserver>(this, &tab);
+    // Observe silent starts as well as audible ones, including future playback.
+    content::MediaSession* session = content::MediaSession::Get(contents);
+    UpdateMediaSessionPosition(tab, session->GetMediaSessionPosition());
+    UpdateMediaSessionInfo(tab, session->GetMediaSessionInfoSync());
+    mojo::PendingRemote<media_session::mojom::MediaSessionObserver> observer;
+    tab.receiver_id = media_session_observers_.Add(
+        this, observer.InitWithNewPipeAndPassReceiver(), id);
+    session->AddObserver(std::move(observer));
   }
-  return -1;
+  for (auto it = media_tabs_.begin(); it != media_tabs_.end();) {
+    if (live_ids.contains(it->first)) {
+      ++it;
+      continue;
+    }
+    media_session_observers_.Remove(it->second.receiver_id);
+    it = media_tabs_.erase(it);
+  }
+}
+
+void DaoSidebarUIHandler::UpdateMediaSessionInfo(
+    MediaTabState& tab,
+    media_session::mojom::MediaSessionInfoPtr info) {
+  const bool has_session =
+      !tab.ended && info && info->is_controllable &&
+      info->state !=
+          media_session::mojom::MediaSessionInfo::SessionState::kInactive;
+  if (has_session && info->playback_state ==
+                         media_session::mojom::MediaPlaybackState::kPlaying) {
+    if (tab.playing_since.is_null()) {
+      tab.playing_since = base::TimeTicks::Now();
+    }
+  } else {
+    tab.playing_since = base::TimeTicks();
+  }
+  if (!tab.muted_playback &&
+      (!info ||
+       info->state ==
+           media_session::mojom::MediaSessionInfo::SessionState::kInactive)) {
+    tab.dismissed = false;
+  }
+  tab.info = std::move(info);
+}
+
+void DaoSidebarUIHandler::UpdateMediaSessionPosition(
+    MediaTabState& tab,
+    const std::optional<media_session::MediaPosition>& position) {
+  if (position && position->end_of_media()) {
+    tab.ended = true;
+  }
+  if (tab.ended) {
+    tab.dismissed = false;
+  }
+  UpdateMediaSessionInfo(tab, std::move(tab.info));
 }
 
 void DaoSidebarUIHandler::PushMediaPlaybackState() {
   if (!browser_ || !IsJavascriptAllowed()) {
     return;
   }
-
-  int audible_index = FindAudibleTabIndex();
-
-  // If user paused via the widget, keep showing the card for that tab.
-  bool keep_paused = media_widget_user_paused_ &&
-                     media_widget_tab_index_ >= 0 && audible_index == -1;
-
-  if (!keep_paused &&
-      (audible_index == -1 ||
-       (media_widget_dismissed_ && audible_index == media_widget_tab_index_))) {
-    if (media_widget_tab_index_ != -1) {
-      media_widget_tab_index_ = -1;
-      media_widget_user_paused_ = false;
-      ResetMediaSessionObserver();
-      base::DictValue state;
-      state.Set("isPlaying", false);
-      FireWebUIListener("mediaPlaybackChanged", state);
-    }
-    return;
-  }
-
-  int show_index = keep_paused ? media_widget_tab_index_ : audible_index;
-
-  if (show_index != media_widget_tab_index_) {
-    media_widget_dismissed_ = false;
-    media_widget_user_paused_ = false;
-    media_widget_tab_index_ = show_index;
-  }
-
-  if (show_index != observed_media_tab_index_) {
-    BindMediaSessionObserver(show_index);
-  }
-
+  SyncMediaSessionObservers();
+  media_widget_timer_.Stop();
   TabStripModel* model = browser_->tab_strip_model();
-  if (show_index >= model->count()) {
-    return;
+  const base::TimeTicks now = base::TimeTicks::Now();
+  std::optional<base::TimeDelta> next_update;
+  auto current = media_tabs_.find(media_widget_tab_id_);
+  bool keep_current = false;
+  if (current != media_tabs_.end() && !current->second.dismissed &&
+      current->second.contents.get() != model->GetActiveWebContents()) {
+    const auto& info = current->second.info;
+    if (!current->second.ended &&
+        (current->second.muted_playback ||
+         (info && info->is_controllable &&
+          info->state !=
+              media_session::mojom::MediaSessionInfo::SessionState::kInactive))) {
+      keep_current = true;
+      media_inactive_since_ = base::TimeTicks();
+    } else {
+      if (media_inactive_since_.is_null()) {
+        media_inactive_since_ = now;
+      }
+      const base::TimeDelta remaining =
+          base::Milliseconds(500) - (now - media_inactive_since_);
+      if (remaining.is_positive()) {
+        keep_current = true;
+        next_update = remaining;
+      }
+    }
   }
-  content::WebContents* contents = model->GetWebContentsAt(show_index);
-  if (!contents) {
+  if (!keep_current) {
+    media_widget_tab_id_.clear();
+    media_inactive_since_ = base::TimeTicks();
+    for (int i = 0; i < model->count(); ++i) {
+      if (i == model->active_index()) {
+        continue;
+      }
+      const std::string id = GetSidebarTabId(model->GetWebContentsAt(i));
+      const MediaTabState& tab = media_tabs_.at(id);
+      if (tab.ended || tab.dismissed || tab.playing_since.is_null()) {
+        continue;
+      }
+      // shortcut: long notification media can qualify; tune using site playback.
+      const base::TimeDelta remaining =
+          base::Seconds(1) - (now - tab.playing_since);
+      if (!remaining.is_positive()) {
+        media_widget_tab_id_ = id;
+        next_update.reset();
+        break;
+      }
+      if (!next_update || remaining < *next_update) {
+        next_update = remaining;
+      }
+    }
+  }
+  if (next_update) {
+    media_widget_timer_.Start(
+        FROM_HERE, *next_update, this,
+        &DaoSidebarUIHandler::PushMediaPlaybackState);
+  }
+  current = media_tabs_.find(media_widget_tab_id_);
+  if (current == media_tabs_.end()) {
+    base::DictValue state;
+    state.Set("isPlaying", false);
+    FireWebUIListener("mediaPlaybackChanged", state);
+    media_widget_tab_index_ = -1;
+    has_prev_action_ = false;
+    has_next_action_ = false;
     return;
   }
 
-  std::string title = base::UTF16ToUTF8(contents->GetTitle());
+  const MediaTabState& tab = current->second;
+  content::WebContents* contents = tab.contents.get();
+  media_widget_tab_index_ = model->GetIndexOfWebContents(contents);
+  has_prev_action_ = tab.has_prev;
+  has_next_action_ = tab.has_next;
   std::string source_title = std::string(contents->GetVisibleURL().host());
-  if (source_title.length() > 4 && source_title.substr(0, 4) == "www.") {
+  if (source_title.starts_with("www.")) {
     source_title = source_title.substr(4);
   }
-
-  bool is_playing = contents->IsCurrentlyAudible() && !contents->IsAudioMuted();
-
   base::DictValue state;
-  state.Set("isPlaying", is_playing);
-  state.Set("tabIndex", show_index);
-  state.Set("title", title);
+  const auto playback = tab.muted_playback.value_or(
+      tab.info ? tab.info->playback_state
+               : media_session::mojom::MediaPlaybackState::kPaused);
+  state.Set("isPlaying",
+            !tab.ended &&
+                playback == media_session::mojom::MediaPlaybackState::kPlaying);
+  state.Set("canPlayPause",
+            !tab.ended && tab.info && tab.info->is_controllable &&
+                tab.info->state != media_session::mojom::MediaSessionInfo::
+                                       SessionState::kInactive);
+  state.Set("tabIndex", media_widget_tab_index_);
+  state.Set("title", base::UTF16ToUTF8(contents->GetTitle()));
   state.Set("sourceTitle", source_title);
   state.Set("faviconUrl", FaviconToDataUrl(contents));
   state.Set("isMuted", contents->IsAudioMuted());
   state.Set("hasPrev", has_prev_action_);
   state.Set("hasNext", has_next_action_);
-
   FireWebUIListener("mediaPlaybackChanged", state);
 }
 
-void DaoSidebarUIHandler::BindMediaSessionObserver(int tab_index) {
-  ResetMediaSessionObserver();
-  if (!browser_ || tab_index < 0) {
-    return;
-  }
-  TabStripModel* model = browser_->tab_strip_model();
-  if (tab_index >= model->count()) {
-    return;
-  }
-  content::WebContents* contents = model->GetWebContentsAt(tab_index);
-  if (!contents) {
-    return;
-  }
-  // Get() auto-creates the MediaSession if needed so the observer can
-  // receive action updates as soon as the site registers handlers.
-  content::MediaSession* session = content::MediaSession::Get(contents);
-  if (!session) {
-    return;
-  }
-  observed_media_tab_index_ = tab_index;
-  session->AddObserver(
-      media_session_observer_receiver_.BindNewPipeAndPassRemote());
-}
-
-void DaoSidebarUIHandler::ResetMediaSessionObserver() {
-  media_session_observer_receiver_.reset();
-  observed_media_tab_index_ = -1;
+void DaoSidebarUIHandler::ResetMediaSessionObservers() {
+  media_widget_timer_.Stop();
+  media_session_observers_.Clear();
+  media_tabs_.clear();
+  media_widget_tab_id_.clear();
+  media_widget_tab_index_ = -1;
+  media_inactive_since_ = base::TimeTicks();
   has_prev_action_ = false;
   has_next_action_ = false;
 }
 
-void DaoSidebarUIHandler::MediaSessionActionsChanged(
-    const std::vector<media_session::mojom::MediaSessionAction>& actions) {
-  bool prev = false;
-  bool next = false;
-  for (const auto& action : actions) {
-    if (action == media_session::mojom::MediaSessionAction::kPreviousTrack) {
-      prev = true;
-    } else if (action == media_session::mojom::MediaSessionAction::kNextTrack) {
-      next = true;
-    }
-  }
-  if (prev == has_prev_action_ && next == has_next_action_) {
+void DaoSidebarUIHandler::MediaSessionInfoChanged(
+    media_session::mojom::MediaSessionInfoPtr info) {
+  auto it = media_tabs_.find(media_session_observers_.current_context());
+  if (it == media_tabs_.end()) {
     return;
   }
-  has_prev_action_ = prev;
-  has_next_action_ = next;
+  UpdateMediaSessionInfo(it->second, std::move(info));
+  PushMediaPlaybackState();
+}
+
+void DaoSidebarUIHandler::MediaSessionActionsChanged(
+    const std::vector<media_session::mojom::MediaSessionAction>& actions) {
+  auto it = media_tabs_.find(media_session_observers_.current_context());
+  if (it == media_tabs_.end()) {
+    return;
+  }
+  using Action = media_session::mojom::MediaSessionAction;
+  it->second.has_prev =
+      std::ranges::find(actions, Action::kPreviousTrack) != actions.end();
+  it->second.has_next =
+      std::ranges::find(actions, Action::kNextTrack) != actions.end();
+  PushMediaPlaybackState();
+}
+
+void DaoSidebarUIHandler::MediaSessionPositionChanged(
+    const std::optional<media_session::MediaPosition>& position) {
+  auto it = media_tabs_.find(media_session_observers_.current_context());
+  if (it == media_tabs_.end()) {
+    return;
+  }
+  UpdateMediaSessionPosition(it->second, position);
   PushMediaPlaybackState();
 }
 
@@ -3645,11 +3816,14 @@ void DaoSidebarUIHandler::HandleMediaPlayPause(const base::ListValue& args) {
     return;
   }
 
-  if (contents->IsCurrentlyAudible()) {
-    media_widget_user_paused_ = true;
+  const auto info = session->GetMediaSessionInfoSync();
+  if (!info || !info->is_controllable) {
+    return;
+  }
+  if (info->playback_state ==
+      media_session::mojom::MediaPlaybackState::kPlaying) {
     session->Suspend(content::MediaSession::SuspendType::kUI);
   } else {
-    media_widget_user_paused_ = false;
     session->Resume(content::MediaSession::SuspendType::kUI);
   }
 }
@@ -3693,9 +3867,14 @@ void DaoSidebarUIHandler::HandleMediaNext(const base::ListValue& args) {
 }
 
 void DaoSidebarUIHandler::HandleMediaDismiss(const base::ListValue& args) {
-  media_widget_dismissed_ = true;
-  media_widget_user_paused_ = false;
-  ResetMediaSessionObserver();
+  auto it = media_tabs_.find(media_widget_tab_id_);
+  if (it != media_tabs_.end()) {
+    it->second.dismissed = true;
+  }
+  media_widget_timer_.Stop();
+  media_widget_tab_id_.clear();
+  media_widget_tab_index_ = -1;
+  media_inactive_since_ = base::TimeTicks();
   base::DictValue state;
   state.Set("isPlaying", false);
   FireWebUIListener("mediaPlaybackChanged", state);

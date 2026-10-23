@@ -232,7 +232,8 @@ export class DaoMediaControl extends CrLitElement {
               <path d="M3 20V4"></path>
             </svg>
           </button>
-          <button class="ctrl-btn play-pause" @click=${this.onPlayPause_}>
+          <button class="ctrl-btn play-pause" ?disabled=${!s.canPlayPause}
+                  @click=${this.onPlayPause_}>
             ${s.isPlaying ? html`
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
                     stroke="currentColor" stroke-width="2"

@@ -149,6 +149,7 @@ export interface UpdateStateData {
 
 export interface MediaPlaybackState {
   isPlaying: boolean;
+  canPlayPause: boolean;
   tabIndex: number;
   title: string;
   sourceTitle: string;
