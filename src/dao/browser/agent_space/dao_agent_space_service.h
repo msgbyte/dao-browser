@@ -20,6 +20,7 @@
 #include "base/scoped_observation.h"
 #include "base/sequence_checker.h"
 #include "base/supports_user_data.h"
+#include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "base/values.h"
 #include "chrome/browser/ui/browser_window/public/browser_collection_observer.h"
@@ -49,6 +50,8 @@ struct DaoAgentSpaceClient {
   DaoToolClient type = DaoToolClient::kDaoAgent;
   std::string key;
   std::string label;
+  // Copied into script subcalls so a long-running script cannot outlive consent.
+  base::TimeTicks authorization_deadline = base::TimeTicks();
 };
 
 // Owns the Agent Spaces of one profile and routes browser tools into them.

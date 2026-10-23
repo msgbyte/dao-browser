@@ -41,6 +41,7 @@
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
 #include "base/test/run_until.h"
+#include "base/test/simple_test_tick_clock.h"
 #include "base/test/test_future.h"
 #include "base/threading/sequence_bound.h"
 #include "base/threading/thread_restrictions.h"
@@ -755,6 +756,8 @@ class FakeApprovalDelegate : public DaoMcpApprovalDelegate {
 
 class AllowDuringCancelApprovalDelegate : public DaoMcpApprovalDelegate {
  public:
+  bool has_pending_request() const { return !callback_.is_null(); }
+
   void RequestApproval(const DaoMcpApprovalRequest&,
                        BrowserWindowInterface*,
                        std::string_view,
@@ -800,6 +803,7 @@ class DaoMcpServiceBrowserTest : public InProcessBrowserTest {
   void TearDownOnMainThread() override {
     service_->SetDevToolsCommandCallbackForTesting({});
     service_->SetApprovalDelegate(nullptr);
+    service_->SetSpaceApprovalClockForTesting(nullptr);
     service_->SetEnabled(false);
     service_->SetTimeoutsForTesting(base::Seconds(5), base::Seconds(30));
     InProcessBrowserTest::TearDownOnMainThread();
@@ -1052,6 +1056,208 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
 
   DaoAgentSpaceService::GetForProfile(browser()->GetProfile())
       ->Stop(*space_id);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
+                       SpaceConsentSurvivesReconnectWithoutRenewal) {
+  base::SimpleTestTickClock clock;
+  clock.SetNowTicks(base::TimeTicks::Now());
+  service_->SetSpaceApprovalClockForTesting(&clock);
+  FakeApprovalDelegate approval;
+  service_->SetApprovalDelegate(&approval);
+  EnableService();
+  auto client = ConnectClient();
+  ASSERT_TRUE(client->Send(HelloRequest(nonce())));
+  ASSERT_TRUE(client->Read());
+  ASSERT_TRUE(client->Send(ToolCall("first", "list_spaces")));
+  WaitForApprovalRequestCount(&approval, 1);
+  approval.Resolve(true);
+  auto response = client->Read();
+  ASSERT_TRUE(response);
+  EXPECT_TRUE(response->FindBoolByDottedPath("result.ok").value_or(false));
+  client->Disconnect();
+
+  clock.Advance(base::Minutes(59));
+  client = ConnectClient();
+  ASSERT_TRUE(client->Send(HelloRequest(nonce())));
+  ASSERT_TRUE(client->Read());
+  ASSERT_TRUE(client->Send(ToolCall("reconnected", "list_spaces")));
+  response = client->Read();
+  ASSERT_TRUE(response);
+  EXPECT_TRUE(response->FindBoolByDottedPath("result.ok").value_or(false));
+  EXPECT_EQ(1u, approval.request_count());
+
+  // Reconnecting at minute 59 must not extend the original deadline.
+  clock.Advance(base::Minutes(1));
+  ASSERT_TRUE(client->Send(ToolCall("expired", "list_spaces")));
+  WaitForApprovalRequestCount(&approval, 2);
+  approval.Resolve(false);
+  response = client->Read();
+  ASSERT_TRUE(response);
+  EXPECT_EQ("AUTHORIZATION_DENIED",
+            *response->FindStringByDottedPath("error.code"));
+  service_->SetSpaceApprovalClockForTesting(nullptr);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
+                       SpaceConsentIsSeparateFromPagesNamesAndProfiles) {
+  base::SimpleTestTickClock clock;
+  clock.SetNowTicks(base::TimeTicks::Now());
+  service_->SetSpaceApprovalClockForTesting(&clock);
+  FakeApprovalDelegate approval;
+  service_->SetApprovalDelegate(&approval);
+  EnableService();
+  auto client = ConnectClient();
+  ASSERT_TRUE(client->Send(HelloRequest(nonce())));
+  ASSERT_TRUE(client->Read());
+  ASSERT_TRUE(client->Send(ToolCall("spaces", "list_spaces")));
+  WaitForApprovalRequestCount(&approval, 1);
+  approval.Resolve(true);
+  ASSERT_TRUE(client->Read());
+  ApprovePage(client.get(), &approval,
+              browser()->tab_strip_model()->GetActiveWebContents());
+  EXPECT_EQ(1u, approval.page_request_count());
+
+  auto other = ConnectClient();
+  auto hello = HelloRequest(nonce());
+  hello.SetByDottedPath("params.client.name", "Another agent");
+  ASSERT_TRUE(other->Send(std::move(hello)));
+  ASSERT_TRUE(other->Read());
+  ASSERT_TRUE(other->Send(ToolCall("different-name", "list_spaces")));
+  WaitForApprovalRequestCount(&approval, 2);
+  approval.Resolve(false);
+  ASSERT_TRUE(other->Read());
+
+  ProfileManager* profile_manager = g_browser_process->profile_manager();
+  Profile& secondary = profiles::testing::CreateProfileSync(
+      profile_manager, profile_manager->GenerateNextProfileDirectoryPath());
+  Browser* secondary_browser = CreateBrowser(&secondary);
+  secondary_browser->GetWindow()->Show();
+  ui_test_utils::WaitForBrowserSetLastActive(secondary_browser);
+  auto different_profile = ConnectClient();
+  ASSERT_TRUE(different_profile->Send(HelloRequest(nonce())));
+  ASSERT_TRUE(different_profile->Read());
+  ASSERT_TRUE(different_profile->Send(
+      ToolCall("different-profile", "list_spaces")));
+  WaitForApprovalRequestCount(&approval, 3);
+  EXPECT_EQ(secondary_browser, approval.browser());
+  approval.Resolve(false);
+  ASSERT_TRUE(different_profile->Read());
+
+  // Renewing an existing connection keeps its original profile.
+  clock.Advance(base::Hours(1));
+  ASSERT_TRUE(client->Send(ToolCall("renew-original-profile", "list_spaces")));
+  WaitForApprovalRequestCount(&approval, 4);
+  EXPECT_EQ(browser(), approval.browser());
+  approval.Resolve(false);
+  ASSERT_TRUE(client->Read());
+  service_->SetSpaceApprovalClockForTesting(nullptr);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
+                       SpaceConsentCoalescesPendingConnectionsAndClearsOnDisable) {
+  FakeApprovalDelegate approval;
+  service_->SetApprovalDelegate(&approval);
+  EnableService();
+  auto first = ConnectClient();
+  auto second = ConnectClient();
+  ASSERT_TRUE(first->Send(HelloRequest(nonce())));
+  ASSERT_TRUE(first->Read());
+  ASSERT_TRUE(second->Send(HelloRequest(nonce())));
+  ASSERT_TRUE(second->Read());
+  ASSERT_TRUE(first->Send(ToolCall("first", "list_spaces")));
+  WaitForApprovalRequestCount(&approval, 1);
+  ASSERT_TRUE(second->Send(ToolCall("second", "list_spaces")));
+  WaitForApprovalRequestCount(&approval, 2);
+  approval.ResolveAt(0, true);
+  auto response = first->Read();
+  ASSERT_TRUE(response);
+  EXPECT_TRUE(response->FindBoolByDottedPath("result.ok").value_or(false));
+  response = second->Read();
+  ASSERT_TRUE(response);
+  EXPECT_TRUE(response->FindBoolByDottedPath("result.ok").value_or(false));
+  EXPECT_EQ(1u, approval.cancelled_connection_ids().size());
+
+  service_->SetEnabled(false);
+  // A delayed dialog callback must not restore a revoked grant.
+  approval.ResolveAt(1, true);
+  EnableService();
+  auto replacement = ConnectClient();
+  ASSERT_TRUE(replacement->Send(HelloRequest(nonce())));
+  ASSERT_TRUE(replacement->Read());
+  ASSERT_TRUE(replacement->Send(ToolCall("after-disable", "list_spaces")));
+  WaitForApprovalRequestCount(&approval, 3);
+  approval.Resolve(false);
+  response = replacement->Read();
+  ASSERT_TRUE(response);
+  EXPECT_EQ("AUTHORIZATION_DENIED",
+            *response->FindStringByDottedPath("error.code"));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
+                       SpaceApprovalTimeoutCannotReenterAsAllowed) {
+  AllowDuringCancelApprovalDelegate approval;
+  service_->SetApprovalDelegate(&approval);
+  service_->SetTimeoutsForTesting(base::Seconds(5), base::Milliseconds(100));
+  EnableService();
+  auto client = ConnectClient();
+  ASSERT_TRUE(client->Send(HelloRequest(nonce())));
+  ASSERT_TRUE(client->Read());
+  ASSERT_TRUE(client->Send(ToolCall("timeout", "list_spaces")));
+  auto response = client->Read();
+  ASSERT_TRUE(response);
+  EXPECT_EQ("AUTHORIZATION_TIMEOUT",
+            *response->FindStringByDottedPath("error.code"));
+
+  FakeApprovalDelegate replacement_approval;
+  service_->SetApprovalDelegate(&replacement_approval);
+  service_->SetTimeoutsForTesting(base::Seconds(5), base::Seconds(30));
+  auto replacement = ConnectClient();
+  ASSERT_TRUE(replacement->Send(HelloRequest(nonce())));
+  ASSERT_TRUE(replacement->Read());
+  ASSERT_TRUE(replacement->Send(ToolCall("after-timeout", "list_spaces")));
+  WaitForApprovalRequestCount(&replacement_approval, 1);
+  replacement_approval.Resolve(false);
+  ASSERT_TRUE(replacement->Read());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
+                       StopControlCannotRestoreSpaceConsentDuringCancellation) {
+  base::SimpleTestTickClock clock;
+  clock.SetNowTicks(base::TimeTicks::Now());
+  service_->SetSpaceApprovalClockForTesting(&clock);
+  FakeApprovalDelegate approval;
+  service_->SetApprovalDelegate(&approval);
+  EnableService();
+  auto client = ConnectClient();
+  ASSERT_TRUE(client->Send(HelloRequest(nonce())));
+  ASSERT_TRUE(client->Read());
+  ApproveWindow(client.get(), &approval);
+  ASSERT_TRUE(client->Send(ToolCall("spaces", "list_spaces")));
+  WaitForApprovalRequestCount(&approval, 2);
+  approval.Resolve(true);
+  ASSERT_TRUE(client->Read());
+
+  clock.Advance(base::Hours(1));
+  AllowDuringCancelApprovalDelegate cancel_approval;
+  service_->SetApprovalDelegate(&cancel_approval);
+  ASSERT_TRUE(client->Send(ToolCall("renew", "list_spaces")));
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return cancel_approval.has_pending_request(); }));
+  const auto connections = service_->GetConnections();
+  ASSERT_EQ(1u, connections.size());
+  service_->StopControl(connections.front().connection_id);
+  WaitUntilListeningWithoutClient();
+
+  service_->SetApprovalDelegate(&approval);
+  auto replacement = ConnectClient();
+  ASSERT_TRUE(replacement->Send(HelloRequest(nonce())));
+  ASSERT_TRUE(replacement->Read());
+  ASSERT_TRUE(replacement->Send(ToolCall("after-stop", "list_spaces")));
+  WaitForApprovalRequestCount(&approval, 3);
+  approval.Resolve(false);
+  ASSERT_TRUE(replacement->Read());
+  service_->SetSpaceApprovalClockForTesting(nullptr);
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,

@@ -340,8 +340,8 @@
 <translation id="7410263727650457915"><ph name="TASK"/> 需要你回应网站的权限请求</translation>
 <translation id="7576437802374181996"><ph name="TASK"/> 已完成</translation>
 <translation id="7270911401217188243"><ph name="TASK"/> 已完成，并在此窗口添加了 <ph name="COUNT"/> 个页面</translation>
-<translation id="7502337742088917288">一个本机 AI Agent 想在后台任务窗口中工作。它可以在这些窗口里使用你的登录状态，你可以随时在侧边栏查看、接管或停止每个任务。</translation>
-<translation id="3561813968173073298">始终允许 <ph name="CLIENT"/> 使用后台任务窗口</translation>
+<translation id="5899263127890819942">允许此 Agent 在一小时内使用 Dao Lite 后台任务窗口，重新连接后仍然有效，持续操作不会延长授权。它可以在这些窗口中使用你的登录状态；访问你自己的标签页仍需单独授权。你可以在侧边栏查看、接管或停止任务。</translation>
+<translation id="4903822792316500240">始终允许 <ph name="CLIENT"/> 使用 Dao Lite</translation>
 <translation id="8529302590077854906"><ph name="TASK"/> 需要你为网站选择文件</translation>
 <translation id="7061769699245564112"><ph name="TASK"/> 需要你为网站选择设备</translation>
 <translation id="7956784456894202694"><ph name="TASK"/> 需要你回应网站的登录或安全提示</translation>
@@ -356,4 +356,6 @@
 <translation id="5039804452771397117">允许</translation>
 <translation id="4169535189173047238">不允许</translation>
 <translation id="512111397659430754">AI 结果</translation>
+<translation id="6630694421311138727">允许 1 小时</translation>
+<translation id="6573096386450695060">始终允许</translation>
 </translationbundle>

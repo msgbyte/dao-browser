@@ -11,6 +11,7 @@
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "components/prefs/pref_service.h"
+#include "components/prefs/scoped_user_pref_update.h"
 #include "dao/browser/dao_pref_names.h"
 #include "dao/browser/updater/dao_updater_service.h"
 
@@ -643,14 +644,38 @@ bool DaoMcpService::HasWindowPermission(BrowserWindowInterface* window) const {
 }
 
 void DaoMcpService::StopControl(std::string_view connection_id) {
-  for (auto& [_, connection] : connections_) {
-    if (connection->connection_id == connection_id) {
+  std::vector<uint64_t> revoked;
+  for (const auto& [generation, connection] : connections_) {
+    if (connection->connection_id != connection_id) {
+      continue;
+    }
+    revoked.push_back(generation);
+    if (connection->space_profile && connection->client_info) {
+      const std::string& name = connection->client_info->name;
+      const base::FilePath& profile = connection->space_profile->GetPath();
+      space_approval_expirations_.erase({profile, name});
+      if (local_state_) {
+        ScopedListPrefUpdate update(local_state_,
+                                    prefs::kDaoAgentSpaceAllowedClients);
+        update->EraseValue(base::Value(name));
+      }
+      for (const auto& [other_generation, other] : connections_) {
+        if (other_generation != generation && other->client_info &&
+            other->client_info->name == name && other->space_profile &&
+            other->space_profile->GetPath() == profile) {
+          revoked.push_back(other_generation);
+        }
+      }
+    }
+    break;
+  }
+  for (uint64_t generation : revoked) {
+    if (ConnectionState* connection = FindConnection(generation)) {
       RejectConnection(
           *connection,
           MakeDaoToolError(
               DaoToolErrorCode::kToolCancelled,
               "External MCP browser control was stopped by the user."));
-      return;
     }
   }
 }
@@ -987,6 +1012,7 @@ void DaoMcpService::StopListening() {
     ResetConnectionState(*connection);
   }
   connections_.clear();
+  space_approval_expirations_.clear();
   QueueRuntimeCleanup();
   UpdateStatus();
 }
@@ -1678,15 +1704,28 @@ void DaoMcpService::HandleSpaceToolsCall(
     SendError(connection, request_id, AuthorizationDenied());
     return;
   }
-  if (connection.space_approval_state == ApprovalState::kNotRequested &&
-      IsSpaceClientRemembered(connection)) {
-    BrowserWindowInterface* browser =
-        GlobalBrowserCollection::GetInstance()->GetLastActiveBrowser();
-    Profile* profile = browser ? browser->GetProfile() : nullptr;
-    if (profile && DaoAgentSpaceService::GetForProfile(profile)) {
-      connection.space_profile = profile->GetWeakPtr();
-      connection.space_approval_state = ApprovalState::kAllowed;
+  if (connection.space_approval_state != ApprovalState::kPending) {
+    Profile* profile = connection.space_profile.get();
+    if (!profile) {
+      BrowserWindowInterface* browser =
+          GlobalBrowserCollection::GetInstance()->GetLastActiveBrowser();
+      if (browser && browser->GetType() == BrowserWindowInterface::TYPE_NORMAL) {
+        profile = browser->GetProfile();
+      }
     }
+    bool allowed = false;
+    if (profile && DaoAgentSpaceService::GetForProfile(profile)) {
+      const auto grant = space_approval_expirations_.find(
+          {profile->GetPath(), connection.client_info->name});
+      allowed = IsSpaceClientRemembered(connection) ||
+                (grant != space_approval_expirations_.end() &&
+                 space_approval_clock_->NowTicks() < grant->second);
+      if (allowed) {
+        connection.space_profile = profile->GetWeakPtr();
+      }
+    }
+    connection.space_approval_state =
+        allowed ? ApprovalState::kAllowed : ApprovalState::kNotRequested;
   }
   const std::string* reason = arguments.FindString("reason");
   if ((arguments.contains("reason") ||
@@ -1726,8 +1765,20 @@ void DaoMcpService::HandleSpaceToolsCall(
 void DaoMcpService::RequestSpaceApproval(ConnectionState& connection,
                                          std::string reason) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  BrowserWindowInterface* browser =
-      GlobalBrowserCollection::GetInstance()->GetLastActiveBrowser();
+  BrowserWindowInterface* browser = nullptr;
+  if (connection.space_profile) {
+    ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
+        [&](BrowserWindowInterface* candidate) {
+          if (candidate->GetProfile() != connection.space_profile.get() ||
+              candidate->GetType() != BrowserWindowInterface::TYPE_NORMAL) {
+            return true;
+          }
+          browser = candidate;
+          return false;
+        });
+  } else {
+    browser = GlobalBrowserCollection::GetInstance()->GetLastActiveBrowser();
+  }
   Profile* profile = browser ? browser->GetProfile() : nullptr;
   if (!browser || !profile ||
       browser->GetType() != BrowserWindowInterface::TYPE_NORMAL ||
@@ -1779,16 +1830,53 @@ void DaoMcpService::OnSpaceApprovalResult(uint64_t connection_generation,
     FailQueuedSpaceCalls(*connection, AuthorizationDenied());
     return;
   }
-  connection->space_approval_state = ApprovalState::kAllowed;
-  std::vector<PendingToolCall> queued =
-      std::exchange(connection->queued_space_calls, {});
-  for (PendingToolCall& pending : queued) {
-    // A synchronous completion may reject and erase the connection.
-    connection = FindConnection(connection_generation);
-    if (!connection || connection->closing) {
-      return;
+  if (!connection->space_profile) {
+    connection->space_approval_state = ApprovalState::kNotRequested;
+    FailQueuedSpaceCalls(*connection, AuthorizationDenied());
+    return;
+  }
+  const auto key = std::make_pair(connection->space_profile->GetPath(),
+                                 connection->client_info->name);
+  const base::TimeTicks now = space_approval_clock_->NowTicks();
+  std::erase_if(space_approval_expirations_, [now](const auto& grant) {
+    return now >= grant.second;
+  });
+  space_approval_expirations_[key] = now + base::Hours(1);
+  std::vector<uint64_t> approved;
+  for (auto& [generation, candidate] : connections_) {
+    if (!candidate->closing && candidate->client_info &&
+        candidate->space_profile &&
+        candidate->space_approval_state == ApprovalState::kPending &&
+        candidate->space_profile->GetPath() == key.first &&
+        candidate->client_info->name == key.second) {
+      candidate->space_approval_state = ApprovalState::kAllowed;
+      candidate->space_approval_timer.Stop();
+      approved.push_back(generation);
     }
-    DispatchSpaceCall(*connection, std::move(pending));
+  }
+  for (uint64_t generation : approved) {
+    connection = FindConnection(generation);
+    if (!connection || connection->closing) {
+      continue;
+    }
+    if (generation != connection_generation && approval_delegate_) {
+      approval_delegate_->CancelApproval(
+          SpaceApprovalId(connection->connection_id));
+      connection = FindConnection(generation);
+      if (!connection || connection->closing) {
+        continue;
+      }
+    }
+    std::vector<PendingToolCall> queued =
+        std::exchange(connection->queued_space_calls, {});
+    for (PendingToolCall& pending : queued) {
+      // A synchronous completion may reject and erase the connection.
+      connection = FindConnection(generation);
+      if (!connection || connection->closing) {
+        break;
+      }
+      DispatchSpaceCall(*connection, std::move(pending));
+    }
   }
 }
 
@@ -1800,10 +1888,10 @@ void DaoMcpService::OnSpaceApprovalTimeout(uint64_t connection_generation,
       connection->space_approval_state != ApprovalState::kPending) {
     return;
   }
+  connection->space_approval_state = ApprovalState::kNotRequested;
   if (approval_delegate_) {
     approval_delegate_->CancelApproval(SpaceApprovalId(connection_id));
   }
-  connection->space_approval_state = ApprovalState::kNotRequested;
   FailQueuedSpaceCalls(
       *connection,
       MakeDaoToolError(DaoToolErrorCode::kAuthorizationTimeout,
@@ -1829,10 +1917,21 @@ void DaoMcpService::DispatchSpaceCall(ConnectionState& connection,
   RecordAcceptedToolCall(connection.generation,
                          profile->GetOriginalProfile()->GetPrefs(),
                          pending.call.name);
+  DaoAgentSpaceClient client{DaoToolClient::kMcp, connection.connection_id,
+                            connection.client_info->name};
+  if (!IsSpaceClientRemembered(connection)) {
+    auto grant = space_approval_expirations_.find(
+        {profile->GetPath(), connection.client_info->name});
+    if (grant == space_approval_expirations_.end()) {
+      connection.space_tool_calls.erase(request_id);
+      connection.active_tool_calls.erase(request_id);
+      SendError(connection, request_id, AuthorizationDenied());
+      return;
+    }
+    client.authorization_deadline = grant->second;
+  }
   spaces->ExecuteTool(
-      {DaoToolClient::kMcp, connection.connection_id,
-       connection.client_info->name},
-      std::move(pending.call),
+      client, std::move(pending.call),
       base::BindOnce(&DaoMcpService::OnSpaceToolCallComplete,
                      weak_factory_.GetWeakPtr(), connection.generation,
                      request_id));
@@ -1871,12 +1970,14 @@ void DaoMcpService::FailQueuedSpaceCalls(ConnectionState& connection,
 void DaoMcpService::CancelSpaceCalls(ConnectionState& connection,
                                      const DaoToolError& error) {
   connection.space_approval_timer.Stop();
-  if (approval_delegate_ && !connection.connection_id.empty() &&
-      connection.space_approval_state == ApprovalState::kPending) {
+  const bool cancel_pending =
+      connection.space_approval_state == ApprovalState::kPending &&
+      !connection.connection_id.empty();
+  connection.space_approval_state = ApprovalState::kNotRequested;
+  if (approval_delegate_ && cancel_pending) {
     approval_delegate_->CancelApproval(
         SpaceApprovalId(connection.connection_id));
   }
-  connection.space_approval_state = ApprovalState::kNotRequested;
   FailQueuedSpaceCalls(connection, error);
   DaoAgentSpaceService* spaces =
       connection.space_profile

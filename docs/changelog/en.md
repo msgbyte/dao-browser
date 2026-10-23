@@ -4,6 +4,8 @@
 
 ### [Unreleased] Unreleased
 
+- Allow a local agent to use Dao Lite background tasks for one hour across reconnects, without repeated prompts or extending the time as it works; access to your own tabs still needs separate approval.
+
 ### [1.0.120] - 2026-10-24
 
 - Show the address-bar AI control icon only when the current page is under agent control.

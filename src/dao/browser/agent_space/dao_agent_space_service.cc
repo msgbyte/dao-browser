@@ -468,6 +468,13 @@ void DaoAgentSpaceService::ExecuteTool(const DaoAgentSpaceClient& client,
                                        DaoBrowserToolCall call,
                                        ResultCallback callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!client.authorization_deadline.is_null() &&
+      base::TimeTicks::Now() >= client.authorization_deadline) {
+    std::move(callback).Run(ErrorResult(MakeDaoToolError(
+        DaoToolErrorCode::kAuthorizationDenied,
+        "Dao Lite access expired. Request approval again before continuing.")));
+    return;
+  }
   auto catalog = DaoBrowserToolCatalog::TryGet();
   const DaoBrowserToolDefinition* definition =
       catalog.has_value() ? catalog.value()->Find(call.name, client.type)

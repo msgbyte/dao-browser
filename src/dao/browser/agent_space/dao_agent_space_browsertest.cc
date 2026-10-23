@@ -120,6 +120,20 @@ class DaoAgentSpaceBrowserTest : public InProcessBrowserTest {
 };
 
 IN_PROC_BROWSER_TEST_F(DaoAgentSpaceBrowserTest,
+                       RejectsExpiredConsentBeforeExecutingSpaceTools) {
+  DaoAgentSpaceClient client{DaoToolClient::kMcp, "expiring-client", "Test"};
+  client.authorization_deadline = base::TimeTicks::Now();
+  DaoBrowserToolCall call;
+  call.request_id = "expired-create";
+  call.name = "create_space";
+  call.arguments.Set("name", "Must not open");
+  base::test::TestFuture<DaoBrowserToolResult> future;
+  service_->ExecuteTool(client, std::move(call), future.GetCallback());
+  EXPECT_EQ("AUTHORIZATION_DENIED", ErrorCode(future.Take()));
+  EXPECT_EQ(0u, service_->GetActiveSpaceCount());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentSpaceBrowserTest,
                        CreatesHiddenWindowThatFindersSkip) {
   const size_t browsers_before =
       GlobalBrowserCollection::GetInstance()->GetSize();

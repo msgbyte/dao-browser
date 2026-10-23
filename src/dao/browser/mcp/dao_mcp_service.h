@@ -25,6 +25,7 @@
 #include "base/process/process_handle.h"
 #include "base/sequence_checker.h"
 #include "base/threading/sequence_bound.h"
+#include "base/time/default_tick_clock.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "base/types/expected.h"
@@ -183,6 +184,9 @@ class DaoMcpService {
   }
   bool connection_active_for_testing() const { return !connections_.empty(); }
   size_t connection_count_for_testing() const { return connections_.size(); }
+  void SetSpaceApprovalClockForTesting(const base::TickClock* clock) {
+    space_approval_clock_ = clock ? clock : base::DefaultTickClock::GetInstance();
+  }
 #endif
 
  private:
@@ -346,6 +350,11 @@ class DaoMcpService {
   bool listener_active_ = false;
   base::SequenceBound<DaoMcpTransport> transport_;
   std::map<uint64_t, std::unique_ptr<ConnectionState>> connections_;
+
+  std::map<std::pair<base::FilePath, std::string>, base::TimeTicks>
+      space_approval_expirations_;
+  raw_ptr<const base::TickClock> space_approval_clock_ =
+      base::DefaultTickClock::GetInstance();
 
   raw_ptr<DaoMcpApprovalDelegate> approval_delegate_ = nullptr;
   base::TimeDelta hello_timeout_;

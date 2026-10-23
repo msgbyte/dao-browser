@@ -113,7 +113,10 @@ DaoMcpApprovalDialog::DaoMcpApprovalDialog(
   SetButtons(static_cast<int>(ui::mojom::DialogButton::kOk) |
              static_cast<int>(ui::mojom::DialogButton::kCancel));
   SetButtonLabel(ui::mojom::DialogButton::kOk,
-                 l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_ALLOW));
+                 l10n_util::GetStringUTF16(
+                     request.background_space
+                         ? IDS_DAO_MCP_APPROVAL_SPACE_ALLOW_ONE_HOUR
+                         : IDS_DAO_MCP_APPROVAL_ALLOW));
   SetButtonLabel(ui::mojom::DialogButton::kCancel,
                  l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_DENY));
   SetButtonStyle(ui::mojom::DialogButton::kOk,
@@ -335,6 +338,12 @@ std::unique_ptr<views::View> DaoMcpApprovalDialog::BuildContents(
     checkbox->SetCallback(base::BindRepeating(
         [](DaoMcpApprovalDialog* dialog, views::Checkbox* checkbox) {
           dialog->remember_ = checkbox->GetChecked();
+          dialog->SetButtonLabel(
+              ui::mojom::DialogButton::kOk,
+              l10n_util::GetStringUTF16(
+                  dialog->remember_
+                      ? IDS_DAO_MCP_APPROVAL_SPACE_ALLOW_ALWAYS
+                      : IDS_DAO_MCP_APPROVAL_SPACE_ALLOW_ONE_HOUR));
         },
         base::Unretained(this), base::Unretained(checkbox)));
   }

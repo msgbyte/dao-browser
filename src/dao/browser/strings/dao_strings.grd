@@ -591,10 +591,16 @@
         URL: <ph name="URL">$1<ex>https://example.com/</ex></ph>
       </message>
       <message name="IDS_DAO_MCP_APPROVAL_SPACE_EXPLANATION" desc="Explanation when a local AI agent asks to work in background task windows (Agent Spaces) instead of the user's own window.">
-        A local AI agent wants to work in background task windows. It can use your sign-ins there, and you can watch, take over or stop each task from the sidebar.
+        Allow this agent to use Dao Lite background task windows for one hour, including after reconnecting. Activity does not extend this time. It can use your sign-ins there; your own tabs need separate approval. Watch, take over or stop tasks from the sidebar.
       </message>
       <message name="IDS_DAO_MCP_APPROVAL_SPACE_REMEMBER" desc="Checkbox in the approval dialog that skips this question next time for the same local AI agent. CLIENT is the client-reported agent name.">
-        Always allow <ph name="CLIENT">$1<ex>Claude Code</ex></ph> to use background task windows
+        Always allow <ph name="CLIENT">$1<ex>Claude Code</ex></ph> to use Dao Lite
+      </message>
+      <message name="IDS_DAO_MCP_APPROVAL_SPACE_ALLOW_ONE_HOUR" desc="Button granting a local agent one hour of access to Dao Lite background task windows.">
+        Allow for 1 hour
+      </message>
+      <message name="IDS_DAO_MCP_APPROVAL_SPACE_ALLOW_ALWAYS" desc="Button granting a local agent persistent access to Dao Lite background task windows when Always allow is checked.">
+        Always allow
       </message>
       <message name="IDS_DAO_MCP_APPROVAL_WARNING" desc="Security warning in the MCP connection approval dialog.">
         If allowed, it can read and interact with websites using your current login, including by running JavaScript.
