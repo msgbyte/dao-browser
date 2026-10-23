@@ -57,6 +57,8 @@ validate_target_parents() {
 
 parse_patch_targets() {
   awk '
+    # Single-file unified diffs may omit the diff --git header.
+    BEGIN { in_header = 1 }
     /^diff --git / {
       old = ""
       new_file = 0

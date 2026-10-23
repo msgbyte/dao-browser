@@ -47,9 +47,9 @@ describe('import helpers', () => {
         'npm run import -- --repair && npm run build:debug');
   });
 
-  it('parses every target in a multi-file patch', () => {
+  it.each([true, false])('parses every target (initial git header: %s)', (gitHeader) => {
     const patchContent = [
-      'diff --git a/tracked.txt b/tracked.txt',
+      ...(gitHeader ? ['diff --git a/tracked.txt b/tracked.txt'] : []),
       '--- a/tracked.txt',
       '+++ b/tracked.txt',
       '@@ -1 +1 @@',
@@ -70,9 +70,9 @@ describe('import helpers', () => {
     ]);
   });
 
-  it('rejects unsafe patch target paths', () => {
+  it.each([true, false])('rejects unsafe patch target paths (git header: %s)', (gitHeader) => {
     const patchContent = [
-      'diff --git a/../outside.txt b/../outside.txt',
+      ...(gitHeader ? ['diff --git a/../outside.txt b/../outside.txt'] : []),
       '--- /dev/null',
       '+++ b/../outside.txt',
       '',
@@ -82,9 +82,11 @@ describe('import helpers', () => {
         'Unsafe patch target path: ../outside.txt');
   });
 
-  it('ignores target-like lines inside patch hunks', () => {
+  it.each([true, false])('ignores target-like hunk lines (git header: %s)', (gitHeader) => {
     const patchContent = [
-      'diff --git a/generated/new-file.d.ts b/generated/new-file.d.ts',
+      ...(gitHeader ? [
+        'diff --git a/generated/new-file.d.ts b/generated/new-file.d.ts',
+      ] : []),
       'new file mode 100644',
       '--- /dev/null',
       '+++ b/generated/new-file.d.ts',
@@ -417,13 +419,13 @@ describe('import helpers', () => {
     ].join('\n'));
   });
 
-  it('detects failed patch targets shared with another Dao patch', () => {
+  it.each([true, false])('detects shared patch targets (git header: %s)', (gitHeader) => {
     const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'dao-import-test-'));
     const firstPatch = path.join(tempRoot, 'first.patch');
     const secondPatch = path.join(tempRoot, 'second.patch');
     const independentPatch = path.join(tempRoot, 'independent.patch');
     writeFileSync(firstPatch, [
-      'diff --git a/shared.txt b/shared.txt',
+      ...(gitHeader ? ['diff --git a/shared.txt b/shared.txt'] : []),
       '--- a/shared.txt',
       '+++ b/shared.txt',
       '@@ -1 +1,2 @@',
@@ -698,7 +700,7 @@ describe('import helpers', () => {
         .toBe('prefix\nhead\nhead\ntail\nsuffix\n');
   });
 
-  it('repairs patch files whose names do not match the target path', () => {
+  it.each([true, false])('repairs differently named patches (git header: %s)', (gitHeader) => {
     const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'dao-import-test-'));
     mkdirSync(path.join(tempRoot, 'scripts'), {recursive: true});
     mkdirSync(path.join(tempRoot, 'src/patches/chrome/app'), {
@@ -742,7 +744,9 @@ describe('import helpers', () => {
         path.join(
             tempRoot, 'src/patches/chrome/app/settings_strings_dao.grdp.patch'),
         [
-          'diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp',
+          ...(gitHeader ? [
+            'diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp',
+          ] : []),
           '--- a/chrome/app/settings_strings.grdp',
           '+++ b/chrome/app/settings_strings.grdp',
           '@@ -1,3 +1,3 @@',
@@ -768,7 +772,7 @@ describe('import helpers', () => {
         'line 1\nnew value\nline 3\n');
   });
 
-  it('repairs new-file patches when an older untracked target exists', () => {
+  it.each([true, false])('repairs stale new-file targets (git header: %s)', (gitHeader) => {
     const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'dao-import-test-'));
     mkdirSync(path.join(tempRoot, 'scripts'), {recursive: true});
     mkdirSync(path.join(tempRoot, 'src/patches/chrome/test'), {
@@ -812,7 +816,9 @@ describe('import helpers', () => {
     writeFileSync(
         path.join(tempRoot, 'src/patches/chrome/test/dao_page_test.ts.patch'),
         [
-          'diff --git a/chrome/test/dao_page_test.ts b/chrome/test/dao_page_test.ts',
+          ...(gitHeader ? [
+            'diff --git a/chrome/test/dao_page_test.ts b/chrome/test/dao_page_test.ts',
+          ] : []),
           'new file mode 100644',
           'index 0000000000..0000000001',
           '--- /dev/null',

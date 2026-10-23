@@ -96,7 +96,8 @@ export function parsePatchTargets(content: string): PatchTarget[] {
   const targets: PatchTarget[] = [];
   let oldPath: string | undefined;
   let oldIsNull = false;
-  let inFileHeader = false;
+  // Single-file unified diffs may omit the diff --git header.
+  let inFileHeader = true;
 
   for (const line of content.split(/\r?\n/)) {
     if (line.startsWith("diff --git ")) {
