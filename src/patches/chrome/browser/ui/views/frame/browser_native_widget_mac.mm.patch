@@ -9,7 +9,7 @@ diff --git a/chrome/browser/ui/views/frame/browser_native_widget_mac.mm b/chrome
  #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
  #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
  #import "chrome/browser/ui/cocoa/browser_window_command_handler.h"
-@@ -41,8 +42,18 @@
+@@ -41,8 +42,17 @@
  #include "chrome/browser/ui/views/frame/browser_widget.h"
  #include "chrome/browser/ui/views/frame/glass_frame_service.h"
  #include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
@@ -24,11 +24,10 @@ diff --git a/chrome/browser/ui/views/frame/browser_native_widget_mac.mm b/chrome
 +#include "url/gurl.h"
  #include "chrome/browser/ui/views/web_apps/frame_toolbar/web_app_frame_toolbar_utils.h"
  #include "chrome/browser/ui/web_applications/app_browser_controller.h"
-+#include "chrome/browser/ui/window_feature_controller/window_feature_controller.h"
  #include "chrome/common/pref_names.h"
  #include "chrome/grit/generated_resources.h"
  #include "components/bookmarks/common/bookmark_pref_names.h"
-@@ -139,6 +150,20 @@
+@@ -139,6 +149,20 @@
    return GetLayoutConstant(LayoutConstant::kToolbarCornerRadius) * 2;
  }
  
@@ -49,7 +48,7 @@ diff --git a/chrome/browser/ui/views/frame/browser_native_widget_mac.mm b/chrome
  }  // namespace
  
  // NSGlassEffectView intercepts hit testing even when added below the
-@@ -262,7 +287,15 @@
+@@ -262,7 +286,15 @@
                   top_element_info.toolbar_minimum_height) +
          browser_view_->browser_widget()->GetFrameView()->GetTopInset(true);
      if (!browser_view_->ShouldDrawTabStrip()) {
@@ -66,7 +65,7 @@ diff --git a/chrome/browser/ui/views/frame/browser_native_widget_mac.mm b/chrome
      }
    } else {
      *override_titlebar_height = false;
-@@ -382,6 +415,38 @@
+@@ -382,6 +414,38 @@
  void BrowserNativeWidgetMac::ValidateUserInterfaceItem(
      int32_t tag,
      remote_cocoa::mojom::ValidateUserInterfaceItemResult* result) {
@@ -105,7 +104,7 @@ diff --git a/chrome/browser/ui/views/frame/browser_native_widget_mac.mm b/chrome
    BrowserWindowInterface* const browser =
        browser_view_ ? browser_view_->browser() : nullptr;
    if (!browser || !chrome::SupportsCommand(browser, tag)) {
-@@ -628,6 +693,36 @@
+@@ -628,6 +692,36 @@
      int32_t command,
      WindowOpenDisposition window_open_disposition,
      bool is_before_first_responder) {
@@ -142,7 +141,7 @@ diff --git a/chrome/browser/ui/views/frame/browser_native_widget_mac.mm b/chrome
    if (!WillExecuteCommand(command, window_open_disposition,
                            is_before_first_responder)) {
      return false;
-@@ -718,6 +813,16 @@
+@@ -718,6 +812,16 @@
      if (browser_view_->GetIsWebAppType()) {
        params->window_title_hidden = true;
      }
@@ -159,21 +158,7 @@ diff --git a/chrome/browser/ui/views/frame/browser_native_widget_mac.mm b/chrome
    } else {
      params->window_class = remote_cocoa::mojom::WindowClass::kDefault;
    }
-@@ -816,6 +921,13 @@
-     views::Widget::InitParams::Ownership ownership) {
-   views::Widget::InitParams params(ownership);
-   params.native_widget = this;
-+  // Dao: Make the window translucent so NSVisualEffectView can show
-+  // through, producing the frosted glass sidebar effect.
-+  if (browser_view_ && WindowFeatureController::From(browser_view_->browser())
-+                           ->SupportsWindowFeature(
-+                               WindowFeatureController::WindowFeature::kFeatureTabStrip)) {
-+    params.opacity = views::Widget::InitParams::WindowOpacity::kTranslucent;
-+  }
-   return params;
- }
- 
-@@ -840,6 +952,17 @@
+@@ -840,6 +944,17 @@
  content::KeyboardEventProcessingResult
  BrowserNativeWidgetMac::PreHandleKeyboardEvent(
      const input::NativeWebKeyboardEvent& event) {

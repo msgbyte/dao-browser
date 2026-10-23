@@ -4,6 +4,7 @@
 
 ### [Unreleased] Unreleased
 
+- Use an opaque main window on macOS so the desktop does not show through when browser content is not drawn.
 - Windows installations using the old update address need one manual upgrade to continue receiving automatic updates.
 
 ### [1.0.118] - 2026-10-23

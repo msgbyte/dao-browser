@@ -1319,6 +1319,7 @@ file count.
 - `chrome/common/webui_url_constants.h.patch` — Omnibox popup, AI popup, and Omnibox Everywhere URLs use `dao://` to match their WebUI registrations, including the popup initialized when a browser window opens
 - `views/frame/browser_view_layout` (implicit via patches) — Layout adjustments
 - `views/frame/{browser_native_widget_mac,browser_frame_mac,immersive_mode_controller_mac}.mm.patch` — macOS frame integrations
+- **Opaque macOS main windows** — Use Chromium's default opaque native window behind the solid sidebar and content backgrounds. Command-bar and control-center blur stays within the browser's composited layers and does not require desktop transparency.
 - `window_feature_controller/window_feature_controller.cc.patch` — Keep macOS sidebar windows on Dao's fullscreen layout; non-tabbed app windows retain Chromium's immersive layout
 - `views/frame/contents_web_view.{h,cc}.patch` + `views/frame/multi_contents_view.cc.patch` — Content area layout and Dao split host ownership
 - `views/frame/layout/browser_view_{popup,tabbed}_layout_impl.cc.patch` — Per-mode layout impls
