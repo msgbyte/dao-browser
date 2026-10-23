@@ -4,6 +4,7 @@
 
 ### [Unreleased] Unreleased
 
+- Show the address-bar AI control icon only when the current page is under agent control.
 - Keep sidebar media controls steady during pause and mute, and prevent brief notification sounds from flashing or replacing the current media card.
 
 ### [1.0.119] - 2026-10-24
