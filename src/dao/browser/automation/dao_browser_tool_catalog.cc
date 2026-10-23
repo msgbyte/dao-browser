@@ -35,6 +35,9 @@ std::optional<DaoBrowserToolGroup> ParseGroup(std::string_view group) {
   if (group == "devtools") {
     return DaoBrowserToolGroup::kDevTools;
   }
+  if (group == "space") {
+    return DaoBrowserToolGroup::kSpace;
+  }
   return std::nullopt;
 }
 

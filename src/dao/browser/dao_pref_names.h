@@ -28,6 +28,14 @@ inline constexpr char kDaoMcpServerEnabled[] = "dao.mcp_server_enabled";
 // Profile-scoped MCP tool execution counters, kept separate from Dao Agent.
 inline constexpr char kDaoMcpUsageStats[] = "dao.mcp_usage_stats";
 
+// Global local-state list of client names (as reported by local agents) the
+// user allowed to use background Agent Spaces without asking again.
+inline constexpr char kDaoAgentSpaceAllowedClients[] =
+    "dao.agent_space.allowed_clients";
+// Profile list of finished and stopped Agent Spaces, so the sidebar keeps
+// their results after a restart.
+inline constexpr char kDaoAgentSpaceHistory[] = "dao.agent_space.history";
+
 // Boolean pref that controls whether the agent memory system is enabled.
 // When false (the default), the memory service is not created, the proactive
 // engine does not run, and the agent sidebar WebUI is not loaded.

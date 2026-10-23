@@ -162,7 +162,7 @@ profile ends the connection and releases all grants.
 
 ## Tool scope
 
-MCP exposes 35 native browser tools from the same versioned catalog used by Dao
+MCP exposes 43 native browser tools from the same versioned catalog used by Dao
 Agent:
 
 - page information, HTML, accessibility, scoped semantic queries, screenshots,
@@ -173,6 +173,11 @@ Agent:
 - page-resource listing, reading, and search;
 - bounded Jev browser subtasks through `run_browser_task` (requires explicit
   Jev configuration and tool permission).
+- background Agent Spaces (`create_space`, `list_spaces`, `set_space_status`,
+  `request_user_help`, `handle_dialog`, `finish_space`, `run_browser_script`),
+  which run in hidden task windows under their own approval, plus MCP-only
+  `get_site_skills`. Passing `space_id` to other browser tools runs them in that
+  space instead of a granted tab.
 
 `resolve_element_context` is an additional native Dao Agent browser tool and is
 not exposed to MCP. Agent memory, skills, workspace, and web-provider tools are

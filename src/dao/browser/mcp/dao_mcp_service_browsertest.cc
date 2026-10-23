@@ -65,6 +65,7 @@
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "dao/browser/agent/dao_agent_lock_tab_helper.h"
+#include "dao/browser/agent_space/dao_agent_space_service.h"
 #include "dao/browser/automation/dao_agent_lease_manager.h"
 #include "dao/browser/dao_pref_names.h"
 #include "dao/browser/mcp/dao_mcp_protocol.h"
@@ -1012,6 +1013,48 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest, IsDisabledByDefault) {
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
+                       SpaceCallsUseBackgroundApprovalWithoutTabLease) {
+  FakeApprovalDelegate approval;
+  service_->SetApprovalDelegate(&approval);
+  EnableService();
+  std::unique_ptr<TestMcpClient> client = ConnectClient();
+  ASSERT_TRUE(client);
+  ASSERT_TRUE(client->Send(HelloRequest(nonce())));
+  ASSERT_TRUE(client->Read());
+
+  ASSERT_TRUE(client->Send(ToolCall(
+      "create-space", "create_space",
+      base::DictValue()
+          .Set("name", "Background task")
+          .Set("reason", "Work in the background for the user."))));
+  WaitForApprovalRequestCount(&approval, 1);
+  EXPECT_TRUE(approval.request().background_space);
+  approval.Resolve(true);
+
+  std::optional<base::DictValue> response = client->Read();
+  ASSERT_TRUE(response);
+  const base::DictValue* data =
+      response->FindDictByDottedPath("result.data");
+  ASSERT_TRUE(data) << response->DebugString();
+  const std::string* space_id = data->FindString("space_id");
+  ASSERT_TRUE(space_id);
+  EXPECT_EQ(0u, service_->GetControlledTargetCount());
+
+  // Later space calls on the same connection need no further approval.
+  ASSERT_TRUE(client->Send(ToolCall(
+      "page-info", "get_page_info",
+      base::DictValue().Set("space_id", *space_id))));
+  std::optional<base::DictValue> info = client->Read();
+  ASSERT_TRUE(info);
+  EXPECT_TRUE(info->FindBoolByDottedPath("result.ok").value_or(false))
+      << info->DebugString();
+  EXPECT_EQ(1u, approval.request_count());
+
+  DaoAgentSpaceService::GetForProfile(browser()->GetProfile())
+      ->Stop(*space_id);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
                        RejectsBadNonceBeforeApproval) {
   FakeApprovalDelegate approval;
   service_->SetApprovalDelegate(&approval);
@@ -1102,7 +1145,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
   ASSERT_TRUE(result);
   const base::ListValue* tools = result->FindList("tools");
   ASSERT_TRUE(tools);
-  EXPECT_EQ(34u, tools->size());
+  EXPECT_EQ(42u, tools->size());
   for (const base::Value& tool : *tools) {
     const base::DictValue* reason =
         tool.GetDict().FindDictByDottedPath("inputSchema.properties.reason");
@@ -1185,7 +1228,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
   const base::ListValue* tools =
       list_response->FindListByDottedPath("result.tools");
   ASSERT_TRUE(tools);
-  EXPECT_EQ(34u, tools->size());
+  EXPECT_EQ(42u, tools->size());
   EXPECT_FALSE(approval.has_pending_request());
 
   ASSERT_TRUE(
@@ -2433,7 +2476,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
   const base::ListValue* tools =
       tools_response->FindListByDottedPath("result.tools");
   ASSERT_NE(nullptr, tools);
-  EXPECT_EQ(34u, tools->size());
+  EXPECT_EQ(42u, tools->size());
   EXPECT_EQ(DaoMcpStatus::kListening, service_->GetStatus().state);
 
   ASSERT_TRUE(helper.Send(
@@ -3818,6 +3861,19 @@ IN_PROC_BROWSER_TEST_F(DaoMcpControlBannerTest,
                          ->TryAcquire({DaoToolClient::kDaoAgent,
                                        "agent-after-stop-button", "Dao Agent"});
   EXPECT_TRUE(agent_lease.has_value());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
+                       DisablingForgetsAlwaysAllowedSpaceClients) {
+  EnableService();
+  PrefService* local_state = g_browser_process->local_state();
+  local_state->SetList(prefs::kDaoAgentSpaceAllowedClients,
+                       base::ListValue().Append("test-client"));
+
+  service_->SetEnabled(false);
+
+  EXPECT_TRUE(
+      local_state->GetList(prefs::kDaoAgentSpaceAllowedClients).empty());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest, ReenableRotatesNonce) {

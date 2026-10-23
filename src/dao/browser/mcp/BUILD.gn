@@ -21,6 +21,8 @@ source_set("browser_mcp") {
 
   if (is_mac) {
     sources = [
+      "dao_local_agent_integration.h",
+      "dao_local_agent_integration.mm",
       "dao_mcp_connection.cc",
       "dao_mcp_connection.h",
       "dao_mcp_runtime_files.h",
@@ -39,35 +41,53 @@ source_set("browser_mcp") {
       "//content/public/browser",
       "//crypto",
       "//dao/browser/automation:browser_automation",
+      "//dao/browser/cli:dao_browser_entry_skill",
       "//net",
     ]
   }
 }
 
 if (is_mac) {
-  executable("dao_mcp_helper") {
-    output_name = "dao-mcp"
+  # Socket client and MCP stdio server shared by dao-mcp and dao-browser.
+  source_set("mcp_helper_core") {
     sources = [
       "helper/dao_mcp_browser_client.cc",
       "helper/dao_mcp_browser_client.h",
       "helper/dao_mcp_stdio_server.cc",
       "helper/dao_mcp_stdio_server.h",
-      "helper/main.cc",
     ]
+
+    public_deps = [
+      ":mcp_wire",
+      "//base",
+    ]
+  }
+
+  executable("dao_mcp_helper") {
+    output_name = "dao-mcp"
+    sources = [ "helper/main.cc" ]
 
     defines = [ "DAO_MCP_VERSION=\"$dao_display_version\"" ]
     frameworks = [ "Foundation.framework" ]
 
     deps = [
-      ":mcp_wire",
+      ":mcp_helper_core",
       "//base",
       "//chrome/common:constants",
     ]
   }
 
-  bundle_data("dao_mcp_helper_bundle_data") {
+  bundle_data("dao_mcp_helper_files") {
     sources = [ "$root_out_dir/dao-mcp" ]
     outputs = [ "{{bundle_contents_dir}}/Helpers/{{source_file_part}}" ]
     public_deps = [ ":dao_mcp_helper" ]
+  }
+
+  # Everything Dao ships in Contents/Helpers for local agents.
+  group("dao_mcp_helper_bundle_data") {
+    public_deps = [
+      ":dao_mcp_helper_files",
+      "//dao/browser/cli:dao_browser_cli_bundle_data",
+    ]
   }
 }

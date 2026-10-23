@@ -458,6 +458,72 @@ bool UpdateFolderFile(const base::FilePath& path,
   return merged && WritePinnedTabsFileAtomically(path, *merged);
 }
 
+bool AddTabsToFolderFile(const base::FilePath& path,
+                         const std::string& folder_id,
+                         const std::string& folder_name,
+                         const base::ListValue& tabs) {
+  base::AutoLock lock(FolderFileLock());
+  auto contents = ReadFile(path);
+  if (!contents) {
+    return false;
+  }
+  std::optional<std::string> normalized =
+      contents->empty() ? std::optional<std::string>("")
+                        : MergeFolderData("", "", *contents);
+  auto data = normalized ? ParseFolders(*normalized) : std::nullopt;
+  base::ListValue* items = data ? data->FindList("items") : nullptr;
+  if (!items) {
+    return false;
+  }
+  std::set<std::string> tab_ids;
+  for (const base::Value& tab : tabs) {
+    const std::string* id =
+        tab.is_dict() ? tab.GetDict().FindString("tabId") : nullptr;
+    if (!id) {
+      return false;
+    }
+    tab_ids.insert(*id);
+  }
+  auto drop_tabs = [&](base::ListValue& list) {
+    list.EraseIf([&](const base::Value& value) {
+      const std::string* id = value.GetDict().FindString("tabId");
+      return id && tab_ids.contains(*id);
+    });
+  };
+  drop_tabs(*items);
+  base::ListValue* children = nullptr;
+  for (base::Value& item : *items) {
+    base::DictValue& dict = item.GetDict();
+    if (*dict.FindString("type") != "folder") {
+      continue;
+    }
+    drop_tabs(*dict.FindList("children"));
+    if (*dict.FindString("id") == folder_id) {
+      children = dict.FindList("children");
+    }
+  }
+  if (!children) {
+    items->Insert(items->begin(),
+                  base::Value(base::DictValue()
+                                  .Set("type", "folder")
+                                  .Set("id", folder_id)
+                                  .Set("name", folder_name)
+                                  .Set("collapsed", false)
+                                  .Set("children", base::ListValue())));
+    children = items->front().GetDict().FindList("children");
+  }
+  for (const base::Value& tab : tabs) {
+    base::DictValue item = tab.GetDict().Clone();
+    item.Set("type", "tab");
+    children->Append(std::move(item));
+  }
+  if (!ValidItems(*items, true)) {
+    return false;
+  }
+  std::optional<std::string> json = base::WriteJson(*data);
+  return json && WritePinnedTabsFileAtomically(path, *json);
+}
+
 bool UpdateFolderFileIfUnchanged(const base::FilePath& path,
                                  const std::string& base_json,
                                  const std::string& json) {

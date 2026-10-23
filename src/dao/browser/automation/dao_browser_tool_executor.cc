@@ -50,7 +50,9 @@ base::expected<content::WebContents*, DaoToolError> ResolveTargetForClient(
   }
   BrowserWindowInterface* browser_window = session_weak->browser_window();
   BrowserWindowInterface* browser = browser_window;
-  auto policy = ValidateExternalTarget(browser, session_weak->profile(), *target);
+  auto policy = ValidateExternalTarget(
+      browser, session_weak->profile(), *target,
+      /*allow_uncommitted_url=*/false, session_weak->allows_off_the_record());
   if (!policy.has_value()) {
     return base::unexpected(std::move(policy).error());
   }

@@ -5,7 +5,7 @@
 import type {ToolDefinition} from './agent_bridge.js';
 
 export type BrowserToolClient = 'dao_agent'|'mcp';
-export type BrowserToolGroup = 'devtools'|'page'|'tabs';
+export type BrowserToolGroup = 'devtools'|'page'|'space'|'tabs';
 export type BrowserToolSideEffect = 'read'|'interaction'|'destructive';
 
 type ToolInputSchema = ToolDefinition['function']['parameters'];
@@ -87,7 +87,7 @@ export function validateBrowserToolCatalog(value: unknown): BrowserToolCatalog {
     names.add(raw['name']);
 
     if (raw['group'] !== 'devtools' && raw['group'] !== 'page' &&
-        raw['group'] !== 'tabs') {
+        raw['group'] !== 'space' && raw['group'] !== 'tabs') {
       throw new Error(`invalid browser tool group: ${raw['name']}`);
     }
     if (!raw['clients'].every(
@@ -147,6 +147,41 @@ export function getCatalogEntries(client: BrowserToolClient):
       entry => entry.clients.includes(client));
 }
 
+const SPACE_TOOL_NAMES = new Set([
+  'create_space',
+  'list_spaces',
+  'set_space_status',
+  'request_user_help',
+  'finish_space',
+  'handle_dialog',
+  'run_browser_script',
+]);
+
+export function isSpaceTool(name: string): boolean {
+  return SPACE_TOOL_NAMES.has(name);
+}
+
+// Browser tools run on the user's current tab by default. Naming a space_id
+// routes the same tool into that background Agent Space instead.
+function withSpaceArguments(schema: ToolInputSchema): ToolInputSchema {
+  return {
+    ...schema,
+    properties: {
+      ...schema.properties,
+      space_id: {
+        type: 'string',
+        description: 'Run this tool inside the Agent Space with this id ' +
+            '(from create_space). Omit to act on the user\'s current tab.',
+      },
+      label: {
+        type: 'string',
+        description: 'When space_id is set: a 3-6 word caption of this ' +
+            'step, shown to the user watching the space.',
+      },
+    },
+  };
+}
+
 export function getBrowserToolDefinitions(client: BrowserToolClient):
     ToolDefinition[] {
   return getCatalogEntries(client).map(entry => ({
@@ -154,7 +189,9 @@ export function getBrowserToolDefinitions(client: BrowserToolClient):
     function: {
       name: entry.name,
       description: entry.description,
-      parameters: entry.inputSchema,
+      parameters: entry.group === 'space' || entry.name === 'run_browser_task' ?
+          entry.inputSchema :
+          withSpaceArguments(entry.inputSchema),
     },
   }));
 }

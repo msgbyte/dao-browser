@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_page.html
-@@ -0,0 +1,891 @@
+@@ -0,0 +1,922 @@
 +<style include="settings-shared">
 +  .dao-mcp-page {
 +    margin-top: 12px;
@@ -223,6 +223,21 @@ index 0000000000..0000000001
 +  .dao-mcp-usage-count {
 +    color: var(--cr-primary-text-color);
 +    font-variant-numeric: tabular-nums;
++  }
++
++  .dao-local-agent-list {
++    display: grid;
++    gap: 8px;
++    margin-top: 12px;
++  }
++
++  .dao-local-agent-row {
++    align-items: center;
++    color: var(--cr-primary-text-color);
++    display: flex;
++    font-size: 13px;
++    gap: 12px;
++    justify-content: space-between;
 +  }
 +
 +  @media (max-width: 520px) {
@@ -699,6 +714,22 @@ index 0000000000..0000000001
 +        sub-label="$i18n{daoMcpServerEnabledSubLabel}"
 +        on-settings-boolean-control-change="onDaoMcpEnabledChange_">
 +    </settings-toggle-button>
++    <div id="daoLocalAgentsSection" class="dao-mcp-section">
++      <div class="dao-mcp-section-title">$i18n{daoLocalAgentsTitle}</div>
++      <div class="dao-mcp-quick-setup-description">
++        $i18n{daoLocalAgentsDescription}
++      </div>
++      <div id="daoLocalAgentList" class="dao-local-agent-list" role="list">
++        <template is="dom-repeat" items="[[daoLocalAgents_]]">
++          <div class="dao-local-agent-row" role="listitem">
++            <span>[[item.name]]</span>
++            <span class$="dao-mcp-status-badge [[item.badge]]">
++              [[item.status]]
++            </span>
++          </div>
++        </template>
++      </div>
++    </div>
 +    <div id="daoMcpConnectionSection"
 +        class="dao-mcp-section dao-mcp-status-section">
 +      <div class="dao-mcp-status-copy">

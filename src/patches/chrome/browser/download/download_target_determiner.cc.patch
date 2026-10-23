@@ -1,0 +1,29 @@
+diff --git a/chrome/browser/download/download_target_determiner.cc b/chrome/browser/download/download_target_determiner.cc
+--- a/chrome/browser/download/download_target_determiner.cc
++++ b/chrome/browser/download/download_target_determiner.cc
+@@ -43,6 +43,7 @@
+ #include "content/public/browser/browser_thread.h"
+ #include "content/public/browser/download_item_utils.h"
+ #include "content/public/common/buildflags.h"
++#include "dao/browser/agent_space/dao_hidden_browser.h"
+ #include "extensions/buildflags/buildflags.h"
+ #include "extensions/common/constants.h"
+ #include "net/base/filename_util.h"
+@@ -324,7 +325,16 @@
+     base::FilePath generated_filename = GenerateFileName();
+     confirmation_reason_ = NeedsConfirmation(generated_filename);
+     base::FilePath target_directory;
+-    if (confirmation_reason_ != DownloadConfirmationReason::NONE) {
++    // Dao: nobody can answer a save prompt for a hidden Agent task window.
++    // Its downloads go to the task's own folder instead.
++    const base::FilePath dao_task_directory = GetDaoHiddenDownloadDirectory(
++        content::DownloadItemUtils::GetWebContents(download_));
++    if (!dao_task_directory.empty() &&
++        confirmation_reason_ != DownloadConfirmationReason::DLP_BLOCKED) {
++      confirmation_reason_ = DownloadConfirmationReason::NONE;
++      create_target_directory_ = true;
++      target_directory = dao_task_directory;
++    } else if (confirmation_reason_ != DownloadConfirmationReason::NONE) {
+       if (download_prefs_->IsDownloadPathManaged())
+         DCHECK(confirmation_reason_ == DownloadConfirmationReason::DLP_BLOCKED);
+       // If the user is going to be prompted and the user has been prompted

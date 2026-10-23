@@ -21,6 +21,7 @@ import type {
 import {FolderModel} from './dao_folder_model.js';
 import {applyTabClassification, getClassificationTabs} from './dao_tab_classification.js';
 
+import './dao_agent_spaces.js';
 import './dao_update_button.js';
 import './dao_favorites_view.js';
 import './dao_new_tab_button.js';
@@ -1075,6 +1076,8 @@ export class DaoSidebarApp extends CrLitElement {
         ` : ''}
 
         <dao-new-tab-button ?highlighted=${this.newTabHighlighted_}></dao-new-tab-button>
+
+        <dao-agent-spaces></dao-agent-spaces>
 
         <div class="tab-section-shell"
              @pointerenter=${this.onTabSectionPointerEnter_}

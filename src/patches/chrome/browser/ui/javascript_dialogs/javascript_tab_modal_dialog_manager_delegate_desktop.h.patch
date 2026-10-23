@@ -1,0 +1,15 @@
+diff --git a/chrome/browser/ui/javascript_dialogs/javascript_tab_modal_dialog_manager_delegate_desktop.h b/chrome/browser/ui/javascript_dialogs/javascript_tab_modal_dialog_manager_delegate_desktop.h
+--- a/chrome/browser/ui/javascript_dialogs/javascript_tab_modal_dialog_manager_delegate_desktop.h
++++ b/chrome/browser/ui/javascript_dialogs/javascript_tab_modal_dialog_manager_delegate_desktop.h
+@@ -45,6 +45,11 @@
+   void DidCloseDialog() override;
+   void SetTabNeedsAttention(bool attention) override;
+   bool IsWebContentsForemost() override;
++  bool IsOffScreen() override;
++  void DidRunOffScreenDialog(
++      content::JavaScriptDialogType dialog_type,
++      const std::u16string& message_text,
++      const std::u16string& default_prompt_text) override;
+   bool IsApp() override;
+   bool CanShowModalUI() override;
+ 

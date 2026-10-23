@@ -20,10 +20,12 @@ namespace dao::prefs {
 
 void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
   registry->RegisterBooleanPref(kDaoMcpServerEnabled, false);
+  registry->RegisterListPref(kDaoAgentSpaceAllowedClients);
 }
 
 void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterDictionaryPref(kDaoMcpUsageStats);
+  registry->RegisterListPref(kDaoAgentSpaceHistory);
   registry->RegisterBooleanPref(kDaoAgentMemoryEnabled, false);
   registry->RegisterDictionaryPref(kDaoAgentSettings);
   registry->RegisterIntegerPref(kDaoAgentSettingsMigrationVersion, 0);

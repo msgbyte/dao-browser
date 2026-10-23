@@ -1,0 +1,26 @@
+diff --git a/chrome/browser/ui/browser_web_contents_delegate/browser_web_contents_delegate.cc b/chrome/browser/ui/browser_web_contents_delegate/browser_web_contents_delegate.cc
+--- a/chrome/browser/ui/browser_web_contents_delegate/browser_web_contents_delegate.cc
++++ b/chrome/browser/ui/browser_web_contents_delegate/browser_web_contents_delegate.cc
+@@ -83,6 +83,7 @@
+ #include "content/public/common/drop_data.h"
+ #include "content/public/common/url_constants.h"
+ #include "content/public/common/window_container_type.mojom-shared.h"
++#include "dao/browser/agent_space/dao_hidden_browser.h"
+ #include "extensions/browser/extension_registry.h"
+ #include "extensions/browser/extension_system.h"
+ #include "extensions/browser/guest_view/mime_handler_view/mime_handler_view_guest.h"
+@@ -1124,6 +1125,14 @@
+     content::RenderFrameHost* render_frame_host,
+     scoped_refptr<content::FileSelectListener> listener,
+     const blink::mojom::FileChooserParams& params) {
++  // Dao: nobody can see a file picker opened in a hidden Agent task window;
++  // the task goes to the user instead.
++  if (NotifyIfDaoHiddenPageNeedsUser(
++          content::WebContents::FromRenderFrameHost(render_frame_host),
++          DaoHiddenPageNeed::kFileChooser)) {
++    listener->FileSelectionCanceled();
++    return;
++  }
+   FileSelectHelper::RunFileChooser(render_frame_host, std::move(listener),
+                                    params);
+ }

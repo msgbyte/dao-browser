@@ -1199,6 +1199,235 @@
           "pattern"
         ]
       }
+    },
+    {
+      "name": "create_space",
+      "description": "Create a background Agent Space: a hidden browser window that keeps the user's sign-ins and is used only for this task. Prefer a space for multi-step work that should not take over the user's tabs. Pass the returned space_id to browser tools to act inside the space. The user can watch the space at any time and may take control.",
+      "group": "space",
+      "clients": [
+        "dao_agent",
+        "mcp"
+      ],
+      "sideEffect": "interaction",
+      "timeoutMs": 15000,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Short task name shown to the user, e.g. \"Compare flight prices\"."
+          },
+          "url": {
+            "type": "string",
+            "description": "First page to open in the space (http, https or about:blank). Defaults to about:blank."
+          },
+          "logins": {
+            "type": "boolean",
+            "description": "true (default) uses the user's sign-ins. false opens a clean window with no cookies or sign-ins, for untrusted sites or tasks that should not act as the user."
+          }
+        },
+        "required": [
+          "name"
+        ]
+      }
+    },
+    {
+      "name": "list_spaces",
+      "description": "List this agent's Agent Spaces with their state, status text, current page and tab count. Use it to resume work across turns.",
+      "group": "space",
+      "clients": [
+        "dao_agent",
+        "mcp"
+      ],
+      "sideEffect": "read",
+      "timeoutMs": 5000,
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      }
+    },
+    {
+      "name": "set_space_status",
+      "description": "Update the one-line progress text the user sees for a space, e.g. \"Checking the third store\". Keep it short and in the user's language.",
+      "group": "space",
+      "clients": [
+        "dao_agent",
+        "mcp"
+      ],
+      "sideEffect": "read",
+      "timeoutMs": 5000,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "space_id": {
+            "type": "string",
+            "description": "The space_id returned by create_space."
+          },
+          "text": {
+            "type": "string",
+            "description": "Progress text, at most 120 characters."
+          }
+        },
+        "required": [
+          "space_id",
+          "text"
+        ]
+      }
+    },
+    {
+      "name": "request_user_help",
+      "description": "Hand a space to the user for a step only they should do: signing in, two-factor codes, captchas, payment or any irreversible confirmation. The user is notified and the call waits until they hand control back, then returns what they changed. Do not use other tools on the space while waiting.",
+      "group": "space",
+      "clients": [
+        "dao_agent",
+        "mcp"
+      ],
+      "sideEffect": "interaction",
+      "timeoutMs": 900000,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "space_id": {
+            "type": "string",
+            "description": "The space_id returned by create_space."
+          },
+          "reason": {
+            "type": "string",
+            "description": "What the user needs to do, shown to them, e.g. \"Sign in to your airline account\"."
+          },
+          "tab_id": {
+            "type": "string",
+            "description": "Optional tab to show the user first."
+          }
+        },
+        "required": [
+          "space_id",
+          "reason"
+        ]
+      }
+    },
+    {
+      "name": "finish_space",
+      "description": "Finish a space and close its window. Tabs listed in keep move to the user's window so they can review the results; all other tabs close.",
+      "group": "space",
+      "clients": [
+        "dao_agent",
+        "mcp"
+      ],
+      "sideEffect": "destructive",
+      "timeoutMs": 10000,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "space_id": {
+            "type": "string",
+            "description": "The space_id returned by create_space."
+          },
+          "keep": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Tab ids to move to the user's window. Pass an empty array to keep nothing."
+          },
+          "summary": {
+            "type": "string",
+            "description": "One-sentence result shown to the user."
+          }
+        },
+        "required": [
+          "space_id",
+          "keep"
+        ]
+      }
+    },
+    {
+      "name": "handle_dialog",
+      "description": "Answer a confirm or prompt dialog that a page in a space opened. While it is open, other tools on the space fail with PAGE_DIALOG_OPEN. Accept only what the task clearly needs; use request_user_help instead when the user should decide, e.g. before deleting, sending or paying.",
+      "group": "space",
+      "clients": [
+        "dao_agent",
+        "mcp"
+      ],
+      "sideEffect": "interaction",
+      "timeoutMs": 5000,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "space_id": {
+            "type": "string",
+            "description": "The space_id returned by create_space."
+          },
+          "accept": {
+            "type": "boolean",
+            "description": "true for OK, false for Cancel."
+          },
+          "prompt_text": {
+            "type": "string",
+            "description": "Text to enter in a prompt dialog. Defaults to the page's suggested value."
+          }
+        },
+        "required": [
+          "space_id",
+          "accept"
+        ]
+      }
+    },
+    {
+      "name": "get_site_skills",
+      "description": "Get Dao's skills for a site: notes Dao and the user saved about how to get things done there, such as where settings live or which steps a checkout needs. Call it before working on a site you have not used in this task, and follow them.",
+      "group": "space",
+      "clients": [
+        "mcp"
+      ],
+      "sideEffect": "read",
+      "timeoutMs": 5000,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "A URL on the site, e.g. https://www.example.com/orders."
+          }
+        },
+        "required": [
+          "url"
+        ]
+      }
+    },
+    {
+      "name": "run_browser_script",
+      "description": "Run one JavaScript snippet that drives Agent Spaces through many browser tool calls in a single round trip. The code runs in an isolated sandbox page (not in the target website) with top-level await; it can call `dao.createSpace(name, url)`, `dao.space(id)`, `dao.call(tool, args)` and Space helpers such as `find`, `click`, `fill`, `open`, `eval`, `status`, `help` and `finish`. If space_id is given, `space` is preset to it. Returns the script's return value and console output. Browser tools inside a script only act in spaces, never on the user's tabs.",
+      "group": "space",
+      "clients": [
+        "dao_agent",
+        "mcp"
+      ],
+      "sideEffect": "interaction",
+      "timeoutMs": 610000,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Async JavaScript body. Use `return` for the result and console.log for notes, e.g. `const s = dao.space(id); const r = await s.find({role: 'link', text: 'Next', text_match: 'contains'}); await s.click(r.matches[0], {label: 'Next page'}); return await s.info();`"
+          },
+          "space_id": {
+            "type": "string",
+            "description": "Optional space to preset as the global `space`."
+          },
+          "timeout_ms": {
+            "type": "integer",
+            "minimum": 1000,
+            "maximum": 600000,
+            "description": "Maximum run time; defaults to 120000."
+          }
+        },
+        "required": [
+          "code"
+        ]
+      }
     }
   ]
 }

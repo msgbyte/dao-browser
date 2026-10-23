@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_page.ts
-@@ -0,0 +1,607 @@
+@@ -0,0 +1,656 @@
 +// Copyright 2026 Dao Browser Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -102,6 +102,11 @@ index 0000000000..0000000001
 +  connections?: DaoMcpConnection[];
 +}
 +
++export interface DaoLocalAgentStatus {
++  agents: Array<{id: string, detected: boolean, installed: boolean}>;
++  cliLinked: boolean;
++}
++
 +export interface DaoMcpBrowserProxy {
 +  getDaoMcpStatus(): Promise<DaoMcpStatus>;
 +  setDaoMcpEnabled(enabled: boolean): void;
@@ -109,6 +114,7 @@ index 0000000000..0000000001
 +  copyDaoMcpSetupContent(option: DaoMcpSetupOption): Promise<boolean>;
 +  stopDaoMcpControl(connectionId: string): void;
 +  revokeDaoMcpTab(connectionId: string, tabId: string): void;
++  getDaoLocalAgents(): Promise<DaoLocalAgentStatus>;
 +  resetDaoMcpUsageStats(): void;
 +}
 +
@@ -135,6 +141,10 @@ index 0000000000..0000000001
 +
 +  revokeDaoMcpTab(connectionId: string, tabId: string): void {
 +    chrome.send('revokeDaoMcpTab', [connectionId, tabId]);
++  }
++
++  getDaoLocalAgents(): Promise<DaoLocalAgentStatus> {
++    return sendWithPromise('getDaoLocalAgents');
 +  }
 +
 +  resetDaoMcpUsageStats(): void {
@@ -229,6 +239,11 @@ index 0000000000..0000000001
 +        value: false,
 +      },
 +
++      daoLocalAgents_: {
++        type: Array,
++        value: () => [],
++      },
++
 +      daoMcpSetupOption_: {
 +        type: String,
 +        value: 'codex',
@@ -287,6 +302,8 @@ index 0000000000..0000000001
 +  declare private daoMcpStatusState_: DaoMcpStatusState;
 +  declare private daoMcpConnections_: DaoMcpConnection[];
 +  declare private showDaoMcpQuickSetup_: boolean;
++  declare private daoLocalAgents_:
++      Array<{name: string, status: string, badge: string}>;
 +  declare private daoMcpSetupOption_: DaoMcpSetupOption;
 +  declare private daoMcpSetupContent_: string;
 +  declare private daoMcpSetupCopied_: boolean;
@@ -304,6 +321,7 @@ index 0000000000..0000000001
 +  private daoTabCategoryRequest_ = 0;
 +  private daoMcpSetupContentRequest_ = 0;
 +  private daoMcpCopyRequest_ = 0;
++  private daoLocalAgentsRequest_ = 0;
 +  private daoMcpBrowserProxy_: DaoMcpBrowserProxy =
 +      DaoMcpBrowserProxyImpl.getInstance();
 +  private siteSettingsBrowserProxy_: SiteSettingsBrowserProxy =
@@ -329,6 +347,36 @@ index 0000000000..0000000001
 +        () => void this.refreshDaoTabCategories_());
 +    void this.refreshDaoTabCategories_();
 +    this.updateAutoPipEnabled_();
++  }
++
++  private async refreshDaoLocalAgents_() {
++    const request = ++this.daoLocalAgentsRequest_;
++    const status = await this.daoMcpBrowserProxy_.getDaoLocalAgents();
++    if (request !== this.daoLocalAgentsRequest_) {
++      return;
++    }
++    const nameKeys: Record<string, string> = {
++      claude: 'daoLocalAgentClaude',
++      codex: 'daoLocalAgentCodex',
++      shared: 'daoLocalAgentShared',
++    };
++    const rows = status.agents.filter(agent => nameKeys[agent.id])
++                     .map(agent => ({
++                            name: loadTimeData.getString(nameKeys[agent.id]),
++                            status: loadTimeData.getString(
++                                agent.installed ? 'daoLocalAgentInstalled' :
++                                    agent.detected ?
++                                                  'daoLocalAgentNotInstalled' :
++                                                  'daoLocalAgentNotFound'),
++                            badge: agent.installed ? 'connected' : 'disabled',
++                          }));
++    rows.push({
++      name: loadTimeData.getString('daoLocalAgentCli'),
++      status: loadTimeData.getString(
++          status.cliLinked ? 'daoLocalAgentLinked' : 'daoLocalAgentNotLinked'),
++      badge: status.cliLinked ? 'connected' : 'disabled',
++    });
++    this.daoLocalAgents_ = rows;
 +  }
 +
 +  private async refreshDaoTabCategories_() {
@@ -591,6 +639,7 @@ index 0000000000..0000000001
 +                left.name.localeCompare(right.name));
 +
 +    this.showDaoMcpQuickSetup_ = status.enabled;
++    void this.refreshDaoLocalAgents_();
 +    if (status.enabled) {
 +      void this.refreshDaoMcpSetupContent_();
 +    } else {

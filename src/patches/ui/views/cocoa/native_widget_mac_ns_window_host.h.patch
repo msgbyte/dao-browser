@@ -1,0 +1,22 @@
+diff --git a/ui/views/cocoa/native_widget_mac_ns_window_host.h b/ui/views/cocoa/native_widget_mac_ns_window_host.h
+--- a/ui/views/cocoa/native_widget_mac_ns_window_host.h
++++ b/ui/views/cocoa/native_widget_mac_ns_window_host.h
+@@ -270,6 +270,10 @@
+ 
+   void SetVisibilityState(remote_cocoa::mojom::WindowVisibilityState new_state);
+ 
++  // Dao: keeps the compositor producing frames while the window is hidden, so
++  // pages in an off-screen Agent task window render like visible ones.
++  void SetCompositorActiveWhileHidden(bool active);
++
+   // Add a NSEvent local event monitor, which will send events to `client`
+   // before they are dispatched to their ordinary target. Clients may specify
+   // that they have handled an event, which will prevent further dispatch. All
+@@ -562,6 +566,7 @@
+   gfx::Rect content_bounds_in_screen_;
+   std::vector<uint8_t> state_restoration_data_;
+   bool is_visible_ = false;
++  bool compositor_active_while_hidden_ = false;
+   // This tracks -[NSWindow isOnActiveSpace].
+   bool is_on_active_space_ = false;
+   bool target_fullscreen_state_ = false;

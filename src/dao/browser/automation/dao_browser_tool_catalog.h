@@ -24,6 +24,7 @@ enum class DaoBrowserToolGroup {
   kPage,
   kTabs,
   kDevTools,
+  kSpace,
 };
 
 enum class DaoBrowserToolSideEffect {

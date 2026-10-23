@@ -11,6 +11,7 @@
 
 #include "base/base_paths.h"
 #include "base/files/file_util.h"
+#include "base/files/scoped_temp_dir.h"
 #include "base/path_service.h"
 #include "base/values.h"
 #include "chrome/browser/profiles/profile.h"
@@ -29,6 +30,7 @@
 #include "dao/browser/automation/dao_browser_tool_catalog.h"
 #include "dao/browser/automation/dao_browser_tool_types.h"
 #include "dao/browser/automation/dao_tool_schema_validator.h"
+#include "dao/browser/mcp/dao_local_agent_integration.h"
 #include "dao/browser/ui/views/dao_tab_identity.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/resource/resource_bundle.h"
@@ -127,6 +129,12 @@ TEST(DaoMcpTypesTest, ExposesEveryStableErrorCode) {
       std::pair{DaoToolErrorCode::kToolTimeout, "TOOL_TIMEOUT"},
       std::pair{DaoToolErrorCode::kToolCancelled, "TOOL_CANCELLED"},
       std::pair{DaoToolErrorCode::kInternalError, "INTERNAL_ERROR"},
+      std::pair{DaoToolErrorCode::kSpaceNotFound, "SPACE_NOT_FOUND"},
+      std::pair{DaoToolErrorCode::kSpaceUserInControl,
+                "SPACE_USER_IN_CONTROL"},
+      std::pair{DaoToolErrorCode::kSpaceClosed, "SPACE_CLOSED"},
+      std::pair{DaoToolErrorCode::kSpaceLimitReached, "SPACE_LIMIT_REACHED"},
+      std::pair{DaoToolErrorCode::kPageDialogOpen, "PAGE_DIALOG_OPEN"},
   };
 
   for (const auto& [code, name] : expected) {
@@ -162,9 +170,9 @@ class DaoMcpCatalogTest : public testing::Test {
   bool owns_resource_bundle_ = false;
 };
 
-TEST_F(DaoMcpCatalogTest, ExposesExactlyThirtyFiveToolsToMcp) {
+TEST_F(DaoMcpCatalogTest, ExposesExactlyFortyThreeToolsToMcp) {
   const auto tools = DaoBrowserToolCatalog::Get()->List(DaoToolClient::kMcp);
-  EXPECT_EQ(35u, tools.size());
+  EXPECT_EQ(43u, tools.size());
   EXPECT_EQ(nullptr, DaoBrowserToolCatalog::Get()->Find(
                          "resolve_element_context", DaoToolClient::kMcp));
   EXPECT_NE(nullptr, DaoBrowserToolCatalog::Get()->Find(
@@ -657,6 +665,55 @@ IN_PROC_BROWSER_TEST_F(DaoMcpSessionTest,
       session.committed_origin());
   EXPECT_EQ(entry->GetMainFrameDocumentSequenceNumber(),
             session.document_sequence_number());
+}
+
+TEST(DaoLocalAgentIntegrationTest, InstallsAndRemovesOnlyDaoFiles) {
+  base::ScopedTempDir temp;
+  ASSERT_TRUE(temp.CreateUniqueTempDir());
+  const base::FilePath home = temp.GetPath().Append("home");
+  const base::FilePath helper = temp.GetPath()
+                                    .Append("Dao.app")
+                                    .Append("Contents")
+                                    .Append("Helpers")
+                                    .Append("dao-browser");
+  ASSERT_TRUE(base::CreateDirectory(helper.DirName()));
+  ASSERT_TRUE(base::WriteFile(helper, "#!/bin/sh\n"));
+  ASSERT_TRUE(base::CreateDirectory(home.Append(".claude")));
+  const base::FilePath user_skill = home.Append(".claude")
+                                        .Append("skills")
+                                        .Append("dao-browser")
+                                        .Append("SKILL.md");
+  ASSERT_TRUE(base::CreateDirectory(user_skill.DirName()));
+  ASSERT_TRUE(base::WriteFile(user_skill, "my own notes"));
+
+  UpdateDaoLocalAgentIntegration(home, helper, /*enabled=*/true);
+
+  const base::FilePath link =
+      home.Append(".local").Append("bin").Append("dao-browser");
+  base::FilePath target;
+  ASSERT_TRUE(base::ReadSymbolicLink(link, &target));
+  EXPECT_EQ(helper, target);
+  const base::FilePath shared_skill = home.Append(".agents")
+                                          .Append("skills")
+                                          .Append("dao-browser")
+                                          .Append("SKILL.md");
+  std::string contents;
+  ASSERT_TRUE(base::ReadFileToString(shared_skill, &contents));
+  EXPECT_TRUE(contents.starts_with("---\nname: dao-browser\n"));
+  EXPECT_NE(std::string::npos, contents.find("managed by Dao Browser"));
+  EXPECT_NE(std::string::npos, contents.find(helper.value()));
+  EXPECT_NE(std::string::npos, contents.find("dao-browser skill"));
+  std::string user_contents;
+  ASSERT_TRUE(base::ReadFileToString(user_skill, &user_contents));
+  EXPECT_EQ("my own notes", user_contents);
+  EXPECT_FALSE(base::PathExists(home.Append(".codex")));
+
+  UpdateDaoLocalAgentIntegration(home, helper, /*enabled=*/false);
+
+  EXPECT_FALSE(base::IsLink(link));
+  EXPECT_FALSE(base::PathExists(shared_skill));
+  ASSERT_TRUE(base::ReadFileToString(user_skill, &user_contents));
+  EXPECT_EQ("my own notes", user_contents);
 }
 
 }  // namespace

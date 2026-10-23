@@ -194,7 +194,8 @@ DaoBrowserAutomationSession::ResolveEligibleTarget() const {
        IsDaoHomeUrl(url));
   if (weak_this->browser_window_->GetType() !=
           BrowserWindowInterface::TYPE_NORMAL ||
-      weak_this->profile_->IsOffTheRecord() ||
+      (weak_this->profile_->IsOffTheRecord() &&
+       !weak_this->allows_off_the_record()) ||
       weak_this->profile_->IsGuestSession() || !eligible_url) {
     return base::unexpected(MakeDaoToolError(
         DaoToolErrorCode::kTargetForbidden,

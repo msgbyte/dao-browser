@@ -55,6 +55,7 @@ class TabInterface;
 
 namespace dao {
 
+class DaoAgentSpacesHandler;
 class DaoSidebarUI;
 class DaoSplitView;
 struct DaoMcpServiceStatus;
@@ -396,6 +397,7 @@ class DaoSidebarUI : public content::WebUIController {
 
  private:
   raw_ptr<DaoSidebarUIHandler> handler_ = nullptr;
+  raw_ptr<DaoAgentSpacesHandler> agent_spaces_handler_ = nullptr;
 };
 
 }  // namespace dao

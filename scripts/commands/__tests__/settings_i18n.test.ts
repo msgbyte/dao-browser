@@ -38,8 +38,8 @@ const daoSettingsTranslations = [
     translation: '启用 MCP 服务器',
   },
   {
-    id: '9186595045539973103',
-    translation: '允许外部 MCP 客户端请求控制 Dao 浏览器',
+    id: '6822036674787650681',
+    translation: '允许 Claude Code、Codex 等本机 AI Agent 通过 MCP 或 dao-browser 命令使用 Dao。开启期间，Dao 会为它们安装该命令及对应技能。',
   },
   {
     id: '2220066681252264193',

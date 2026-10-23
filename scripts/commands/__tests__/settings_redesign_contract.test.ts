@@ -55,6 +55,7 @@ const AGENT_SETTING_OWNERSHIP_MARKERS = [
   ["dao_agent_soul", /data-setting="dao_agent_soul"/g],
   ["dao_disabled_tools", /setSetting\(\s*'dao_disabled_tools', value\)/g],
   ["dao_tool_call_show_details", /data-setting="dao_tool_call_show_details"/g],
+  ["dao_agent_space_allowed", /data-setting="dao_agent_space_allowed"/g],
   ["dao_agent_debug_mode", /data-setting="dao_agent_debug_mode"/g],
   ["dao_resume_last_session", /data-setting="dao_resume_last_session"/g],
   ["dao_resume_stale_hours", /data-setting="dao_resume_stale_hours"/g],

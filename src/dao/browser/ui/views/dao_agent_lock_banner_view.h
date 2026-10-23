@@ -37,6 +37,7 @@ class DaoAgentLockBannerView : public views::View,
   void OnPaint(gfx::Canvas* canvas) override;
 
  private:
+  void OnAnimationTick();
   float GetAnimationPhase() const;
 
   bool locked_ = false;

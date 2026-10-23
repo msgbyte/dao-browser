@@ -37,6 +37,45 @@ std::string WindowSnapshots() {
 
 }  // namespace
 
+TEST(DaoFolderStorageTest, AddsTabsToANewTopFolderAndMovesExistingOnes) {
+  base::ScopedTempDir temp;
+  ASSERT_TRUE(temp.CreateUniqueTempDir());
+  const base::FilePath path = temp.GetPath().AppendASCII("folders.json");
+  ASSERT_TRUE(base::WriteFile(path, kFolders));
+  base::ListValue tabs;
+  tabs.Append(base::DictValue()
+                  .Set("tabId", "tab-a")
+                  .Set("url", "https://example.com")
+                  .Set("title", "A"));
+  tabs.Append(base::DictValue()
+                  .Set("tabId", "tab-new")
+                  .Set("url", "https://example.org")
+                  .Set("title", "New"));
+
+  ASSERT_TRUE(AddTabsToFolderFile(path, "results", "AI results", tabs));
+  // A second call reuses the folder instead of adding another.
+  ASSERT_TRUE(AddTabsToFolderFile(path, "results", "AI results",
+                                  base::ListValue().Append(
+                                      base::DictValue()
+                                          .Set("tabId", "tab-new")
+                                          .Set("url", "https://example.org")
+                                          .Set("title", "New"))));
+
+  auto saved = ReadFolderFile(path);
+  ASSERT_TRUE(saved);
+  auto data = base::JSONReader::ReadDict(*saved, base::JSON_PARSE_RFC);
+  ASSERT_TRUE(data);
+  const base::ListValue& items = *data->FindList("items");
+  ASSERT_EQ(2u, items.size());
+  const base::DictValue& results = items[0].GetDict();
+  EXPECT_EQ("results", *results.FindString("id"));
+  const base::ListValue& children = *results.FindList("children");
+  ASSERT_EQ(2u, children.size());
+  EXPECT_EQ("tab-a", *children[0].GetDict().FindString("tabId"));
+  EXPECT_EQ("tab-new", *children[1].GetDict().FindString("tabId"));
+  EXPECT_TRUE(items[1].GetDict().FindList("children")->empty());
+}
+
 TEST(DaoFolderStorageTest, StaleWindowSavePreservesOtherFolders) {
   auto merged = MergeFolderData("", kOtherFolders, kFolders);
   ASSERT_TRUE(merged);

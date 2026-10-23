@@ -1,0 +1,10 @@
+{
+  "name": "dao-browser",
+  "version": "1.0.0",
+  "description": "Let Claude Code work in the user's Dao browser: background task windows with the user's sign-ins that the user can watch and take over.",
+  "author": {
+    "name": "Dao Browser"
+  },
+  "homepage": "https://github.com/msgbyte/dao-browser",
+  "keywords": ["browser", "automation", "dao"]
+}

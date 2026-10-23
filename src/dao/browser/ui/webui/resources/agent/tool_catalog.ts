@@ -52,6 +52,19 @@ export const TOOL_GROUPS: ToolGroup[] = [
     toolNames: ['list_tabs', 'switch_tab', 'open_tab', 'close_tab'],
   },
   {
+    id: 'space',
+    label: 'Agent Spaces',
+    toolNames: [
+      'create_space',
+      'list_spaces',
+      'set_space_status',
+      'request_user_help',
+      'finish_space',
+      'handle_dialog',
+      'run_browser_script',
+    ],
+  },
+  {
     id: 'devtools',
     label: 'DevTools',
     toolNames: [

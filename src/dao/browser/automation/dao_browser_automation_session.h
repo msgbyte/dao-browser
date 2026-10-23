@@ -41,6 +41,10 @@ class DaoBrowserAutomationSession {
   enum class TargetPolicy {
     kWebOnly,
     kLegacyUiWithDaoHome,
+    // An Agent Space session. Clean spaces live in a temporary
+    // off-the-record profile Dao created for them, which is allowed here
+    // while the user's own private windows stay off limits.
+    kAgentSpace,
   };
 
   struct DevToolsState {
@@ -95,6 +99,10 @@ class DaoBrowserAutomationSession {
                               TargetPolicy target_policy =
                                   TargetPolicy::kWebOnly);
   ~DaoBrowserAutomationSession();
+
+  bool allows_off_the_record() const {
+    return target_policy_ == TargetPolicy::kAgentSpace;
+  }
 
   DaoBrowserAutomationSession(const DaoBrowserAutomationSession&) = delete;
   DaoBrowserAutomationSession& operator=(const DaoBrowserAutomationSession&) =

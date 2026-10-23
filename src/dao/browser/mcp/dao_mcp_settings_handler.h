@@ -14,6 +14,7 @@
 #include "base/callback_list.h"
 #include "base/files/file_path.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/values.h"
 #include "chrome/browser/ui/webui/settings/settings_page_ui_handler.h"
 #include "components/prefs/pref_change_registrar.h"
@@ -67,6 +68,7 @@ class DaoMcpSettingsHandler : public settings::SettingsPageUIHandler {
   void HandleStopDaoMcpControl(const base::ListValue& args);
   void HandleRevokeDaoMcpTab(const base::ListValue& args);
   void HandleResetDaoMcpUsageStats(const base::ListValue& args);
+  void HandleGetDaoLocalAgents(const base::ListValue& args);
 
  private:
   PrefService* GetPrefs();
@@ -76,11 +78,13 @@ class DaoMcpSettingsHandler : public settings::SettingsPageUIHandler {
   base::DictValue CreateStatusValue();
   void OnStatusChanged(const DaoMcpServiceStatus&);
   void OnUsageStatsChanged();
+  void OnLocalAgentStatus(std::string callback_id, base::DictValue status);
 
   std::unique_ptr<DaoMcpSettingsService> owned_service_;
   raw_ptr<DaoMcpSettingsService> service_;
   base::CallbackListSubscription status_subscription_;
   PrefChangeRegistrar pref_change_registrar_;
+  base::WeakPtrFactory<DaoMcpSettingsHandler> weak_factory_{this};
 };
 
 }  // namespace dao

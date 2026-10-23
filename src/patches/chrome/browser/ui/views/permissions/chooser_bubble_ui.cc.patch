@@ -1,0 +1,26 @@
+diff --git a/chrome/browser/ui/views/permissions/chooser_bubble_ui.cc b/chrome/browser/ui/views/permissions/chooser_bubble_ui.cc
+--- a/chrome/browser/ui/views/permissions/chooser_bubble_ui.cc
++++ b/chrome/browser/ui/views/permissions/chooser_bubble_ui.cc
+@@ -23,6 +23,7 @@
+ #include "components/permissions/chooser_controller.h"
+ #include "components/tabs/public/tab_interface.h"
+ #include "content/public/browser/weak_document_ptr.h"
++#include "dao/browser/agent_space/dao_hidden_browser.h"
+ #include "extensions/buildflags/buildflags.h"
+ #include "ui/base/metadata/metadata_impl_macros.h"
+ #include "ui/base/mojom/dialog_button.mojom.h"
+@@ -325,6 +326,14 @@
+   content::WeakDocumentPtr weak_document = owner->GetWeakDocumentPtr();
+   auto* contents = content::WebContents::FromRenderFrameHost(owner);
+ 
++  // Dao: nobody can answer a device chooser in a hidden Agent task window;
++  // dropping the controller cancels the request and the task goes to the
++  // user.
++  if (NotifyIfDaoHiddenPageNeedsUser(contents,
++                                     DaoHiddenPageNeed::kDeviceChooser)) {
++    return base::DoNothing();
++  }
++
+ #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+   auto* browser_context = owner->GetBrowserContext();
+   if (extensions::AppWindowRegistry::Get(browser_context)

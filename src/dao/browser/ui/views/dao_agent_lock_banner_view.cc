@@ -16,6 +16,7 @@
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/font_list.h"
 #include "ui/gfx/geometry/rect_f.h"
+#include "ui/views/widget/widget.h"
 
 namespace dao {
 
@@ -67,11 +68,19 @@ void DaoAgentLockBannerView::SetLocked(bool locked) {
     animation_start_time_ = base::TimeTicks::Now();
     animation_timer_.Start(
         FROM_HERE, base::Milliseconds(kAnimationIntervalMs),
-        base::BindRepeating(&DaoAgentLockBannerView::SchedulePaint,
+        base::BindRepeating(&DaoAgentLockBannerView::OnAnimationTick,
                             base::Unretained(this)));
     SchedulePaint();
   } else {
     animation_timer_.Stop();
+  }
+}
+
+void DaoAgentLockBannerView::OnAnimationTick() {
+  // Hidden Agent task windows stay locked while the agent works; animating
+  // there would repaint 30 times a second for nobody.
+  if (GetWidget() && GetWidget()->IsVisible()) {
+    SchedulePaint();
   }
 }
 

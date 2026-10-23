@@ -10,6 +10,7 @@ import {
   getBrowserToolDefinitions,
   getCatalogEntries,
   initializeBrowserToolCatalog,
+  isSpaceTool,
 } from './browser_tool_catalog.js';
 import {getActiveLLMConfig} from './llm_config.js';
 import {getHomeToolDefinitions, isHomeTool} from './home_tools.js';
@@ -383,6 +384,20 @@ You have the following browser tools at your disposal — use them proactively w
 - **save_memory** — Save a durable record of a successful, reusable page workflow. Use only when the user explicitly asks you to remember it, or when the same action is likely to help again on this page/domain. Do not use for one-off summaries, simple extraction, casual Q&A, failed attempts, or routine browsing context.
 - **save_skill** — Save a reusable skill as a Markdown document. Skills are user-defined automation recipes the agent can discover and execute in future sessions. Use when the user asks you to remember a workflow or create an automation for a specific site or task.
 - **activate_skill** — Load full instructions for a skill listed in \`<available_skills>\`. Use this before answering or acting when the user request clearly matches a skill description. Do not invent skill ids.
+
+## Agent Spaces (background work)
+
+By default browser tools act on the user's current tab. For multi-step work that would otherwise take over the user's tabs — researching across several sites, comparing options, filling a long form, monitoring a page — work in an **Agent Space** instead: a hidden browser window with the user's sign-ins that the user can watch from the sidebar and take over at any time.
+
+- **create_space** — Start a space with a short task name in the user's language and an optional first URL. Returns \`space_id\`. Pass \`logins: false\` for a clean window without the user's cookies, e.g. for untrusted sites.
+- Pass \`space_id\` to any browser tool (query_elements, click_by_ref, open_tab, list_tabs, ...) to run it in the space. Add a 3-6 word \`label\` to actions so the user can follow along.
+- **set_space_status** — Update the one-line progress text the user sees. Call it when you move to a new phase.
+- **request_user_help** — Hand the space to the user for sign-ins, verification codes, captchas, payments or any irreversible confirmation. It waits until they hand control back and returns what they changed; observe the page again before acting.
+- **finish_space** — Close the space when done. Pass the tab ids worth keeping in \`keep\`; they move into the user's window.
+- **list_spaces** — Find spaces you started earlier, e.g. in a previous turn.
+- **handle_dialog** — Pages in a space cannot show dialogs to anyone. Alerts are accepted automatically and reported in the next result's \`dialogs\`. A confirm or prompt waits: tools fail with \`PAGE_DIALOG_OPEN\` until you answer it with handle_dialog, or call request_user_help when the user should decide.
+- If a tool returns \`SPACE_USER_IN_CONTROL\`, stop using that space immediately, tell the user what you were doing, and wait for them. Never try to take control back. If it returns \`SPACE_CLOSED\`, the user stopped the task: do not continue it in the background.
+- Small requests about the page the user is looking at do not need a space.
 
 ## Safety Rules
 
@@ -1089,6 +1104,30 @@ const LEGACY_UI_ONE_SHOT_TOOLS =
     new Set(['get_page_info', 'execute_script', 'capture_screenshot']);
 const LEGACY_UI_CONTEXT_MARKER = '__daoAgentExecutionContext';
 
+// Space tools, and browser tools that name a space_id, run in a background
+// Agent Space through one generic native entry point.
+async function executeSpaceTool(
+    name: string, args: Record<string, unknown>,
+    signal?: AbortSignal): Promise<unknown> {
+  const timeoutMs = getCatalogEntries('dao_agent')
+                        .find(entry => entry.name === name)
+                        ?.timeoutMs;
+  const result = await callNative('executeSpaceTool', {name, arguments: args}, {
+    signal,
+    cancelMethod: 'cancelBrowserTool',
+    timeoutMs: timeoutMs === undefined ? undefined : timeoutMs + 5000,
+  }) as Record<string, unknown>;
+  if (name === 'capture_screenshot' && result && !result['error'] &&
+      result['media']) {
+    return {
+      screenshot_taken: true,
+      ...result,
+      message: 'Screenshot captured successfully.',
+    };
+  }
+  return result;
+}
+
 export async function executeTool(
     name: string, args: Record<string, unknown>,
     options: ExecuteToolOptions = {}): Promise<unknown> {
@@ -1128,6 +1167,10 @@ export async function executeTool(
       signal: options.signal,
       timeoutMs: name === 'home_request_bootstrap_sources' ? null : undefined,
     });
+  }
+  if (context === 'model' &&
+      (isSpaceTool(name) || typeof args['space_id'] === 'string')) {
+    return await executeSpaceTool(name, args, options.signal);
   }
   switch (name) {
     case 'workspace_read':

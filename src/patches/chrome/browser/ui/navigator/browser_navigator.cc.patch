@@ -1,10 +1,48 @@
 diff --git a/chrome/browser/ui/navigator/browser_navigator.cc b/chrome/browser/ui/navigator/browser_navigator.cc
 --- a/chrome/browser/ui/navigator/browser_navigator.cc
 +++ b/chrome/browser/ui/navigator/browser_navigator.cc
-@@ -685,6 +685,15 @@
-     }
+@@ -34,6 +34,7 @@
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+ #include "chrome/browser/ui/browser_window/public/create_browser_window.h"
+ #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
++#include "dao/browser/agent_space/dao_hidden_browser.h"
+ #include "chrome/browser/ui/incognito_allowed_url.h"
+ #include "chrome/browser/ui/location_bar/location_bar.h"
+ #include "chrome/browser/ui/navigator/browser_navigator_params.h"
+@@ -532,6 +533,10 @@
+   ScopedBrowserShower& operator=(const ScopedBrowserShower&) = delete;
+ 
+   ~ScopedBrowserShower() {
++    // Dao: hidden Agent task windows are only shown by the user.
++    if (IsDaoHiddenBrowser(params_->browser)) {
++      return;
++    }
+     ui::BaseWindow* window = params_->browser->GetWindow();
+     if (params_->window_action ==
+         NavigateParams::WindowAction::kShowWindowInactive) {
+@@ -667,6 +672,17 @@
+ 
+   if (!AdjustNavigateParamsForURL(params)) {
+     return nullptr;
++  }
++
++  // Dao: a hidden Agent task window keeps every page it opens, so popups and
++  // new windows never surface on screen or leave the task.
++  if (IsDaoHiddenBrowser(params->browser) &&
++      (params->disposition == WindowOpenDisposition::NEW_POPUP ||
++       params->disposition == WindowOpenDisposition::NEW_WINDOW ||
++       params->disposition == WindowOpenDisposition::NEW_PICTURE_IN_PICTURE ||
++       params->disposition == WindowOpenDisposition::NEW_SPLIT_VIEW)) {
++    params->disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
++    params->window_action = NavigateParams::WindowAction::kNoAction;
    }
  
+   // Picture-in-picture browser windows must have a source contents in order for
+@@ -684,6 +700,15 @@
+       return nullptr;
+     }
+   }
++
 +  // Dao: browser UI can also use LINK and the active WebContents as a source.
 +  // Identify webpage requests before the active-tab fallback below.
 +  const bool is_webpage_link =
@@ -13,11 +51,10 @@ diff --git a/chrome/browser/ui/navigator/browser_navigator.cc b/chrome/browser/u
 +                                                  ui::PAGE_TRANSITION_LINK) &&
 +      (params->is_renderer_initiated || params->started_from_context_menu ||
 +       params->contents_to_insert);
-+
+ 
    // If no source WebContents was specified, we use the selected one from the
    // target browser. This must happen before GetBrowserAndTabForDisposition()
-   // has a chance to replace |params->browser| with another one, but after the
-@@ -947,8 +956,11 @@
+@@ -947,8 +972,11 @@
                                       params->transition, params->window_action,
                                       user_initiated);
    } else if (singleton_index == -1) {

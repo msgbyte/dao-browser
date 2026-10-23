@@ -307,4 +307,53 @@
 <translation id="5736359348982754275">可在本窗口中新建标签页</translation>
 <translation id="806986595966998735">仅可访问已授权页面</translation>
 <translation id="33311346807537223">撤销页面授权</translation>
+<translation id="3755721405352359821">AI 任务</translation>
+<translation id="188779312703122101">进行中</translation>
+<translation id="8633644927576416769">由你操作中</translation>
+<translation id="8730621377337864115">已完成</translation>
+<translation id="4773299976671772492">已停止</translation>
+<translation id="4830027010888378213">长时间无活动，已停止</translation>
+<translation id="8711810487900841391">需要你处理：<ph name="REASON"/></translation>
+<translation id="1077404790174866056">网页在询问：<ph name="QUESTION"/></translation>
+<translation id="3439213720611345867">需要你处理：网站正在请求权限</translation>
+<translation id="3236308008635769986">打开窗口</translation>
+<translation id="4034611380121372212">隐藏窗口</translation>
+<translation id="2527290720861418465">接管</translation>
+<translation id="915002612572706851">交还给 AI</translation>
+<translation id="7240954189314143120">停止任务</translation>
+<translation id="2770465223704140727">从列表移除</translation>
+<translation id="1538774398124896437">实时</translation>
+<translation id="2169830938017475061">当前</translation>
+<translation id="1069993916751872611">显示全部步骤</translation>
+<translation id="8737283920007016552">收起步骤</translation>
+<translation id="419519200534688843">去处理</translation>
+<translation id="7445354249807224155"><ph name="OWNER"/> · <ph name="TIME"/> 开始</translation>
+<translation id="2587380678541476751"><ph name="TIME"/> 开始</translation>
+<translation id="5661136296188308589">开始任务</translation>
+<translation id="1966585993237226578">查看页面</translation>
+<translation id="677378582118049079">切换页面</translation>
+<translation id="8376222708070865676">操作页面</translation>
+<translation id="5358497303507690928">AI 任务窗口</translation>
+<translation id="4145210479444821460">AI 正在这里工作。接管后你才能使用这个窗口。</translation>
+<translation id="1704904171021795640">由你操作中。完成后交还给 AI。</translation>
+<translation id="7859913493259853888"><ph name="TASK"/> 需要你处理：<ph name="REASON"/></translation>
+<translation id="7410263727650457915"><ph name="TASK"/> 需要你回应网站的权限请求</translation>
+<translation id="7576437802374181996"><ph name="TASK"/> 已完成</translation>
+<translation id="7270911401217188243"><ph name="TASK"/> 已完成，并在此窗口添加了 <ph name="COUNT"/> 个页面</translation>
+<translation id="7502337742088917288">一个本机 AI Agent 想在后台任务窗口中工作。它可以在这些窗口里使用你的登录状态，你可以随时在侧边栏查看、接管或停止每个任务。</translation>
+<translation id="3561813968173073298">始终允许 <ph name="CLIENT"/> 使用后台任务窗口</translation>
+<translation id="8529302590077854906"><ph name="TASK"/> 需要你为网站选择文件</translation>
+<translation id="7061769699245564112"><ph name="TASK"/> 需要你为网站选择设备</translation>
+<translation id="7956784456894202694"><ph name="TASK"/> 需要你回应网站的登录或安全提示</translation>
+<translation id="2327219972463880307">需要你处理：网站需要你选择文件</translation>
+<translation id="393380995204525188">需要你处理：网站想连接设备</translation>
+<translation id="1083447653861233228">需要你处理：网站在等待你的回应</translation>
+<translation id="2794744604624622297">AI 任务</translation>
+<translation id="6101865412803996957">允许 Dao Agent 在后台工作吗？</translation>
+<translation id="4045892777970303159">Dao Agent 想在隐藏窗口中开始“<ph name="TASK"/>”。那里的网页会使用你的登录状态。</translation>
+<translation id="8108238136182433157">你可以随时在侧边栏查看、接管或停止每个任务。</translation>
+<translation id="8926389886865778422">不再询问</translation>
+<translation id="5039804452771397117">允许</translation>
+<translation id="4169535189173047238">不允许</translation>
+<translation id="512111397659430754">AI 结果</translation>
 </translationbundle>

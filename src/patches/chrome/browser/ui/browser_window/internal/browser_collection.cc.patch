@@ -1,0 +1,82 @@
+diff --git a/chrome/browser/ui/browser_window/internal/browser_collection.cc b/chrome/browser/ui/browser_window/internal/browser_collection.cc
+--- a/chrome/browser/ui/browser_window/internal/browser_collection.cc
++++ b/chrome/browser/ui/browser_window/internal/browser_collection.cc
+@@ -7,12 +7,18 @@
+ #include "base/scoped_observation.h"
+ #include "chrome/browser/ui/browser_window/public/browser_collection_observer.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
++#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
+ #include "components/tabs/public/tab_interface.h"
+ #include "content/public/browser/web_contents.h"
++#include "dao/browser/agent_space/dao_hidden_browser.h"
+ #include "ui/base/base_window.h"
+ 
+ namespace {
+ 
++DaoHiddenBrowserPredicate g_dao_hidden_browser_predicate = nullptr;
++DaoHiddenPageNeedHandler g_dao_hidden_page_need_handler = nullptr;
++DaoHiddenDownloadDirectoryProvider g_dao_hidden_download_directory = nullptr;
++
+ // Iterates through all browsers in `collection` present at construction time,
+ // accounting for Browsers that may be destroyed mid-iteration.
+ class BrowserCollectionEnumerator : public BrowserCollectionObserver {
+@@ -61,6 +67,44 @@
+ 
+ }  // namespace
+ 
++void SetDaoHiddenBrowserPredicate(DaoHiddenBrowserPredicate predicate) {
++  g_dao_hidden_browser_predicate = predicate;
++}
++
++bool IsDaoHiddenBrowser(BrowserWindowInterface* browser) {
++  return browser && g_dao_hidden_browser_predicate &&
++         g_dao_hidden_browser_predicate(browser);
++}
++
++void SetDaoHiddenPageNeedHandler(DaoHiddenPageNeedHandler handler) {
++  g_dao_hidden_page_need_handler = handler;
++}
++
++void SetDaoHiddenDownloadDirectoryProvider(
++    DaoHiddenDownloadDirectoryProvider provider) {
++  g_dao_hidden_download_directory = provider;
++}
++
++base::FilePath GetDaoHiddenDownloadDirectory(content::WebContents* contents) {
++  return contents && g_dao_hidden_download_directory
++             ? g_dao_hidden_download_directory(contents)
++             : base::FilePath();
++}
++
++bool NotifyIfDaoHiddenPageNeedsUser(content::WebContents* contents,
++                                    DaoHiddenPageNeed need) {
++  if (!contents ||
++      !IsDaoHiddenBrowser(
++          GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
++              contents))) {
++    return false;
++  }
++  if (g_dao_hidden_page_need_handler) {
++    g_dao_hidden_page_need_handler(contents, need);
++  }
++  return true;
++}
++
+ BrowserCollection::BrowserCollection() = default;
+ 
+ BrowserCollection::~BrowserCollection() = default;
+@@ -74,8 +118,12 @@
+ }
+ 
+ BrowserWindowInterface* BrowserCollection::GetLastActiveBrowser() {
+-  auto browsers = GetBrowsers(Order::kActivation);
+-  return browsers.empty() ? nullptr : browsers.front();
++  for (BrowserWindowInterface* browser : GetBrowsers(Order::kActivation)) {
++    if (!IsDaoHiddenBrowser(browser)) {
++      return browser;
++    }
++  }
++  return nullptr;
+ }
+ 
+ BrowserWindowInterface* BrowserCollection::FindBrowserWithWindow(

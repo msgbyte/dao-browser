@@ -99,6 +99,8 @@ struct DaoMcpApprovalRequest {
   std::optional<DaoToolTarget> tab_target;
   std::u16string tab_title;
   std::vector<DaoMcpTabGrant> tab_choices;
+  // Requests access to background Agent Spaces instead of a user window.
+  bool background_space = false;
 };
 
 struct DaoMcpServiceStatus {
@@ -247,6 +249,26 @@ class DaoMcpService {
   void HandleToolsList(ConnectionState& connection, DaoMcpRequest request);
   void HandleToolsCall(ConnectionState& connection, DaoMcpRequest request);
   void HandleToolsCancel(ConnectionState& connection, DaoMcpRequest request);
+  // Agent Space calls use their own approval scope: no user window or tab is
+  // leased, the work happens in hidden task windows the user can watch.
+  void HandleSpaceToolsCall(ConnectionState& connection,
+                            DaoMcpRequest request,
+                            const DaoBrowserToolDefinition& definition);
+  void RequestSpaceApproval(ConnectionState& connection, std::string reason);
+  void OnSpaceApprovalResult(uint64_t connection_generation,
+                             std::string connection_id,
+                             bool allowed);
+  void OnSpaceApprovalTimeout(uint64_t connection_generation,
+                              std::string connection_id);
+  void DispatchSpaceCall(ConnectionState& connection, PendingToolCall pending);
+  void OnSpaceToolCallComplete(uint64_t connection_generation,
+                               std::string request_id,
+                               DaoBrowserToolResult result);
+  void FailQueuedSpaceCalls(ConnectionState& connection,
+                            const DaoToolError& error);
+  void CancelSpaceCalls(ConnectionState& connection,
+                        const DaoToolError& error);
+  bool IsSpaceClientRemembered(const ConnectionState& connection) const;
   void SendSuccess(ConnectionState& connection,
                    std::string id,
                    base::DictValue result);

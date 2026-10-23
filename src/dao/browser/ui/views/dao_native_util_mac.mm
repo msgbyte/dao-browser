@@ -32,6 +32,7 @@
 #include "ui/gfx/geometry/point.h"
 #include "ui/gfx/geometry/point_conversions.h"
 #include "ui/gfx/geometry/rect.h"
+#include "ui/views/cocoa/native_widget_mac_ns_window_host.h"
 
 namespace {
 
@@ -745,6 +746,15 @@ void SetTrafficLightsPosition(gfx::NativeWindow native_window, int x, int y) {
     zoomFrame.origin.x += shift;
     zoom.frame = zoomFrame;
   });
+}
+
+void SetCompositorActiveWhileHidden(gfx::NativeWindow window, bool active) {
+  views::NativeWidgetMacNSWindowHost* host =
+      window ? views::NativeWidgetMacNSWindowHost::GetFromNativeWindow(window)
+             : nullptr;
+  if (host) {
+    host->SetCompositorActiveWhileHidden(active);
+  }
 }
 
 }  // namespace dao

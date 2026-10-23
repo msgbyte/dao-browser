@@ -70,6 +70,7 @@
 #include "content/public/common/url_constants.h"
 #include "dao/browser/agent/dao_agent_lock_tab_helper.h"
 #include "dao/browser/agent/dao_agent_settings_handler.h"
+#include "dao/browser/agent_space/dao_agent_space_service.h"
 #include "dao/browser/dao_pref_names.h"
 #include "dao/browser/mcp/dao_mcp_service.h"
 #include "dao/browser/pip/dao_pip_interceptor.h"
@@ -88,6 +89,7 @@
 #include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
 #include "dao/browser/ui/views/sidebar/dao_tab_tooltip_view.h"
 #include "dao/browser/ui/views/split/dao_split_view.h"
+#include "dao/browser/ui/webui/dao_agent_spaces_handler.h"
 #include "dao/browser/ui/webui/dao_folder_settings_handler.h"
 #include "dao/browser/ui/webui/dao_folder_storage.h"
 #include "dao/browser/ui/webui/dao_pinned_tab_storage.h"
@@ -102,6 +104,7 @@
 #include "ui/base/mojom/menu_source_type.mojom-shared.h"
 #include "ui/base/mojom/ui_base_types.mojom-shared.h"
 #include "ui/base/page_transition_types.h"
+#include "ui/base/webui/web_ui_util.h"
 #include "ui/base/window_open_disposition.h"
 #include "ui/display/screen.h"
 #include "ui/gfx/codec/jpeg_codec.h"
@@ -701,6 +704,11 @@ void DaoSidebarUIHandler::SetBrowser(BrowserWindowInterface* browser) {
                   Profile* profile = self->browser_->GetProfile();
                   if (profile && profile->GetPrefs()->GetBoolean(
                                      prefs::kDaoWelcomeShown)) {
+                    return;
+                  }
+                  // Agent task windows belong to the task, not the user.
+                  if (DaoAgentSpaceService::IsAgentSpaceBrowser(
+                          self->browser_)) {
                     return;
                   }
                   TabStripModel* tab_strip = self->browser_->tab_strip_model();
@@ -4361,6 +4369,46 @@ DaoSidebarUI::DaoSidebarUI(content::WebUI* web_ui) : WebUIController(web_ui) {
   source->AddLocalizedString("daoMcpControlButtonAccessibleName",
                              IDS_DAO_MCP_CONTROL_BUTTON_ACCESSIBLE_NAME);
   source->AddLocalizedString("daoCloseTab", IDS_DAO_TAB_CONTEXT_CLOSE_TAB);
+  static constexpr webui::LocalizedString kAgentSpaceStrings[] = {
+      {"daoAgentSpacesTitle", IDS_DAO_AGENT_SPACES_TITLE},
+      {"daoAgentSpaceStateRunning", IDS_DAO_AGENT_SPACE_STATE_RUNNING},
+      {"daoAgentSpaceStateYouHaveControl",
+       IDS_DAO_AGENT_SPACE_STATE_YOU_HAVE_CONTROL},
+      {"daoAgentSpaceStateFinished", IDS_DAO_AGENT_SPACE_STATE_FINISHED},
+      {"daoAgentSpaceStateStopped", IDS_DAO_AGENT_SPACE_STATE_STOPPED},
+      {"daoAgentSpaceStateStoppedInactive",
+       IDS_DAO_AGENT_SPACE_STATE_STOPPED_INACTIVE},
+      {"daoAgentSpaceNeedsYou", IDS_DAO_AGENT_SPACE_NEEDS_YOU},
+      {"daoAgentSpaceNeedsPermission", IDS_DAO_AGENT_SPACE_NEEDS_PERMISSION},
+      {"daoAgentSpaceDialogPending", IDS_DAO_AGENT_SPACE_DIALOG_PENDING},
+      {"daoAgentSpaceNeedsFile", IDS_DAO_AGENT_SPACE_NEEDS_FILE},
+      {"daoAgentSpaceNeedsDevice", IDS_DAO_AGENT_SPACE_NEEDS_DEVICE},
+      {"daoAgentSpaceNeedsBrowserDialog",
+       IDS_DAO_AGENT_SPACE_NEEDS_BROWSER_DIALOG},
+      {"daoAgentSpaceOpenWindow", IDS_DAO_AGENT_SPACE_OPEN_WINDOW},
+      {"daoAgentSpaceHideWindow", IDS_DAO_AGENT_SPACE_HIDE_WINDOW},
+      {"daoAgentSpaceTakeOver", IDS_DAO_AGENT_SPACE_TAKE_OVER},
+      {"daoAgentSpaceHandBack", IDS_DAO_AGENT_SPACE_HAND_BACK},
+      {"daoAgentSpaceStop", IDS_DAO_AGENT_SPACE_STOP},
+      {"daoAgentSpaceDismiss", IDS_DAO_AGENT_SPACE_DISMISS},
+      {"daoAgentSpaceLive", IDS_DAO_AGENT_SPACE_LIVE},
+      {"daoAgentSpaceNow", IDS_DAO_AGENT_SPACE_NOW},
+      {"daoAgentSpaceShowAllSteps", IDS_DAO_AGENT_SPACE_SHOW_ALL_STEPS},
+      {"daoAgentSpaceShowFewerSteps", IDS_DAO_AGENT_SPACE_SHOW_FEWER_STEPS},
+      {"daoAgentSpaceResolve", IDS_DAO_AGENT_SPACE_RESOLVE},
+      {"daoAgentSpaceStartedBy", IDS_DAO_AGENT_SPACE_STARTED_BY},
+      {"daoAgentSpaceStartedAt", IDS_DAO_AGENT_SPACE_STARTED_AT},
+      {"daoAgentSpaceStepStart", IDS_DAO_AGENT_SPACE_STEP_START},
+      {"daoAgentSpaceStepRead", IDS_DAO_AGENT_SPACE_STEP_READ},
+      {"daoAgentSpaceStepNavigate", IDS_DAO_AGENT_SPACE_STEP_NAVIGATE},
+      {"daoAgentSpaceStepAct", IDS_DAO_AGENT_SPACE_STEP_ACT},
+      {"daoAgentSpaceTaskWindowLabel", IDS_DAO_AGENT_SPACE_TASK_WINDOW_LABEL},
+      {"daoAgentSpaceTaskWindowAgentHint",
+       IDS_DAO_AGENT_SPACE_TASK_WINDOW_AGENT_HINT},
+      {"daoAgentSpaceTaskWindowUserHint",
+       IDS_DAO_AGENT_SPACE_TASK_WINDOW_USER_HINT},
+  };
+  source->AddLocalizedStrings(kAgentSpaceStrings);
   source->UseStringsJs();
 
   // Allow innerHTML for Lit rendering.
@@ -4371,6 +4419,9 @@ DaoSidebarUI::DaoSidebarUI(content::WebUI* web_ui) : WebUIController(web_ui) {
   auto handler = std::make_unique<DaoSidebarUIHandler>();
   handler_ = handler.get();
   web_ui->AddMessageHandler(std::move(handler));
+  auto agent_spaces_handler = std::make_unique<DaoAgentSpacesHandler>();
+  agent_spaces_handler_ = agent_spaces_handler.get();
+  web_ui->AddMessageHandler(std::move(agent_spaces_handler));
 }
 
 DaoSidebarUI::~DaoSidebarUI() = default;
@@ -4378,6 +4429,9 @@ DaoSidebarUI::~DaoSidebarUI() = default;
 void DaoSidebarUI::SetBrowser(BrowserWindowInterface* browser) {
   if (handler_) {
     handler_->SetBrowser(browser);
+  }
+  if (agent_spaces_handler_) {
+    agent_spaces_handler_->SetBrowser(browser);
   }
 }
 

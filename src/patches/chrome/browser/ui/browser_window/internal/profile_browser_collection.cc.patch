@@ -1,0 +1,20 @@
+diff --git a/chrome/browser/ui/browser_window/internal/profile_browser_collection.cc b/chrome/browser/ui/browser_window/internal/profile_browser_collection.cc
+--- a/chrome/browser/ui/browser_window/internal/profile_browser_collection.cc
++++ b/chrome/browser/ui/browser_window/internal/profile_browser_collection.cc
+@@ -9,6 +9,7 @@
+ #include "chrome/browser/profiles/profile.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+ #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
++#include "dao/browser/agent_space/dao_hidden_browser.h"
+ 
+ #if BUILDFLAG(IS_ANDROID)
+ #include "chrome/browser/ui/android/android_profile_browser_collection_service.h"
+@@ -32,7 +33,7 @@
+ 
+   auto find = [&match, original](BrowserWindowInterface* browser) {
+     if (browser->GetType() != BrowserWindowInterface::TYPE_NORMAL ||
+-        browser->IsDeleteScheduled()) {
++        browser->IsDeleteScheduled() || IsDaoHiddenBrowser(browser)) {
+       return true;
+     }
+     if (original && browser->GetProfile()->GetOriginalProfile() != original) {

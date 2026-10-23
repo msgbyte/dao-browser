@@ -10,6 +10,7 @@
 #include "build/build_config.h"
 #if BUILDFLAG(IS_MAC)
 #include "base/apple/bundle_locations.h"
+#include "dao/browser/mcp/dao_local_agent_integration.h"
 #endif
 #include "base/check.h"
 #include "base/functional/bind.h"
@@ -186,6 +187,10 @@ void DaoMcpSettingsHandler::RegisterMessages() {
       base::BindRepeating(&DaoMcpSettingsHandler::HandleRevokeDaoMcpTab,
                           base::Unretained(this)));
   web_ui()->RegisterMessageCallback(
+      "getDaoLocalAgents",
+      base::BindRepeating(&DaoMcpSettingsHandler::HandleGetDaoLocalAgents,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
       "resetDaoMcpUsageStats",
       base::BindRepeating(
           &DaoMcpSettingsHandler::HandleResetDaoMcpUsageStats,
@@ -287,6 +292,30 @@ void DaoMcpSettingsHandler::HandleResetDaoMcpUsageStats(
     const base::ListValue& args) {
   CHECK(args.empty());
   ResetDaoMcpUsageStats(GetPrefs(), base::Time::Now());
+}
+
+void DaoMcpSettingsHandler::HandleGetDaoLocalAgents(
+    const base::ListValue& args) {
+  CHECK_EQ(1u, args.size());
+  AllowJavascript();
+  std::string callback_id = args[0].GetString();
+#if BUILDFLAG(IS_MAC)
+  RequestDaoLocalAgentIntegrationStatus(
+      base::BindOnce(&DaoMcpSettingsHandler::OnLocalAgentStatus,
+                     weak_factory_.GetWeakPtr(), std::move(callback_id)));
+#else
+  OnLocalAgentStatus(std::move(callback_id),
+                     base::DictValue()
+                         .Set("agents", base::ListValue())
+                         .Set("cliLinked", false));
+#endif
+}
+
+void DaoMcpSettingsHandler::OnLocalAgentStatus(std::string callback_id,
+                                               base::DictValue status) {
+  if (IsJavascriptAllowed()) {
+    ResolveJavascriptCallback(base::Value(callback_id), status);
+  }
 }
 
 PrefService* DaoMcpSettingsHandler::GetPrefs() {
