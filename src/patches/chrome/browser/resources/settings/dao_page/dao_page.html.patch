@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_page.html
-@@ -0,0 +1,922 @@
+@@ -0,0 +1,948 @@
 +<style include="settings-shared">
 +  .dao-mcp-page {
 +    margin-top: 12px;
@@ -231,6 +231,7 @@ index 0000000000..0000000001
 +    margin-top: 12px;
 +  }
 +
++  .dao-local-agent-actions,
 +  .dao-local-agent-row {
 +    align-items: center;
 +    color: var(--cr-primary-text-color);
@@ -238,6 +239,11 @@ index 0000000000..0000000001
 +    font-size: 13px;
 +    gap: 12px;
 +    justify-content: space-between;
++  }
++
++  .dao-local-agent-row,
++  .dao-local-agent-actions {
++    flex-wrap: wrap;
 +  }
 +
 +  @media (max-width: 520px) {
@@ -722,12 +728,32 @@ index 0000000000..0000000001
 +      <div id="daoLocalAgentList" class="dao-local-agent-list" role="list">
 +        <template is="dom-repeat" items="[[daoLocalAgents_]]">
 +          <div class="dao-local-agent-row" role="listitem">
-+            <span>[[item.name]]</span>
-+            <span class$="dao-mcp-status-badge [[item.badge]]">
-+              [[item.status]]
-+            </span>
++            <span id$="dao-local-agent-[[item.id]]">[[item.name]]</span>
++            <div class="dao-local-agent-actions" role="group"
++                aria-labelledby$="dao-local-agent-[[item.id]]">
++              <span class$="dao-mcp-status-badge [[item.badge]]">
++                [[item.status]]
++              </span>
++              <cr-button class="dao-local-agent-install"
++                  hidden$="[[!item.canInstall]]"
++                  data-id$="[[item.id]]" data-install="true"
++                  disabled="[[daoLocalAgentsBusy_]]"
++                  on-click="onDaoLocalAgentAction_">
++                [[item.action]]
++              </cr-button>
++              <cr-button class="dao-local-agent-uninstall"
++                  hidden$="[[!item.installed]]"
++                  data-id$="[[item.id]]" data-install="false"
++                  disabled="[[daoLocalAgentsBusy_]]"
++                  on-click="onDaoLocalAgentAction_">
++                $i18n{daoLocalAgentUninstall}
++              </cr-button>
++            </div>
 +          </div>
 +        </template>
++      </div>
++      <div role="alert" hidden$="[[!daoLocalAgentsError_]]">
++        [[daoLocalAgentsError_]]
 +      </div>
 +    </div>
 +    <div id="daoMcpConnectionSection"

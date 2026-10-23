@@ -6,6 +6,7 @@
 #define DAO_BROWSER_MCP_DAO_LOCAL_AGENT_INTEGRATION_H_
 
 #include <string>
+#include <string_view>
 
 #include "base/files/file_path.h"
 #include "base/functional/callback_forward.h"
@@ -18,21 +19,22 @@ namespace dao {
 std::string BuildDaoEntrySkill(const base::FilePath& helper_path,
                               bool lite = false);
 
-// Installs or removes what local agents need to find Dao: the
-// ~/.local/bin/dao-browser link to the CLI inside this app, and the entry
-// skill in the skill folders of agents found under `home`. Only files Dao
-// created are updated or removed; a user's own files are left alone.
+// Explicitly installs/updates or removes one integration: shared, claude, cli.
+// Only Dao-owned files are changed. Returns false on conflicts or I/O errors.
 // Blocking; call on a MayBlock sequence.
-void UpdateDaoLocalAgentIntegration(const base::FilePath& home,
-                                    const base::FilePath& helper_path,
-                                    bool enabled);
+bool UpdateDaoLocalAgentIntegration(const base::FilePath& home,
+                                   const base::FilePath& helper_path,
+                                   std::string_view id,
+                                   bool installed);
 
-// Posts UpdateDaoLocalAgentIntegration() for this app and the user's home.
-// Does nothing in test processes.
-void ScheduleDaoLocalAgentIntegrationUpdate(bool enabled);
+// Performs the requested operation and returns status with a success field.
+// Does not touch the developer's home in test processes.
+void RequestDaoLocalAgentIntegrationUpdate(
+    std::string id,
+    bool installed,
+    base::OnceCallback<void(base::DictValue)> callback);
 
-// What Dao installed for each local agent it knows, for the settings page:
-// `{agents: [{id, detected, installed}], cliLinked}`. Blocking.
+// Read-only status: {agents: [{id, detected, installed}], cliLinked}. Blocking.
 base::DictValue GetDaoLocalAgentIntegrationStatus(
     const base::FilePath& home,
     const base::FilePath& helper_path);

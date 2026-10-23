@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_page.ts
-@@ -0,0 +1,656 @@
+@@ -0,0 +1,724 @@
 +// Copyright 2026 Dao Browser Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -103,7 +103,9 @@ index 0000000000..0000000001
 +}
 +
 +export interface DaoLocalAgentStatus {
-+  agents: Array<{id: string, detected: boolean, installed: boolean}>;
++  agents: Array<{
++    id: string, detected: boolean, installed: boolean,
++  }>;
 +  cliLinked: boolean;
 +}
 +
@@ -115,6 +117,8 @@ index 0000000000..0000000001
 +  stopDaoMcpControl(connectionId: string): void;
 +  revokeDaoMcpTab(connectionId: string, tabId: string): void;
 +  getDaoLocalAgents(): Promise<DaoLocalAgentStatus>;
++  setDaoLocalAgentInstalled(id: string, installed: boolean):
++      Promise<DaoLocalAgentStatus&{success: boolean}>;
 +  resetDaoMcpUsageStats(): void;
 +}
 +
@@ -145,6 +149,11 @@ index 0000000000..0000000001
 +
 +  getDaoLocalAgents(): Promise<DaoLocalAgentStatus> {
 +    return sendWithPromise('getDaoLocalAgents');
++  }
++
++  setDaoLocalAgentInstalled(id: string, installed: boolean):
++      Promise<DaoLocalAgentStatus&{success: boolean}> {
++    return sendWithPromise('setDaoLocalAgentInstalled', id, installed);
 +  }
 +
 +  resetDaoMcpUsageStats(): void {
@@ -244,6 +253,16 @@ index 0000000000..0000000001
 +        value: () => [],
 +      },
 +
++      daoLocalAgentsBusy_: {
++        type: Boolean,
++        value: false,
++      },
++
++      daoLocalAgentsError_: {
++        type: String,
++        value: '',
++      },
++
 +      daoMcpSetupOption_: {
 +        type: String,
 +        value: 'codex',
@@ -302,8 +321,12 @@ index 0000000000..0000000001
 +  declare private daoMcpStatusState_: DaoMcpStatusState;
 +  declare private daoMcpConnections_: DaoMcpConnection[];
 +  declare private showDaoMcpQuickSetup_: boolean;
-+  declare private daoLocalAgents_:
-+      Array<{name: string, status: string, badge: string}>;
++  declare private daoLocalAgents_: Array<{
++    id: string, name: string, status: string, badge: string,
++    installed: boolean, canInstall: boolean, action: string,
++  }>;
++  declare private daoLocalAgentsBusy_: boolean;
++  declare private daoLocalAgentsError_: string;
 +  declare private daoMcpSetupOption_: DaoMcpSetupOption;
 +  declare private daoMcpSetupContent_: string;
 +  declare private daoMcpSetupCopied_: boolean;
@@ -350,33 +373,78 @@ index 0000000000..0000000001
 +  }
 +
 +  private async refreshDaoLocalAgents_() {
-+    const request = ++this.daoLocalAgentsRequest_;
-+    const status = await this.daoMcpBrowserProxy_.getDaoLocalAgents();
-+    if (request !== this.daoLocalAgentsRequest_) {
++    if (this.daoLocalAgentsBusy_) {
 +      return;
 +    }
++    const request = ++this.daoLocalAgentsRequest_;
++    try {
++      const status = await this.daoMcpBrowserProxy_.getDaoLocalAgents();
++      if (request === this.daoLocalAgentsRequest_) {
++        this.updateDaoLocalAgents_(status);
++        this.daoLocalAgentsError_ = '';
++      }
++    } catch {
++      if (request === this.daoLocalAgentsRequest_) {
++        this.daoLocalAgentsError_ =
++            loadTimeData.getString('daoLocalAgentsError');
++      }
++    }
++  }
++
++  private updateDaoLocalAgents_(status: DaoLocalAgentStatus) {
 +    const nameKeys: Record<string, string> = {
 +      claude: 'daoLocalAgentClaude',
-+      codex: 'daoLocalAgentCodex',
 +      shared: 'daoLocalAgentShared',
++      cli: 'daoLocalAgentCli',
 +    };
-+    const rows = status.agents.filter(agent => nameKeys[agent.id])
-+                     .map(agent => ({
-+                            name: loadTimeData.getString(nameKeys[agent.id]),
-+                            status: loadTimeData.getString(
-+                                agent.installed ? 'daoLocalAgentInstalled' :
-+                                    agent.detected ?
-+                                                  'daoLocalAgentNotInstalled' :
-+                                                  'daoLocalAgentNotFound'),
-+                            badge: agent.installed ? 'connected' : 'disabled',
-+                          }));
-+    rows.push({
-+      name: loadTimeData.getString('daoLocalAgentCli'),
-+      status: loadTimeData.getString(
-+          status.cliLinked ? 'daoLocalAgentLinked' : 'daoLocalAgentNotLinked'),
-+      badge: status.cliLinked ? 'connected' : 'disabled',
-+    });
-+    this.daoLocalAgents_ = rows;
++    const agents = [...status.agents, {
++      id: 'cli', detected: true, installed: status.cliLinked,
++    }];
++    this.daoLocalAgents_ = agents.filter(agent => nameKeys[agent.id])
++        .map(agent => {
++          let statusKey = agent.installed ? 'daoLocalAgentInstalled' :
++              agent.detected ? 'daoLocalAgentNotInstalled' :
++                               'daoLocalAgentNotFound';
++          if (agent.id === 'cli') {
++            statusKey = agent.installed ? 'daoLocalAgentLinked' :
++                                         'daoLocalAgentNotLinked';
++          }
++          return {
++            id: agent.id,
++            name: loadTimeData.getString(nameKeys[agent.id]),
++            status: loadTimeData.getString(statusKey),
++            badge: agent.installed ? 'connected' : 'disabled',
++            installed: agent.installed,
++            canInstall: !agent.installed,
++            action: loadTimeData.getString('daoLocalAgentInstall'),
++          };
++        });
++  }
++
++  private async onDaoLocalAgentAction_(event: Event) {
++    const {id, install} = (event.currentTarget as HTMLElement).dataset;
++    if (this.daoLocalAgentsBusy_ ||
++        !id || !['shared', 'claude', 'cli'].includes(id) ||
++        (install !== 'true' && install !== 'false')) {
++      return;
++    }
++    ++this.daoLocalAgentsRequest_;
++    this.daoLocalAgentsBusy_ = true;
++    this.daoLocalAgentsError_ = '';
++    try {
++      const status = await this.daoMcpBrowserProxy_.setDaoLocalAgentInstalled(
++          id, install === 'true');
++      this.updateDaoLocalAgents_(status);
++      if (!status.success) {
++        this.daoLocalAgentsError_ =
++            loadTimeData.getString('daoLocalAgentsError');
++      }
++    } catch {
++      this.daoLocalAgentsError_ =
++          loadTimeData.getString('daoLocalAgentsError');
++    } finally {
++      this.daoLocalAgentsBusy_ = false;
++    }
 +  }
 +
 +  private async refreshDaoTabCategories_() {

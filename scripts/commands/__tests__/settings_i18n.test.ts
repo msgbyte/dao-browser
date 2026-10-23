@@ -38,8 +38,8 @@ const daoSettingsTranslations = [
     translation: '启用 MCP 服务器',
   },
   {
-    id: '6822036674787650681',
-    translation: '允许 Claude Code、Codex 等本机 AI Agent 通过 MCP 或 dao-browser 命令使用 Dao。开启期间，Dao 会为它们安装该命令及对应技能。',
+    id: '2749792248284101728',
+    translation: '允许 Claude Code、Codex 等本机 AI Agent 通过 MCP 或 dao-browser 命令请求使用浏览器。',
   },
   {
     id: '2220066681252264193',
@@ -189,6 +189,12 @@ const daoSettingsTranslations = [
 ];
 
 const daoAgentManagementTranslations = [
+  ['DAO_LOCAL_AGENTS_ERROR', 'daoLocalAgentsError',
+   '无法读取或修改此集成。请检查文件权限及已有文件后重试。'],
+  ['DAO_LOCAL_AGENT_UNINSTALL', 'daoLocalAgentUninstall',
+   '卸载'],
+  ['DAO_LOCAL_AGENT_INSTALL', 'daoLocalAgentInstall',
+   '安装'],
   ['DAO_AGENT_SOUL_RESET', 'daoAgentSoulReset', '恢复默认设置'],
   [
     'DAO_AGENT_SOUL_RESET_SUCCESS',

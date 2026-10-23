@@ -191,6 +191,11 @@ void DaoMcpSettingsHandler::RegisterMessages() {
       base::BindRepeating(&DaoMcpSettingsHandler::HandleGetDaoLocalAgents,
                           base::Unretained(this)));
   web_ui()->RegisterMessageCallback(
+      "setDaoLocalAgentInstalled",
+      base::BindRepeating(
+          &DaoMcpSettingsHandler::HandleSetDaoLocalAgentInstalled,
+          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
       "resetDaoMcpUsageStats",
       base::BindRepeating(
           &DaoMcpSettingsHandler::HandleResetDaoMcpUsageStats,
@@ -212,6 +217,7 @@ void DaoMcpSettingsHandler::OnJavascriptAllowed() {
 void DaoMcpSettingsHandler::OnJavascriptDisallowed() {
   status_subscription_ = {};
   pref_change_registrar_.Reset();
+  weak_factory_.InvalidateWeakPtrs();
 }
 
 void DaoMcpSettingsHandler::HandleGetDaoMcpStatus(
@@ -308,6 +314,28 @@ void DaoMcpSettingsHandler::HandleGetDaoLocalAgents(
                      base::DictValue()
                          .Set("agents", base::ListValue())
                          .Set("cliLinked", false));
+#endif
+}
+
+void DaoMcpSettingsHandler::HandleSetDaoLocalAgentInstalled(
+    const base::ListValue& args) {
+  CHECK_EQ(3u, args.size());
+  const std::string& id = args[1].GetString();
+  CHECK(id == "shared" || id == "claude" || id == "cli");
+  CHECK(args[2].is_bool());
+  AllowJavascript();
+  std::string callback_id = args[0].GetString();
+#if BUILDFLAG(IS_MAC)
+  RequestDaoLocalAgentIntegrationUpdate(
+      id, args[2].GetBool(),
+      base::BindOnce(&DaoMcpSettingsHandler::OnLocalAgentStatus,
+                     weak_factory_.GetWeakPtr(), std::move(callback_id)));
+#else
+  OnLocalAgentStatus(std::move(callback_id),
+                     base::DictValue()
+                         .Set("agents", base::ListValue())
+                         .Set("cliLinked", false)
+                         .Set("success", false));
 #endif
 }
 

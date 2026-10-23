@@ -69,6 +69,7 @@ class DaoMcpSettingsHandler : public settings::SettingsPageUIHandler {
   void HandleRevokeDaoMcpTab(const base::ListValue& args);
   void HandleResetDaoMcpUsageStats(const base::ListValue& args);
   void HandleGetDaoLocalAgents(const base::ListValue& args);
+  void HandleSetDaoLocalAgentInstalled(const base::ListValue& args);
 
  private:
   PrefService* GetPrefs();

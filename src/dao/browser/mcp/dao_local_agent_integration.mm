@@ -9,8 +9,8 @@
 #include "base/apple/bundle_locations.h"
 #include "base/command_line.h"
 #include "base/files/file_util.h"
+#include "base/files/important_file_writer.h"
 #include "base/functional/bind.h"
-#include "base/logging.h"
 #include "base/no_destructor.h"
 #include "base/path_service.h"
 #include "base/strings/strcat.h"
@@ -33,34 +33,33 @@ bool IsDaoHelperLink(const base::FilePath& link) {
          base::EndsWith(target.value(), kHelperSuffix);
 }
 
-void UpdateHelperLink(const base::FilePath& home,
+bool UpdateHelperLink(const base::FilePath& home,
                       const base::FilePath& helper_path,
-                      bool enabled) {
+                      bool installed) {
   const base::FilePath link =
       home.Append(".local").Append("bin").Append("dao-browser");
   const bool exists = base::PathExists(link) || base::IsLink(link);
-  if (!enabled) {
-    if (exists && IsDaoHelperLink(link)) {
-      base::DeleteFile(link);
-    }
-    return;
+  if (!installed) {
+    return !exists || !IsDaoHelperLink(link) || base::DeleteFile(link);
   }
   if (exists) {
-    base::FilePath target;
-    if (!IsDaoHelperLink(link) ||
-        (base::ReadSymbolicLink(link, &target) && target == helper_path)) {
-      return;
+    if (!IsDaoHelperLink(link)) {
+      return false;
     }
-    base::DeleteFile(link);
+    base::FilePath target;
+    if (base::ReadSymbolicLink(link, &target) && target == helper_path) {
+      return true;
+    }
+    if (!base::DeleteFile(link)) {
+      return false;
+    }
   }
-  if (!base::CreateDirectory(link.DirName()) ||
-      !base::CreateSymbolicLink(helper_path, link)) {
-    LOG(WARNING) << "Could not link dao-browser into ~/.local/bin";
-  }
+  return base::CreateDirectory(link.DirName()) &&
+         base::CreateSymbolicLink(helper_path, link);
 }
 
 // Installs and status reads run in order, so the settings page sees the
-// result of the switch it just changed.
+// result of the operation it just requested.
 scoped_refptr<base::SequencedTaskRunner> GetIntegrationTaskRunner() {
   static base::NoDestructor<scoped_refptr<base::SequencedTaskRunner>> runner(
       base::ThreadPool::CreateSequencedTaskRunner(
@@ -78,38 +77,37 @@ base::FilePath GetHelperPath() {
 
 bool IsDaoManagedFile(const base::FilePath& path) {
   std::string contents;
-  return base::ReadFileToString(path, &contents) &&
+  return !base::IsLink(path) && !base::IsLink(path.DirName()) &&
+         base::ReadFileToString(path, &contents) &&
          contents.find(kSkillMarker) != std::string::npos;
 }
 
-void UpdateSkill(const base::FilePath& skills_dir,
+bool UpdateSkill(const base::FilePath& skills_dir,
                  std::string_view name,
                  const std::string& contents,
-                 bool enabled) {
+                 bool installed) {
   const base::FilePath skill_dir = skills_dir.Append(name);
   const base::FilePath skill = skill_dir.Append("SKILL.md");
-  const bool exists = base::PathExists(skill);
-  if (base::IsLink(skill_dir) || base::IsLink(skill) ||
-      (exists && !IsDaoManagedFile(skill))) {
-    return;
+  const bool exists = base::PathExists(skill) || base::IsLink(skill);
+  if (base::IsLink(skill_dir) || (exists && !IsDaoManagedFile(skill))) {
+    return !installed;
   }
-  if (!enabled) {
-    if (exists) {
-      base::DeleteFile(skill);
-      if (base::IsDirectoryEmpty(skill_dir)) {
-        base::DeleteFile(skill_dir);
-      }
+  if (!installed) {
+    if (!exists) {
+      return true;
     }
-    return;
+    if (!base::DeleteFile(skill)) {
+      return false;
+    }
+    return !base::DirectoryExists(skill_dir) ||
+           !base::IsDirectoryEmpty(skill_dir) || base::DeleteFile(skill_dir);
   }
   std::string current;
-  if (exists && base::ReadFileToString(skill, &current) &&
-      current == contents) {
-    return;
+  if (exists && base::ReadFileToString(skill, &current) && current == contents) {
+    return true;
   }
-  if (!base::CreateDirectory(skill_dir) || !base::WriteFile(skill, contents)) {
-    LOG(WARNING) << "Could not install the dao-browser skill in " << skills_dir;
-  }
+  return base::CreateDirectory(skill_dir) &&
+         base::ImportantFileWriter::WriteFileAtomically(skill, contents);
 }
 
 }  // namespace
@@ -126,64 +124,90 @@ std::string BuildDaoEntrySkill(const base::FilePath& helper_path, bool lite) {
                        helper_path.value(), "` instead.\n"});
 }
 
-void UpdateDaoLocalAgentIntegration(const base::FilePath& home,
-                                    const base::FilePath& helper_path,
-                                    bool enabled) {
+bool UpdateDaoLocalAgentIntegration(const base::FilePath& home,
+                                   const base::FilePath& helper_path,
+                                   std::string_view id,
+                                   bool installed) {
   if (home.empty() || helper_path.empty() ||
-      (enabled && !base::PathExists(helper_path))) {
-    return;
+      (installed && !base::PathExists(helper_path))) {
+    return false;
   }
-  UpdateHelperLink(home, helper_path, enabled);
+  if (id == "cli") {
+    return UpdateHelperLink(home, helper_path, installed);
+  }
+  if (id != "shared" && id != "claude") {
+    return false;
+  }
+  const auto root = home.Append(id == "shared" ? ".agents/skills"
+                                              : ".claude/skills");
+  bool success = true;
   for (bool lite : {false, true}) {
-    const char* name = lite ? "dao-lite" : "dao-browser";
-    const std::string skill = BuildDaoEntrySkill(helper_path, lite);
-    // Always maintain the shared folder and only existing agent folders.
-    UpdateSkill(home.Append(".agents").Append("skills"), name, skill,
-                enabled);
-    for (const char* agent_dir : {".claude", ".codex"}) {
-      const base::FilePath root = home.Append(agent_dir);
-      if (base::DirectoryExists(root)) {
-        UpdateSkill(root.Append("skills"), name, skill, enabled);
-      }
+    success = UpdateSkill(root, lite ? "dao-lite" : "dao-browser",
+                          BuildDaoEntrySkill(helper_path, lite), installed) &&
+              success;
+  }
+  if (id == "shared" && (success || !installed)) {
+    // Remove legacy copies only after both shared skills are ready.
+    for (const char* name : {"dao-browser", "dao-lite"}) {
+      success = UpdateSkill(home.Append(".codex/skills"), name, "", false) &&
+                success;
     }
   }
+  return success;
 }
 
-void ScheduleDaoLocalAgentIntegrationUpdate(bool enabled) {
-  // Browser tests run with --test-type; never touch the developer's home.
-  if (base::CommandLine::ForCurrentProcess()->HasSwitch("test-type")) {
-    return;
-  }
+void RequestDaoLocalAgentIntegrationUpdate(
+    std::string id,
+    bool installed,
+    base::OnceCallback<void(base::DictValue)> callback) {
   base::FilePath home;
-  if (!base::PathService::Get(base::DIR_HOME, &home)) {
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch("test-type") ||
+      !base::PathService::Get(base::DIR_HOME, &home)) {
+    std::move(callback).Run(base::DictValue()
+                                .Set("agents", base::ListValue())
+                                .Set("cliLinked", false)
+                                .Set("success", false));
     return;
   }
-  GetIntegrationTaskRunner()->PostTask(
-      FROM_HERE, base::BindOnce(&UpdateDaoLocalAgentIntegration, home,
-                                GetHelperPath(), enabled));
+  GetIntegrationTaskRunner()->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(
+          [](const base::FilePath& home, const base::FilePath& helper,
+             const std::string& id, bool installed) {
+            const bool success =
+                UpdateDaoLocalAgentIntegration(home, helper, id, installed);
+            auto status = GetDaoLocalAgentIntegrationStatus(home, helper);
+            status.Set("success", success);
+            return status;
+          },
+          home, GetHelperPath(), std::move(id), installed),
+      std::move(callback));
 }
 
 base::DictValue GetDaoLocalAgentIntegrationStatus(
     const base::FilePath& home,
     const base::FilePath& helper_path) {
   base::ListValue agents;
-  auto add = [&](std::string_view id, const base::FilePath& root,
-                 bool always_present) {
-    bool installed = true;
-    for (const char* name : {"dao-browser", "dao-lite"}) {
-      const base::FilePath skill =
-          root.Append("skills").Append(name).Append("SKILL.md");
-      installed &= base::PathExists(skill) && IsDaoManagedFile(skill);
+  const bool legacy =
+      IsDaoManagedFile(home.Append(".codex/skills/dao-browser/SKILL.md")) ||
+      IsDaoManagedFile(home.Append(".codex/skills/dao-lite/SKILL.md"));
+  auto add = [&](std::string_view id, const base::FilePath& root, bool shared) {
+    bool installed = shared && legacy;
+    for (bool lite : {false, true}) {
+      const auto skill = root.Append("skills")
+                             .Append(lite ? "dao-lite" : "dao-browser")
+                             .Append("SKILL.md");
+      const bool managed = IsDaoManagedFile(skill);
+      installed |= managed;
     }
     agents.Append(
         base::DictValue()
             .Set("id", id)
-            .Set("detected", always_present || base::DirectoryExists(root))
+            .Set("detected", shared || base::DirectoryExists(root))
             .Set("installed", installed));
   };
-  add("claude", home.Append(".claude"), false);
-  add("codex", home.Append(".codex"), false);
   add("shared", home.Append(".agents"), true);
+  add("claude", home.Append(".claude"), false);
   const base::FilePath link =
       home.Append(".local").Append("bin").Append("dao-browser");
   base::FilePath target;

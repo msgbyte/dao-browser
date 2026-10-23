@@ -60,7 +60,6 @@
 #include "dao/browser/automation/dao_page_tools.h"
 #include "dao/browser/automation/dao_tool_schema_validator.h"
 #include "dao/browser/dao_pref_names.h"
-#include "dao/browser/mcp/dao_local_agent_integration.h"
 #include "dao/browser/mcp/dao_mcp_runtime_files.h"
 #include "dao/browser/mcp/dao_mcp_session_lifecycle_monitor.h"
 #include "dao/browser/ui/views/dao_agent_cursor_view.h"
@@ -869,9 +868,6 @@ void DaoMcpService::OnEnabledPrefChanged() {
     return;
   }
   const bool enabled = local_state_->GetBoolean(prefs::kDaoMcpServerEnabled);
-  // Local agents find Dao through the dao-browser command and its skill,
-  // which follow the same switch as the endpoint they connect to.
-  ScheduleDaoLocalAgentIntegrationUpdate(enabled);
   if (enabled) {
     if (!listener_active_ && !listener_start_pending_) {
       StartListening();
