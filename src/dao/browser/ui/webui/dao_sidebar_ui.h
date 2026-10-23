@@ -22,6 +22,7 @@
 #include "base/values.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "components/download/content/public/all_download_item_notifier.h"
+#include "content/public/browser/media_player_id.h"
 #include "content/public/browser/media_session.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/browser/web_ui_controller.h"
@@ -223,10 +224,30 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   void OnMcpServiceStatusChanged(const DaoMcpServiceStatus& status);
 
   // Media playback widget.
-  class MediaPlaybackObserver;
+  struct MediaTabState;
+  class MediaPlaybackObserver : public content::WebContentsObserver {
+   public:
+    MediaPlaybackObserver(DaoSidebarUIHandler* handler, MediaTabState* tab);
+    ~MediaPlaybackObserver() override;
+
+    void DidUpdateAudioMutingState(bool muted) override;
+    void MediaStartedPlaying(const MediaPlayerInfo& info,
+                             const content::MediaPlayerId& id) override;
+    void MediaStoppedPlaying(const MediaPlayerInfo& info,
+                             const content::MediaPlayerId& id,
+                             MediaStoppedReason reason) override;
+    void MediaDestroyed(const content::MediaPlayerId& id) override;
+    void PrimaryPageChanged(content::Page& page) override;
+
+   private:
+    const raw_ptr<DaoSidebarUIHandler> handler_;
+    const raw_ptr<MediaTabState> tab_;
+    std::set<content::MediaPlayerId> players_;
+    std::set<content::MediaPlayerId> playing_players_;
+  };
   struct MediaTabState {
     base::WeakPtr<content::WebContents> contents;
-    std::unique_ptr<content::WebContentsObserver> playback_observer;
+    std::unique_ptr<MediaPlaybackObserver> playback_observer;
     mojo::ReceiverId receiver_id = 0;
     media_session::mojom::MediaSessionInfoPtr info;
     std::optional<media_session::mojom::MediaPlaybackState> muted_playback;

@@ -151,85 +151,84 @@ class DaoSidebarUIHandler::DuplicateTabCloseObserver
   base::OnceCallback<void(bool)> callback_;
 };
 
-class DaoSidebarUIHandler::MediaPlaybackObserver
-    : public content::WebContentsObserver {
- public:
-  MediaPlaybackObserver(DaoSidebarUIHandler* handler, MediaTabState* tab)
-      : content::WebContentsObserver(tab->contents.get()),
-        handler_(handler),
-        tab_(tab) {}
+DaoSidebarUIHandler::MediaPlaybackObserver::MediaPlaybackObserver(
+    DaoSidebarUIHandler* handler,
+    MediaTabState* tab)
+    : content::WebContentsObserver(tab->contents.get()),
+      handler_(handler),
+      tab_(tab) {}
 
-  void DidUpdateAudioMutingState(bool muted) override {
-    // Tab muting removes players from MediaSession without stopping playback.
-    if (muted && tab_->info && tab_->info->is_controllable && !tab_->ended &&
-        tab_->info->state !=
-            media_session::mojom::MediaSessionInfo::SessionState::kInactive) {
-      tab_->muted_playback = tab_->info->playback_state;
-    } else if (!muted) {
-      tab_->muted_playback.reset();
-    }
-    handler_->PushMediaPlaybackState();
-  }
+DaoSidebarUIHandler::MediaPlaybackObserver::~MediaPlaybackObserver() = default;
 
-  void MediaStartedPlaying(const MediaPlayerInfo& info,
-                           const content::MediaPlayerId& id) override {
-    players_.insert(id);
-    playing_players_.insert(id);
-    tab_->ended = false;
-    if (tab_->muted_playback) {
-      tab_->muted_playback = media_session::mojom::MediaPlaybackState::kPlaying;
-    }
-    handler_->UpdateMediaSessionInfo(*tab_, std::move(tab_->info));
-    handler_->PushMediaPlaybackState();
-  }
-
-  void MediaStoppedPlaying(const MediaPlayerInfo& info,
-                           const content::MediaPlayerId& id,
-                           MediaStoppedReason reason) override {
-    players_.insert(id);
-    playing_players_.erase(id);
-    if (playing_players_.empty()) {
-      if (tab_->muted_playback) {
-        tab_->muted_playback = media_session::mojom::MediaPlaybackState::kPaused;
-      }
-      if (reason == MediaStoppedReason::kReachedEndOfStream) {
-        tab_->ended = true;
-        tab_->playing_since = base::TimeTicks();
-        tab_->dismissed = false;
-      }
-      handler_->PushMediaPlaybackState();
-    }
-  }
-
-  void MediaDestroyed(const content::MediaPlayerId& id) override {
-    players_.erase(id);
-    playing_players_.erase(id);
-    if (players_.empty() && tab_->muted_playback) {
-      tab_->muted_playback.reset();
-      tab_->playing_since = base::TimeTicks();
-      tab_->ended = true;
-      tab_->dismissed = false;
-      handler_->PushMediaPlaybackState();
-    }
-  }
-
-  void PrimaryPageChanged(content::Page& page) override {
-    players_.clear();
-    playing_players_.clear();
+void DaoSidebarUIHandler::MediaPlaybackObserver::DidUpdateAudioMutingState(
+    bool muted) {
+  // Tab muting removes players from MediaSession without stopping playback.
+  if (muted && tab_->info && tab_->info->is_controllable && !tab_->ended &&
+      tab_->info->state !=
+          media_session::mojom::MediaSessionInfo::SessionState::kInactive) {
+    tab_->muted_playback = tab_->info->playback_state;
+  } else if (!muted) {
     tab_->muted_playback.reset();
-    tab_->info.reset();
+  }
+  handler_->PushMediaPlaybackState();
+}
+
+void DaoSidebarUIHandler::MediaPlaybackObserver::MediaStartedPlaying(
+    const MediaPlayerInfo& info,
+    const content::MediaPlayerId& id) {
+  players_.insert(id);
+  playing_players_.insert(id);
+  tab_->ended = false;
+  if (tab_->muted_playback) {
+    tab_->muted_playback = media_session::mojom::MediaPlaybackState::kPlaying;
+  }
+  handler_->UpdateMediaSessionInfo(*tab_, std::move(tab_->info));
+  handler_->PushMediaPlaybackState();
+}
+
+void DaoSidebarUIHandler::MediaPlaybackObserver::MediaStoppedPlaying(
+    const MediaPlayerInfo& info,
+    const content::MediaPlayerId& id,
+    MediaStoppedReason reason) {
+  players_.insert(id);
+  playing_players_.erase(id);
+  if (playing_players_.empty()) {
+    if (tab_->muted_playback) {
+      tab_->muted_playback = media_session::mojom::MediaPlaybackState::kPaused;
+    }
+    if (reason == MediaStoppedReason::kReachedEndOfStream) {
+      tab_->ended = true;
+      tab_->playing_since = base::TimeTicks();
+      tab_->dismissed = false;
+    }
+    handler_->PushMediaPlaybackState();
+  }
+}
+
+void DaoSidebarUIHandler::MediaPlaybackObserver::MediaDestroyed(
+    const content::MediaPlayerId& id) {
+  players_.erase(id);
+  playing_players_.erase(id);
+  if (players_.empty() && tab_->muted_playback) {
+    tab_->muted_playback.reset();
     tab_->playing_since = base::TimeTicks();
     tab_->ended = true;
     tab_->dismissed = false;
     handler_->PushMediaPlaybackState();
   }
+}
 
- private:
-  const raw_ptr<DaoSidebarUIHandler> handler_;
-  const raw_ptr<MediaTabState> tab_;
-  std::set<content::MediaPlayerId> players_;
-  std::set<content::MediaPlayerId> playing_players_;
-};
+void DaoSidebarUIHandler::MediaPlaybackObserver::PrimaryPageChanged(
+    content::Page& page) {
+  players_.clear();
+  playing_players_.clear();
+  tab_->muted_playback.reset();
+  tab_->info.reset();
+  tab_->playing_since = base::TimeTicks();
+  tab_->ended = true;
+  tab_->dismissed = false;
+  handler_->PushMediaPlaybackState();
+}
 
 class DeleteFolderDialog : public views::DialogDelegate {
  public:
