@@ -4,6 +4,8 @@
 
 ### [Unreleased] Unreleased
 
+### [1.0.119] - 2026-10-24
+
 - Use an opaque main window on macOS so the desktop does not show through when browser content is not drawn.
 - Windows installations using the old update address need one manual upgrade to continue receiving automatic updates.
 - AI agents can now work in background task windows that use your sign-ins without taking over your tabs. The sidebar lists each task with its progress; hover to see it live, open it to watch the page and steps, take over, hand it back, or stop it.
