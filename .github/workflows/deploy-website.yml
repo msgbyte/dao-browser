@@ -6,10 +6,12 @@ on:
       - main
     paths:
       - 'website/**'
+      - 'docs/changelog/**'
       - '.github/workflows/deploy-website.yml'
   pull_request:
     paths:
       - 'website/**'
+      - 'docs/changelog/**'
       - '.github/workflows/deploy-website.yml'
   workflow_dispatch:
 
