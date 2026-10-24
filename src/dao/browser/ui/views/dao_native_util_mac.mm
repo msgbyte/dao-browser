@@ -733,11 +733,11 @@ void LogFullscreenDiagnostic(BrowserView* browser_view,
 
   // Default-level unified logging survives release launches without stderr.
   os_log(log,
-         "id=%llu event=%{public}s version=%{public}@ window=%ld "
+         "id=%llu event=%{public}@ version=%{public}@ window=%ld "
          "active_tab=%d tabs=%d widget_fullscreen=%d native_fullscreen=%d "
          "browser_fullscreen=%d tab_fullscreen=%d tab_pending=%d "
          "caused_by_tab=%d input_type=%lu",
-         static_cast<unsigned long long>(event_id), event,
+         static_cast<unsigned long long>(event_id), base::SysUTF8ToNSString(event),
          [NSBundle.mainBundle objectForInfoDictionaryKey:
                                   @"CFBundleShortVersionString"],
          static_cast<long>(window.windowNumber), model->active_index(),
