@@ -1,15 +1,15 @@
 diff --git a/chrome/browser/ui/javascript_dialogs/javascript_tab_modal_dialog_manager_delegate_desktop.cc b/chrome/browser/ui/javascript_dialogs/javascript_tab_modal_dialog_manager_delegate_desktop.cc
 --- a/chrome/browser/ui/javascript_dialogs/javascript_tab_modal_dialog_manager_delegate_desktop.cc
 +++ b/chrome/browser/ui/javascript_dialogs/javascript_tab_modal_dialog_manager_delegate_desktop.cc
-@@ -11,6 +11,7 @@
- #include "chrome/browser/ui/browser.h"
+@@ -10,6 +10,7 @@
+ #include "chrome/browser/profiles/profile.h"
  #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
  #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 +#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
  #include "chrome/browser/ui/tab_modal_confirm_dialog.h"
  #include "chrome/browser/ui/tabs/tab_strip_model.h"
  #include "components/javascript_dialogs/app_modal_dialog_manager.h"
-@@ -22,6 +23,8 @@
+@@ -21,6 +22,8 @@
  #include "content/public/browser/devtools_agent_host.h"
  #include "content/public/browser/navigation_handle.h"
  #include "content/public/browser/render_frame_host.h"
@@ -18,10 +18,11 @@ diff --git a/chrome/browser/ui/javascript_dialogs/javascript_tab_modal_dialog_ma
  #include "services/metrics/public/cpp/ukm_builders.h"
  #include "services/metrics/public/cpp/ukm_recorder.h"
  #include "ui/gfx/text_elider.h"
-@@ -30,6 +33,20 @@
+@@ -28,6 +31,20 @@
+ #if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
  #include "chrome/browser/safe_browsing/user_interaction_observer.h"
  #endif
- 
++
 +namespace {
 +
 +// Dao: installed by the Agent Space service.
@@ -35,11 +36,10 @@ diff --git a/chrome/browser/ui/javascript_dialogs/javascript_tab_modal_dialog_ma
 +  g_dao_hidden_dialog_opened = opened;
 +  g_dao_hidden_dialog_closed = closed;
 +}
-+
+ 
  JavaScriptTabModalDialogManagerDelegateDesktop::
      JavaScriptTabModalDialogManagerDelegateDesktop(
-         content::WebContents* web_contents)
-@@ -60,6 +77,9 @@
+@@ -59,6 +76,9 @@
  
  void JavaScriptTabModalDialogManagerDelegateDesktop::DidCloseDialog() {
    browser_collection_observer_.Reset();
@@ -49,10 +49,12 @@ diff --git a/chrome/browser/ui/javascript_dialogs/javascript_tab_modal_dialog_ma
  }
  
  void JavaScriptTabModalDialogManagerDelegateDesktop::SetTabNeedsAttention(
-@@ -101,6 +121,23 @@
+@@ -98,6 +118,23 @@
+                      [this](const tabs::TabInterface* tab) {
+                        return tab->GetContents() == web_contents_;
                       });
- }
- 
++}
++
 +bool JavaScriptTabModalDialogManagerDelegateDesktop::IsOffScreen() {
 +  // Dao: nobody can see pages in hidden Agent task windows.
 +  return IsDaoHiddenBrowser(
@@ -68,8 +70,6 @@ diff --git a/chrome/browser/ui/javascript_dialogs/javascript_tab_modal_dialog_ma
 +    g_dao_hidden_dialog_opened(web_contents_, dialog_type, message_text,
 +                               default_prompt_text);
 +  }
-+}
-+
+ }
+ 
  bool JavaScriptTabModalDialogManagerDelegateDesktop::IsApp() {
-   tabs::TabInterface* tab =
-       tabs::TabInterface::MaybeGetFromContents(web_contents_);

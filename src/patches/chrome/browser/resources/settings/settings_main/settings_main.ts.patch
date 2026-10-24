@@ -10,7 +10,7 @@ diff --git a/chrome/browser/resources/settings/settings_main/settings_main.ts b/
  import '../privacy_page/privacy_page_index.js';
  import '../reset_page/reset_profile_banner.js';
  import '../search_page/search_page_index.js';
-@@ -53,6 +54,10 @@
+@@ -49,6 +51,10 @@
      noSearchResults: HTMLElement,
      switcher: CrViewManagerElement,
    };
@@ -21,7 +21,7 @@ diff --git a/chrome/browser/resources/settings/settings_main/settings_main.ts b/
  }
  
  const SettingsMainElementBase = RouteObserverMixin(PolymerElement);
-@@ -100,6 +105,12 @@
+@@ -96,6 +102,12 @@
          value: false,
        },
  
@@ -34,7 +34,7 @@ diff --git a/chrome/browser/resources/settings/settings_main/settings_main.ts b/
        showNoResultsFound_: {
          type: Boolean,
          value: false,
-@@ -129,6 +140,7 @@
+@@ -121,6 +133,7 @@
    declare private lastRoute_: Route|null;
    declare private routes_: SettingsRoutes;
    declare private inSearchMode_: boolean;
@@ -42,7 +42,7 @@ diff --git a/chrome/browser/resources/settings/settings_main/settings_main.ts b/
    declare private showNoResultsFound_: boolean;
    declare private showResetProfileBanner_: boolean;
    declare toolbarSpinnerActive: boolean;
-@@ -140,6 +152,9 @@
+@@ -128,6 +141,9 @@
    private pendingViewSwitching_: PromiseResolver<void> = new PromiseResolver();
    private topLevelEquivalentRoute_: Route = getTopLevelRoute();
    private currentQuery_: string = '';
@@ -52,20 +52,16 @@ diff --git a/chrome/browser/resources/settings/settings_main/settings_main.ts b/
  
    override connectedCallback() {
      super.connectedCallback();
-@@ -150,6 +165,12 @@
-     requestIdleCallback(() => ensureLazyLoaded());
-   }
+@@ -140,6 +156,8 @@
  
-+  override disconnectedCallback() {
-+    super.disconnectedCallback();
+   override disconnectedCallback() {
+     super.disconnectedCallback();
 +    this.overviewObserver_?.disconnect();
 +    this.overviewObserver_ = null;
-+  }
-+
+   }
+ 
    private beforeNextRenderPromise_(): Promise<void> {
-     return new Promise(res => {
-       beforeNextRender(this, res);
-@@ -159,32 +180,51 @@
+@@ -151,32 +169,51 @@
    override async currentRouteChanged(route: Route) {
      this.pendingViewSwitching_ = new PromiseResolver();
  
@@ -77,13 +73,13 @@ diff --git a/chrome/browser/resources/settings/settings_main/settings_main.ts b/
 +    this.overviewMode_ = this.isOverviewRoute_(route);
 +    if (wasOverview && !this.overviewMode_) {
 +      this.rememberOverviewScroll_();
-     }
- 
++    }
++
 +    if (this.overviewMode_ || route === routes.DAO_AGENT_DETAILS ||
 +        (routes.ADVANCED && routes.ADVANCED.contains(route))) {
 +      await ensureLazyLoaded();
-+    }
-+
+     }
+ 
      const effectiveRoute =
 -        route === routes.BASIC ? this.topLevelEquivalentRoute_ : route;
 +        this.overviewMode_ ? route :
@@ -98,7 +94,7 @@ diff --git a/chrome/browser/resources/settings/settings_main/settings_main.ts b/
      }
  
      this.lastRoute_ = effectiveRoute;
- 
++
 +    if (this.overviewMode_) {
 +      await this.beforeNextRenderPromise_();
 +      if (this.lastRoute_ !== effectiveRoute || !this.isConnected) {
@@ -113,7 +109,7 @@ diff --git a/chrome/browser/resources/settings/settings_main/settings_main.ts b/
 +      this.pendingViewSwitching_.resolve();
 +      return;
 +    }
-+
+ 
      const newSection = effectiveRoute.section;
      let sectionElement = this.$.switcher.querySelector(`#${newSection}`);
      if (!sectionElement) {
@@ -126,7 +122,7 @@ diff --git a/chrome/browser/resources/settings/settings_main/settings_main.ts b/
          this.pendingViewSwitching_.resolve();
          return;
        }
-@@ -192,8 +232,16 @@
+@@ -184,8 +221,16 @@
      }
  
      assert(sectionElement);
@@ -143,7 +139,7 @@ diff --git a/chrome/browser/resources/settings/settings_main/settings_main.ts b/
      this.pendingViewSwitching_.resolve();
    }
  
-@@ -210,6 +258,9 @@
+@@ -200,6 +245,9 @@
     * @return A promise indicating that searching finished.
     */
    searchContents(query: string): Promise<void> {
@@ -153,7 +149,7 @@ diff --git a/chrome/browser/resources/settings/settings_main/settings_main.ts b/
      this.inSearchMode_ = true;
      this.toolbarSpinnerActive = true;
      this.currentQuery_ = query;
-@@ -256,10 +307,23 @@
+@@ -249,6 +297,19 @@
        this.inSearchMode_ = !result.wasClearSearch;
        this.showNoResultsFound_ = this.inSearchMode_ && result.matchCount === 0;
  
@@ -173,11 +169,7 @@ diff --git a/chrome/browser/resources/settings/settings_main/settings_main.ts b/
        if (this.inSearchMode_) {
          getAnnouncerInstance().announce(
              this.showNoResultsFound_ ?
-                 loadTimeData.getString('searchNoResults') :
-                 loadTimeData.getStringF('searchResults', query));
-       }
-     });
-@@ -267,7 +331,7 @@
+@@ -259,7 +320,7 @@
    }
  
    private renderPlugin_(route: Route): boolean {
@@ -186,7 +178,7 @@ diff --git a/chrome/browser/resources/settings/settings_main/settings_main.ts b/
          (!!this.lastRoute_ && route.contains(this.lastRoute_));
    }
  
-@@ -295,8 +359,138 @@
+@@ -277,8 +338,138 @@
    }
  
    private shouldShowAll_(): boolean {

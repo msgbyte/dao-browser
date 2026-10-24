@@ -1,9 +1,9 @@
 diff --git a/chrome/test/BUILD.gn b/chrome/test/BUILD.gn
 --- a/chrome/test/BUILD.gn
 +++ b/chrome/test/BUILD.gn
-@@ -1982,6 +1982,9 @@
+@@ -1633,6 +1633,9 @@
+ 
      deps = [
-       ":browser_tests_runner",
        ":platform_browser_tests",
 +      "//chrome/browser/ui:dao_browser_tests",
 +      # Dao MV2 Support: wire dao_legacy_mv2_tests into the main browser_tests target.
@@ -11,7 +11,7 @@ diff --git a/chrome/test/BUILD.gn b/chrome/test/BUILD.gn
        ":test_support",
        ":test_support_ui",
        "//base",
-@@ -5224,6 +5227,8 @@
+@@ -4850,6 +4853,8 @@
      "//chrome/browser/actor:test_support",
      "//chrome/browser/actor:unit_tests",
      "//chrome/browser/actor/ui:unit_tests",

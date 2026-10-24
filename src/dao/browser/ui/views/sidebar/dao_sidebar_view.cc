@@ -10,7 +10,6 @@
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "components/input/native_web_keyboard_event.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
@@ -951,8 +950,7 @@ void DaoSidebarView::UpdateAutoExpandForScreenPoint(
   views::View::ConvertPointFromScreen(this, &point);
   if (collapsed_) {
     // Webpage fullscreen (e.g. video) must not reveal the sidebar.
-    const bool tab_fullscreen = browser_->GetFeatures()
-                                    .exclusive_access_manager()
+    const bool tab_fullscreen = ExclusiveAccessManager::From(browser_)
                                     ->fullscreen_controller()
                                     ->IsTabFullscreen();
     if (!tab_fullscreen &&

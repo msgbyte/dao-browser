@@ -57,7 +57,6 @@
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_collection_observer.h"
-#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/create_browser_window.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
@@ -1957,7 +1956,7 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarFullscreenBrowserTest,
   ui_test_utils::ToggleFullscreenModeAndWait(browser());
   ASSERT_TRUE(browser_view->IsFullscreen());
 
-  auto* manager = browser()->GetFeatures().exclusive_access_manager();
+  auto* manager = ExclusiveAccessManager::From(browser());
   ASSERT_NE(nullptr, manager);
   EXPECT_EQ(EXCLUSIVE_ACCESS_BUBBLE_TYPE_BROWSER_FULLSCREEN_EXIT_INSTRUCTION,
             manager->GetExclusiveAccessExitBubbleType());
@@ -5786,7 +5785,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
   auto* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
   chrome::BrowserCommandController* command_controller =
-      browser()->GetFeatures().browser_command_controller();
+      chrome::BrowserCommandController::From(browser());
   ASSERT_NE(nullptr, command_controller);
   command_controller->UpdateCommandEnabled(IDC_OPTIONS, false);
 

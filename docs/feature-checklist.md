@@ -10,7 +10,7 @@
 > rebase) and [`features.md`](features.md) (the prose feature tour). This file is the
 > *checkbox* view.
 
-Migration basis: Chromium `154.0.8037.100` (`81ab43db91f352ce9134362efe32529b9761c4eb`). Entries remain verification
+Migration basis: Chromium `155.0.8059.86` (`804d6b05f089b27af8342622a36558c49401a1d4`). Entries remain verification
 requirements, not claims that this target has compiled or passed runtime tests.
 
 ## Release notes

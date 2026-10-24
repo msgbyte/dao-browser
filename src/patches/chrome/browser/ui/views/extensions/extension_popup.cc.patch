@@ -9,10 +9,10 @@ diff --git a/chrome/browser/ui/views/extensions/extension_popup.cc b/chrome/brow
  #include "chrome/browser/devtools/devtools_window.h"
  #include "chrome/browser/extensions/extension_view_host.h"
 +#include "extensions/common/extension.h"
+ #include "chrome/browser/ui/tabs/tab_strip_model.h"
  #include "chrome/browser/ui/views/extensions/security_dialog_tracker.h"
  #include "chrome/browser/ui/views/frame/browser_view.h"
- #include "components/javascript_dialogs/app_modal_dialog_queue.h"
-@@ -282,7 +284,16 @@
+@@ -283,7 +285,16 @@
        deferred_close_weak_ptr_factory_(this) {
    g_last_popup_for_testing = this;
    SetButtons(static_cast<int>(ui::mojom::DialogButton::kNone));

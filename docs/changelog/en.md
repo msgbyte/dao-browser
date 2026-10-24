@@ -4,6 +4,8 @@
 
 ### [Unreleased] Unreleased
 
+- Update the browser engine to Chromium 155.0.8059.86.
+
 ### [1.0.122] - 2026-10-24
 
 - Fix a macOS crash when a trackpad Back gesture closes the current tab and returns to the tab that opened it.

@@ -1,7 +1,7 @@
 diff --git a/ui/views/cocoa/native_widget_mac_ns_window_host.mm b/ui/views/cocoa/native_widget_mac_ns_window_host.mm
 --- a/ui/views/cocoa/native_widget_mac_ns_window_host.mm
 +++ b/ui/views/cocoa/native_widget_mac_ns_window_host.mm
-@@ -697,6 +697,19 @@
+@@ -701,6 +701,19 @@
        base::BindOnce(lambda, base::Unretained(this)));
  }
  
@@ -21,12 +21,12 @@ diff --git a/ui/views/cocoa/native_widget_mac_ns_window_host.mm b/ui/views/cocoa
  void NativeWidgetMacNSWindowHost::UpdateCompositorProperties() {
    if (!compositor_) {
      return;
-@@ -1116,7 +1129,7 @@
-     if (window_visible) {
+@@ -1125,7 +1138,7 @@
+       }
        compositor_->Unsuspend();
        layer()->SchedulePaint(layer()->bounds());
 -    } else {
 +    } else if (!compositor_active_while_hidden_) {
        compositor_->Suspend();
-     }
-   }
+       if (base::FeatureList::IsEnabled(
+               views::features::kNotifyCompositorOfWindowVisibilityOnMacOs)) {

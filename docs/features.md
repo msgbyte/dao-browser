@@ -4,7 +4,7 @@
 > baseline configured in `dao.json`. Dao-owned code lives in `src/dao/`;
 > Chromium integration patches live in `src/patches/`.
 
-Migration basis: Chromium `154.0.8037.100` (`81ab43db91f352ce9134362efe32529b9761c4eb`). The integration notes below
+Migration basis: Chromium `155.0.8059.86` (`804d6b05f089b27af8342622a36558c49401a1d4`). The integration notes below
 describe that target; they are not a record of completed build or runtime checks.
 
 Android GeckoView features, including the native Compose browser shell, are documented separately in

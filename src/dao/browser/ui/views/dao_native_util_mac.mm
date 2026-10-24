@@ -21,7 +21,6 @@
 #include "base/strings/sys_string_conversions.h"
 #include "base/timer/timer.h"
 #include "chrome/browser/ui/browser_window.h"
-#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/browser_window/public/desktop_browser_window_capabilities.h"
@@ -727,8 +726,7 @@ void LogFullscreenDiagnostic(BrowserView* browser_view,
   const uint64_t event_id = ++next_event_id;
   NSWindow* window = browser_view->GetNativeWindow().GetNativeNSWindow();
   auto* model = browser_view->browser()->tab_strip_model();
-  auto* manager =
-      browser_view->browser()->GetFeatures().exclusive_access_manager();
+  auto* manager = ExclusiveAccessManager::From(browser_view->browser());
   auto* controller = manager ? manager->fullscreen_controller() : nullptr;
 
   // Default-level unified logging survives release launches without stderr.

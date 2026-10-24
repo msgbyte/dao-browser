@@ -1,15 +1,15 @@
 diff --git a/chrome/browser/chrome_content_browser_client.cc b/chrome/browser/chrome_content_browser_client.cc
 --- a/chrome/browser/chrome_content_browser_client.cc
 +++ b/chrome/browser/chrome_content_browser_client.cc
-@@ -389,6 +389,7 @@
+@@ -387,6 +387,7 @@
  #include "content/public/common/content_features.h"
  #include "content/public/common/content_switches.h"
  #include "content/public/common/url_utils.h"
 +#include "dao/browser/dao_pref_names.h"
  #include "content/public/common/window_container_type.mojom-shared.h"
- #include "device/fido/public/features.h"
  #include "device/vr/buildflags/buildflags.h"
-@@ -4826,6 +4827,8 @@
+ #include "extensions/browser/browser_frame_context_data.h"
+@@ -4852,6 +4853,8 @@
    web_prefs->root_scrollbar_theme_color =
        GetRootScrollbarThemeColor(web_contents);
  
@@ -18,7 +18,7 @@ diff --git a/chrome/browser/chrome_content_browser_client.cc b/chrome/browser/ch
    web_prefs->translate_service_available = TranslateService::IsAvailable(prefs);
  
    std::optional<ui::CaptionStyle> style =
-@@ -4945,6 +4948,21 @@
+@@ -4987,6 +4990,21 @@
        web_prefs->preferred_color_scheme != old_preferred_color_scheme ||
        web_prefs->preferred_root_scrollbar_color_scheme !=
            old_preferred_root_scrollbar_color_scheme;
@@ -40,7 +40,7 @@ diff --git a/chrome/browser/chrome_content_browser_client.cc b/chrome/browser/ch
  
  #if BUILDFLAG(IS_ANDROID)
    if (auto* theme_client =
-@@ -4984,6 +5002,9 @@
+@@ -5026,6 +5044,9 @@
                                   &web_contents) !=
               std::tie(prefs.preferred_color_scheme,
                        prefs.preferred_root_scrollbar_color_scheme) ||

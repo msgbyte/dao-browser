@@ -142,7 +142,7 @@ cross-compile Windows x64 as described below. On macOS, the configured arm64
 target is retained even when Node runs as x64 under Rosetta.
 
 The previously prepared machine retains these installation paths. It has not
-been prepared or verified again for Chromium 154:
+been prepared or verified again for Chromium 155:
 
 | Component | Path / version |
 | --- | --- |
@@ -153,7 +153,7 @@ been prepared or verified again for Chromium 154:
 | MSVC | v143, 14.44; x64/x86 C++ tools and ATL/MFC |
 | Windows SDK and Debugging Tools | `C:\Program Files (x86)\Windows Kits\10`, 10.0.26100.7705 |
 
-Chromium 154.0.8037.100 documents Visual Studio 2026 (>=18.0.0), Windows SDK
+Chromium 155.0.8059.86 documents Visual Studio 2026 (>=18.0.0), Windows SDK
 10.0.28000.2270 (installed under `10.0.28000.0`), and SDK Debugging Tools
 10.0.26100.3323 or newer. Install the C++ desktop workload and ATL/MFC components;
 the recorded VS2022/26100 SDK installation above is not ready for this pin.
@@ -162,7 +162,7 @@ Set `DEPOT_TOOLS_WIN_TOOLCHAIN=0`, set `vs2026_install` to the actual Visual Stu
 changing environment variables. If Google downloads require a proxy, set
 `HTTP_PROXY` and `HTTPS_PROXY` to the local proxy that is actually running;
 proxy addresses are machine-specific and are not part of the project config.
-Check the [pinned Chromium Windows instructions](https://chromium.googlesource.com/chromium/src/+/refs/tags/154.0.8037.100/docs/windows_build_instructions.md)
+Check the [pinned Chromium Windows instructions](https://chromium.googlesource.com/chromium/src/+/refs/tags/155.0.8059.86/docs/windows_build_instructions.md)
 and `build/vs_toolchain.py` when upgrading the Chromium pin.
 
 ```powershell
@@ -233,7 +233,7 @@ The CLI can build the Windows x64 browser, native WebView2 host, and unsigned
 NSIS installer on an Apple Silicon or Intel Mac. It uses Chromium's bundled
 Clang/lld/resource compiler and its hermetic MSVC/Windows SDK archive. Compilation
 and packaging run on the Mac; no Windows VM, Wine, or remote builder is used.
-See the [upstream cross-compilation instructions](https://chromium.googlesource.com/chromium/src/+/refs/tags/154.0.8037.100/docs/win_cross.md).
+See the [upstream cross-compilation instructions](https://chromium.googlesource.com/chromium/src/+/refs/tags/155.0.8059.86/docs/win_cross.md).
 
 **Prepare the SDK on the Mac.** With the Chromium checkout already present,
 install the native extraction/packaging tools and run (for a fresh checkout,
@@ -254,7 +254,7 @@ SHA-256; only its package download/extraction code runs. Microsoft's Visual Stud
 `10.0.28000.0`; the manifest and verified payloads are cached under
 `.dao/windows-sdk/`.
 The standalone SDK 10.0.26100.7705 bundle supplies the debugging tools omitted by
-Visual Studio's SDK component and meets Chromium 154's debugging-tools minimum.
+Visual Studio's SDK component and meets Chromium 155's debugging-tools minimum.
 It is pinned separately from the compile SDK. Setup verifies its SHA-256 and
 payload hashes, then packages the x86/x64/ARM64 headers, libraries, ATL, DIA,
 runtimes, and environment files using Chromium's content-hash format.
@@ -275,7 +275,7 @@ npx.cmd tsx scripts/cli.ts windows-toolchain export --sdk-version 10.0.28000.0 -
 
 The exporter delegates to depot_tools' `package_from_installed.py` and requires
 an empty destination. The explicit SDK version avoids a depot_tools default that
-may lag the Chromium pin. For Chromium 154.0.8037.100, its hermetic toolchain expects
+may lag the Chromium pin. For Chromium 155.0.8059.86, its hermetic toolchain expects
 Visual Studio 2026 and Windows SDK 10.0.28000.0. Install the C++ desktop workload,
 ATL/MFC, ARM64 tools and SDK Debugging Tools required by that upstream packager.
 The existing native VS2022 development environment is not a compatible archive

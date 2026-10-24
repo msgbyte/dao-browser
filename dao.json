@@ -3,7 +3,7 @@
   "display_name": "Dao",
   "version": {
     "product": "chromium",
-    "version": "154.0.8037.100",
+    "version": "155.0.8059.86",
     "display": "1.0.122"
   },
   "build": {

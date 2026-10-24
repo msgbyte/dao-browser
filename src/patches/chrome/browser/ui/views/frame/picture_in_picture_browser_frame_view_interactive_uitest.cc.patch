@@ -1,12 +1,11 @@
 diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view_interactive_uitest.cc b/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view_interactive_uitest.cc
 --- a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view_interactive_uitest.cc
 +++ b/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view_interactive_uitest.cc
-@@ -544,10 +544,44 @@
-   EXPECT_EQ(inactive_color,
+@@ -614,6 +614,40 @@
              pip_frame_view()->GetWindowTitleForTesting()->GetEnabledColor());
  }
  
- IN_PROC_BROWSER_TEST_F(PictureInPictureBrowserFrameViewTest,
++IN_PROC_BROWSER_TEST_F(PictureInPictureBrowserFrameViewTest,
 +                       DaoOverlayOpacityTracksTopBarAnimation) {
 +  ASSERT_NO_FATAL_FAILURE(SetUpDocumentPIP());
 +
@@ -40,9 +39,6 @@ diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view
 +  EXPECT_EQ(client_bounds, pip_frame_view()->GetBoundsForClientView());
 +}
 +
-+IN_PROC_BROWSER_TEST_F(PictureInPictureBrowserFrameViewTest,
+ IN_PROC_BROWSER_TEST_P(PictureInPictureChildDialogResizeTest,
                         ResizesToFitModalChildDialogs) {
    ASSERT_NO_FATAL_FAILURE(SetUpDocumentPIP());
- 
-   gfx::Rect initial_pip_bounds =
-       pip_frame_view()->GetWidget()->GetWindowBoundsInScreen();

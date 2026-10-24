@@ -1,7 +1,7 @@
 diff --git a/chrome/browser/resources/settings/settings_ui/settings_ui.html b/chrome/browser/resources/settings/settings_ui/settings_ui.html
 --- a/chrome/browser/resources/settings/settings_ui/settings_ui.html
 +++ b/chrome/browser/resources/settings/settings_ui/settings_ui.html
-@@ -1,109 +1,159 @@
+@@ -1,113 +1,159 @@
      <style include="cr-page-host-style cr-scrollable settings-shared">
        :host {
 -        display: flex;
@@ -30,6 +30,10 @@ diff --git a/chrome/browser/resources/settings/settings_ui/settings_ui.html b/ch
 -            var(--cr-centered-card-width-percentage));
        }
  
+-      :host-context([settings-refresh-2026]) {
+-        --settings-menu-width: 250px;
+-      }
+-
 -      cr-toolbar {
 -        min-height: 56px;
 -        --cr-toolbar-center-basis: var(--settings-main-basis);

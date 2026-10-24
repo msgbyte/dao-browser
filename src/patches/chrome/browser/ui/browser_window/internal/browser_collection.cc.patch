@@ -1,10 +1,10 @@
 diff --git a/chrome/browser/ui/browser_window/internal/browser_collection.cc b/chrome/browser/ui/browser_window/internal/browser_collection.cc
 --- a/chrome/browser/ui/browser_window/internal/browser_collection.cc
 +++ b/chrome/browser/ui/browser_window/internal/browser_collection.cc
-@@ -7,12 +7,18 @@
- #include "base/scoped_observation.h"
+@@ -8,11 +8,17 @@
  #include "chrome/browser/ui/browser_window/public/browser_collection_observer.h"
  #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+ #include "components/sessions/core/session_id.h"
 +#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
  #include "components/tabs/public/tab_interface.h"
  #include "content/public/browser/web_contents.h"
@@ -12,15 +12,14 @@ diff --git a/chrome/browser/ui/browser_window/internal/browser_collection.cc b/c
  #include "ui/base/base_window.h"
  
  namespace {
- 
++
 +DaoHiddenBrowserPredicate g_dao_hidden_browser_predicate = nullptr;
 +DaoHiddenPageNeedHandler g_dao_hidden_page_need_handler = nullptr;
 +DaoHiddenDownloadDirectoryProvider g_dao_hidden_download_directory = nullptr;
-+
+ 
  // Iterates through all browsers in `collection` present at construction time,
  // accounting for Browsers that may be destroyed mid-iteration.
- class BrowserCollectionEnumerator : public BrowserCollectionObserver {
-@@ -61,6 +67,44 @@
+@@ -62,6 +68,44 @@
  
  }  // namespace
  
@@ -65,7 +64,7 @@ diff --git a/chrome/browser/ui/browser_window/internal/browser_collection.cc b/c
  BrowserCollection::BrowserCollection() = default;
  
  BrowserCollection::~BrowserCollection() = default;
-@@ -74,8 +118,12 @@
+@@ -75,8 +119,12 @@
  }
  
  BrowserWindowInterface* BrowserCollection::GetLastActiveBrowser() {

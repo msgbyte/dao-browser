@@ -33,7 +33,6 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/devtools/devtools_window.h"
 #include "chrome/browser/download/download_prefs.h"
-#include "chrome/browser/favicon/favicon_utils.h"
 #include "chrome/browser/platform_util.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/sessions/session_restore.h"
@@ -59,6 +58,7 @@
 #include "chrome/grit/generated_resources.h"
 #include "components/constrained_window/constrained_window_views.h"
 #include "components/download/public/common/download_item.h"
+#include "components/favicon/content/content_favicon_util.h"
 #include "components/prefs/pref_service.h"
 #include "components/sessions/content/session_tab_helper.h"
 #include "content/public/browser/download_item_utils.h"
@@ -471,7 +471,7 @@ std::string FaviconToDataUrl(content::WebContents* contents) {
   if (!contents) {
     return std::string();
   }
-  gfx::Image favicon = favicon::TabFaviconFromWebContents(contents);
+  gfx::Image favicon = favicon::GetTabFaviconMaybeDesaturatedOnError(contents);
   if (favicon.IsEmpty()) {
     return std::string();
   }
@@ -484,7 +484,7 @@ bool IsFaviconLight(content::WebContents* contents) {
   if (!contents) {
     return false;
   }
-  gfx::Image favicon = favicon::TabFaviconFromWebContents(contents);
+  gfx::Image favicon = favicon::GetTabFaviconMaybeDesaturatedOnError(contents);
   if (favicon.IsEmpty()) {
     return false;
   }

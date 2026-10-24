@@ -22,7 +22,6 @@
 #include "chrome/browser/autocomplete/shortcuts_backend_factory.h"
 #include "chrome/browser/bookmarks/bookmark_model_factory.h"
 #include "chrome/browser/favicon/favicon_service_factory.h"
-#include "chrome/browser/favicon/favicon_utils.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/sessions/tab_restore_service_factory.h"
@@ -37,6 +36,7 @@
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/bookmarks/browser/bookmark_model.h"
+#include "components/favicon/content/content_favicon_util.h"
 #include "components/favicon/core/favicon_service.h"
 #include "components/keyed_service/core/service_access_type.h"
 #include "components/omnibox/browser/autocomplete_classifier.h"
@@ -524,7 +524,8 @@ void DaoCommandBarView::Show() {
       StartAutocomplete(url_text);
 
       // Show favicon for the current page
-      gfx::Image favicon = favicon::TabFaviconFromWebContents(contents);
+      gfx::Image favicon =
+          favicon::GetTabFaviconMaybeDesaturatedOnError(contents);
       if (!favicon.IsEmpty()) {
         favicon_icon_->SetImage(ui::ImageModel::FromImageSkia(
             gfx::ImageSkiaOperations::CreateResizedImage(
