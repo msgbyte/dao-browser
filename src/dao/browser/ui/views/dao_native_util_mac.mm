@@ -5,7 +5,11 @@
 #include "dao/browser/ui/views/dao_native_util_mac.h"
 
 #import <AppKit/AppKit.h>
+#import <os/log.h>
 
+#include <stdint.h>
+
+#include <algorithm>
 #include <memory>
 #include <utility>
 
@@ -17,9 +21,12 @@
 #include "base/strings/sys_string_conversions.h"
 #include "base/timer/timer.h"
 #include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/browser_window/public/desktop_browser_window_capabilities.h"
+#include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
+#include "chrome/browser/ui/exclusive_access/fullscreen_controller.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
@@ -709,6 +716,49 @@ void EndTabDragNativeEvents() {
     }
   }
   ClearAllDaoEventInterceptors();
+}
+
+void LogFullscreenDiagnostic(BrowserView* browser_view,
+                             const char* event,
+                             bool include_stack) {
+  DCHECK([NSThread isMainThread]);
+  static os_log_t log = os_log_create("com.dao.browser", "fullscreen");
+  static uint64_t next_event_id = 0;
+  const uint64_t event_id = ++next_event_id;
+  NSWindow* window = browser_view->GetNativeWindow().GetNativeNSWindow();
+  auto* model = browser_view->browser()->tab_strip_model();
+  auto* manager =
+      browser_view->browser()->GetFeatures().exclusive_access_manager();
+  auto* controller = manager ? manager->fullscreen_controller() : nullptr;
+
+  // Default-level unified logging survives release launches without stderr.
+  os_log(log,
+         "id=%llu event=%{public}s version=%{public}@ window=%ld "
+         "active_tab=%d tabs=%d widget_fullscreen=%d native_fullscreen=%d "
+         "browser_fullscreen=%d tab_fullscreen=%d tab_pending=%d "
+         "caused_by_tab=%d input_type=%lu",
+         static_cast<unsigned long long>(event_id), event,
+         [NSBundle.mainBundle objectForInfoDictionaryKey:
+                                  @"CFBundleShortVersionString"],
+         static_cast<long>(window.windowNumber), model->active_index(),
+         model->count(), browser_view->IsFullscreen(),
+         !!(window.styleMask & NSWindowStyleMaskFullScreen),
+         controller ? controller->IsFullscreenForBrowser() : -1,
+         controller ? controller->IsTabFullscreen() : -1,
+         controller ? controller->IsWindowFullscreenForTabOrPending() : -1,
+         controller ? controller->IsFullscreenCausedByTab() : -1,
+         static_cast<unsigned long>(NSApp.currentEvent.type));
+
+  if (include_stack) {
+    NSArray<NSString*>* stack = NSThread.callStackSymbols;
+    const NSUInteger count = std::min<NSUInteger>(stack.count, 24);
+    for (NSUInteger i = 0; i < count; ++i) {
+      // Separate records avoid the unified log's per-message size limit.
+      os_log(log, "id=%llu frame=%lu %{public}@",
+             static_cast<unsigned long long>(event_id),
+             static_cast<unsigned long>(i), stack[i]);
+    }
+  }
 }
 
 void SetTrafficLightsPosition(gfx::NativeWindow native_window, int x, int y) {

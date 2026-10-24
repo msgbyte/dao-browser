@@ -609,6 +609,32 @@ directly during routine development. When an explicitly scoped Chromium patch
 debugging task requires engine-first iteration, export only the intentional
 file with `npm run export -- <file>`; never run bare `npm run export`.
 
+## macOS fullscreen diagnostics
+
+Builds containing the fullscreen diagnostics write to the macOS unified log at
+default level, including release launches without `--enable-logging`. They record
+fullscreen requests and native transition start/completion.
+Each event includes the app version, native window number, selected tab index,
+tab count, and Chromium/native fullscreen state. Exit requests and native exit
+starts include up to 24 stack frames, linked by process ID and event ID. No page
+URLs, titles, page content, or typed text are recorded; records stay on the Mac.
+
+After an unexpected exit, note the approximate time and collect promptly:
+
+```bash
+/usr/bin/log show --last 2h --style compact --predicate 'subsystem == "com.dao.browser" AND category == "fullscreen"' > /tmp/dao-fullscreen.log
+```
+
+macOS controls retention, so the log is not a permanent archive. Match events by
+process ID and window number, then inspect the earliest exit event's stack.
+`request-exit` before `native-exit-start` points to a Chromium request; a native
+start first can indicate an AppKit-originated transition. A later `request-exit`
+can be Chromium synchronizing that native change, so it is not by itself proof
+of the original cause. `input_type` is only AppKit's current event type and may
+refer to an earlier event. Stripped release stacks may need the matching build's
+symbols for a precise caller. These diagnostics do not change fullscreen behavior
+and only take effect after installing and launching a build containing them.
+
 ## Project Structure
 
 ```

@@ -12,6 +12,8 @@
 #include "ui/gfx/geometry/point_f.h"
 #include "ui/gfx/native_ui_types.h"
 
+class BrowserView;
+
 namespace content {
 class WebContents;
 }
@@ -72,6 +74,12 @@ void ArmTabDragWatchdog();
 void StopTabDragWatchdog();
 
 #if BUILDFLAG(IS_MAC)
+// Write window/fullscreen state to the macOS unified log without page content.
+// Exit paths also capture a bounded call stack for release-build diagnosis.
+void LogFullscreenDiagnostic(BrowserView* browser_view,
+                             const char* event,
+                             bool include_stack = false);
+
 // Move macOS traffic light buttons (close/minimize/zoom) to the given
 // origin within the window's content view. Call after the widget is shown.
 void SetTrafficLightsPosition(gfx::NativeWindow window, int x, int y);

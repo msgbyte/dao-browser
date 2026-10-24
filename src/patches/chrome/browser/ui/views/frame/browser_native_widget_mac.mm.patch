@@ -9,12 +9,13 @@ diff --git a/chrome/browser/ui/views/frame/browser_native_widget_mac.mm b/chrome
  #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
  #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
  #import "chrome/browser/ui/cocoa/browser_window_command_handler.h"
-@@ -41,8 +42,17 @@
+@@ -41,8 +42,18 @@
  #include "chrome/browser/ui/views/frame/browser_widget.h"
  #include "chrome/browser/ui/views/frame/glass_frame_service.h"
  #include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
 +#include "chrome/browser/ui/tabs/tab_strip_model.h"
 +#include "content/public/browser/web_contents.h"
++#include "dao/browser/ui/views/dao_native_util_mac.h"
 +#include "dao/browser/ui/views/dao_tab_commands.h"
 +#include "dao/browser/ui/views/little_dao/dao_little_dao_controller.h"
 +#include "dao/browser/ui/views/little_dao/dao_little_dao_view.h"
@@ -27,7 +28,7 @@ diff --git a/chrome/browser/ui/views/frame/browser_native_widget_mac.mm b/chrome
  #include "chrome/common/pref_names.h"
  #include "chrome/grit/generated_resources.h"
  #include "components/bookmarks/common/bookmark_pref_names.h"
-@@ -139,6 +149,20 @@
+@@ -139,6 +150,20 @@
    return GetLayoutConstant(LayoutConstant::kToolbarCornerRadius) * 2;
  }
  
@@ -48,7 +49,7 @@ diff --git a/chrome/browser/ui/views/frame/browser_native_widget_mac.mm b/chrome
  }  // namespace
  
  // NSGlassEffectView intercepts hit testing even when added below the
-@@ -262,7 +286,15 @@
+@@ -262,7 +287,15 @@
                   top_element_info.toolbar_minimum_height) +
          browser_view_->browser_widget()->GetFrameView()->GetTopInset(true);
      if (!browser_view_->ShouldDrawTabStrip()) {
@@ -65,7 +66,29 @@ diff --git a/chrome/browser/ui/views/frame/browser_native_widget_mac.mm b/chrome
      }
    } else {
      *override_titlebar_height = false;
-@@ -382,6 +414,38 @@
+@@ -344,6 +377,11 @@
+ 
+ void BrowserNativeWidgetMac::OnWindowFullscreenTransitionStart() {
+   if (browser_view_) {
++    dao::LogFullscreenDiagnostic(
++        browser_view_,
++        browser_view_->IsFullscreen() ? "native-enter-start"
++                                      : "native-exit-start",
++        !browser_view_->IsFullscreen());
+     browser_view_->FullscreenStateChanging();
+   }
+ }
+@@ -351,6 +389,9 @@
+ void BrowserNativeWidgetMac::OnWindowFullscreenTransitionComplete() {
+   if (browser_view_) {
+     browser_view_->FullscreenStateChanged();
++    dao::LogFullscreenDiagnostic(
++        browser_view_, browser_view_->IsFullscreen() ? "native-enter-complete"
++                                                    : "native-exit-complete");
+   }
+ }
+ 
+@@ -382,6 +423,38 @@
  void BrowserNativeWidgetMac::ValidateUserInterfaceItem(
      int32_t tag,
      remote_cocoa::mojom::ValidateUserInterfaceItemResult* result) {
@@ -104,7 +127,7 @@ diff --git a/chrome/browser/ui/views/frame/browser_native_widget_mac.mm b/chrome
    BrowserWindowInterface* const browser =
        browser_view_ ? browser_view_->browser() : nullptr;
    if (!browser || !chrome::SupportsCommand(browser, tag)) {
-@@ -628,6 +692,36 @@
+@@ -628,6 +701,36 @@
      int32_t command,
      WindowOpenDisposition window_open_disposition,
      bool is_before_first_responder) {
@@ -141,7 +164,7 @@ diff --git a/chrome/browser/ui/views/frame/browser_native_widget_mac.mm b/chrome
    if (!WillExecuteCommand(command, window_open_disposition,
                            is_before_first_responder)) {
      return false;
-@@ -718,6 +812,16 @@
+@@ -718,6 +821,16 @@
      if (browser_view_->GetIsWebAppType()) {
        params->window_title_hidden = true;
      }
@@ -158,7 +181,7 @@ diff --git a/chrome/browser/ui/views/frame/browser_native_widget_mac.mm b/chrome
    } else {
      params->window_class = remote_cocoa::mojom::WindowClass::kDefault;
    }
-@@ -840,6 +944,17 @@
+@@ -840,6 +953,17 @@
  content::KeyboardEventProcessingResult
  BrowserNativeWidgetMac::PreHandleKeyboardEvent(
      const input::NativeWebKeyboardEvent& event) {
