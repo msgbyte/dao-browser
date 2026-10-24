@@ -1406,6 +1406,7 @@ file count.
 - `chrome/browser/ui/webui/settings/settings_ui.cc.patch`
 
 ### 13.7 macOS Platform
+- **History-swipe lifetime** — Keep the history swiper alive until touch-end cleanup finishes, including when Back closes the current tab and returns to its opener (`chrome/browser/renderer_host/chrome_render_widget_host_view_mac_history_swiper.mm.patch`).
 - `skia/ext/skia_utils_mac.mm.patch`
 - `third_party/blink/renderer/platform/mac/graphics_context_canvas.mm.patch`
 - `ui/display/mac/screen_utils_mac.mm.patch`

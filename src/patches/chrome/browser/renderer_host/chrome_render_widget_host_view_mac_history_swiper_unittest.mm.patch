@@ -1,0 +1,44 @@
+diff --git a/chrome/browser/renderer_host/chrome_render_widget_host_view_mac_history_swiper_unittest.mm b/chrome/browser/renderer_host/chrome_render_widget_host_view_mac_history_swiper_unittest.mm
+--- a/chrome/browser/renderer_host/chrome_render_widget_host_view_mac_history_swiper_unittest.mm
++++ b/chrome/browser/renderer_host/chrome_render_widget_host_view_mac_history_swiper_unittest.mm
+@@ -226,6 +226,40 @@
+   EXPECT_TRUE(got_backwards_hint_);
+ }
+ 
++// Navigation can close the tab and release the delegate's last strong reference.
++TEST_F(MacHistorySwiperTest, SwipeNavigationReleasesOwner) {
++  id mockDelegate =
++      [OCMockObject mockForProtocol:@protocol(HistorySwiperDelegate)];
++  [[[mockDelegate stub] andReturn:view_] viewThatWantsHistoryOverlay];
++  [[[mockDelegate stub] andReturnBool:YES] shouldAllowHistorySwiping];
++  [[[mockDelegate stub] andReturnBool:YES]
++      canNavigateInDirection:history_swiper::kBackwards
++                    onWindow:[OCMArg any]];
++  [[mockDelegate stub] backwardsSwipeNavigationLikely];
++
++  // A partial mock would retain the swiper and hide premature destruction.
++  historySwiper_ = [[HistorySwiper alloc] initWithDelegate:mockDelegate];
++  __weak HistorySwiper* weakSwiper = historySwiper_;
++  [[[mockDelegate expect] andDo:^(NSInvocation* invocation) {
++    historySwiper_.delegate = nil;
++    historySwiper_ = nil;
++    EXPECT_TRUE(weakSwiper != nil);
++  }] navigateInDirection:history_swiper::kBackwards
++                onWindow:[OCMArg any]];
++
++  startGestureInMiddle();
++  moveGestureInMiddle();
++  onOverscrolled(cc::OverscrollBehavior::Type::kAuto);
++  moveGestureAtPoint(NSMakePoint(0.2, 0.5));
++  @autoreleasepool {
++    endGestureAtPoint(NSMakePoint(0.2, 0.5));
++  }
++
++  EXPECT_EQ(nil, historySwiper_);
++  EXPECT_TRUE(weakSwiper == nil);
++  [mockDelegate verify];
++}
++
+ // Test that a simple right-swipe causes navigation.
+ TEST_F(MacHistorySwiperTest, SwipeRight) {
+   startGestureInMiddle();

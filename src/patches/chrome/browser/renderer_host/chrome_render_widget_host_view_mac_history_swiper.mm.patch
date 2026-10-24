@@ -1,0 +1,14 @@
+diff --git a/chrome/browser/renderer_host/chrome_render_widget_host_view_mac_history_swiper.mm b/chrome/browser/renderer_host/chrome_render_widget_host_view_mac_history_swiper.mm
+--- a/chrome/browser/renderer_host/chrome_render_widget_host_view_mac_history_swiper.mm
++++ b/chrome/browser/renderer_host/chrome_render_widget_host_view_mac_history_swiper.mm
+@@ -261,6 +261,10 @@
+ }
+ 
+ - (void)touchesEndedWithEvent:(NSEvent*)event {
++  // Navigation can close the tab; keep self alive through gesture cleanup.
++  [[maybe_unused]] __attribute__((objc_precise_lifetime))
++  HistorySwiper* keepAlive = self;
++
+   _receivingTouchEvents = NO;
+   if (![self processTouchEventForHistorySwiping:event]) {
+     return;

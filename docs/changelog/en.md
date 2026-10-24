@@ -4,6 +4,7 @@
 
 ### [Unreleased] Unreleased
 
+- Fix a macOS crash when a trackpad Back gesture closes the current tab and returns to the tab that opened it.
 - Browse release notes on the website in English or Simplified Chinese, switch between desktop, Android, and iOS, and share links to individual versions.
 - Restore the missing Dao Agent icon in the settings sidebar.
 - Choose how long tabs stay inactive before moving to the stale folder with one-click options from 1 day to 2 weeks, or enter custom hours.
