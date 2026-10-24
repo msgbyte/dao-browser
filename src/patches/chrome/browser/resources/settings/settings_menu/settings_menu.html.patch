@@ -1,7 +1,7 @@
 diff --git a/chrome/browser/resources/settings/settings_menu/settings_menu.html b/chrome/browser/resources/settings/settings_menu/settings_menu.html
 --- a/chrome/browser/resources/settings/settings_menu/settings_menu.html
 +++ b/chrome/browser/resources/settings/settings_menu/settings_menu.html
-@@ -30,23 +30,119 @@
+@@ -30,23 +30,138 @@
          margin-top: 8px;
        }
  
@@ -51,6 +51,15 @@ diff --git a/chrome/browser/resources/settings/settings_menu/settings_menu.html 
 +      #dao .cr-icon,
 +      #agent .cr-icon {
 +        color: var(--dao-settings-accent);
++      }
++
++      #agent svg {
++        color: var(--iron-icon-fill-color);
++        flex-shrink: 0;
++        height: var(--iron-icon-height);
++        margin-inline-end: 20px;
++        pointer-events: none;
++        width: var(--iron-icon-width);
 +      }
 +
 +      .menu-separator {
@@ -114,7 +123,17 @@ diff --git a/chrome/browser/resources/settings/settings_menu/settings_menu.html 
 +        <a role="menuitem" id="agent" href="/agent" data-section="agent"
 +            hidden="[[!pageVisibility_.dao]]"
 +            class="cr-nav-menu-item">
-+          <cr-icon icon="settings:assignment"></cr-icon>
++          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
++              fill="none" stroke="currentColor" stroke-width="2"
++              stroke-linecap="round" stroke-linejoin="round"
++              aria-hidden="true" focusable="false">
++            <path d="M12 8V4H8" />
++            <rect width="16" height="12" x="4" y="8" rx="2" />
++            <path d="M2 14h2" />
++            <path d="M20 14h2" />
++            <path d="M15 13v2" />
++            <path d="M9 13v2" />
++          </svg>
 +          $i18n{daoAgentSettingsTitle}
 +          <cr-ripple></cr-ripple>
 +        </a>
@@ -126,7 +145,7 @@ diff --git a/chrome/browser/resources/settings/settings_menu/settings_menu.html 
              class="cr-nav-menu-item">
  <if expr="not _google_chrome">
            <cr-icon icon="settings:person"></cr-icon>
-@@ -58,6 +154,7 @@
+@@ -58,6 +173,7 @@
            <cr-ripple></cr-ripple>
          </a>
          <a role="menuitem" id="autofill" href="/autofill"
@@ -134,7 +153,7 @@ diff --git a/chrome/browser/resources/settings/settings_menu/settings_menu.html 
              on-click="onAutofillClick_"
              class="cr-nav-menu-item"
              hidden="[[!pageVisibility_.yourSavedInfo]]">
-@@ -65,7 +162,7 @@
+@@ -65,7 +181,7 @@
            $i18n{autofillPageTitle}
            <cr-ripple></cr-ripple>
          </a>
@@ -143,7 +162,7 @@ diff --git a/chrome/browser/resources/settings/settings_menu/settings_menu.html 
              hidden="[[!pageVisibility_.privacy]]"
              class="cr-nav-menu-item">
            <cr-icon icon="settings:security"></cr-icon>
-@@ -73,13 +170,14 @@
+@@ -73,13 +189,14 @@
            <cr-ripple></cr-ripple>
          </a>
          <a role="menuitem" id="performance" href="/performance"
@@ -159,7 +178,7 @@ diff --git a/chrome/browser/resources/settings/settings_menu/settings_menu.html 
              hidden="[[!showAiPageMenuItem_(showAiPage_, pageVisibility_.ai)]]"
              class="cr-nav-menu-item">
            <cr-icon icon="settings20:button-magic"></cr-icon>
-@@ -87,20 +185,22 @@
+@@ -87,20 +204,22 @@
            <cr-ripple></cr-ripple>
          </a>
          <a role="menuitem" id="appearance" href="/appearance"
@@ -184,7 +203,7 @@ diff --git a/chrome/browser/resources/settings/settings_menu/settings_menu.html 
            hidden="[[!pageVisibility_.defaultBrowser]]">
            <cr-icon icon="settings:web-asset"></cr-icon>
            $i18n{defaultBrowser}
-@@ -108,6 +208,7 @@
+@@ -108,6 +227,7 @@
          </a>
  </if>
          <a role="menuitem" id="onStartup" href="/onStartup"
@@ -192,7 +211,7 @@ diff --git a/chrome/browser/resources/settings/settings_menu/settings_menu.html 
              class="cr-nav-menu-item"
              hidden="[[!pageVisibility_.onStartup]]">
            <cr-icon icon="settings:power-settings-new"></cr-icon>
-@@ -116,6 +217,7 @@
+@@ -116,6 +236,7 @@
          </a>
          <div class="menu-separator"></div>
          <a role="menuitem" id="languages" href="/languages"
@@ -200,7 +219,7 @@ diff --git a/chrome/browser/resources/settings/settings_menu/settings_menu.html 
              class="cr-nav-menu-item"
              hidden="[[!pageVisibility_.languages]]">
            <cr-icon icon="settings:translate"></cr-icon>
-@@ -123,6 +225,7 @@
+@@ -123,6 +244,7 @@
            <cr-ripple></cr-ripple>
          </a>
          <a role="menuitem" id="downloads" href="/downloads"
@@ -208,7 +227,7 @@ diff --git a/chrome/browser/resources/settings/settings_menu/settings_menu.html 
              class="cr-nav-menu-item"
              hidden="[[!pageVisibility_.downloads]]">
            <cr-icon icon="settings:download"></cr-icon>
-@@ -130,6 +233,7 @@
+@@ -130,6 +252,7 @@
            <cr-ripple></cr-ripple>
          </a>
          <a role="menuitem" id="accessibility" href="/accessibility"
@@ -216,7 +235,7 @@ diff --git a/chrome/browser/resources/settings/settings_menu/settings_menu.html 
              class="cr-nav-menu-item"
              hidden="[[!pageVisibility_.a11y]]">
            <cr-icon icon="settings:accessibility"></cr-icon>
-@@ -137,14 +241,15 @@
+@@ -137,14 +260,15 @@
            <cr-ripple></cr-ripple>
          </a>
  <if expr="not is_chromeos">
@@ -234,7 +253,7 @@ diff --git a/chrome/browser/resources/settings/settings_menu/settings_menu.html 
              hidden="[[!pageVisibility_.reset]]" class="cr-nav-menu-item">
            <cr-icon icon="settings:restart-alt"></cr-icon>
            $i18n{resetPageTitle}
-@@ -153,7 +258,7 @@
+@@ -153,7 +277,7 @@
          <div hidden="[[hideBottomMenuSeparator_(pageVisibility_)]]"
              class="menu-separator"></div>
          <a role="menuitem" id="extensionsLink" class="cr-nav-menu-item"

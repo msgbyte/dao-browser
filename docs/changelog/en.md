@@ -10,6 +10,7 @@
 - Use the dao-lite skill for background searches and web tasks, and dao-browser when you explicitly want an agent to work on your existing tabs.
 - Manage local agent skills and the dao-browser command manually in settings, with install, uninstall, and update controls and a notice when an installed copy needs updating.
 - Codex now uses the shared skill in ~/.agents; updating or uninstalling it removes the duplicate copy previously installed by Dao in ~/.codex.
+- Restore the missing Dao Agent icon in the settings sidebar.
 
 ### [1.0.120] - 2026-10-24
 

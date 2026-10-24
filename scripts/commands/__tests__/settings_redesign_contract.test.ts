@@ -505,7 +505,12 @@ describe("settings continuous overview contract", () => {
     );
     expect(daoMenuIndex).toBeGreaterThanOrEqual(0);
     expect(agentMenuIndex).toBeGreaterThan(daoMenuIndex);
-    expect(menuPatch).toContain('<cr-icon icon="settings:assignment">');
+    const agentMenu = menuPatch.slice(
+      agentMenuIndex, menuPatch.indexOf("</a>", agentMenuIndex),
+    );
+    expect(agentMenu).toContain("<svg ");
+    expect(agentMenu).toMatch(/<path d="[^"]+"/);
+    expect(agentMenu).toContain('aria-hidden="true" focusable="false"');
 
     expect(mainPatch).toContain('<div slot="view" id="dao">');
     expect(mainPatch).toContain('<settings-dao-page prefs="{{prefs}}">');
