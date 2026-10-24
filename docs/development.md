@@ -613,7 +613,7 @@ file with `npm run export -- <file>`; never run bare `npm run export`.
 
 Builds containing the fullscreen diagnostics write to the macOS unified log at
 default level, including release launches without `--enable-logging`. They record
-fullscreen requests and native transition start/completion.
+active-tab changes, fullscreen requests, and native transition start/completion.
 Each event includes the app version, native window number, selected tab index,
 tab count, and Chromium/native fullscreen state. Exit requests and native exit
 starts include up to 24 stack frames, linked by process ID and event ID. No page
