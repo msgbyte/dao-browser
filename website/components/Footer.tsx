@@ -1,8 +1,11 @@
 import Link from 'next/link';
 import { GITHUB_URL, DOWNLOAD_URL } from '@/lib/version';
+import type { ChangelogLocale } from '@/lib/changelog';
+import changelogEn from '@/locales/en/changelog.json';
+import changelogZh from '@/locales/zh-CN/changelog.json';
 import styles from './Footer.module.css';
 
-export function Footer() {
+export function Footer({ changelogLocale = 'en' }: { changelogLocale?: ChangelogLocale }) {
   return (
     <footer className={styles.footer}>
       <div className={styles.inner}>
@@ -44,6 +47,11 @@ export function Footer() {
             <li>
               <Link className={styles.link} href="/history">
                 Version history
+              </Link>
+            </li>
+            <li>
+              <Link className={styles.link} lang={changelogLocale} href={changelogLocale === 'zh-CN' ? '/changelog/zh-CN' : '/changelog'}>
+                {changelogLocale === 'zh-CN' ? changelogZh.nav : changelogEn.nav}
               </Link>
             </li>
           </ul>

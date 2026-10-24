@@ -23,5 +23,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: 'weekly',
       priority: 0.7,
     },
+    ...['/changelog', '/changelog/zh-CN'].map((path) => ({
+      url: `${SITE_URL}${path}`,
+      lastModified,
+      changeFrequency: 'weekly' as const,
+      priority: 0.7,
+    })),
   ];
 }

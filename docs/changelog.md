@@ -2,6 +2,15 @@
 
 Read the [English changelog](changelog/en.md) or [Simplified Chinese changelog](changelog/zh-CN.md).
 Each language has one document, with independent desktop, Android, and iOS histories.
+The website builds `/changelog` and `/changelog/zh-CN` directly from these two
+documents. Website locale files contain interface text only, never release
+content. Only archived releases are displayed; `Unreleased` entries remain
+in the source documents. Version links use `#desktop-1.0.120`,
+`#android-0.1.12`, or the equivalent iOS version. The website deployment workflow
+watches `docs/changelog/**`, and malformed headings or bullet structure fail
+the build. Single-line entries support inline code and Markdown links; raw HTML
+is displayed as text. Run `npm run build` from `website/` to verify static pages.
+
 Historical entries are reconstructed from the repository's existing Git tags:
 desktop `v1.0.15` through `v1.0.108` (92 tags) and Android `android-v0.1.1`
 through `android-v0.1.9` (9 tags). No iOS release tags exist at the time of this

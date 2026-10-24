@@ -1,0 +1,15 @@
+{
+  "nav": "Changelog",
+  "title": "What’s new in Dao",
+  "description": "Features, improvements, and fixes, release by release.",
+  "metadataTitle": "Changelog - Dao Browser",
+  "metadataDescription": "Read the latest Dao Browser release notes for desktop, Android, and iOS.",
+  "platforms": "Choose a platform",
+  "language": "Language",
+  "english": "English",
+  "chinese": "简体中文",
+  "latest": "Latest",
+  "empty": "No published release notes yet.",
+  "history": "Looking for an older download?",
+  "historyLink": "Browse version history"
+}

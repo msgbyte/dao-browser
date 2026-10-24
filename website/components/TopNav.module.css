@@ -60,7 +60,7 @@
 }
 
 @media (max-width: 640px) {
-  .linkText {
+  .link:has(.linkText) {
     display: none;
   }
   .links {

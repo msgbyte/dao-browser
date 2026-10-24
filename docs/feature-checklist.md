@@ -15,6 +15,11 @@ requirements, not claims that this target has compiled or passed runtime tests.
 
 ## Release notes
 
+- [ ] Website `/changelog` and `/changelog/zh-CN` render archived entries directly
+  from the canonical documents, hide pending notes, follow platform/version
+  anchors and browser history, and show an empty state for unreleased platforms.
+  Check language switching, narrow layouts, code/links, and build failure on
+  invalid document structure. Changelog-only changes trigger website deployment.
 - [ ] Every change has matching English and Simplified Chinese entries under the
   affected platform's `Unreleased` heading; released notes retain their version.
 - [ ] Desktop and Android release script tests confirm version/date archival,

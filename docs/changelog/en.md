@@ -4,15 +4,17 @@
 
 ### [Unreleased] Unreleased
 
+- Browse release notes on the website in English or Simplified Chinese, switch between desktop, Android, and iOS, and share links to individual versions.
+- Restore the missing Dao Agent icon in the settings sidebar.
+- Choose how long tabs stay inactive before moving to the stale folder with one-click options from 1 day to 2 weeks, or enter custom hours.
+- Tab categories in settings now appear as compact chips: click a name to rename it, or use × to delete it.
+
 ### [1.0.121] - 2026-10-24
 
 - Allow a local agent to use Dao Lite background tasks for one hour across reconnects, without repeated prompts or extending the time as it works; access to your own tabs still needs separate approval.
 - Use the dao-lite skill for background searches and web tasks, and dao-browser when you explicitly want an agent to work on your existing tabs.
 - Manage local agent skills and the dao-browser command manually in settings, with install, uninstall, and update controls and a notice when an installed copy needs updating.
 - Codex now uses the shared skill in ~/.agents; updating or uninstalling it removes the duplicate copy previously installed by Dao in ~/.codex.
-- Restore the missing Dao Agent icon in the settings sidebar.
-- Choose how long tabs stay inactive before moving to the stale folder with one-click options from 1 day to 2 weeks, or enter custom hours.
-- Tab categories in settings now appear as compact chips: click a name to rename it, or use × to delete it.
 
 ### [1.0.120] - 2026-10-24
 
