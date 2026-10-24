@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_page.html
-@@ -0,0 +1,955 @@
+@@ -0,0 +1,1215 @@
 +<style include="settings-shared">
 +  .dao-mcp-page {
 +    margin-top: 12px;
@@ -15,22 +15,133 @@ index 0000000000..0000000001
 +
 +  .dao-tab-categories {
 +    border-top: var(--cr-separator-line);
-+    padding: 16px 20px;
++    padding: 14px var(--cr-section-padding) 16px;
 +  }
 +
-+  .dao-tab-category-row {
-+    align-items: center;
++  .dao-tab-category-chips {
 +    display: flex;
 +    flex-wrap: wrap;
-+    gap: 12px;
++    gap: 8px;
 +    margin-top: 12px;
 +  }
 +
-+  .dao-tab-category-name,
++  .dao-tab-category-chip {
++    align-items: center;
++    background: var(--dao-settings-border-subtle);
++    border: 1px solid transparent;
++    border-radius: 8px;
++    box-sizing: border-box;
++    color: var(--dao-settings-text);
++    display: inline-flex;
++    font-size: 13px;
++    gap: 2px;
++    height: 30px;
++    max-width: 100%;
++    padding: 0 3px 0 10px;
++  }
++
++  .dao-tab-category-chip svg {
++    fill: none;
++    flex: none;
++    height: 14px;
++    stroke: currentColor;
++    stroke-linecap: round;
++    stroke-linejoin: round;
++    stroke-width: 2;
++    width: 14px;
++  }
++
++  .dao-tab-category-chip button {
++    background: none;
++    border: 0;
++    color: inherit;
++    cursor: pointer;
++    font: inherit;
++  }
++
++  .dao-tab-category-chip button:focus-visible,
++  .dao-tab-category-add:focus-visible {
++    border-radius: 6px;
++    outline: 2px solid var(--dao-settings-accent);
++  }
++
++  .dao-tab-category-chip button:disabled,
++  .dao-tab-category-add:disabled {
++    cursor: default;
++    opacity: .5;
++  }
++
++  .dao-tab-category-folder {
++    color: var(--dao-settings-text-tertiary);
++    margin-inline-end: 4px;
++  }
++
++  .dao-tab-category-rename {
++    max-width: 240px;
++    overflow: hidden;
++    padding: 0 2px;
++    text-overflow: ellipsis;
++    white-space: nowrap;
++  }
++
++  .dao-tab-category-rename:hover:enabled {
++    color: var(--dao-settings-accent-strong);
++  }
++
++  .dao-tab-category-chip .dao-tab-category-icon-button {
++    align-items: center;
++    border-radius: 6px;
++    color: var(--dao-settings-text-tertiary);
++    display: inline-flex;
++    height: 22px;
++    justify-content: center;
++    padding: 0;
++    width: 22px;
++  }
++
++  .dao-tab-category-icon-button:hover:enabled {
++    background: var(--dao-settings-surface-hover);
++    color: var(--dao-settings-text);
++  }
++
++  .dao-tab-category-remove:hover:enabled {
++    color: var(--cr-error-text-color);
++  }
++
++  .dao-tab-category-chip .dao-tab-category-save {
++    color: var(--dao-settings-accent-strong);
++  }
++
++  .dao-tab-category-editor {
++    background: transparent;
++    border-color: var(--dao-settings-accent);
++    box-shadow: 0 0 0 3px var(--dao-settings-accent-subtle);
++  }
++
 +  #daoTabCategoryName {
-+    flex: 1;
-+    min-width: 160px;
-+    overflow-wrap: anywhere;
++    background: transparent;
++    border: 0;
++    color: var(--dao-settings-text);
++    font: inherit;
++    min-width: 0;
++    outline: none;
++    padding: 0 2px;
++    width: 140px;
++  }
++
++  .dao-tab-category-chip.dao-tab-category-add {
++    background: transparent;
++    border: 1px dashed var(--dao-settings-border);
++    color: var(--dao-settings-accent-strong);
++    cursor: pointer;
++    font: inherit;
++    gap: 4px;
++    padding: 0 10px 0 8px;
++  }
++
++  .dao-tab-category-add:hover:enabled {
++    background: var(--dao-settings-accent-subtle);
++    border-color: transparent;
 +  }
 +
 +  #daoTabCategoryError {
@@ -64,16 +175,6 @@ index 0000000000..0000000001
 +
 +  .dao-mcp-status-copy,
 +  .dao-mcp-client-field {
-+    flex: 1;
-+    min-width: 0;
-+  }
-+
-+  .dao-stale-tab-expiration-row {
-+    align-items: center;
-+    gap: 24px;
-+  }
-+
-+  .dao-stale-tab-expiration-text {
 +    flex: 1;
 +    min-width: 0;
 +  }
@@ -253,13 +354,108 @@ index 0000000000..0000000001
 +    }
 +  }
 +
++  .dao-stale-tab-expiration {
++    display: block;
++    padding-bottom: 16px;
++    padding-top: 14px;
++  }
++
++  .dao-stale-tab-expiration-controls {
++    align-items: center;
++    display: flex;
++    flex-wrap: wrap;
++    gap: 10px;
++    margin-top: 12px;
++  }
++
++  .dao-stale-tab-expiration-presets {
++    background: var(--dao-settings-border-subtle);
++    border-radius: 9px;
++    display: inline-flex;
++    flex-wrap: wrap;
++    padding: 2px;
++  }
++
++  .dao-stale-tab-expiration-presets button {
++    background: transparent;
++    border: 0;
++    border-radius: 7px;
++    color: var(--dao-settings-text-secondary);
++    cursor: pointer;
++    font: inherit;
++    font-size: 12px;
++    height: 26px;
++    padding: 0 12px;
++    white-space: nowrap;
++  }
++
++  .dao-stale-tab-expiration-presets button:hover {
++    color: var(--dao-settings-text);
++  }
++
++  .dao-stale-tab-expiration-presets button:focus-visible {
++    outline: 2px solid var(--dao-settings-accent);
++  }
++
++  .dao-stale-tab-expiration-presets button[aria-pressed='true'] {
++    background: var(--dao-settings-accent-subtle);
++    color: var(--dao-settings-accent-strong);
++    font-weight: 600;
++  }
++
++  .dao-stale-tab-expiration-field {
++    align-items: center;
++    border: 1px solid var(--dao-settings-border);
++    border-radius: 8px;
++    box-sizing: border-box;
++    display: inline-flex;
++    gap: 6px;
++    height: 30px;
++    padding: 0 10px;
++    width: 112px;
++  }
++
++  .dao-stale-tab-expiration-field[hidden] {
++    display: none;
++  }
++
++  .dao-stale-tab-expiration-field:focus-within {
++    border-color: var(--dao-settings-accent);
++    box-shadow: 0 0 0 3px var(--dao-settings-accent-subtle);
++  }
++
++  .dao-stale-tab-expiration-field[invalid] {
++    border-color: var(--cr-error-text-color);
++  }
++
 +  #staleTabExpirationHours {
-+    flex: 0 0 104px;
-+    width: 104px;
++    background: transparent;
++    border: 0;
++    color: var(--dao-settings-text);
++    font: inherit;
++    font-variant-numeric: tabular-nums;
++    min-width: 0;
++    outline: none;
++    padding: 0;
++    text-align: end;
++    width: 100%;
++  }
++
++  #staleTabExpirationHours::-webkit-inner-spin-button {
++    appearance: none;
++    margin: 0;
 +  }
 +
 +  .dao-stale-tab-expiration-unit {
++    color: var(--dao-settings-text-tertiary);
 +    white-space: nowrap;
++  }
++
++  #staleTabExpirationHoursError {
++    color: var(--cr-error-text-color);
++    font-size: 12px;
++    line-height: 18px;
++    margin-top: 6px;
 +  }
 +
 +  .dao-pip-preview {
@@ -592,29 +788,52 @@ index 0000000000..0000000001
 +      label="$i18n{askAiEnabledLabel}"
 +      sub-label="$i18n{askAiEnabledSubLabel}">
 +  </settings-toggle-button>
-+  <div class="cr-row dao-stale-tab-expiration-row">
-+    <div class="dao-stale-tab-expiration-text">
-+      <div class="dao-stale-tab-expiration-label">
-+        $i18n{staleTabExpirationHoursLabel}
++  <div id="staleTabExpiration" class="cr-row dao-stale-tab-expiration">
++    <div class="dao-stale-tab-expiration-label">
++      $i18n{staleTabExpirationHoursLabel}
++    </div>
++    <div class="dao-stale-tab-expiration-sub-label">
++      $i18n{staleTabExpirationHoursSubLabel}
++    </div>
++    <div class="dao-stale-tab-expiration-controls">
++      <div class="dao-stale-tab-expiration-presets" role="group"
++          aria-label="$i18n{staleTabExpirationHoursLabel}">
++        <template is="dom-repeat" items="[[staleTabExpirationPresets_]]">
++          <button class="dao-stale-tab-expiration-preset"
++              data-hours$="[[item.hours]]"
++              aria-pressed$="[[staleTabExpirationPresetPressed_(item.hours, prefs.dao.stale_tab_expiration_hours.value, staleTabExpirationCustom_)]]"
++              on-click="onStaleTabExpirationPresetClick_">
++            [[item.label]]
++          </button>
++        </template>
++        <button id="staleTabExpirationCustom"
++            aria-pressed$="[[ariaBoolean_(staleTabExpirationCustom_)]]"
++            on-click="onStaleTabExpirationCustomClick_">
++          $i18n{daoStaleTabExpirationCustom}
++        </button>
 +      </div>
-+      <div class="dao-stale-tab-expiration-sub-label">
-+        $i18n{staleTabExpirationHoursSubLabel}
++      <div class="dao-stale-tab-expiration-field"
++          hidden="[[!staleTabExpirationCustom_]]"
++          invalid$="[[staleTabExpirationHoursInvalid_]]">
++        <input id="staleTabExpirationHours"
++            type="number"
++            min="1"
++            max="720"
++            step="1"
++            aria-label="$i18n{staleTabExpirationHoursLabel}"
++            aria-invalid$="[[ariaBoolean_(staleTabExpirationHoursInvalid_)]]"
++            value="[[prefs.dao.stale_tab_expiration_hours.value]]"
++            on-input="onStaleTabExpirationHoursInput_"
++            on-change="onStaleTabExpirationHoursChange_">
++        <span class="dao-stale-tab-expiration-unit">
++          $i18n{staleTabExpirationHoursUnit}
++        </span>
 +      </div>
 +    </div>
-+    <cr-input id="staleTabExpirationHours"
-+        type="number"
-+        min="1"
-+        max="720"
-+        step="1"
-+        value="{{staleTabExpirationHoursValue_}}"
-+        invalid="[[staleTabExpirationHoursInvalid_]]"
-+        error-message="$i18n{staleTabExpirationHoursError}"
-+        on-input="onStaleTabExpirationHoursInput_"
-+        on-change="onStaleTabExpirationHoursChange_">
-+      <span class="dao-stale-tab-expiration-unit" slot="inline-suffix">
-+        $i18n{staleTabExpirationHoursUnit}
-+      </span>
-+    </cr-input>
++    <div id="staleTabExpirationHoursError" role="alert"
++        hidden="[[!staleTabExpirationHoursInvalid_]]">
++      $i18n{staleTabExpirationHoursError}
++    </div>
 +  </div>
 +  <div id="daoTabCategories" class="dao-tab-categories" role="group"
 +      aria-label="$i18n{daoTabCategoriesTitle}">
@@ -624,26 +843,84 @@ index 0000000000..0000000001
 +    <div class="dao-stale-tab-expiration-sub-label">
 +      $i18n{daoTabCategoriesDescription}
 +    </div>
-+    <div class="dao-tab-category-row">
-+      <cr-input id="daoTabCategoryName"
-+          label="$i18n{daoTabCategoriesName}"
-+          value="{{daoTabCategoryName_}}"
-+          disabled="[[daoTabCategoryControlsDisabled_(daoTabCategoriesBusy_, daoTabCategoriesLoaded_)]]">
-+      </cr-input>
-+      <cr-button id="daoTabCategorySave" on-click="onDaoTabCategorySave_"
-+          disabled="[[daoTabCategoryControlsDisabled_(daoTabCategoriesBusy_, daoTabCategoriesLoaded_)]]">
-+        <template is="dom-if" if="[[!daoTabCategoryEditingId_]]">
++    <div class="dao-stale-tab-expiration-sub-label">
++      $i18n{daoTabCategoriesRenameHint}
++    </div>
++    <div class="dao-tab-category-chips">
++      <template is="dom-repeat"
++          items="[[daoTabCategoryChips_(daoTabCategories_, daoTabCategoryAdding_)]]">
++        <template is="dom-if" restamp
++            if="[[isDaoTabCategoryEditing_(item.id, daoTabCategoryEditingId_)]]">
++          <div class="dao-tab-category-chip dao-tab-category-editor">
++            <svg class="dao-tab-category-folder" viewBox="0 0 24 24"
++                aria-hidden="true" focusable="false">
++              <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>
++            </svg>
++            <input id="daoTabCategoryName"
++                aria-label="$i18n{daoTabCategoriesName}"
++                value="[[daoTabCategoryName_]]"
++                disabled="[[daoTabCategoriesBusy_]]"
++                on-input="onDaoTabCategoryNameInput_"
++                on-keydown="onDaoTabCategoryNameKeydown_">
++            <button id="daoTabCategorySave"
++                class="dao-tab-category-icon-button dao-tab-category-save"
++                aria-label="$i18n{daoTabCategoriesSave}"
++                title="$i18n{daoTabCategoriesSave}"
++                disabled="[[daoTabCategoryControlsDisabled_(daoTabCategoriesBusy_, daoTabCategoriesLoaded_)]]"
++                on-click="onDaoTabCategorySave_">
++              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
++                <path d="M20 6 9 17l-5-5"/>
++              </svg>
++            </button>
++            <button class="dao-tab-category-icon-button"
++                aria-label="$i18n{daoTabCategoriesCancel}"
++                title="$i18n{daoTabCategoriesCancel}"
++                disabled="[[daoTabCategoriesBusy_]]"
++                on-click="onDaoTabCategoryCancel_">
++              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
++                <path d="M18 6 6 18"/>
++                <path d="m6 6 12 12"/>
++              </svg>
++            </button>
++          </div>
++        </template>
++        <template is="dom-if" restamp
++            if="[[!isDaoTabCategoryEditing_(item.id, daoTabCategoryEditingId_)]]">
++          <div class="dao-tab-category-chip">
++            <svg class="dao-tab-category-folder" viewBox="0 0 24 24"
++                aria-hidden="true" focusable="false">
++              <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>
++            </svg>
++            <button class="dao-tab-category-rename" data-id$="[[item.id]]"
++                aria-label$="[[daoTabCategoryActionLabel_('daoTabCategoriesRenameLabel', item.name)]]"
++                title$="[[daoTabCategoryActionLabel_('daoTabCategoriesRenameLabel', item.name)]]"
++                disabled="[[daoTabCategoryControlsDisabled_(daoTabCategoriesBusy_, daoTabCategoriesLoaded_)]]"
++                on-click="onDaoTabCategoryRename_">[[item.name]]</button>
++            <button class="dao-tab-category-icon-button dao-tab-category-remove"
++                data-id$="[[item.id]]"
++                aria-label$="[[daoTabCategoryActionLabel_('daoTabCategoriesRemoveLabel', item.name)]]"
++                title$="[[daoTabCategoryActionLabel_('daoTabCategoriesRemoveLabel', item.name)]]"
++                disabled="[[daoTabCategoryControlsDisabled_(daoTabCategoriesBusy_, daoTabCategoriesLoaded_)]]"
++                on-click="onDaoTabCategoryRemove_">
++              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
++                <path d="M18 6 6 18"/>
++                <path d="m6 6 12 12"/>
++              </svg>
++            </button>
++          </div>
++        </template>
++      </template>
++      <template is="dom-if" if="[[!daoTabCategoryAdding_]]">
++        <button id="daoTabCategoryAdd"
++            class="dao-tab-category-chip dao-tab-category-add"
++            disabled="[[daoTabCategoryControlsDisabled_(daoTabCategoriesBusy_, daoTabCategoriesLoaded_)]]"
++            on-click="onDaoTabCategoryAdd_">
++          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
++            <path d="M5 12h14"/>
++            <path d="M12 5v14"/>
++          </svg>
 +          $i18n{daoTabCategoriesAdd}
-+        </template>
-+        <template is="dom-if" if="[[daoTabCategoryEditingId_]]">
-+          $i18n{daoTabCategoriesSave}
-+        </template>
-+      </cr-button>
-+      <template is="dom-if" if="[[daoTabCategoryEditingId_]]">
-+        <cr-button on-click="onDaoTabCategoryCancel_"
-+            disabled="[[daoTabCategoriesBusy_]]">
-+          $i18n{daoTabCategoriesCancel}
-+        </cr-button>
++        </button>
 +      </template>
 +    </div>
 +    <div id="daoTabCategoryError" role="alert">[[daoTabCategoryError_]]</div>
@@ -651,23 +928,6 @@ index 0000000000..0000000001
 +      <cr-button on-click="refreshDaoTabCategories_">
 +        $i18n{daoTabCategoriesRetry}
 +      </cr-button>
-+    </template>
-+    <template is="dom-repeat" items="[[daoTabCategories_]]">
-+      <div class="dao-tab-category-row">
-+        <span class="dao-tab-category-name">[[item.name]]</span>
-+        <cr-button class="dao-tab-category-rename" data-id$="[[item.id]]"
-+            aria-label$="[[daoTabCategoryActionLabel_('daoTabCategoriesRenameLabel', item.name)]]"
-+            disabled="[[daoTabCategoryControlsDisabled_(daoTabCategoriesBusy_, daoTabCategoriesLoaded_)]]"
-+            on-click="onDaoTabCategoryRename_">
-+          $i18n{daoTabCategoriesRename}
-+        </cr-button>
-+        <cr-button class="dao-tab-category-remove" data-id$="[[item.id]]"
-+            aria-label$="[[daoTabCategoryActionLabel_('daoTabCategoriesRemoveLabel', item.name)]]"
-+            disabled="[[daoTabCategoryControlsDisabled_(daoTabCategoriesBusy_, daoTabCategoriesLoaded_)]]"
-+            on-click="onDaoTabCategoryRemove_">
-+          $i18n{daoTabCategoriesRemove}
-+        </cr-button>
-+      </div>
 +    </template>
 +  </div>
 +  <settings-toggle-button id="tabHoverPreviewEnabled"

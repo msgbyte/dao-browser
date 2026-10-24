@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_page.ts
-@@ -0,0 +1,730 @@
+@@ -0,0 +1,814 @@
 +// Copyright 2026 Dao Browser Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -17,16 +17,12 @@ index 0000000000..0000000001
 +import '../controls/settings_toggle_button.js';
 +import '../settings_page/settings_section.js';
 +import '../settings_shared.css.js';
-+import 'chrome://resources/cr_elements/cr_input/cr_input.js';
 +
 +import {WebUiListenerMixin} from 'chrome://resources/cr_elements/web_ui_listener_mixin.js';
 +import {sendWithPromise} from 'chrome://resources/js/cr.js';
 +import {OpenWindowProxyImpl} from 'chrome://resources/js/open_window_proxy.js';
 +import {PrefsMixin} from '/shared/settings/prefs/prefs_mixin.js';
-+import type {
-+  CrInputElement,
-+} from 'chrome://resources/cr_elements/cr_input/cr_input.js';
-+import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
++import {afterNextRender, PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 +
 +import type {SettingsToggleButtonElement} from '../controls/settings_toggle_button.js';
 +import {loadTimeData} from '../i18n_setup.js';
@@ -174,10 +170,18 @@ index 0000000000..0000000001
 +
 +export interface SettingsDaoPageElement {
 +  $: {
-+    staleTabExpirationHours: CrInputElement,
++    staleTabExpirationHours: HTMLInputElement,
 +  };
 +  prefs: Record<string, unknown>;
 +}
++
++const STALE_TAB_EXPIRATION_PRESETS: Array<[number, string]> = [
++  [24, 'daoStaleTabExpiration1Day'],
++  [72, 'daoStaleTabExpiration3Days'],
++  [120, 'daoStaleTabExpiration5Days'],
++  [168, 'daoStaleTabExpiration1Week'],
++  [336, 'daoStaleTabExpiration2Weeks'],
++];
 +
 +const SettingsDaoPageElementBase =
 +    WebUiListenerMixin(PrefsMixin(PolymerElement));
@@ -201,6 +205,7 @@ index 0000000000..0000000001
 +      daoTabCategories_: {type: Array, value: () => []},
 +      daoTabCategoryName_: {type: String, value: ''},
 +      daoTabCategoryEditingId_: {type: String, value: ''},
++      daoTabCategoryAdding_: {type: Boolean, value: false},
 +      daoTabCategoryError_: {type: String, value: ''},
 +      daoTabCategoriesBusy_: {type: Boolean, value: false},
 +      daoTabCategoriesLoaded_: {type: Boolean, value: false},
@@ -298,9 +303,15 @@ index 0000000000..0000000001
 +        type: Boolean,
 +        value: false,
 +      },
-+      staleTabExpirationHoursValue_: {
-+        type: String,
-+        value: '24',
++      staleTabExpirationPresets_: {
++        type: Array,
++        value: () => STALE_TAB_EXPIRATION_PRESETS.map(
++            ([hours, label]) =>
++                ({hours, label: loadTimeData.getString(label)})),
++      },
++      staleTabExpirationCustom_: {
++        type: Boolean,
++        value: false,
 +      },
 +    };
 +  }
@@ -337,6 +348,7 @@ index 0000000000..0000000001
 +  declare private daoTabCategories_: DaoTabCategory[];
 +  declare private daoTabCategoryName_: string;
 +  declare private daoTabCategoryEditingId_: string;
++  declare private daoTabCategoryAdding_: boolean;
 +  declare private daoTabCategoryError_: string;
 +  declare private daoTabCategoriesBusy_: boolean;
 +  declare private daoTabCategoriesLoaded_: boolean;
@@ -477,18 +489,53 @@ index 0000000000..0000000001
 +    const id = (event.currentTarget as HTMLElement).dataset['id'];
 +    const category = this.daoTabCategories_.find(item => item.id === id);
 +    if (category) {
++      this.daoTabCategoryAdding_ = false;
 +      this.daoTabCategoryEditingId_ = category.id;
 +      this.daoTabCategoryName_ = category.name;
 +      this.daoTabCategoryError_ = '';
-+      this.shadowRoot!.querySelector<CrInputElement>('#daoTabCategoryName')!
-+          .focus();
++      this.focusDaoTabCategoryName_();
 +    }
 +  }
 +
-+  private onDaoTabCategoryCancel_() {
++  private onDaoTabCategoryAdd_() {
 +    this.daoTabCategoryEditingId_ = '';
 +    this.daoTabCategoryName_ = '';
 +    this.daoTabCategoryError_ = '';
++    this.daoTabCategoryAdding_ = true;
++    this.focusDaoTabCategoryName_();
++  }
++
++  private focusDaoTabCategoryName_() {
++    afterNextRender(this, () => {
++      const input = this.shadowRoot!.querySelector<HTMLInputElement>(
++          '#daoTabCategoryName');
++      input?.focus();
++      input?.select();
++    });
++  }
++
++  private onDaoTabCategoryCancel_() {
++    this.daoTabCategoryAdding_ = false;
++    this.daoTabCategoryEditingId_ = '';
++    this.daoTabCategoryName_ = '';
++    this.daoTabCategoryError_ = '';
++  }
++
++  private onDaoTabCategoryNameInput_(event: Event) {
++    this.daoTabCategoryName_ = (event.target as HTMLInputElement).value;
++  }
++
++  private onDaoTabCategoryNameKeydown_(event: KeyboardEvent) {
++    if (event.isComposing) {
++      return;
++    }
++    if (event.key === 'Enter') {
++      event.preventDefault();
++      this.onDaoTabCategorySave_();
++    } else if (event.key === 'Escape') {
++      event.preventDefault();
++      this.onDaoTabCategoryCancel_();
++    }
 +  }
 +
 +  private onDaoTabCategorySave_() {
@@ -530,6 +577,16 @@ index 0000000000..0000000001
 +    }
 +  }
 +
++  // The empty id is the in-place editor for a category being added.
++  private daoTabCategoryChips_(categories: DaoTabCategory[], adding: boolean):
++      DaoTabCategory[] {
++    return adding ? [...categories, {id: '', name: ''}] : categories;
++  }
++
++  private isDaoTabCategoryEditing_(id: string, editingId: string): boolean {
++    return id === editingId;
++  }
++
 +  private daoTabCategoryControlsDisabled_(busy: boolean, loaded: boolean):
 +      boolean {
 +    return busy || !loaded;
@@ -559,13 +616,42 @@ index 0000000000..0000000001
 +  }
 +
 +  declare private staleTabExpirationHoursInvalid_: boolean;
-+  declare private staleTabExpirationHoursValue_: string;
++  declare private staleTabExpirationPresets_:
++      Array<{hours: number, label: string}>;
++  declare private staleTabExpirationCustom_: boolean;
 +
 +  private onStaleTabExpirationPrefChanged_(value: number) {
 +    if (Number.isInteger(value)) {
-+      this.staleTabExpirationHoursValue_ = String(value);
 +      this.staleTabExpirationHoursInvalid_ = false;
++      // Stay in custom mode until a preset is chosen, even if the typed value
++      // happens to match one.
++      if (!STALE_TAB_EXPIRATION_PRESETS.some(([hours]) => hours === value)) {
++        this.staleTabExpirationCustom_ = true;
++      }
 +    }
++  }
++
++  private staleTabExpirationPresetPressed_(
++      hours: number, value: number, custom: boolean): string {
++    return String(!custom && hours === value);
++  }
++
++  private ariaBoolean_(value: boolean): string {
++    return String(value);
++  }
++
++  private onStaleTabExpirationPresetClick_(event: Event) {
++    const hours =
++        Number((event.currentTarget as HTMLElement).dataset['hours']);
++    this.staleTabExpirationCustom_ = false;
++    this.staleTabExpirationHoursInvalid_ = false;
++    this.$.staleTabExpirationHours.value = String(hours);
++    this.setPrefValue('dao.stale_tab_expiration_hours', hours);
++  }
++
++  private onStaleTabExpirationCustomClick_() {
++    this.staleTabExpirationCustom_ = true;
++    this.$.staleTabExpirationHours.focus();
 +  }
 +
 +  private isValidStaleTabExpirationHours_(value: string): boolean {
@@ -580,20 +666,18 @@ index 0000000000..0000000001
 +  private onStaleTabExpirationHoursInput_() {
 +    this.staleTabExpirationHoursInvalid_ =
 +        !this.isValidStaleTabExpirationHours_(
-+            this.staleTabExpirationHoursValue_);
++            this.$.staleTabExpirationHours.value);
 +  }
 +
 +  private onStaleTabExpirationHoursChange_() {
-+    if (!this.isValidStaleTabExpirationHours_(
-+            this.staleTabExpirationHoursValue_)) {
++    const value = this.$.staleTabExpirationHours.value;
++    if (!this.isValidStaleTabExpirationHours_(value)) {
 +      this.staleTabExpirationHoursInvalid_ = true;
 +      return;
 +    }
 +
 +    this.staleTabExpirationHoursInvalid_ = false;
-+    this.setPrefValue(
-+        'dao.stale_tab_expiration_hours',
-+        Number(this.staleTabExpirationHoursValue_));
++    this.setPrefValue('dao.stale_tab_expiration_hours', Number(value));
 +  }
 +
 +  async searchContents(query: string) {

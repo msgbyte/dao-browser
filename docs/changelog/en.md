@@ -11,6 +11,8 @@
 - Manage local agent skills and the dao-browser command manually in settings, with install, uninstall, and update controls and a notice when an installed copy needs updating.
 - Codex now uses the shared skill in ~/.agents; updating or uninstalling it removes the duplicate copy previously installed by Dao in ~/.codex.
 - Restore the missing Dao Agent icon in the settings sidebar.
+- Choose how long tabs stay inactive before moving to the stale folder with one-click options from 1 day to 2 weeks, or enter custom hours.
+- Tab categories in settings now appear as compact chips: click a name to rename it, or use × to delete it.
 
 ### [1.0.120] - 2026-10-24
 

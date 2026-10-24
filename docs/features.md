@@ -274,7 +274,9 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
   preferred; new folders are created only when needed, in the interface language.
   Categories are the existing folders, with no separate category database or
   pre-created empty folders. **You and Dao > Tab categories** lists all of them
-  and supports adding, renaming, and deleting categories. Deleting a category
+  as chips: clicking a name renames it in place, the chip's × deletes it, and a
+  trailing **Add category** chip opens an in-place editor. Enter saves and Escape
+  cancels (Enter during IME composition is ignored). Deleting a category
   there releases its tabs in place across windows without closing pages; the
   sidebar's separate **Delete Folder** action retains its close-confirmation flow.
   Names must be nonblank, unique without regard to case, and at most 100 Unicode
@@ -294,7 +296,9 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
   failure. Requests exceeding
   1,000 tabs, 500 existing folders, or 512 KiB fail without partial classification.
 - **Configurable stale-tab expiration** — The "You and Dao" Settings page
-  stores a profile-scoped integer from 1–720 hours (24 hours by default);
+  stores a profile-scoped integer from 1–720 hours (24 hours by default),
+  chosen from 1 day / 3 days / 5 days / 1 week / 2 weeks presets or a
+  **Custom** hours field that also shows any saved non-preset value;
   the sidebar's "Move Stale Tabs to stale" action reads that value when run,
   validates it defensively, and archives only qualifying ordinary tabs.
   Closing an ordinary active tab skips archived tabs when another ordinary tab

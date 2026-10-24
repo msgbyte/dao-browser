@@ -994,6 +994,14 @@
       <message name="IDS_DAO_TAB_HOVER_PREVIEW" desc="Label for the switch in You and Dao settings that shows page snapshots when hovering sidebar tabs.">Tab hover previews</message>
       <message name="IDS_DAO_TAB_HOVER_PREVIEW_DESCRIPTION" desc="Description explaining when tab hover preview snapshots are taken and where they are stored.">Hover over a tab in the sidebar to see a snapshot of its page. Snapshots are taken only when you switch away from a tab and are kept in memory.</message>
 
+      <!-- Stale tab expiration presets -->
+      <message name="IDS_DAO_STALE_TAB_EXPIRATION_1_DAY" desc="Preset button in You and Dao settings that moves tabs inactive for 1 day (24 hours) into the stale folder.">1 day</message>
+      <message name="IDS_DAO_STALE_TAB_EXPIRATION_3_DAYS" desc="Preset button in You and Dao settings that moves tabs inactive for 3 days (72 hours) into the stale folder.">3 days</message>
+      <message name="IDS_DAO_STALE_TAB_EXPIRATION_5_DAYS" desc="Preset button in You and Dao settings that moves tabs inactive for 5 days (120 hours) into the stale folder.">5 days</message>
+      <message name="IDS_DAO_STALE_TAB_EXPIRATION_1_WEEK" desc="Preset button in You and Dao settings that moves tabs inactive for 1 week (168 hours) into the stale folder.">1 week</message>
+      <message name="IDS_DAO_STALE_TAB_EXPIRATION_2_WEEKS" desc="Preset button in You and Dao settings that moves tabs inactive for 2 weeks (336 hours) into the stale folder.">2 weeks</message>
+      <message name="IDS_DAO_STALE_TAB_EXPIRATION_CUSTOM" desc="Button in You and Dao settings that reveals an input for a custom stale tab expiration in hours.">Custom</message>
+
       <!-- Tab categories and AI classification -->
       <message name="IDS_DAO_TAB_CATEGORIES_TITLE" desc="Heading for the folder and tab category manager in You and Dao settings.">Tab categories</message>
       <message name="IDS_DAO_TAB_CATEGORIES_DESCRIPTION" desc="Description explaining category scope and non-destructive removal.">Categories are sidebar folders shared across windows. Deleting a category keeps its tabs open.</message>
@@ -1008,6 +1016,7 @@
       <message name="IDS_DAO_TAB_CATEGORIES_EDIT_ERROR" desc="Error when a category mutation fails validation or cannot be saved.">Could not save changes. Use a unique name of 1–100 characters, then try again.</message>
       <message name="IDS_DAO_TAB_CATEGORIES_RENAME_LABEL" desc="Accessible label naming the category to rename.">Rename <ph name="CATEGORY_NAME">$1<ex>Research</ex></ph></message>
       <message name="IDS_DAO_TAB_CATEGORIES_REMOVE_LABEL" desc="Accessible label naming the category to delete without closing tabs.">Delete <ph name="CATEGORY_NAME">$1<ex>Research</ex></ph></message>
+      <message name="IDS_DAO_TAB_CATEGORIES_RENAME_HINT" desc="Hint below the tab category description explaining that clicking a category name starts renaming it.">Click a name to rename it.</message>
       <message name="IDS_DAO_CLASSIFY_TABS" desc="Sidebar menu action that classifies all eligible ordinary tabs using the configured AI model.">Classify Tabs with AI</message>
       <message name="IDS_DAO_CLASSIFY_TABS_BELOW" desc="Tab context menu action that classifies eligible tabs below this tab in visible sidebar order.">Classify Tabs Below with AI</message>
       <message name="IDS_DAO_CLASSIFY_TABS_STARTED" desc="Toast shown when AI tab classification starts.">Classifying tabs…</message>

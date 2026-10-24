@@ -54,7 +54,7 @@ diff --git a/chrome/browser/ui/webui/settings/settings_localized_strings_provide
  
    std::u16string license = l10n_util::GetStringFUTF16(
        IDS_VERSION_UI_LICENSE, chrome::kChromiumProjectURL,
-@@ -4451,6 +4461,322 @@
+@@ -4451,6 +4461,329 @@
                                    IDS_SETTINGS_EXTENSIONS_CHECKBOX_LABEL);
  }
  
@@ -75,6 +75,7 @@ diff --git a/chrome/browser/ui/webui/settings/settings_localized_strings_provide
 +      {"daoTabCategoriesEditError", IDS_DAO_TAB_CATEGORIES_EDIT_ERROR},
 +      {"daoTabCategoriesRenameLabel", IDS_DAO_TAB_CATEGORIES_RENAME_LABEL},
 +      {"daoTabCategoriesRemoveLabel", IDS_DAO_TAB_CATEGORIES_REMOVE_LABEL},
++      {"daoTabCategoriesRenameHint", IDS_DAO_TAB_CATEGORIES_RENAME_HINT},
 +      {"daoParallelDownloading", IDS_DAO_PARALLEL_DOWNLOADING},
 +      {"daoParallelDownloadingDescription",
 +       IDS_DAO_PARALLEL_DOWNLOADING_DESCRIPTION},
@@ -344,6 +345,12 @@ diff --git a/chrome/browser/ui/webui/settings/settings_localized_strings_provide
 +       IDS_SETTINGS_STALE_TAB_EXPIRATION_HOURS_UNIT},
 +      {"staleTabExpirationHoursError",
 +       IDS_SETTINGS_STALE_TAB_EXPIRATION_HOURS_ERROR},
++      {"daoStaleTabExpiration1Day", IDS_DAO_STALE_TAB_EXPIRATION_1_DAY},
++      {"daoStaleTabExpiration3Days", IDS_DAO_STALE_TAB_EXPIRATION_3_DAYS},
++      {"daoStaleTabExpiration5Days", IDS_DAO_STALE_TAB_EXPIRATION_5_DAYS},
++      {"daoStaleTabExpiration1Week", IDS_DAO_STALE_TAB_EXPIRATION_1_WEEK},
++      {"daoStaleTabExpiration2Weeks", IDS_DAO_STALE_TAB_EXPIRATION_2_WEEKS},
++      {"daoStaleTabExpirationCustom", IDS_DAO_STALE_TAB_EXPIRATION_CUSTOM},
 +      {"autoPipEnabledLabel", IDS_SETTINGS_AUTO_PIP_ENABLED_LABEL},
 +      {"autoPipEnabledSubLabel", IDS_SETTINGS_AUTO_PIP_ENABLED_SUB_LABEL},
 +      {"enhancedPipEnabledLabel", IDS_SETTINGS_ENHANCED_PIP_ENABLED_LABEL},
@@ -377,7 +384,7 @@ diff --git a/chrome/browser/ui/webui/settings/settings_localized_strings_provide
  void AddSecurityKeysStrings(content::WebUIDataSource* html_source) {
    static constexpr webui::LocalizedString kSecurityKeysStrings[] = {
        {"securityBundleResetToDefaultsButtonLabel",
-@@ -4600,6 +4926,7 @@
+@@ -4600,6 +4933,7 @@
    AddClearBrowsingDataStrings(html_source, profile);
    AddCommonStrings(html_source, profile);
    AddDownloadsStrings(html_source);

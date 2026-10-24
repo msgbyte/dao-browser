@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/test/data/webui/settings/dao_page_test.ts
-@@ -0,0 +1,822 @@
+@@ -0,0 +1,852 @@
 +// Copyright 2026 Dao Browser Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -11,7 +11,6 @@ index 0000000000..0000000001
 +import 'chrome://settings/settings.js';
 +import 'chrome://settings/lazy_load.js';
 +
-+import type {CrInputElement} from 'chrome://resources/cr_elements/cr_input/cr_input.js';
 +import {webUIListenerCallback} from 'chrome://resources/js/cr.js';
 +import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 +import type {
@@ -719,7 +718,7 @@ index 0000000000..0000000001
 +  });
 +
 +  test('staleTabExpirationInputSavesValidInteger', function() {
-+    const input = page.shadowRoot!.querySelector<CrInputElement>(
++    const input = page.shadowRoot!.querySelector<HTMLInputElement>(
 +        '#staleTabExpirationHours');
 +    assertTrue(!!input);
 +    assertEquals('24', input.value);
@@ -729,12 +728,14 @@ index 0000000000..0000000001
 +    input.dispatchEvent(new Event('change', {bubbles: true, composed: true}));
 +    flush();
 +
-+    assertFalse(input.invalid);
++    assertEquals('false', input.getAttribute('aria-invalid'));
 +    assertEquals(48, page.getPref<number>('dao.stale_tab_expiration_hours').value);
++    assertEquals('true', page.shadowRoot!.querySelector(
++        '#staleTabExpirationCustom')!.getAttribute('aria-pressed'));
 +  });
 +
 +  test('staleTabExpirationInputRejectsInvalidValue', function() {
-+    const input = page.shadowRoot!.querySelector<CrInputElement>(
++    const input = page.shadowRoot!.querySelector<HTMLInputElement>(
 +        '#staleTabExpirationHours');
 +    assertTrue(!!input);
 +
@@ -743,15 +744,36 @@ index 0000000000..0000000001
 +    input.dispatchEvent(new Event('change', {bubbles: true, composed: true}));
 +    flush();
 +
-+    assertTrue(input.invalid);
++    assertEquals('true', input.getAttribute('aria-invalid'));
++    assertFalse(page.shadowRoot!.querySelector<HTMLElement>(
++        '#staleTabExpirationHoursError')!.hidden);
 +    assertEquals(24, page.getPref<number>('dao.stale_tab_expiration_hours').value);
 +  });
 +
-+  test('staleTabExpirationUnitIsInlineInputSuffix', function() {
-+    const input = page.shadowRoot!.querySelector<CrInputElement>(
-+        '#staleTabExpirationHours');
-+    assertTrue(!!input);
-+    assertTrue(!!input.querySelector('[slot="inline-suffix"]'));
++  test('staleTabExpirationPresetsSelectAndRevealCustomHours', function() {
++    const root = page.shadowRoot!;
++    flush();
++    const field = root.querySelector<HTMLElement>(
++        '.dao-stale-tab-expiration-field')!;
++    assertEquals('true', root.querySelector(
++        '[data-hours="24"]')!.getAttribute('aria-pressed'));
++    assertTrue(field.hidden);
++
++    root.querySelector<HTMLElement>('[data-hours="72"]')!.click();
++    flush();
++    assertEquals(72, page.getPref<number>('dao.stale_tab_expiration_hours').value);
++    assertEquals('true', root.querySelector(
++        '[data-hours="72"]')!.getAttribute('aria-pressed'));
++    assertEquals('false', root.querySelector(
++        '[data-hours="24"]')!.getAttribute('aria-pressed'));
++
++    root.querySelector<HTMLElement>('#staleTabExpirationCustom')!.click();
++    flush();
++    assertFalse(field.hidden);
++    assertEquals('false', root.querySelector(
++        '[data-hours="72"]')!.getAttribute('aria-pressed'));
++    assertEquals('72', root.querySelector<HTMLInputElement>(
++        '#staleTabExpirationHours')!.value);
 +  });
 +
 +  test('enhancedPipPreviewShowsSelectedModeOnly', function() {
@@ -787,12 +809,14 @@ index 0000000000..0000000001
 +    await flushTasks();
 +    assertTrue(page.shadowRoot!.querySelector('#daoTabCategories')!
 +                   .textContent.includes('Work'));
-+    const input = page.shadowRoot!.querySelector<CrInputElement>(
++    assertNull(page.shadowRoot!.querySelector('#daoTabCategoryName'));
++    page.shadowRoot!.querySelector<HTMLElement>('#daoTabCategoryAdd')!.click();
++    flush();
++    assertNull(page.shadowRoot!.querySelector('#daoTabCategoryAdd'));
++    const input = page.shadowRoot!.querySelector<HTMLInputElement>(
 +        '#daoTabCategoryName')!;
 +    input.value = '  Research  ';
-+    input.dispatchEvent(new CustomEvent('value-changed', {
-+      detail: {value: input.value}, bubbles: true, composed: true,
-+    }));
++    input.dispatchEvent(new Event('input', {bubbles: true, composed: true}));
 +    page.shadowRoot!.querySelector<HTMLElement>('#daoTabCategorySave')!.click();
 +    const args = await folderBrowserProxy.whenCalled('editCategory');
 +    assertEquals('add', args[0]);
@@ -818,10 +842,16 @@ index 0000000000..0000000001
 +    await flushTasks();
 +    page.shadowRoot!.querySelector<HTMLElement>('#daoTabCategorySave')!.click();
 +    await flushTasks();
-+    assertEquals('Work', page.shadowRoot!.querySelector<CrInputElement>(
++    assertEquals('Work', page.shadowRoot!.querySelector<HTMLInputElement>(
 +        '#daoTabCategoryName')!.value);
 +    assertTrue(!!page.shadowRoot!.querySelector('#daoTabCategoryError')!
 +                     .textContent.trim());
++
++    page.shadowRoot!.querySelector<HTMLInputElement>('#daoTabCategoryName')!
++        .dispatchEvent(new KeyboardEvent(
++            'keydown', {key: 'Escape', bubbles: true, composed: true}));
++    flush();
++    assertNull(page.shadowRoot!.querySelector('#daoTabCategoryName'));
 +    assertTrue(page.shadowRoot!.querySelector('#daoTabCategories')!
 +                   .textContent.includes('Work'));
 +  });
