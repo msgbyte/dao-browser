@@ -675,8 +675,11 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
   pages linked from the Agent section rather than duplicate top-level settings
 
 **Settings shell** (`dao://settings`)
-- All top-level Chromium and Dao settings render as one continuous overview in
-  the Dao Open Design shell. Its 184px table of contents, integrated search,
+- Chromium's Google AI settings are hidden from the menu, overview, search, and
+  `/ai` routes, including after Gemini availability changes. Dao Agent settings,
+  model providers, and skill management remain independent and available.
+- All visible top-level Chromium and Dao settings render as one continuous
+  overview in the Dao Open Design shell. Its 184px table of contents, integrated search,
   680px content column, 30px section rhythm, and light/dark tokens share one
   page background without a repeated Dao brand header or footer. Nested page
   index views are kept in normal document flow so their cards contribute real
