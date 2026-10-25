@@ -587,6 +587,15 @@
       <message name="IDS_DAO_MCP_APPROVAL_SPACE_TITLE" desc="Title when a local agent requests access to Dao Lite background tasks.">
         Allow Dao Lite background tasks?
       </message>
+      <message name="IDS_DAO_MCP_APPROVAL_REQUESTER" desc="Requester shown prominently in the approval dialog. CLIENT is an unverified, self-reported name, not an authenticated application identity.">
+        Request from: <ph name="CLIENT">$1<ex>Codex</ex></ph> (self-reported)
+      </message>
+      <message name="IDS_DAO_MCP_APPROVAL_SHOW_DETAILS" desc="Button that expands technical details in the approval dialog.">
+        Show details
+      </message>
+      <message name="IDS_DAO_MCP_APPROVAL_HIDE_DETAILS" desc="Button that collapses technical details in the approval dialog.">
+        Hide details
+      </message>
       <message name="IDS_DAO_MCP_APPROVAL_EXPLANATION" desc="Explanation in the MCP connection approval dialog.">
         It can create new tabs in this window, read and operate them using your sign-ins, and run JavaScript. Existing tabs need separate approval.
       </message>

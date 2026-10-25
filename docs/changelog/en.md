@@ -4,7 +4,7 @@
 
 ### [Unreleased] Unreleased
 
-- Browser-control requests now use clearer titles and explain the requested access without repeating permission warnings.
+- Browser-control requests now highlight who is asking, which page they want to use, and what access allows; expand details to see the full URL, version, and request time.
 - Use the local MCP server and Dao Lite on Windows, with settings to install and manage local agent skills and the dao-browser command.
 - Show Dao as `dao.exe` instead of `chrome.exe` in Windows Task Manager.
 - Show copy-link confirmations and other native browser notifications in Dao's toast style inside the page area, with their existing buttons and menus.

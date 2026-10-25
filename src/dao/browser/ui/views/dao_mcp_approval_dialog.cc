@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/i18n/rtl.h"
 #include "base/i18n/time_formatting.h"
 #include "base/no_destructor.h"
@@ -16,6 +17,8 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_attributes_entry.h"
+#include "chrome/browser/profiles/profile_attributes_storage.h"
+#include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/profiles/profile_view_utils.h"
@@ -32,6 +35,7 @@
 #include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/base/mojom/ui_base_types.mojom-shared.h"
 #include "ui/gfx/text_constants.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/controls/button/checkbox.h"
 #include "ui/views/controls/button/radio_button.h"
 #include "ui/views/controls/label.h"
@@ -39,6 +43,8 @@
 #include "ui/views/layout/box_layout.h"
 #include "ui/views/view.h"
 #include "ui/views/widget/widget.h"
+#include "ui/views/window/non_client_view.h"
+#include "url/gurl.h"
 
 namespace dao {
 namespace {
@@ -129,6 +135,7 @@ DaoMcpApprovalDialog::DaoMcpApprovalDialog(
                  l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_DENY));
   SetButtonStyle(ui::mojom::DialogButton::kOk,
                  ui::ButtonStyle::kProminent);
+  SetButtonStyle(ui::mojom::DialogButton::kCancel, ui::ButtonStyle::kDefault);
   SetDefaultButton(static_cast<int>(ui::mojom::DialogButton::kNone));
   SetAcceptCallback(base::BindOnce(&DaoMcpApprovalDialog::Resolve,
                                    base::Unretained(this), true));
@@ -237,15 +244,7 @@ std::unique_ptr<views::View> DaoMcpApprovalDialog::BuildContents(
   layout->set_cross_axis_alignment(
       views::BoxLayout::CrossAxisAlignment::kStretch);
 
-  contents->AddChildView(CreateLabel(
-      l10n_util::GetStringUTF16(
-          request.background_space ? IDS_DAO_MCP_APPROVAL_SPACE_EXPLANATION
-          : (request.tab_target || !request.tab_choices.empty())
-              ? IDS_DAO_MCP_APPROVAL_TAB_EXPLANATION
-              : IDS_DAO_MCP_APPROVAL_EXPLANATION),
-      TextPrimary(), true));
-
-  auto* details = contents->AddChildView(std::make_unique<views::View>());
+  auto details = std::make_unique<views::View>();
   auto* details_layout =
       details->SetLayoutManager(std::make_unique<views::BoxLayout>(
           views::BoxLayout::Orientation::kVertical, gfx::Insets(),
@@ -253,6 +252,10 @@ std::unique_ptr<views::View> DaoMcpApprovalDialog::BuildContents(
   details_layout->set_cross_axis_alignment(
       views::BoxLayout::CrossAxisAlignment::kStretch);
 
+  contents->AddChildView(CreateLabel(
+      l10n_util::GetStringFUTF16(IDS_DAO_MCP_APPROVAL_REQUESTER,
+                               SanitizeLabel(request.client.name)),
+      TextPrimary(), false));
   details->AddChildView(CreateLabel(
       l10n_util::GetStringFUTF16(IDS_DAO_MCP_APPROVAL_CLIENT,
                                  SanitizeLabel(request.client.name),
@@ -264,18 +267,6 @@ std::unique_ptr<views::View> DaoMcpApprovalDialog::BuildContents(
           IDS_DAO_MCP_APPROVAL_TIME,
           base::TimeFormatShortDateAndTimeWithTimeZone(request.requested_at)),
       TextSecondary(), true));
-  auto* reason_scroll =
-      details->AddChildView(std::make_unique<views::ScrollView>());
-  reason_scroll->SetHorizontalScrollBarMode(
-      views::ScrollView::ScrollBarMode::kDisabled);
-  reason_scroll->ClipHeightTo(0, 120);
-  reason_scroll
-      ->SetContents(CreateLabel(
-          l10n_util::GetStringFUTF16(IDS_DAO_MCP_APPROVAL_REASON,
-                                   SanitizeLabel(request.reason)),
-          TextPrimary(), true))
-      ->SetSubpixelRenderingEnabled(false);
-
   if (!request.background_space) {
     std::u16string window_title = browser
                                       ? WindowMetadataController::From(browser)
@@ -287,10 +278,27 @@ std::unique_ptr<views::View> DaoMcpApprovalDialog::BuildContents(
         TextSecondary(), false));
   }
   if (request.tab_target) {
-    details->AddChildView(CreateLabel(
+    auto* target = contents->AddChildView(std::make_unique<views::View>());
+    auto* target_layout =
+        target->SetLayoutManager(std::make_unique<views::BoxLayout>(
+            views::BoxLayout::Orientation::kVertical, gfx::Insets(),
+            kDetailSpacing));
+    target_layout->set_cross_axis_alignment(
+        views::BoxLayout::CrossAxisAlignment::kStretch);
+    target->AddChildView(CreateLabel(
         l10n_util::GetStringFUTF16(IDS_DAO_MCP_APPROVAL_TAB,
                                  SanitizeLabel(request.tab_title)),
         TextPrimary(), false));
+    const GURL url(request.tab_target->url);
+    std::string site = url.spec();
+    if (url.SchemeIsHTTPOrHTTPS()) {
+      site = url.host();
+      if (url.has_port()) {
+        site += ":" + url.port();
+      }
+    }
+    target->AddChildView(
+        CreateLabel(SanitizeLabel(site), TextSecondary(), false));
     details->AddChildView(CreateLabel(
         l10n_util::GetStringFUTF16(IDS_DAO_MCP_APPROVAL_TAB_URL,
                                  SanitizeLabel(request.tab_target->url)),
@@ -299,7 +307,7 @@ std::unique_ptr<views::View> DaoMcpApprovalDialog::BuildContents(
 
   if (!request.tab_choices.empty()) {
     SetButtonEnabled(ui::mojom::DialogButton::kOk, false);
-    auto* scroll = details->AddChildView(std::make_unique<views::ScrollView>());
+    auto* scroll = contents->AddChildView(std::make_unique<views::ScrollView>());
     scroll->ClipHeightTo(0, 200);
     auto list = std::make_unique<views::View>();
     list->SetLayoutManager(std::make_unique<views::BoxLayout>(
@@ -320,6 +328,25 @@ std::unique_ptr<views::View> DaoMcpApprovalDialog::BuildContents(
     scroll->SetContents(std::move(list));
   }
 
+  auto* reason_scroll =
+      contents->AddChildView(std::make_unique<views::ScrollView>());
+  reason_scroll->SetHorizontalScrollBarMode(
+      views::ScrollView::ScrollBarMode::kDisabled);
+  reason_scroll->ClipHeightTo(0, 120);
+  reason_scroll
+      ->SetContents(CreateLabel(
+          l10n_util::GetStringFUTF16(IDS_DAO_MCP_APPROVAL_REASON,
+                                   SanitizeLabel(request.reason)),
+          TextPrimary(), true))
+      ->SetSubpixelRenderingEnabled(false);
+  contents->AddChildView(CreateLabel(
+      l10n_util::GetStringUTF16(
+          request.background_space ? IDS_DAO_MCP_APPROVAL_SPACE_EXPLANATION
+          : (request.tab_target || !request.tab_choices.empty())
+              ? IDS_DAO_MCP_APPROVAL_TAB_EXPLANATION
+              : IDS_DAO_MCP_APPROVAL_EXPLANATION),
+      TextSecondary(), true));
+
   std::u16string profile_name;
   if (browser && browser->GetProfile()) {
     if (ProfileAttributesEntry* entry =
@@ -330,9 +357,15 @@ std::unique_ptr<views::View> DaoMcpApprovalDialog::BuildContents(
       profile_name = browser->GetProfile()->GetPath().BaseName().AsUTF16Unsafe();
     }
   }
-  details->AddChildView(CreateLabel(
+  const bool has_multiple_profiles =
+      g_browser_process->profile_manager() &&
+      g_browser_process->profile_manager()
+              ->GetProfileAttributesStorage()
+              .GetNumberOfProfiles() > 1;
+  auto* profile_container = has_multiple_profiles ? contents.get() : details.get();
+  profile_container->AddChildView(CreateLabel(
       l10n_util::GetStringFUTF16(IDS_DAO_MCP_APPROVAL_PROFILE,
-                                 SanitizeLabel(std::move(profile_name))),
+                               SanitizeLabel(std::move(profile_name))),
       TextSecondary(), false));
 
   if (request.background_space) {
@@ -353,8 +386,39 @@ std::unique_ptr<views::View> DaoMcpApprovalDialog::BuildContents(
         base::Unretained(this), base::Unretained(checkbox)));
   }
 
+  auto* details_row = contents->AddChildView(std::make_unique<views::View>());
+  details_row->SetLayoutManager(std::make_unique<views::BoxLayout>(
+      views::BoxLayout::Orientation::kHorizontal));
+  auto* details_button = details_row->AddChildView(CreateDaoDialogButton(
+      base::DoNothing(),
+      l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_SHOW_DETAILS), std::nullopt,
+      ui::ButtonStyle::kText));
+  auto* details_view = contents->AddChildView(std::move(details));
+  details_view->SetVisible(false);
+  details_button->GetViewAccessibility().SetIsCollapsed();
+  details_button->SetCallback(base::BindRepeating(
+      [](views::View* contents, views::View* details, views::MdTextButton* button) {
+        const bool expanded = !details->GetVisible();
+        details->SetVisible(expanded);
+        button->SetText(l10n_util::GetStringUTF16(
+            expanded ? IDS_DAO_MCP_APPROVAL_HIDE_DETAILS
+                     : IDS_DAO_MCP_APPROVAL_SHOW_DETAILS));
+        if (expanded) {
+          button->GetViewAccessibility().SetIsExpanded();
+        } else {
+          button->GetViewAccessibility().SetIsCollapsed();
+        }
+        contents->SetPreferredSize(std::nullopt);
+        contents->SetPreferredSize(
+            gfx::Size(kDialogWidth, contents->GetHeightForWidth(kDialogWidth)));
+        if (views::Widget* widget = contents->GetWidget()) {
+          widget->SetSize(widget->non_client_view()->GetPreferredSize());
+        }
+      },
+      base::Unretained(contents.get()), base::Unretained(details_view),
+      base::Unretained(details_button)));
   contents->SetPreferredSize(
-      gfx::Size(kDialogWidth, contents->GetPreferredSize().height()));
+      gfx::Size(kDialogWidth, contents->GetHeightForWidth(kDialogWidth)));
   ConfigureDaoSystemDialogContent(contents.get());
   return contents;
 }

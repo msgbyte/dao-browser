@@ -14303,6 +14303,72 @@ IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
+                       KeepsDecisionVisibleAndTogglesTechnicalDetails) {
+  DaoMcpApprovalRequest request{
+      {.name = "Reported Client", .version = "1.2.3"},
+      "Read this page.",
+      base::Time::Now(),
+  };
+  request.tab_target = DaoToolTarget{
+      .tab_id = "requested-tab", .url = "https://example.com:8443/private/path"};
+  request.tab_title = u"Requested page";
+  bool resolved = false;
+  auto dialog = std::make_unique<DaoMcpApprovalDialog>(
+      request, browser(),
+      base::BindLambdaForTesting([&](bool) { resolved = true; }));
+  DaoMcpApprovalDialog* raw_dialog = dialog.get();
+  views::Widget* widget = constrained_window::CreateBrowserModalDialogViews(
+      std::move(dialog), browser()->GetWindow()->GetNativeWindow());
+  ASSERT_NE(nullptr, widget);
+  widget->Show();
+  views::View* contents = raw_dialog->GetContentsView();
+  EXPECT_EQ(l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_TAB_TITLE),
+            raw_dialog->GetWindowTitle());
+  EXPECT_TRUE(HasVisibleDescendantLabelText(
+      contents, l10n_util::GetStringFUTF16(IDS_DAO_MCP_APPROVAL_REQUESTER,
+                                         u"Reported Client")));
+  EXPECT_TRUE(HasVisibleDescendantLabelText(
+      contents, l10n_util::GetStringFUTF16(IDS_DAO_MCP_APPROVAL_TAB,
+                                         u"Requested page")));
+  EXPECT_TRUE(HasVisibleDescendantLabelText(contents, u"example.com:8443"));
+  EXPECT_TRUE(HasVisibleDescendantLabelText(
+      contents, l10n_util::GetStringFUTF16(IDS_DAO_MCP_APPROVAL_REASON,
+                                         u"Read this page.")));
+  EXPECT_TRUE(HasVisibleDescendantLabelText(
+      contents,
+      l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_TAB_EXPLANATION)));
+
+  const auto url = l10n_util::GetStringFUTF16(
+      IDS_DAO_MCP_APPROVAL_TAB_URL, base::UTF8ToUTF16(request.tab_target->url));
+  const auto time = l10n_util::GetStringFUTF16(
+      IDS_DAO_MCP_APPROVAL_TIME,
+      base::TimeFormatShortDateAndTimeWithTimeZone(request.requested_at));
+  EXPECT_FALSE(HasVisibleDescendantLabelText(contents, url));
+  EXPECT_FALSE(HasVisibleDescendantLabelText(contents, time));
+  auto* details_button = FindLabelButtonWithText(
+      contents, l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_SHOW_DETAILS));
+  ASSERT_NE(nullptr, details_button);
+  const gfx::Size collapsed_size = widget->GetWindowBoundsInScreen().size();
+  ui::MouseEvent click(ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
+                       base::TimeTicks::Now(), ui::EF_NONE,
+                       ui::EF_LEFT_MOUSE_BUTTON);
+  views::test::ButtonTestApi(details_button).NotifyClick(click);
+  EXPECT_TRUE(HasVisibleDescendantLabelText(contents, url));
+  EXPECT_TRUE(HasVisibleDescendantLabelText(contents, time));
+  EXPECT_EQ(l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_HIDE_DETAILS),
+            details_button->GetText());
+  EXPECT_GT(widget->GetWindowBoundsInScreen().height(), collapsed_size.height());
+  EXPECT_EQ(widget->GetWindowBoundsInScreen().width(), collapsed_size.width());
+  views::test::ButtonTestApi(details_button).NotifyClick(click);
+  EXPECT_FALSE(HasVisibleDescendantLabelText(contents, url));
+  EXPECT_EQ(collapsed_size, widget->GetWindowBoundsInScreen().size());
+  EXPECT_FALSE(resolved);
+  EXPECT_FALSE(raw_dialog->GetIsDefault(ui::mojom::DialogButton::kOk));
+  raw_dialog->DismissWithoutResult();
+  EXPECT_FALSE(resolved);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
                        KeepsTabChoicesVisibleBeforeApproval) {
   DaoMcpApprovalRequest request{
       {.name = "Reported Client", .version = "1.2.3"},
