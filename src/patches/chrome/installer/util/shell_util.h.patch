@@ -1,0 +1,16 @@
+--- a/chrome/installer/util/shell_util.h
++++ b/chrome/installer/util/shell_util.h
+@@ -628,6 +628,13 @@
+                                         ShellChange level,
+                                         const base::FilePath& old_target_exe,
+                                         const base::FilePath& new_target_exe);
++
++  // Retarget matching shortcuts, optionally including those without arguments.
++  static bool RetargetShortcuts(ShortcutLocation location,
++                               ShellChange level,
++                               const base::FilePath& old_target_exe,
++                               const base::FilePath& new_target_exe,
++                               bool require_args);
+ 
+   typedef base::RefCountedData<base::AtomicFlag> SharedCancellationFlag;
+ 

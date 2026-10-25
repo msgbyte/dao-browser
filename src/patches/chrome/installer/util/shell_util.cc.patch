@@ -1,0 +1,25 @@
+--- a/chrome/installer/util/shell_util.cc
++++ b/chrome/installer/util/shell_util.cc
+@@ -2162,10 +2162,21 @@
+     ShellChange level,
+     const base::FilePath& old_target_exe,
+     const base::FilePath& new_target_exe) {
++  return RetargetShortcuts(location, level, old_target_exe, new_target_exe,
++                           /*require_args=*/true);
++}
++
++// static
++bool ShellUtil::RetargetShortcuts(
++    ShortcutLocation location,
++    ShellChange level,
++    const base::FilePath& old_target_exe,
++    const base::FilePath& new_target_exe,
++    bool require_args) {
+   if (!ShortcutLocationIsSupported(location))
+     return true;  // Vacuous success.
+ 
+-  FilterTargetContains shortcut_filter({old_target_exe}, true);
++  FilterTargetContains shortcut_filter({old_target_exe}, require_args);
+   ShortcutOperationCallback shortcut_operation =
+       base::BindRepeating(&ShortcutOpRetarget, old_target_exe, new_target_exe);
+   return BatchShortcutAction(shortcut_filter.AsShortcutFilterCallback(),

@@ -1,0 +1,24 @@
+--- a/chrome/installer/util/shell_util_unittest.cc
++++ b/chrome/installer/util/shell_util_unittest.cc
+@@ -690,6 +690,21 @@
+                          expected_properties);
+ }
+ 
++TEST_F(ShellUtilShortcutTest, RetargetBrowserShortcutsWithoutArguments) {
++  test_properties_.set_arguments(L"");
++  test_properties_.set_icon(chrome_exe_, 3);
++  ASSERT_TRUE(ShellUtil::CreateOrUpdateShortcut(
++      ShellUtil::SHORTCUT_LOCATION_DESKTOP, test_properties_,
++      ShellUtil::SHELL_SHORTCUT_CREATE_ALWAYS));
++  auto expected = test_properties_;
++  ASSERT_TRUE(ShellUtil::RetargetShortcuts(
++      ShellUtil::SHORTCUT_LOCATION_DESKTOP, ShellUtil::CURRENT_USER,
++      chrome_exe_, manganese_exe_, /*require_args=*/false));
++  expected.set_target(manganese_exe_);
++  expected.set_icon(manganese_exe_, 3);
++  ValidateChromeShortcut(ShellUtil::SHORTCUT_LOCATION_DESKTOP, expected);
++}
++
+ TEST_F(ShellUtilShortcutTest, RetargetSystemLevelChromeShortcutsWithArgs) {
+   test_properties_.level = ShellUtil::SYSTEM_LEVEL;
+   ASSERT_TRUE(ShellUtil::CreateOrUpdateShortcut(
