@@ -578,11 +578,20 @@
       <message name="IDS_DAO_MCP_APPROVAL_TITLE" desc="Title of the native dialog asking whether a local MCP client may control the selected Dao browser window.">
         Allow browser control?
       </message>
+      <message name="IDS_DAO_MCP_APPROVAL_TAB_TITLE" desc="Title when a local agent requests control of one specific tab.">
+        Allow control of this tab?
+      </message>
+      <message name="IDS_DAO_MCP_APPROVAL_TAB_PICKER_TITLE" desc="Title when the user must choose which tab a local agent may control.">
+        Choose a tab to control
+      </message>
+      <message name="IDS_DAO_MCP_APPROVAL_SPACE_TITLE" desc="Title when a local agent requests access to Dao Lite background tasks.">
+        Allow Dao Lite background tasks?
+      </message>
       <message name="IDS_DAO_MCP_APPROVAL_EXPLANATION" desc="Explanation in the MCP connection approval dialog.">
-        Allow this client to create and control its own new tabs in this window. Existing pages need separate approval.
+        It can create new tabs in this window, read and operate them using your sign-ins, and run JavaScript. Existing tabs need separate approval.
       </message>
       <message name="IDS_DAO_MCP_APPROVAL_TAB_EXPLANATION" desc="Explanation when an MCP connection requests access only to one specific tab.">
-        Allow this client to read and interact with the selected page using your current login, including after navigation. Other pages need separate approval.
+        It can read and operate this tab using your sign-ins, and run JavaScript. Access continues after navigation. Other tabs need separate approval.
       </message>
       <message name="IDS_DAO_MCP_APPROVAL_TAB" desc="Exact tab requested by a local MCP client. TAB is the page title recorded at request time.">
         Tab: <ph name="TAB">$1<ex>Example page</ex></ph>
@@ -591,7 +600,7 @@
         URL: <ph name="URL">$1<ex>https://example.com/</ex></ph>
       </message>
       <message name="IDS_DAO_MCP_APPROVAL_SPACE_EXPLANATION" desc="Explanation when a local AI agent asks to work in background task windows (Agent Spaces) instead of the user's own window.">
-        Allow this agent to use Dao Lite background task windows for one hour, including after reconnecting. Activity does not extend this time. It can use your sign-ins there; your own tabs need separate approval. Watch, take over or stop tasks from the sidebar.
+        It can read and operate pages in Dao Lite background tasks using your sign-ins, and run JavaScript. Access lasts one hour across reconnects; activity does not extend it. Your own tabs need separate approval. Watch, take over or stop tasks from the sidebar.
       </message>
       <message name="IDS_DAO_MCP_APPROVAL_SPACE_REMEMBER" desc="Checkbox in the approval dialog that skips this question next time for the same local AI agent. CLIENT is the client-reported agent name.">
         Always allow <ph name="CLIENT">$1<ex>Claude Code</ex></ph> to use Dao Lite
@@ -601,9 +610,6 @@
       </message>
       <message name="IDS_DAO_MCP_APPROVAL_SPACE_ALLOW_ALWAYS" desc="Button granting a local agent persistent access to Dao Lite background task windows when Always allow is checked.">
         Always allow
-      </message>
-      <message name="IDS_DAO_MCP_APPROVAL_WARNING" desc="Security warning in the MCP connection approval dialog.">
-        If allowed, it can read and interact with websites using your current login, including by running JavaScript.
       </message>
       <message name="IDS_DAO_MCP_APPROVAL_CLIENT" desc="Reported client identity shown in the MCP approval dialog. CLIENT is untrusted client-reported text and VERSION is its reported version.">
         Reported client: <ph name="CLIENT">$1<ex>Codex</ex></ph> <ph name="VERSION">$2<ex>1.2.3</ex></ph>
@@ -621,7 +627,7 @@
         Profile: <ph name="PROFILE">$1<ex>Personal</ex></ph>
       </message>
       <message name="IDS_DAO_MCP_APPROVAL_ALLOW" desc="Prominent button that authorizes one local MCP connection.">
-        Allow this connection
+        Allow control
       </message>
       <message name="IDS_DAO_MCP_APPROVAL_DENY" desc="Button that denies one local MCP connection.">
         Deny

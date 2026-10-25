@@ -12303,7 +12303,7 @@ IN_PROC_BROWSER_TEST_F(DaoI18nBrowserTest, EnglishStringsResolve) {
             l10n_util::GetStringUTF16(IDS_DAO_CHECK_FOR_UPDATES_BUTTON));
   EXPECT_EQ(u"Allow browser control?",
             l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_TITLE));
-  EXPECT_EQ(u"Allow this connection",
+  EXPECT_EQ(u"Allow control",
             l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_ALLOW));
   EXPECT_EQ(u"Stop",
             l10n_util::GetStringUTF16(IDS_DAO_MCP_CONTROL_STOP));
@@ -14299,6 +14299,49 @@ IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
   EXPECT_TRUE(HasDescendantLabelText(
       dialog.GetContentsView(),
       l10n_util::GetStringFUTF16(IDS_DAO_MCP_APPROVAL_TAB_URL, url)));
+  dialog.DismissWithoutResult();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
+                       KeepsTabChoicesVisibleBeforeApproval) {
+  DaoMcpApprovalRequest request{
+      {.name = "Reported Client", .version = "1.2.3"},
+      "Choose a page to read.",
+      base::Time::Now(),
+  };
+  request.tab_choices.push_back(
+      {{.tab_id = "first-tab", .url = "https://example.com/first"}, u"First page"});
+  DaoMcpApprovalDialog dialog(request, browser(), base::BindOnce([](bool) {}));
+  EXPECT_EQ(l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_TAB_PICKER_TITLE),
+            dialog.GetWindowTitle());
+  EXPECT_FALSE(dialog.IsDialogButtonEnabled(ui::mojom::DialogButton::kOk));
+  EXPECT_TRUE(HasVisibleDescendantLabelText(dialog.GetContentsView(),
+                                           u"First page"));
+  EXPECT_TRUE(HasVisibleDescendantLabelText(dialog.GetContentsView(),
+                                           u"https://example.com/first"));
+  dialog.DismissWithoutResult();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
+                       KeepsBackgroundConsentScopeVisible) {
+  DaoMcpApprovalRequest request{
+      {.name = "Reported Client", .version = "1.2.3"},
+      "Read pages in the background.",
+      base::Time::Now(),
+  };
+  request.background_space = true;
+  DaoMcpApprovalDialog dialog(request, browser(), base::BindOnce([](bool) {}));
+  EXPECT_EQ(l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_SPACE_TITLE),
+            dialog.GetWindowTitle());
+  EXPECT_EQ(l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_SPACE_ALLOW_ONE_HOUR),
+            dialog.GetDialogButtonLabel(ui::mojom::DialogButton::kOk));
+  EXPECT_TRUE(HasVisibleDescendantLabelText(
+      dialog.GetContentsView(),
+      l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_SPACE_EXPLANATION)));
+  EXPECT_TRUE(HasVisibleDescendantLabelText(
+      dialog.GetContentsView(),
+      l10n_util::GetStringFUTF16(IDS_DAO_MCP_APPROVAL_SPACE_REMEMBER,
+                               u"Reported Client")));
   dialog.DismissWithoutResult();
 }
 

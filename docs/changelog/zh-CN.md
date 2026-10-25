@@ -4,6 +4,7 @@
 
 ### [Unreleased] 未发布
 
+- 浏览器控制授权弹窗使用更清楚的标题和权限说明，减少重复提示。
 - Windows 支持本地 MCP 服务和 Dao Lite，可在设置中安装和管理本机 Agent 技能及 dao-browser 命令。
 - Windows 任务管理器中的 Dao 进程名改为 `dao.exe`，不再显示为 `chrome.exe`。
 - 复制链接等浏览器原生提示统一使用 Dao 的提示样式，显示在网页内容区域内，并保留原有按钮和菜单。

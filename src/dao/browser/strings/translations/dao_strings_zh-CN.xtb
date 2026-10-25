@@ -127,7 +127,6 @@
 <translation id="5289912690346335931">正在统计…</translation>
 <translation id="5301255231518510089">选择一个文件查看源代码。</translation>
 <translation id="5308380583665731573">连接</translation>
-<translation id="5322475253112112619">如果允许，它可以使用您当前的登录状态读取并与网站交互，包括运行 JavaScript。</translation>
 <translation id="5334844597069022743">查看源代码</translation>
 <translation id="5400726083793179041">选中的项目状态会发布为新版本，已有版本记录仍会保留。</translation>
 <translation id="5436835454512450295">导入的浏览器数据</translation>
@@ -178,7 +177,7 @@
 <translation id="7465855397028934440">正在查找浏览器配置文件…</translation>
 <translation id="750760654246049420">另一个自动化客户端正在控制此浏览器</translation>
 <translation id="7532108947552493901">检查更新...</translation>
-<translation id="7533550325431812">允许此连接</translation>
+<translation id="8094276373483189264">允许控制</translation>
 <translation id="7604253494819481181">再次按<ph name="SHORTCUT" />切换侧边栏</translation>
 <translation id="7615777614791709701">重置主页？</translation>
 <translation id="7626429522809774043">允许控制浏览器？</translation>
@@ -302,8 +301,8 @@
 <translation id="5887866489674258948">深色模式</translation>
 <translation id="5916664084637901428">已开启</translation>
 <translation id="5860033963881614850">已关闭</translation>
-<translation id="738384066462672702">允许此客户端在本窗口中新建并控制自己的标签页。访问已有页面需要单独授权。</translation>
-<translation id="7850208613707054603">允许此客户端使用你的当前登录状态读取和操作所选页面，页面跳转后授权仍然有效。其他页面需要单独授权。</translation>
+<translation id="9007515496722252372">允许后，它可在本窗口新建标签页，使用你的登录状态读取和操作这些页面，并运行 JavaScript。已有标签页需单独授权。</translation>
+<translation id="7741033019073491716">允许后，它可使用你的登录状态读取和操作此标签页，并运行 JavaScript。页面跳转后授权仍然有效，其他标签页需单独授权。</translation>
 <translation id="5736359348982754275">可在本窗口中新建标签页</translation>
 <translation id="806986595966998735">仅可访问已授权页面</translation>
 <translation id="33311346807537223">撤销页面授权</translation>
@@ -340,7 +339,7 @@
 <translation id="7410263727650457915"><ph name="TASK"/> 需要你回应网站的权限请求</translation>
 <translation id="7576437802374181996"><ph name="TASK"/> 已完成</translation>
 <translation id="7270911401217188243"><ph name="TASK"/> 已完成，并在此窗口添加了 <ph name="COUNT"/> 个页面</translation>
-<translation id="5899263127890819942">允许此 Agent 在一小时内使用 Dao Lite 后台任务窗口，重新连接后仍然有效，持续操作不会延长授权。它可以在这些窗口中使用你的登录状态；访问你自己的标签页仍需单独授权。你可以在侧边栏查看、接管或停止任务。</translation>
+<translation id="7311417045590061569">允许后，它可在 Dao Lite 后台任务中使用你的登录状态读取和操作页面，并运行 JavaScript。授权一小时内有效，重新连接不受影响，持续操作不会延长授权。你自己的标签页需单独授权，可在侧边栏查看、接管或停止任务。</translation>
 <translation id="4903822792316500240">始终允许 <ph name="CLIENT"/> 使用 Dao Lite</translation>
 <translation id="8529302590077854906"><ph name="TASK"/> 需要你为网站选择文件</translation>
 <translation id="7061769699245564112"><ph name="TASK"/> 需要你为网站选择设备</translation>
@@ -365,4 +364,7 @@
 <translation id="3003320615114047751">2 周</translation>
 <translation id="1177863135347784049">自定义</translation>
 <translation id="3783940240634840044">点击名称即可重命名。</translation>
+<translation id="831330726868159301">允许控制此标签页？</translation>
+<translation id="3522554440666170576">选择允许控制的标签页</translation>
+<translation id="4592696327337854621">允许使用 Dao Lite 后台任务？</translation>
 </translationbundle>

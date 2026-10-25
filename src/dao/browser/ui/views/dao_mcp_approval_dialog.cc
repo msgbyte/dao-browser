@@ -106,7 +106,15 @@ DaoMcpApprovalDialog::DaoMcpApprovalDialog(
   if (request.tab_target) {
     explicit_tab_id_ = request.tab_target->tab_id;
   }
-  SetTitle(l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_TITLE));
+  int title_id = IDS_DAO_MCP_APPROVAL_TITLE;
+  if (request.background_space) {
+    title_id = IDS_DAO_MCP_APPROVAL_SPACE_TITLE;
+  } else if (request.tab_target) {
+    title_id = IDS_DAO_MCP_APPROVAL_TAB_TITLE;
+  } else if (!request.tab_choices.empty()) {
+    title_id = IDS_DAO_MCP_APPROVAL_TAB_PICKER_TITLE;
+  }
+  SetTitle(l10n_util::GetStringUTF16(title_id));
   SetShowCloseButton(true);
   SetModalType(ui::mojom::ModalType::kWindow);
   SetOwnedByWidget(OwnedByWidgetPassKey());
@@ -236,9 +244,6 @@ std::unique_ptr<views::View> DaoMcpApprovalDialog::BuildContents(
               ? IDS_DAO_MCP_APPROVAL_TAB_EXPLANATION
               : IDS_DAO_MCP_APPROVAL_EXPLANATION),
       TextPrimary(), true));
-  contents->AddChildView(CreateLabel(
-      l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_WARNING), TextSecondary(),
-      true));
 
   auto* details = contents->AddChildView(std::make_unique<views::View>());
   auto* details_layout =
