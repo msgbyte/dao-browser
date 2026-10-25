@@ -796,6 +796,21 @@ void LogFullscreenDiagnostic(BrowserView* browser_view,
   }
 }
 
+// TODO(dao): temporary fullscreen diagnostics; remove after finding the cause.
+void LogFullscreenDiagnostic(ExclusiveAccessContext* context,
+                             const char* event,
+                             std::string_view details) {
+  for (auto* browser : GetAllBrowserWindowInterfaces()) {
+    auto* manager = ExclusiveAccessManager::From(browser);
+    if (manager && manager->context() == context) {
+      if (auto* view = BrowserView::GetBrowserViewForBrowser(browser)) {
+        LogFullscreenDiagnostic(view, event, false, details);
+      }
+      return;
+    }
+  }
+}
+
 void SetTrafficLightsPosition(gfx::NativeWindow native_window, int x, int y) {
   if (!native_window)
     return;

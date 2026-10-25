@@ -15,6 +15,7 @@
 #include "ui/gfx/native_ui_types.h"
 
 class BrowserView;
+class ExclusiveAccessContext;
 
 namespace content {
 class WebContents;
@@ -82,6 +83,9 @@ void StopTabDragWatchdog();
 void LogFullscreenDiagnostic(BrowserView* browser_view,
                              const char* event,
                              bool include_stack = false,
+                             std::string_view details = {});
+void LogFullscreenDiagnostic(ExclusiveAccessContext* context,
+                             const char* event,
                              std::string_view details = {});
 
 // Move macOS traffic light buttons (close/minimize/zoom) to the given
