@@ -1,0 +1,26 @@
+--- a/v8/tools/metagen/cpp_hier.py
++++ b/v8/tools/metagen/cpp_hier.py
+@@ -205,8 +205,8 @@
+     return
+   try:
+     proc = subprocess.run(
+-        [clang_bin] + clang_extra_args + ["-fsyntax-only", driver_path] +
+-        parse_flags,
++        [clang_bin] + clang_extra_args + ["-fsyntax-only"] +
++        parse_flags + ["--", driver_path],
+         cwd=parse_cwd or v8_root,
+         capture_output=True,
+         text=True,
+@@ -256,7 +256,11 @@
+     os.chdir(parse_cwd)
+   try:
+     try:
+-      tu = index.parse(driver_path, args=parse_flags, options=options)
++      parse_path = driver_path
++      if "--driver-mode=cl" in parse_flags and os.name != "nt":
++        # clang-cl interprets POSIX paths such as /Users/... as /U options.
++        parse_path = os.path.relpath(driver_path)
++      tu = index.parse(parse_path, args=parse_flags, options=options)
+     except cindex.TranslationUnitLoadError:
+       # libclang couldn't even start the parse -- typically a sysroot
+       # / include-path / target-triple mismatch (Windows MSVC paths,
