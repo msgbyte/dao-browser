@@ -5,6 +5,7 @@
 #ifndef DAO_BROWSER_UI_VIEWS_DAO_TOAST_VIEW_H_
 #define DAO_BROWSER_UI_VIEWS_DAO_TOAST_VIEW_H_
 
+#include <memory>
 #include <string>
 
 #include "base/memory/raw_ptr.h"
@@ -29,6 +30,8 @@ class DaoToastView : public views::View,
 
  public:
   DaoToastView();
+  // Hosts interactive toast content; the controller owns visibility and timing.
+  explicit DaoToastView(std::unique_ptr<views::View> contents);
   DaoToastView(const DaoToastView&) = delete;
   DaoToastView& operator=(const DaoToastView&) = delete;
   ~DaoToastView() override;

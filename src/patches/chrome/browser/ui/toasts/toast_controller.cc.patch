@@ -1,0 +1,45 @@
+diff --git a/chrome/browser/ui/toasts/toast_controller.cc b/chrome/browser/ui/toasts/toast_controller.cc
+--- a/chrome/browser/ui/toasts/toast_controller.cc
++++ b/chrome/browser/ui/toasts/toast_controller.cc
+@@ -35,6 +35,7 @@
+ #include "chrome/browser/ui/toasts/toast_features.h"
+ #include "chrome/browser/ui/toasts/toast_metrics.h"
+ #include "chrome/browser/ui/toasts/toast_view.h"
++#include "chrome/browser/ui/views/frame/contents_web_view.h"
+ #include "chrome/browser/ui/views/frame/multi_contents_view.h"
+ #include "chrome/browser/ui/views/interaction/browser_elements_views.h"
+ #include "chrome/browser/ui/webui_browser/webui_browser.h"
+@@ -418,25 +419,17 @@
+   UpdateToastWidgetFocusTraversableParent(anchor_view);
+ }
+ 
+-views::View* ToastController::GetAnchorView(bool global_scope) {
++views::View* ToastController::GetAnchorView(bool /*global_scope*/) {
+   if (browser_window_interface_) {
+-    ExclusiveAccessManager* exclusive_access_manager =
+-        ExclusiveAccessManager::From(browser_window_interface_);
+-    bool browser_full_screen = exclusive_access_manager->context() &&
+-                               exclusive_access_manager->fullscreen_controller()
+-                                   ->IsFullscreenForBrowser();
+     BrowserElementsViews* browser_elements_views =
+         BrowserElementsViews::From(browser_window_interface_);
+-    if (global_scope || browser_full_screen) {
+-      return browser_elements_views->GetView(kTopContainerElementId);
+-    } else {
+-      MultiContentsView* multi_contents_view = AsViewClass<MultiContentsView>(
+-          browser_elements_views->GetView(kMultiContentsViewElementId));
+-      return multi_contents_view
+-                 ? multi_contents_view->GetActiveContentsContainerView()
+-                       ->GetToastAnchorView()
+-                 : nullptr;
+-    }
++    auto* multi_contents_view = AsViewClass<MultiContentsView>(
++        browser_elements_views->GetView(kMultiContentsViewElementId));
++    if (multi_contents_view) {
++      return multi_contents_view->GetActiveContentsContainerView()
++          ->contents_view();
++    }
++    return browser_elements_views->GetView(kTopContainerElementId);
+   }
+   return nullptr;
+ }

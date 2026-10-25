@@ -1,0 +1,101 @@
+diff --git a/chrome/browser/ui/toasts/toast_view_browsertest.cc b/chrome/browser/ui/toasts/toast_view_browsertest.cc
+--- a/chrome/browser/ui/toasts/toast_view_browsertest.cc
++++ b/chrome/browser/ui/toasts/toast_view_browsertest.cc
+@@ -10,16 +10,19 @@
+ #include "chrome/browser/ui/test/test_browser_dialog.h"
+ #include "chrome/browser/ui/views/chrome_layout_provider.h"
+ #include "chrome/browser/ui/views/frame/browser_view.h"
+-#include "chrome/browser/ui/views/frame/top_container_view.h"
++#include "chrome/browser/ui/views/frame/contents_web_view.h"
+ #include "components/vector_icons/vector_icons.h"
+ #include "content/public/test/browser_test.h"
++#include "dao/browser/ui/views/dao_toast_view.h"
+ #include "testing/gtest/include/gtest/gtest.h"
+ #include "ui/base/l10n/l10n_util.h"
+ #include "ui/base/ui_base_features.h"
+ #include "ui/gfx/image/image_unittest_util.h"
+ #include "ui/menus/simple_menu_model.h"
+ #include "ui/strings/grit/ui_strings.h"
++#include "ui/views/controls/button/image_button.h"
+ #include "ui/views/controls/button/md_text_button.h"
++#include "ui/views/controls/image_view.h"
+ #include "ui/views/window/dialog_client_view.h"
+ 
+ namespace {
+@@ -49,7 +52,8 @@
+ 
+   void ShowUi(const std::string& name) override {
+     anchor_view_ =
+-        BrowserView::GetBrowserViewForBrowser(browser())->top_container();
++        BrowserView::GetBrowserViewForBrowser(browser())
++            ->GetActiveContentsWebView();
+     std::u16string toast_text = l10n_util::GetStringUTF16(IDS_LINK_COPIED);
+     if (!options_.text.empty()) {
+       toast_text = options_.text;
+@@ -84,11 +88,15 @@
+     if (!widget_ || !widget_->IsVisible()) {
+       return false;
+     }
+-    ChromeLayoutProvider* lp = ChromeLayoutProvider::Get();
+     EXPECT_EQ(u"Link copied",
+               toast_->label_for_testing()->GetDisplayTextForTesting());
+-    EXPECT_EQ(lp->GetDistanceMetric(DISTANCE_TOAST_BUBBLE_HEIGHT),
+-              toast_->GetDialogClientView()->height());
++    EXPECT_EQ(1u, toast_->children().size());
++    EXPECT_TRUE(views::AsViewClass<dao::DaoToastView>(toast_->children().front()));
++    EXPECT_GE(toast_->GetDialogClientView()->height(), 36);
++    EXPECT_EQ(options_.add_image_override,
++              toast_->icon_view_for_testing()->GetVisible());
++    EXPECT_TRUE(anchor_view_->GetBoundsInScreen().Contains(
++        widget_->GetWindowBoundsInScreen()));
+     return true;
+   }
+ 
+@@ -124,9 +132,9 @@
+                 DISTANCE_TOAST_BUBBLE_BETWEEN_LABEL_ACTION_BUTTON_SPACING),
+             toast()->action_button_for_testing()->x() -
+                 toast()->label_for_testing()->bounds().right());
+-  EXPECT_EQ(
+-      lp->GetDistanceMetric(DISTANCE_TOAST_BUBBLE_MARGIN_RIGHT_ACTION_BUTTON),
+-      toast()->GetDialogClientView()->width() - toast()->bounds().right());
++  EXPECT_EQ(16, toast()->GetBoundsInScreen().right() -
++                    toast()->action_button_for_testing()->GetBoundsInScreen()
++                        .right());
+   DismissUi();
+ }
+ 
+@@ -136,11 +144,10 @@
+   });
+   ShowUi("");
+   ASSERT_TRUE(VerifyUi());
+-  ChromeLayoutProvider* lp = ChromeLayoutProvider::Get();
+-  EXPECT_TRUE(toast()->close_button_for_testing());
+-  EXPECT_EQ(
+-      lp->GetDistanceMetric(DISTANCE_TOAST_BUBBLE_MARGIN_RIGHT_CLOSE_BUTTON),
+-      toast()->GetDialogClientView()->width() - toast()->bounds().right());
++  ASSERT_TRUE(toast()->close_button_for_testing());
++  EXPECT_EQ(16, toast()->GetBoundsInScreen().right() -
++                    toast()->close_button_for_testing()->GetBoundsInScreen()
++                        .right());
+   DismissUi();
+ }
+ 
+@@ -166,15 +173,11 @@
+   });
+   ShowUi("");
+   const views::View* bubble = toast()->GetBubbleFrameView();
+-  const int expected_margin = ChromeLayoutProvider::Get()->GetDistanceMetric(
+-                                  DISTANCE_TOAST_BUBBLE_BROWSER_WINDOW_MARGIN) -
+-                              views::BubbleBorder::kShadowBlur;
++  constexpr int kExpectedMargin = 12;
+   EXPECT_GT(bubble->GetPreferredSize().width(), bubble->width());
+   EXPECT_EQ(bubble->GetBoundsInScreen().x(),
+-            anchor_view()->GetWidget()->GetWindowBoundsInScreen().x() +
+-                expected_margin);
++            anchor_view()->GetBoundsInScreen().x() + kExpectedMargin);
+   EXPECT_EQ(bubble->GetBoundsInScreen().right(),
+-            anchor_view()->GetWidget()->GetWindowBoundsInScreen().right() -
+-                expected_margin);
++            anchor_view()->GetBoundsInScreen().right() - kExpectedMargin);
+   DismissUi();
+ }

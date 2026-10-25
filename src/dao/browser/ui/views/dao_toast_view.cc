@@ -4,6 +4,8 @@
 
 #include "dao/browser/ui/views/dao_toast_view.h"
 
+#include <utility>
+
 #include "base/functional/bind.h"
 #include "cc/paint/paint_flags.h"
 #include "dao/browser/ui/views/dao_colors.h"
@@ -18,7 +20,9 @@
 #include "ui/gfx/geometry/rect_f.h"
 #include "ui/gfx/geometry/transform.h"
 #include "ui/views/accessibility/view_accessibility.h"
+#include "ui/views/border.h"
 #include "ui/views/controls/label.h"
+#include "ui/views/layout/fill_layout.h"
 
 namespace dao {
 
@@ -35,9 +39,16 @@ constexpr int kSlideOffset = 16;  // pixels to slide down from above
 BEGIN_METADATA(DaoToastView)
 END_METADATA
 
-DaoToastView::DaoToastView() {
+DaoToastView::DaoToastView(std::unique_ptr<views::View> contents) {
   SetPaintToLayer();
   layer()->SetFillsBoundsOpaquely(false);
+  SetLayoutManager(std::make_unique<views::FillLayout>());
+  AddChildView(std::move(contents));
+  native_theme_observation_.Observe(ui::NativeTheme::GetInstanceForNativeUi());
+}
+
+DaoToastView::DaoToastView()
+    : DaoToastView(std::make_unique<views::Label>()) {
   layer()->SetOpacity(0.0f);
 
   // Start translated upward so the slide-down animation is visible
@@ -48,7 +59,9 @@ DaoToastView::DaoToastView() {
   SetVisible(false);
   SetCanProcessEventsWithinSubtree(false);
 
-  label_ = AddChildView(std::make_unique<views::Label>());
+  SetBorder(views::CreateEmptyBorder(
+      gfx::Insets::VH(0, kToastPaddingHorizontal)));
+  label_ = static_cast<views::Label*>(children().front());
   label_->SetFontList(
       gfx::FontList()
           .DeriveWithSizeDelta(kToastFontSize - gfx::FontList().GetFontSize())
@@ -56,7 +69,6 @@ DaoToastView::DaoToastView() {
   label_->SetBackgroundColor(SK_ColorTRANSPARENT);
   label_->SetHorizontalAlignment(gfx::ALIGN_CENTER);
 
-  native_theme_observation_.Observe(ui::NativeTheme::GetInstanceForNativeUi());
   ApplyTheme();
 }
 
@@ -145,13 +157,6 @@ void DaoToastView::OnPaint(gfx::Canvas* canvas) {
   bg_flags.setAntiAlias(true);
   bg_flags.setStyle(cc::PaintFlags::kFill_Style);
   canvas->DrawRoundRect(bounds, corner_radius, bg_flags);
-
-  // Center label
-  int text_width = label_->GetPreferredSize().width();
-  int text_x = (width() - text_width) / 2;
-  int text_y = (height() - label_->GetPreferredSize().height()) / 2;
-  label_->SetBoundsRect(gfx::Rect(text_x, text_y, text_width,
-                                   label_->GetPreferredSize().height()));
 }
 
 void DaoToastView::StartDismissTimer() {

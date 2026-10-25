@@ -1,0 +1,315 @@
+diff --git a/chrome/browser/ui/toasts/toast_view.cc b/chrome/browser/ui/toasts/toast_view.cc
+--- a/chrome/browser/ui/toasts/toast_view.cc
++++ b/chrome/browser/ui/toasts/toast_view.cc
+@@ -17,6 +17,9 @@
+ #include "chrome/grit/generated_resources.h"
+ #include "components/strings/grit/components_strings.h"
+ #include "components/vector_icons/vector_icons.h"
++#include "dao/browser/ui/views/dao_colors.h"
++#include "dao/browser/ui/views/dao_lucide_icons.h"
++#include "dao/browser/ui/views/dao_toast_view.h"
+ #include "ui/base/accelerators/accelerator.h"
+ #include "ui/base/interaction/element_identifier.h"
+ #include "ui/base/l10n/l10n_util.h"
+@@ -25,8 +28,10 @@
+ #include "ui/base/mojom/menu_source_type.mojom.h"
+ #include "ui/base/ui_base_features.h"
+ #include "ui/compositor/layer.h"
++#include "ui/gfx/font_list.h"
+ #include "ui/views/accessibility/view_accessibility.h"
+ #include "ui/views/animation/animation_builder.h"
++#include "ui/views/animation/ink_drop.h"
+ #include "ui/views/border.h"
+ #include "ui/views/controls/button/image_button.h"
+ #include "ui/views/controls/button/image_button_factory.h"
+@@ -36,6 +41,7 @@
+ #include "ui/views/controls/menu/menu_item_view.h"
+ #include "ui/views/controls/menu/menu_model_adapter.h"
+ #include "ui/views/controls/menu/menu_runner.h"
++#include "ui/views/layout/fill_layout.h"
+ #include "ui/views/layout/flex_layout.h"
+ #include "ui/views/layout/flex_layout_types.h"
+ #include "ui/views/layout/layout_provider.h"
+@@ -45,18 +51,9 @@
+ #include "ui/views/window/dialog_delegate.h"
+ 
+ namespace {
+-constexpr int kAnimationEntryDuration = 300;
+-constexpr int kAnimationExitDuration = 150;
+-constexpr int kAnimationHeightOffset = 50;
+-constexpr float kAnimationHeightScale = 0.5;
+-
+-gfx::Transform GetScaleTransformation(gfx::Rect bounds) {
+-  gfx::Transform transform;
+-  transform.Translate(0,
+-                      bounds.CenterPoint().y() * (1 - kAnimationHeightScale));
+-  transform.Scale(1, kAnimationHeightScale);
+-  return transform;
+-}
++constexpr int kAnimationEntryDuration = 200;
++constexpr int kAnimationExitDuration = 300;
++constexpr int kAnimationHeightOffset = 16;
+ 
+ bool IsCompatibleImageSize(const ui::ImageModel& image) {
+   const auto intended_size = toasts::ToastView::GetIconSize();
+@@ -118,7 +115,8 @@
+       image_override_(std::move(image_override)),
+       render_toast_over_web_contents_(render_toast_over_web_contents),
+       toast_close_callback_(std::move(toast_close_callback)) {
+-  SetBackgroundColor(ui::kColorToastBackgroundProminent);
++  SetBackgroundColor(SK_ColorTRANSPARENT);
++  set_shadow(views::BubbleBorder::NO_SHADOW);
+   SetShowCloseButton(false);
+   DialogDelegate::SetButtons(static_cast<int>(ui::mojom::DialogButton::kNone));
+   set_corner_radius(ChromeLayoutProvider::Get()->GetDistanceMetric(
+@@ -167,37 +165,38 @@
+   ChromeLayoutProvider* lp = ChromeLayoutProvider::Get();
+ 
+   // FlexLayout lets the toast compress itself in narrow browser windows.
+-  SetLayoutManager(std::make_unique<views::FlexLayout>())
++  auto contents = std::make_unique<views::View>();
++  contents->SetLayoutManager(std::make_unique<views::FlexLayout>())
+       ->SetOrientation(views::LayoutOrientation::kHorizontal);
+ 
+-  icon_view_ = AddChildView(std::make_unique<views::ImageView>());
++  icon_view_ = contents->AddChildView(std::make_unique<views::ImageView>());
+   icon_view_->SetProperty(
+       views::kMarginsKey,
+       gfx::Insets::VH(0, lp->GetDistanceMetric(
+                              DISTANCE_TOAST_BUBBLE_LEADING_ICON_SIDE_MARGINS)));
+ 
+-  label_ = AddChildView(
++  label_ = contents->AddChildView(
+       std::make_unique<views::Label>(toast_text_, CONTEXT_TOAST_BODY_TEXT));
+-  label_->SetEnabledColor(ui::kColorToastForeground);
++  label_->SetEnabledColor(dao::ToastTextColor());
++  label_->SetFontList(
++      gfx::FontList()
++          .DeriveWithSizeDelta(13 - gfx::FontList().GetFontSize())
++          .DeriveWithWeight(gfx::Font::Weight::SEMIBOLD));
++  icon_view_->SetVisible(image_override_.has_value());
+   label_->SetMultiLine(false);
+   label_->SetHorizontalAlignment(gfx::ALIGN_LEFT);
+   label_->SetAllowCharacterBreak(false);
+   label_->SetAutoColorReadabilityEnabled(false);
+-  label_->SetLineHeight(
+-      lp->GetDistanceMetric(DISTANCE_TOAST_BUBBLE_HEIGHT_CONTENT));
++  label_->SetLineHeight(28);
+   label_->SetProperty(views::kMarginsKey,
+-                      GetLeftMargin(lp->GetDistanceMetric(
+-                          DISTANCE_TOAST_BUBBLE_BETWEEN_CHILD_SPACING)));
++                      GetLeftMargin(image_override_.has_value() ? 8 : 0));
+   label_->SetProperty(
+       views::kFlexBehaviorKey,
+       views::FlexSpecification(views::LayoutOrientation::kHorizontal,
+                                views::MinimumFlexSizeRule::kScaleToZero));
+ 
+-  int max_child_height =
+-      lp->GetDistanceMetric(DISTANCE_TOAST_BUBBLE_HEIGHT_CONTENT);
+-
+   if (has_action_button_) {
+-    action_button_ = AddChildView(std::make_unique<views::MdTextButton>(
++    action_button_ = contents->AddChildView(std::make_unique<views::MdTextButton>(
+         action_button_callback_.Then(
+             base::BindRepeating(&ToastView::Close, base::Unretained(this),
+                                 ToastCloseReason::kActionButton)),
+@@ -218,22 +217,13 @@
+         GetLeftMargin(lp->GetDistanceMetric(
+             DISTANCE_TOAST_BUBBLE_BETWEEN_LABEL_ACTION_BUTTON_SPACING)));
+     SetInitiallyFocusedView(action_button_);
+-    max_child_height = std::max(
+-        max_child_height,
+-        lp->GetDistanceMetric(DISTANCE_TOAST_BUBBLE_HEIGHT_ACTION_BUTTON));
+   }
+ 
+   if (has_close_button_) {
+-    close_button_ = AddChildView(views::CreateVectorImageButtonWithNativeTheme(
++    close_button_ = contents->AddChildView(views::CreateVectorImageButton(
+         close_button_callback_.Then(
+             base::BindRepeating(&ToastView::Close, base::Unretained(this),
+-                                ToastCloseReason::kCloseButton)),
+-        features::IsRoundedIconsEnabled()
+-            ? vector_icons::kCloseIcon
+-            : vector_icons::kCloseChromeRefreshOldIcon,
+-        lp->GetDistanceMetric(DISTANCE_TOAST_BUBBLE_ICON_SIZE),
+-        ui::kColorToastForeground, ui::kColorIconDisabled,
+-        ui::kColorToastForeground));
++                               ToastCloseReason::kCloseButton))));
+     // Override the image button's border with the appropriate icon border size.
+     const gfx::Insets insets =
+         lp->GetInsetsMetric(views::InsetsMetric::INSETS_VECTOR_IMAGE_BUTTON);
+@@ -249,21 +239,11 @@
+     if (!HasConfiguredInitiallyFocusedView()) {
+       SetInitiallyFocusedView(close_button_);
+     }
+-    max_child_height =
+-        std::max(max_child_height,
+-                 lp->GetDistanceMetric(DISTANCE_TOAST_BUBBLE_ICON_SIZE) +
+-                     insets.height());
+   }
+ 
+   if (menu_model_) {
+-    menu_button_ = AddChildView(views::CreateVectorImageButtonWithNativeTheme(
+-        base::RepeatingClosure(),
+-        features::IsRoundedIconsEnabled() ? kMoreVertIcon
+-                                          : kBrowserToolsChromeRefreshOldIcon,
+-        /*dip_size=*/
+-        lp->GetDistanceMetric(DISTANCE_TOAST_BUBBLE_MENU_ICON_SIZE),
+-        ui::kColorToastForeground, ui::kColorIconDisabled,
+-        ui::kColorToastForeground));
++    menu_button_ = contents->AddChildView(
++        views::CreateVectorImageButton(base::RepeatingClosure()));
+     views::InstallCircleHighlightPathGenerator(menu_button_);
+     menu_button_->SetProperty(views::kElementIdentifierKey, kToastMenuButton);
+     menu_button_->SetButtonController(
+@@ -284,35 +264,13 @@
+     if (!HasConfiguredInitiallyFocusedView()) {
+       SetInitiallyFocusedView(menu_button_);
+     }
+-    max_child_height =
+-        std::max(max_child_height,
+-                 lp->GetDistanceMetric(DISTANCE_TOAST_BUBBLE_MENU_ICON_SIZE) +
+-                     insets.height());
+-  }
+-
+-  // Height of the toast is set implicitly by adding margins depending on the
+-  // height of the tallest child. We cannot simply iterate over all children
+-  // here because the `ImageModel` for `ImageButton`s is only set once the theme
+-  // is available.
+-  const int total_vertical_margins =
+-      lp->GetDistanceMetric(DISTANCE_TOAST_BUBBLE_HEIGHT) - max_child_height;
+-  const int top_margin = total_vertical_margins / 2;
+-  const int right_margin = [&]() {
+-    if (menu_button_) {
+-      return lp->GetDistanceMetric(
+-          DISTANCE_TOAST_BUBBLE_MARGIN_RIGHT_CLOSE_BUTTON);
+-    } else if (close_button_) {
+-      return lp->GetDistanceMetric(
+-          DISTANCE_TOAST_BUBBLE_MARGIN_RIGHT_CLOSE_BUTTON);
+-    } else if (action_button_) {
+-      return lp->GetDistanceMetric(
+-          DISTANCE_TOAST_BUBBLE_MARGIN_RIGHT_ACTION_BUTTON);
+-    }
+-    return lp->GetDistanceMetric(DISTANCE_TOAST_BUBBLE_MARGIN_RIGHT_LABEL);
+-  }();
+-  set_margins(gfx::Insets::TLBR(
+-      top_margin, lp->GetDistanceMetric(DISTANCE_TOAST_BUBBLE_MARGIN_LEFT),
+-      total_vertical_margins - top_margin, right_margin));
++  }
++
++  // Dao owns the surface; Chromium keeps its interactive controls and lifecycle.
++  contents->SetBorder(views::CreateEmptyBorder(gfx::Insets::VH(4, 16)));
++  SetLayoutManager(std::make_unique<views::FillLayout>());
++  AddChildView(std::make_unique<dao::DaoToastView>(std::move(contents)));
++  set_margins(gfx::Insets());
+ 
+   if (has_action_button_ || has_close_button_ || menu_model_) {
+     SetFocusTraversesOut(true);
+@@ -345,18 +303,11 @@
+   views::View* const bubble_frame_view = GetBubbleFrameView();
+   bubble_frame_view->SetPaintToLayer();
+   bubble_frame_view->layer()->SetFillsBoundsOpaquely(false);
+-  bubble_frame_view->SetTransform(
+-      GetScaleTransformation(bubble_frame_view->bounds()));
+   bubble_frame_view->layer()->SetOpacity(0);
+-  GetDialogClientView()->SetBackground(
+-      views::CreateSolidBackground(ui::kColorToastBackgroundProminent));
++  GetDialogClientView()->SetBackground(nullptr);
+   GetDialogClientView()->layer()->SetOpacity(0);
+   views::AnimationBuilder()
+       .Once()
+-      .SetDuration(base::Milliseconds(kAnimationEntryDuration))
+-      .SetTransform(bubble_frame_view, gfx::Transform(),
+-                    height_animation_tween_)
+-      .At(base::TimeDelta())
+       .SetDuration(base::Milliseconds(50))
+       .SetOpacity(bubble_frame_view, 1)
+       .Then()
+@@ -411,27 +362,15 @@
+   const gfx::Size preferred_size =
+       GetWidget()->GetContentsView()->GetPreferredSize();
+   const gfx::Rect anchor_bounds = anchor_view->GetBoundsInScreen();
+-  const gfx::Rect anchor_widget_bounds =
+-      anchor_view->GetWidget()->GetWindowBoundsInScreen();
+-
+-  // A wide toast in a narrow browser window needs to be compressed to fit.
+-  const int minimum_margin = ChromeLayoutProvider::Get()->GetDistanceMetric(
+-                                 DISTANCE_TOAST_BUBBLE_BROWSER_WINDOW_MARGIN) -
+-                             views::BubbleBorder::kShadowBlur;
+-  const int width =
+-      std::min(preferred_size.width(),
+-               std::max(anchor_widget_bounds.width() - 2 * minimum_margin, 0));
+-  const int x =
+-      std::clamp(anchor_bounds.x() + ((anchor_bounds.width() - width) / 2),
+-                 anchor_widget_bounds.x() + minimum_margin,
+-                 anchor_widget_bounds.right() - minimum_margin - width);
+-
+-  // Take bubble out of its original bounds to cross "line of death", unless in
+-  // fullscreen mode where the top container isn't rendered.
+-  const int y = anchor_bounds.bottom() - (render_toast_over_web_contents_
+-                                              ? views::BubbleBorder::kShadowBlur
+-                                              : (preferred_size.height() / 2));
+-  return gfx::Rect(x, y, width, preferred_size.height());
++  // Keep the full toast and its slide-in inside the active content card.
++  constexpr int kHorizontalMargin = 12;
++  constexpr int kTopMargin = 20;
++  const int width = std::min(
++      preferred_size.width(),
++      std::max(anchor_bounds.width() - 2 * kHorizontalMargin, 0));
++  return gfx::Rect(anchor_bounds.right() - kHorizontalMargin - width,
++                   anchor_bounds.y() + kTopMargin, width,
++                   preferred_size.height());
+ }
+ 
+ void ToastView::OnThemeChanged() {
+@@ -445,6 +384,26 @@
+         *icon_, color_provider->GetColor(ui::kColorToastForeground),
+         GetIconSize()));
+   }
++  label_->SetEnabledColor(dao::ToastTextColor());
++  if (action_button_) {
++    action_button_->SetEnabledTextColors(dao::ToastTextColor());
++    action_button_->SetBgColorOverrideDeprecated(dao::ToastBackground());
++    action_button_->SetStrokeColorOverrideDeprecated(dao::ToastTextColor());
++  }
++  if (close_button_) {
++    views::InkDrop::Get(close_button_)->SetBaseColor(dao::ToastTextColor());
++    close_button_->SetImageModel(
++        views::Button::STATE_NORMAL,
++        ui::ImageModel::FromImageSkia(dao::CreateLucideImageSkia(
++            dao::LucideIcon::kX, 16, dao::ToastTextColor())));
++  }
++  if (menu_button_) {
++    views::InkDrop::Get(menu_button_)->SetBaseColor(dao::ToastTextColor());
++    menu_button_->SetImageModel(
++        views::Button::STATE_NORMAL,
++        ui::ImageModel::FromImageSkia(dao::CreateLucideImageSkia(
++            dao::LucideIcon::kEllipsis, 16, dao::ToastTextColor())));
++  }
+ }
+ 
+ void ToastView::AnimateOut(base::OnceClosure callback,
+@@ -467,21 +426,14 @@
+     height_animation_tween_ = gfx::Tween::ACCEL_30_DECEL_20_85;
+     height_animation_.SetDuration(base::Milliseconds(kAnimationExitDuration));
+     height_animation_.Start();
+-
+-    views::AnimationBuilder()
+-        .Once()
+-        .SetDuration(base::Milliseconds(kAnimationExitDuration))
+-        .SetTransform(bubble_frame_view,
+-                      GetScaleTransformation(bubble_frame_view->bounds()),
+-                      height_animation_tween_);
+   }
+ 
+   views::AnimationBuilder()
+       .OnEnded(std::move(callback))
+       .Once()
+-      .SetDuration(base::Milliseconds(100))
++      .SetDuration(base::Milliseconds(200))
+       .SetOpacity(GetDialogClientView(), 0)
+       .Then()
+-      .SetDuration(base::Milliseconds(50))
++      .SetDuration(base::Milliseconds(100))
+       .SetOpacity(bubble_frame_view, 0);
+ }

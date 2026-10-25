@@ -4,6 +4,7 @@
 
 ### [Unreleased] Unreleased
 
+- Show copy-link confirmations and other native browser notifications in Dao's toast style inside the page area, with their existing buttons and menus.
 - Hide Chromium's Google AI settings from the settings sidebar, overview, and search; Dao Agent settings remain available.
 - Match the Dao Agent settings icon to its label color, including when hovered or selected.
 - Keep address-bar status icons visible when the page URL is long.

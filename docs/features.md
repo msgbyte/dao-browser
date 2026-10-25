@@ -471,6 +471,7 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
 - **DaoLucideIcons** (`dao_lucide_icons.{h,cc}`) — Unified Lucide icon set
 
 ### 1.8 Toast and Feedback
+- **Chromium toast integration** (`toast_controller.cc.patch`, `toast_view.cc.patch`) — All Chromium native toast content, including Copy Link, uses the shared DaoToastView surface at the top-right of the active page. Chromium retains localized messages, action buttons, menus, close callbacks, queueing, accessibility, and tab/navigation scope; the shared surface also supports interactive content without starting a second dismiss timer
 - **DaoToastView** (`dao_toast_view.{h,cc}`) — Shared lightweight fade-in/fade-out toast for native browser feedback, including Copy URL, Copy Image from webpages and the reading side panel, QR decode failures, Control Center actions, and pinned-tab close confirmation. The pinned-tab message stays inside the Dao content area, is exposed as an accessibility alert, and preserves the existing per-tab repeat-to-close behavior. The Control Center Dark action remains clickable while system appearance is light and explains the system-dark requirement through this toast; callers retain action-specific localized text
 
 ## 2. AI Agent System

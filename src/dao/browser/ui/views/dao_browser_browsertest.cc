@@ -68,6 +68,7 @@
 #include "chrome/browser/ui/side_panel/side_panel_entry.h"
 #include "chrome/browser/ui/side_panel/side_panel_native_view.h"
 #include "chrome/browser/ui/side_panel/side_panel_registry.h"
+#include "chrome/browser/ui/side_panel/side_panel_ui.h"
 #include "chrome/browser/ui/startup/startup_browser_creator.h"
 #include "chrome/browser/ui/startup/startup_browser_creator_impl.h"
 #include "chrome/browser/ui/startup/startup_types.h"
@@ -75,6 +76,9 @@
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/thumbnails/thumbnail_tab_helper.h"
+#include "chrome/browser/ui/toasts/api/toast_id.h"
+#include "chrome/browser/ui/toasts/toast_controller.h"
+#include "chrome/browser/ui/toasts/toast_view.h"
 #include "chrome/browser/ui/toolbar/back_forward_menu_model.h"
 #include "chrome/browser/ui/toolbar/toolbar_actions_model.h"
 #include "chrome/browser/ui/ui_features.h"
@@ -9188,6 +9192,53 @@ IN_PROC_BROWSER_TEST_F(DaoToastViewBrowserTest, ShowToastMakesVisible) {
   // Non-zero preferred size after text is laid out.
   EXPECT_GT(toast->GetPreferredSize().width(), 0);
   EXPECT_GT(toast->GetPreferredSize().height(), 0);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoToastViewBrowserTest,
+                       ChromiumCopyLinkUsesDaoToastSurface) {
+  auto* controller = ToastController::From(browser());
+  ASSERT_TRUE(controller);
+  ASSERT_TRUE(controller->MaybeShowToast(ToastParams(ToastId::kLinkCopied)));
+  auto* toast = controller->GetToastViewForTesting();
+  ASSERT_TRUE(toast);
+  ASSERT_EQ(1u, toast->children().size());
+  EXPECT_TRUE(views::AsViewClass<DaoToastView>(toast->children().front()));
+  EXPECT_EQ(l10n_util::GetStringUTF16(IDS_LINK_COPIED_TOAST_BODY),
+            toast->label_for_testing()->GetText());
+
+  toast->SizeToContents();
+  const gfx::Rect content_bounds =
+      GetBrowserView(browser())->GetActiveContentsWebView()->GetBoundsInScreen();
+  const gfx::Rect toast_bounds =
+      controller->GetToastWidgetForTesting()->GetWindowBoundsInScreen();
+  EXPECT_TRUE(content_bounds.Contains(toast_bounds));
+  EXPECT_EQ(content_bounds.right() - 12, toast_bounds.right());
+  EXPECT_EQ(content_bounds.y() + 20, toast_bounds.y());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoToastViewBrowserTest,
+                       ChromiumToastKeepsActionsAndCloseCallback) {
+  auto* controller = ToastController::From(browser());
+  ASSERT_TRUE(controller);
+  base::test::TestFuture<void> closed;
+  ToastParams params(ToastId::kAddedToReadingList);
+  params.toast_close_callback = base::ScopedClosureRunner(closed.GetCallback());
+  ASSERT_TRUE(controller->MaybeShowToast(std::move(params)));
+  auto* toast = controller->GetToastViewForTesting();
+  ASSERT_TRUE(toast);
+  ASSERT_EQ(1u, toast->children().size());
+  EXPECT_TRUE(views::AsViewClass<DaoToastView>(toast->children().front()));
+  auto* action = toast->action_button_for_testing();
+  ASSERT_TRUE(action);
+  EXPECT_TRUE(toast->close_button_for_testing());
+  EXPECT_EQ(l10n_util::GetStringUTF16(IDS_READING_LIST_TOAST_BUTTON),
+            action->GetText());
+  views::test::ButtonTestApi(action).NotifyClick(
+      ui::MouseEvent(ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
+                     base::TimeTicks(), ui::EF_LEFT_MOUSE_BUTTON, 0));
+  ASSERT_TRUE(closed.Wait());
+  EXPECT_FALSE(controller->IsShowingToast());
+  EXPECT_TRUE(browser()->GetFeatures().side_panel_ui()->IsSidePanelShowing());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoToastViewBrowserTest,
