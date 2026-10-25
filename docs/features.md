@@ -395,7 +395,8 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
     `fill_into_edit` value into the native textfield; provider-owned inline
     completion remains a distinct selected suffix, and only explicit arrow-key
     browsing previews a row while the original query remains separate and
-    autocomplete is not restarted
+    autocomplete is not restarted. Updates to the selected URL's display text
+    refresh its preview while preserving the selection.
   - Keyboard-first: Backspace rejects a non-identical preview without deleting
     the query; that exact rejected suggestion stays suppressed while the user
     continues typing, and later provider results remain highlight-only until the
@@ -467,7 +468,7 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
 - **DaoLucideIcons** (`dao_lucide_icons.{h,cc}`) — Unified Lucide icon set
 
 ### 1.8 Toast and Feedback
-- **DaoToastView** (`dao_toast_view.{h,cc}`) — Shared lightweight fade-in/fade-out toast for native browser feedback, including Copy URL, webpage Copy Image, QR decode failures, Control Center actions, and pinned-tab close confirmation. The pinned-tab message stays inside the Dao content area, is exposed as an accessibility alert, and preserves the existing per-tab repeat-to-close behavior. The Control Center Dark action remains clickable while system appearance is light and explains the system-dark requirement through this toast; callers retain action-specific localized text
+- **DaoToastView** (`dao_toast_view.{h,cc}`) — Shared lightweight fade-in/fade-out toast for native browser feedback, including Copy URL, Copy Image from webpages and the reading side panel, QR decode failures, Control Center actions, and pinned-tab close confirmation. The pinned-tab message stays inside the Dao content area, is exposed as an accessibility alert, and preserves the existing per-tab repeat-to-close behavior. The Control Center Dark action remains clickable while system appearance is light and explains the system-dark requirement through this toast; callers retain action-specific localized text
 
 ## 2. AI Agent System
 
@@ -757,7 +758,8 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
   row exists; and pruned or failed native queries are unavailable rather than
   falling back. Daily and weekly reports never add History foreground time to
   native foreground time for the same date, though a weekly report may mix
-  sources across different dates.
+  sources across different dates. Ongoing windows retain partial coverage up to
+  the query time, including when their end falls on a future local date.
 - **dao_dream_runner.ts** — resident agent WebUI executes the LLM
   summarization (user's configured provider) and returns structured
   one-minute recap data (summary, time-of-day rhythm, and up to three themes),

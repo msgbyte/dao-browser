@@ -18,8 +18,11 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/task/cancelable_task_tracker.h"
+#include "base/types/expected.h"
 #include "base/values.h"
+#include "components/password_manager/core/browser/password_store/password_store_backend_error.h"
 #include "components/password_manager/core/browser/password_store/password_store_consumer.h"
+#include "components/password_manager/core/browser/password_store/stored_credential.h"
 #include "components/sessions/core/session_id.h"
 #include "dao/browser/import/dao_migration_writer.h"
 
@@ -82,7 +85,9 @@ class DaoChromiumMigrationTarget
   // password_manager::PasswordStoreConsumer:
   void OnGetPasswordStoreResultsOrErrorFrom(
       password_manager::PasswordStoreInterface* store,
-      password_manager::LoginsResultOrError results_or_error) override;
+      base::expected<std::vector<password_manager::StoredCredential>,
+                     password_manager::PasswordStoreBackendError>
+          results_or_error) override;
 
   // Populates destination credential identities before password writes. The
   // service calls this with forms returned by PasswordStoreInterface.

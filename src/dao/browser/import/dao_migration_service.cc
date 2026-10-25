@@ -337,12 +337,13 @@ void DaoMigrationService::OnLegacyWritesFinished() {
 
 void DaoMigrationService::OnGetPasswordStoreResultsOrErrorFrom(
     password_manager::PasswordStoreInterface *,
-    password_manager::LoginsResultOrError results_or_error) {
+    base::expected<std::vector<password_manager::StoredCredential>,
+                   password_manager::PasswordStoreBackendError>
+        results_or_error) {
   passwords_ready_ = true;
-  if (std::holds_alternative<password_manager::LoginsResult>(
-          results_or_error)) {
+  if (results_or_error.has_value()) {
     for (const password_manager::StoredCredential &credential :
-         std::get<password_manager::LoginsResult>(results_or_error)) {
+         *results_or_error) {
       existing_passwords_[{credential.signon_realm,
                            credential.username_value}] =
           credential.password_value.value();

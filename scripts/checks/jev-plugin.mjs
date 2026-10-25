@@ -268,6 +268,12 @@ try {
   const formTarget = await until(async () => (await targets()).find(t => t.id === formId), 'form target');
   const formSend = await connect(formTarget.webSocketDebuggerUrl);
   await until(() => evaluate(formSend, `!!document.querySelector('input')`), 'form loaded');
+  const sidebar = (await targets()).find(target => target.url === 'dao://sidebar/');
+  assert(sidebar);
+  const sidebarSend = await connect(sidebar.webSocketDebuggerUrl);
+  const formTabId = await until(() => evaluate(sidebarSend,
+    `document.querySelector('dao-sidebar-app')?.unpinnedTabs_?.find(tab => tab.url === ${JSON.stringify(`${origin}/form`)})?.tabId`),
+  'form sidebar tab ID');
   await send('Target.activateTarget', {targetId: formId});
   const turn = await evaluate(agentSend, `window.jevBridge.callNative('beginAgentTurn')`);
   assert(turn.success, JSON.stringify(turn));
@@ -385,7 +391,7 @@ try {
     clientInfo: {name: 'Jev isolated integration', version: '1'}}).result;
   mcp.notify('notifications/initialized', {});
   const catalog = await mcp.call('tools/list', {}).result;
-  assert.equal(catalog.tools.length, 34);
+  assert.equal(catalog.tools.length, 43);
   assert(catalog.tools.some(tool => tool.name === 'run_browser_task'));
   const beforeDiscovery = requests;
   for (const selector of [enabled, permission]) {
@@ -393,7 +399,7 @@ try {
     await until(() => ui(`return !find('settings-dao-agent-page').agentPlugins_[0].effective;`), 'Jev disabled');
     const hidden = await mcp.call('tools/list', {}).result;
     assert(!hidden.tools.some(tool => tool.name === 'run_browser_task'), 'Disabled Jev is hidden from MCP discovery');
-    assert.equal(hidden.tools.length, 33);
+    assert.equal(hidden.tools.length, 42);
     await ui(`find('${selector}').click();`);
     await until(() => ui(`return find('settings-dao-agent-page').agentPlugins_[0].effective;`), 'Jev restored');
     assert((await mcp.call('tools/list', {}).result).tools.some(tool => tool.name === 'run_browser_task'));
@@ -405,6 +411,7 @@ try {
   assert.equal(requests, beforeDiscovery, 'Discovery and settings changes do not call Jev');
   mode = 'normal';
   const firstCall = mcp.call('tools/call', {name: 'run_browser_task', arguments: {...task,
+    tab_id: formTabId,
     reason: 'Test the local Jev form in an isolated browser profile'}});
   await approveIsolatedMcp();
   const external = await firstCall.result;
@@ -540,9 +547,17 @@ try {
   const beforeStop = disconnected;
   const stopped = runMcp();
   await until(() => pendingResponse, 'request before Stop control');
-  await evaluate(send, `chrome.send('stopDaoMcpControl', [])`);
+  const connectionId = await evaluate(send, `(async () => {
+    const {sendWithPromise} = await import('chrome://resources/js/cr.js');
+    const status = await sendWithPromise('getDaoMcpStatus');
+    return status.connections.find(connection =>
+      connection.clientName === 'Jev isolated integration')?.connectionId;
+  })()`);
+  assert(connectionId, 'The approved MCP connection must be visible in settings');
+  await evaluate(send, `chrome.send('stopDaoMcpControl', [${JSON.stringify(connectionId)}])`);
   const stoppedResult = await stopped.result;
   assert.equal(stoppedResult.isError, true);
+  assert.equal(stoppedResult.structuredContent.status, 'cancelled', JSON.stringify(stoppedResult));
   await until(() => disconnected > beforeStop, 'Stop control cancels network');
   pendingResponse.end(JSON.stringify(normalAnswer(pendingBody)));
   assert.equal(await evaluate(formSend, `document.querySelector('input').value`), '');

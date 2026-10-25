@@ -110,6 +110,9 @@ class DaoAgentUIHandler : public content::WebUIMessageHandler,
   DaoAgentUIHandler();
   ~DaoAgentUIHandler() override;
 
+  void HoldNextCursorMoveForTesting(
+      base::OnceCallback<void(base::OnceCallback<void(bool)>)> callback);
+
   // content::WebUIMessageHandler:
   void RegisterMessages() override;
   void OnJavascriptDisallowed() override;
@@ -355,6 +358,8 @@ class DaoAgentUIHandler : public content::WebUIMessageHandler,
 
   std::unique_ptr<DaoDevToolsClient> devtools_client_;
   std::unique_ptr<DaoBrowserToolExecutor> browser_tool_executor_;
+  base::OnceCallback<void(base::OnceCallback<void(bool)>)>
+      cursor_move_callback_for_testing_;
   // Scopes cancellation of this UI's calls into Agent Spaces.
   const std::string space_client_key_;
   bool space_consent_granted_ = false;
@@ -582,6 +587,11 @@ class DaoAgentUI : public content::WebUIController {
  public:
   explicit DaoAgentUI(content::WebUI* web_ui);
   ~DaoAgentUI() override;
+
+  DaoAgentUIHandler* handler_for_testing() { return handler_; }
+
+ private:
+  raw_ptr<DaoAgentUIHandler> handler_ = nullptr;
 };
 
 // WebUI config for chrome://skills (standalone skill manager page)

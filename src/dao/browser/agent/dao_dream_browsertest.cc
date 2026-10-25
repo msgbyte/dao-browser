@@ -24,11 +24,13 @@
 #include "base/test/simple_test_clock.h"
 #include "base/test/simple_test_tick_clock.h"
 #include "base/time/time.h"
+#include "base/time/time_override.h"
 #include "base/values.h"
 #include "chrome/browser/history/history_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/history/core/browser/history_service.h"
@@ -51,6 +53,8 @@
 #include "dao/browser/dao_pref_names.h"
 #include "dao/browser/ui/webui/dao_agent_ui.h"
 #include "net/dns/mock_host_resolver.h"
+#include "ui/views/test/mock_activation_controller.h"
+#include "ui/views/widget/widget.h"
 #include "url/gurl.h"
 
 namespace dao {
@@ -438,6 +442,14 @@ class DaoDreamBrowserTest : public InProcessBrowserTest {
     foreground_tick_clock_.SetNowTicks(base::TimeTicks() + base::Hours(1));
   }
 
+  void SetUp() override {
+#if defined(USE_MOCK_ACTIVATION_CONTROLLER)
+    activation_controller_ =
+        std::make_unique<views::test::MockActivationController>();
+#endif
+    InProcessBrowserTest::SetUp();
+  }
+
  protected:
   void SetUpBrowserContextKeyedServices(
       content::BrowserContext* context) override {
@@ -462,6 +474,13 @@ class DaoDreamBrowserTest : public InProcessBrowserTest {
     PrefService* pref_service = browser()->GetProfile()->GetPrefs();
     pref_service->SetBoolean(prefs::kDaoAgentMemoryEnabled, true);
     pref_service->SetBoolean(prefs::kDaoDreamEnabled, true);
+  }
+
+  void TearDownOnMainThread() override {
+#if defined(USE_MOCK_ACTIVATION_CONTROLLER)
+    activation_controller_.reset();
+#endif
+    InProcessBrowserTest::TearDownOnMainThread();
   }
 
   DaoDreamService* dream_service() {
@@ -495,8 +514,20 @@ class DaoDreamBrowserTest : public InProcessBrowserTest {
   }
 
  private:
+  // Keep calendar fixtures within History's retention window while time advances.
+  base::subtle::ScopedTimeClockOverrides wall_clock_override_{
+      [] {
+        static const base::TimeDelta offset =
+            LocalTime(2026, 7, 28, 12, 0) -
+            base::subtle::TimeNowIgnoringOverride();
+        return base::subtle::TimeNowIgnoringOverride() + offset;
+      },
+      /*time_ticks_override=*/nullptr, /*thread_ticks_override=*/nullptr};
   base::SimpleTestClock foreground_clock_;
   base::SimpleTestTickClock foreground_tick_clock_;
+#if defined(USE_MOCK_ACTIVATION_CONTROLLER)
+  std::unique_ptr<views::test::MockActivationController> activation_controller_;
+#endif
 };
 
 IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest, ServiceGatedByPrefs) {
@@ -508,9 +539,14 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest, ServiceGatedByPrefs) {
 IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
                        NativeForegroundReplacesHistoryOnOverlappingDate) {
   ASSERT_TRUE(ForegroundSnapshot().available);
+  BrowserView::GetBrowserViewForBrowser(browser())->GetWidget()->Activate();
+  ui_test_utils::WaitUntilBrowserBecomeActive(browser());
   const GURL url =
-      embedded_test_server()->GetURL("native-replace.example", "/title1.html");
+      embedded_test_server()->GetURL("native-replace.example", "/title2.html");
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+  ASSERT_EQ(url, browser()->tab_strip_model()
+                     ->GetActiveWebContents()
+                     ->GetLastCommittedURL());
   AdvanceForeground(base::Seconds(12));
   foreground_service()->CheckpointForTesting();
   const DaoForegroundActivitySnapshot snapshot = ForegroundSnapshot();
@@ -606,20 +642,20 @@ IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
 IN_PROC_BROWSER_TEST_F(DaoDreamBrowserTest,
                        NativeForegroundExclusionPrecedesRecomputation) {
   DaoForegroundActivityRow included;
-  included.host = "included.example";
+  included.host = "included.example.com";
   included.foreground_ms = 4000;
   included.bucket = DaoForegroundActivityBucket::kMorning;
   DaoForegroundActivityRow excluded = included;
-  excluded.host = "blocked.example";
+  excluded.host = "blocked.example.com";
   excluded.foreground_ms = 9000;
 
   const std::optional<DreamForegroundActivitySummary> summary =
       SummarizeDreamForegroundActivity({included, excluded},
-                                       {"blocked.example"});
+                                       {"blocked.example.com"});
   ASSERT_TRUE(summary.has_value());
   EXPECT_EQ(4000, summary->total_foreground_ms);
   EXPECT_EQ(1u, summary->foreground_ms_by_host.size());
-  EXPECT_FALSE(summary->foreground_ms_by_host.contains("blocked.example"));
+  EXPECT_FALSE(summary->foreground_ms_by_host.contains("blocked.example.com"));
   EXPECT_EQ(4000, summary->foreground_ms_by_bucket[0]);
 }
 

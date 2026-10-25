@@ -317,6 +317,7 @@ IN_PROC_BROWSER_TEST_F(DaoAgentSpaceBrowserTest,
   ASSERT_FALSE(opened.error) << opened.error->message;
   EXPECT_EQ(2, Space(space_id)->GetTabCount());
   EXPECT_EQ(user_tabs, TabListInterface::From(browser())->GetTabCount());
+  ASSERT_TRUE(WaitForLoad(space_id));
 
   // A popup from a page in the space opens as a tab of the same hidden window.
   // Pages open popups from a click, which carries a user gesture.

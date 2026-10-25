@@ -14,12 +14,14 @@
 #include "base/test/scoped_path_override.h"
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/base/resource/scoped_startup_resource_bundle.h"
 
 namespace dao::import {
 namespace {
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
 TEST(DaoSourceDetectorTest, DetectsProfilesFromDefaultPlatformRoots) {
+  ui::ScopedStartupResourceBundle resource_bundle;
   base::ScopedTempDir app_data;
   ASSERT_TRUE(app_data.CreateUniqueTempDir());
 #if BUILDFLAG(IS_WIN)
@@ -50,9 +52,9 @@ TEST(DaoSourceDetectorTest, DetectsProfilesFromDefaultPlatformRoots) {
   EXPECT_EQ(SourceKind::kArc, result.profiles[1].kind);
   EXPECT_EQ(SourceKind::kEdge, result.profiles[2].kind);
   for (size_t index = 0; index < result.profiles.size(); ++index) {
-    EXPECT_EQ(app_data.GetPath()
-                  .AppendASCII(roots[index])
-                  .AppendASCII("Default")
+    EXPECT_EQ(base::MakeAbsoluteFilePath(app_data.GetPath()
+                                            .AppendASCII(roots[index])
+                                            .AppendASCII("Default"))
                   .NormalizePathSeparators(),
               result.profile_paths.at(result.profiles[index].id)
                   .NormalizePathSeparators());

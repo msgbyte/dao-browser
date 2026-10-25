@@ -232,11 +232,12 @@ DreamForegroundRangePolicy ResolveDreamForegroundWindowPolicy(
     const DaoForegroundActivitySnapshot& snapshot,
     base::Time query_time) {
   if (window_start.is_null() || window_end <= window_start ||
-      query_time.is_null()) {
+      query_time.is_null() || query_time <= window_start) {
     return DreamForegroundRangePolicy();
   }
+  const base::Time covered_end = std::min(window_end, query_time);
   DreamForegroundRangePolicy result = ResolveDreamForegroundRangePolicy(
-      LocalDate(window_start), LocalDate(window_end - base::Microseconds(1)),
+      LocalDate(window_start), LocalDate(covered_end - base::Microseconds(1)),
       snapshot, query_time);
   if (result.coverage == DreamForegroundCoverage::kUnavailable ||
       snapshot.tracking_started_at.is_null()) {
@@ -245,7 +246,6 @@ DreamForegroundRangePolicy ResolveDreamForegroundWindowPolicy(
   }
   const base::Time covered_start =
       std::max(window_start, snapshot.tracking_started_at);
-  const base::Time covered_end = std::min(window_end, query_time);
   result.coverage_seconds = covered_end > covered_start
                                 ? (covered_end - covered_start).InSeconds()
                                 : 0;

@@ -757,21 +757,27 @@ class FakeApprovalDelegate : public DaoMcpApprovalDelegate {
 class AllowDuringCancelApprovalDelegate : public DaoMcpApprovalDelegate {
  public:
   bool has_pending_request() const { return !callback_.is_null(); }
+  size_t request_count() const { return request_count_; }
+  size_t cancelled_request_count() const { return cancelled_request_count_; }
 
   void RequestApproval(const DaoMcpApprovalRequest&,
                        BrowserWindowInterface*,
                        std::string_view,
                        base::OnceCallback<void(bool)> callback) override {
+    ++request_count_;
     callback_ = std::move(callback);
   }
 
   void CancelApproval(std::string_view) override {
     if (callback_) {
+      ++cancelled_request_count_;
       std::move(callback_).Run(true);
     }
   }
 
  private:
+  size_t request_count_ = 0;
+  size_t cancelled_request_count_ = 0;
   base::OnceCallback<void(bool)> callback_;
 };
 
@@ -902,13 +908,14 @@ class DaoMcpServiceBrowserTest : public InProcessBrowserTest {
   void ApproveFirstToolCall(TestMcpClient* client,
                             FakeApprovalDelegate* approval,
                             std::string request_id = "authorize-control") {
+    const size_t expected = approval->request_count() + 1;
     ASSERT_TRUE(client->Send(ToolCall(
         std::move(request_id), "get_page_info",
         base::DictValue().Set(
             "tab_id",
             GetOrCreateSidebarTabId(
                 browser()->tab_strip_model()->GetActiveWebContents())))));
-    WaitForApprovalRequestCount(approval, approval->request_count() + 1);
+    ASSERT_NO_FATAL_FAILURE(WaitForApprovalRequestCount(approval, expected));
     approval->Resolve(true);
     std::optional<base::DictValue> response = client->Read();
     ASSERT_TRUE(response);
@@ -917,8 +924,9 @@ class DaoMcpServiceBrowserTest : public InProcessBrowserTest {
   }
 
   void ApproveWindow(TestMcpClient* client, FakeApprovalDelegate* approval) {
+    const size_t expected = approval->request_count() + 1;
     ASSERT_TRUE(client->Send(ToolCall("authorize-window", "list_tabs")));
-    WaitForApprovalRequestCount(approval, approval->request_count() + 1);
+    ASSERT_NO_FATAL_FAILURE(WaitForApprovalRequestCount(approval, expected));
     approval->Resolve(true);
     auto response = client->Read();
     ASSERT_TRUE(response);
@@ -1114,8 +1122,13 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
   WaitForApprovalRequestCount(&approval, 1);
   approval.Resolve(true);
   ASSERT_TRUE(client->Read());
-  ApprovePage(client.get(), &approval,
-              browser()->tab_strip_model()->GetActiveWebContents());
+  // Space approval grants neither a user window nor any existing page.
+  ASSERT_NO_FATAL_FAILURE(ApproveWindow(client.get(), &approval));
+  EXPECT_EQ(2u, approval.request_count());
+  EXPECT_FALSE(approval.request().background_space);
+  ASSERT_NO_FATAL_FAILURE(
+      ApprovePage(client.get(), &approval,
+                  browser()->tab_strip_model()->GetActiveWebContents()));
   EXPECT_EQ(1u, approval.page_request_count());
 
   auto other = ConnectClient();
@@ -1124,14 +1137,14 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
   ASSERT_TRUE(other->Send(std::move(hello)));
   ASSERT_TRUE(other->Read());
   ASSERT_TRUE(other->Send(ToolCall("different-name", "list_spaces")));
-  WaitForApprovalRequestCount(&approval, 2);
+  WaitForApprovalRequestCount(&approval, 3);
   approval.Resolve(false);
   ASSERT_TRUE(other->Read());
 
   ProfileManager* profile_manager = g_browser_process->profile_manager();
   Profile& secondary = profiles::testing::CreateProfileSync(
       profile_manager, profile_manager->GenerateNextProfileDirectoryPath());
-  Browser* secondary_browser = CreateBrowser(&secondary);
+  BrowserWindowInterface* secondary_browser = CreateBrowser(&secondary);
   secondary_browser->GetWindow()->Show();
   ui_test_utils::WaitForBrowserSetLastActive(secondary_browser);
   auto different_profile = ConnectClient();
@@ -1139,7 +1152,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
   ASSERT_TRUE(different_profile->Read());
   ASSERT_TRUE(different_profile->Send(
       ToolCall("different-profile", "list_spaces")));
-  WaitForApprovalRequestCount(&approval, 3);
+  WaitForApprovalRequestCount(&approval, 4);
   EXPECT_EQ(secondary_browser, approval.browser());
   approval.Resolve(false);
   ASSERT_TRUE(different_profile->Read());
@@ -1147,7 +1160,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
   // Renewing an existing connection keeps its original profile.
   clock.Advance(base::Hours(1));
   ASSERT_TRUE(client->Send(ToolCall("renew-original-profile", "list_spaces")));
-  WaitForApprovalRequestCount(&approval, 4);
+  WaitForApprovalRequestCount(&approval, 5);
   EXPECT_EQ(browser(), approval.browser());
   approval.Resolve(false);
   ASSERT_TRUE(client->Read());
@@ -1609,9 +1622,10 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
       ToolCall("call-invalid", "execute_script", base::DictValue())));
   std::optional<base::DictValue> invalid_response = client->Read();
   ASSERT_TRUE(invalid_response);
-  const base::DictValue* invalid_result = invalid_response->FindDict("result");
-  ASSERT_TRUE(invalid_result);
-  EXPECT_FALSE(invalid_result->FindBool("ok").value_or(true));
+  ASSERT_TRUE(invalid_response->FindStringByDottedPath("error.code"));
+  EXPECT_EQ("INVALID_ARGUMENT",
+            *invalid_response->FindStringByDottedPath("error.code"));
+  EXPECT_FALSE(invalid_response->contains("result"));
   EXPECT_EQ(1.0, BuildDaoMcpUsageStats(profile_prefs)
                      .FindDouble("totalCalls")
                      .value_or(-1.0));
@@ -1878,7 +1892,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpControlBannerTest,
   ASSERT_NE(nullptr, indicator);
   EXPECT_FALSE(indicator->GetVisible());
 
-  ApproveWindow(client.get(), &approval);
+  ASSERT_NO_FATAL_FAILURE(ApproveWindow(client.get(), &approval));
   ASSERT_TRUE(service_->HasWindowPermission(browser()));
   EXPECT_FALSE(indicator->GetVisible());
   ClickButton(indicator);
@@ -1886,7 +1900,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpControlBannerTest,
 
   TabStripModel* tabs = browser()->tab_strip_model();
   content::WebContents* target = tabs->GetActiveWebContents();
-  ApprovePage(client.get(), &approval, target);
+  ASSERT_NO_FATAL_FAILURE(ApprovePage(client.get(), &approval, target));
   ASSERT_TRUE(indicator->GetVisible());
   ClickButton(indicator);
   ASSERT_NE(nullptr, address_bar->mcp_control_popup_for_testing());
@@ -2208,8 +2222,9 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
   ASSERT_TRUE(rejected->Read());
   ASSERT_TRUE(rejected->Send(ToolCall(
       "call-reentrant", "execute_script",
-      base::DictValue().Set(
-          "code", "globalThis.reentrantApprovalExecuted = true; true"))));
+      base::DictValue()
+          .Set("tab_id", GetOrCreateSidebarTabId(contents))
+          .Set("code", "globalThis.reentrantApprovalExecuted = true; true"))));
 
   std::optional<base::DictValue> response = rejected->Read();
   ASSERT_TRUE(response);
@@ -2218,6 +2233,10 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
   ASSERT_TRUE(error);
   EXPECT_EQ("AUTHORIZATION_TIMEOUT", *error->FindString("code"));
   WaitUntilListeningWithoutClient();
+  EXPECT_EQ(1u, approval.request_count());
+  EXPECT_EQ(1u, approval.cancelled_request_count());
+  EXPECT_FALSE(approval.has_pending_request());
+  EXPECT_FALSE(service_->IsTargetControlled(contents));
   EXPECT_EQ(false,
             content::EvalJs(contents, "globalThis.reentrantApprovalExecuted"));
 }
@@ -2429,7 +2448,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
   ASSERT_TRUE(approved);
   ASSERT_TRUE(approved->Send(HelloRequest(nonce())));
   ASSERT_TRUE(approved->Read());
-  ApproveFirstToolCall(approved.get(), &approval);
+  ASSERT_NO_FATAL_FAILURE(ApproveFirstToolCall(approved.get(), &approval));
   EXPECT_EQ(1u, service_->GetControlledTargetCount());
 
   // Fill the remaining slots with clients blocked on approval. Never-approved
@@ -2786,7 +2805,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
   ASSERT_TRUE(client);
   ASSERT_TRUE(client->Send(HelloRequest(nonce())));
   ASSERT_TRUE(client->Read());
-  ApproveFirstToolCall(client.get(), &approval);
+  ASSERT_NO_FATAL_FAILURE(ApproveFirstToolCall(client.get(), &approval));
 
   base::RunLoop disconnected;
   base::CallbackListSubscription subscription =
@@ -2914,12 +2933,14 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
   ASSERT_TRUE(client);
   ASSERT_TRUE(client->Send(HelloRequest(nonce())));
   ASSERT_TRUE(client->Read());
-  ApproveWindow(client.get(), &approval);
+  ASSERT_NO_FATAL_FAILURE(ApproveWindow(client.get(), &approval));
   content::WebContents* first =
       browser()->tab_strip_model()->GetActiveWebContents();
   chrome::AddTabAt(browser(), GURL("about:blank"), -1, true);
   content::WebContents* second =
       browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(content::WaitForLoadStop(second));
+  ASSERT_EQ(GURL("about:blank"), second->GetLastCommittedURL());
   SetSidebarTabId(first, "duplicate-tab");
   SetSidebarTabId(second, "duplicate-tab");
 
@@ -3133,6 +3154,13 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
     ASSERT_TRUE(opened->FindBoolByDottedPath("result.ok").value_or(false));
   }
   ASSERT_EQ(3, tabs->count());
+
+  // Newly opened tabs are listed only after their committed URL is eligible.
+  for (int index = 0; index < tabs->count(); ++index) {
+    ASSERT_TRUE(content::WaitForLoadStop(tabs->GetWebContentsAt(index)));
+  }
+  EXPECT_EQ(2u, service_->GetControlledTargetCount());
+  EXPECT_FALSE(service_->IsTargetControlled(existing));
 
   ASSERT_TRUE(client->Send(ToolCall("list", "list_tabs")));
   auto response = client->Read();
@@ -3380,8 +3408,13 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
   auto response = client->Read();
   ASSERT_TRUE(response);
   ASSERT_TRUE(response->FindStringByDottedPath("error.code"));
-  EXPECT_EQ("TARGET_GONE", *response->FindStringByDottedPath("error.code"));
+  // The initial approval cannot grant a page that disappeared while pending.
+  EXPECT_EQ("AUTHORIZATION_DENIED",
+            *response->FindStringByDottedPath("error.code"));
+  EXPECT_FALSE(response->FindDict("result"));
   WaitUntilListeningWithoutClient();
+  EXPECT_EQ(0u, service_->GetControlledTargetCount());
+  EXPECT_EQ(nullptr, service_->GetAuthorizedTarget());
   EXPECT_FALSE(service_->IsTargetControlled(keeper));
 }
 
@@ -3405,10 +3438,14 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
     auto response = client->Read();
     ASSERT_TRUE(response);
     ASSERT_TRUE(response->FindStringByDottedPath("error.code"));
-    EXPECT_EQ(id.is_string() && !id.GetString().empty() ? "TARGET_GONE"
+    // An unknown ID has no eligible window for initial approval.
+    EXPECT_EQ(id.is_string() && !id.GetString().empty() ? "TARGET_FORBIDDEN"
                                                       : "INVALID_ARGUMENT",
               *response->FindStringByDottedPath("error.code"));
+    EXPECT_FALSE(response->FindDict("result"));
     EXPECT_EQ(0u, approval.request_count());
+    EXPECT_EQ(0u, service_->GetControlledTargetCount());
+    EXPECT_EQ(nullptr, service_->GetAuthorizedTarget());
   }
 
   BrowserWindowInterface* other = CreateBrowser(browser()->GetProfile());
@@ -3436,6 +3473,9 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
   ASSERT_TRUE(response->FindStringByDottedPath("error.code"));
   EXPECT_EQ("TARGET_FORBIDDEN", *response->FindStringByDottedPath("error.code"));
   EXPECT_EQ(0u, approval.request_count());
+  EXPECT_EQ(0u, approval.page_request_count());
+  EXPECT_EQ(0u, service_->GetControlledTargetCount());
+  EXPECT_EQ(nullptr, service_->GetAuthorizedTarget());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,

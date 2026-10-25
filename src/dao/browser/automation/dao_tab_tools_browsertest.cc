@@ -423,6 +423,8 @@ IN_PROC_BROWSER_TEST_F(DaoMcpTabToolsBrowserTest,
   content::WebContents* first = tabs()->GetActiveTab()->GetContents();
   OpenTab(browser(), second_url());
   tabs::TabInterface* third = OpenTab(browser(), third_url());
+  tabs()->MoveTab(tabs::TabInterface::GetFromContents(first)->GetHandle(), 0);
+  ASSERT_EQ(2, tabs()->GetIndexOfTab(third->GetHandle()));
   auto session = MakeSession(browser(), first);
   GrantTabs(session.get(), {first, third->GetContents()});
 
@@ -433,6 +435,12 @@ IN_PROC_BROWSER_TEST_F(DaoMcpTabToolsBrowserTest,
   ASSERT_EQ(2u, listed_tabs->size());
   EXPECT_EQ(0, (*listed_tabs)[0].GetDict().FindInt("index").value_or(-1));
   EXPECT_EQ(1, (*listed_tabs)[1].GetDict().FindInt("index").value_or(-1));
+  ASSERT_TRUE((*listed_tabs)[0].GetDict().FindString("tab_id"));
+  ASSERT_TRUE((*listed_tabs)[1].GetDict().FindString("tab_id"));
+  EXPECT_EQ(GetOrCreateSidebarTabId(first),
+            *(*listed_tabs)[0].GetDict().FindString("tab_id"));
+  EXPECT_EQ(GetOrCreateSidebarTabId(third->GetContents()),
+            *(*listed_tabs)[1].GetDict().FindString("tab_id"));
 
   DaoBrowserToolResult switched = Execute(
       session.get(), "switch_tab",
@@ -1019,7 +1027,8 @@ IN_PROC_BROWSER_TEST_F(DaoMcpTabToolsBrowserTest,
   tabs::TabInterface* closing_tab = tabs()->GetActiveTab();
   ASSERT_NE(nullptr, closing_tab);
   content::WebContents* closing_contents = closing_tab->GetContents();
-  OpenTab(browser(), second_url());
+  const std::string closing_tab_id = GetOrCreateSidebarTabId(closing_contents);
+  tabs::TabInterface* replacement = OpenTab(browser(), second_url());
   auto session = MakeSession(browser(), closing_contents);
   base::WeakPtr<content::WebContents> closing_weak =
       closing_contents->GetWeakPtr();
@@ -1042,7 +1051,17 @@ IN_PROC_BROWSER_TEST_F(DaoMcpTabToolsBrowserTest,
   EXPECT_EQ(1, callback_count);
   EXPECT_FALSE(closing_weak);
   EXPECT_FALSE(session->ResolveTarget().has_value());
-  EXPECT_FALSE(result.target.has_value());
+  // The async close completes before destruction, so the executor reports the
+  // closed page's metadata. The MCP service removes it from the wire response.
+  ASSERT_TRUE(result.target.has_value());
+  EXPECT_EQ(closing_tab_id, result.target->tab_id);
+  EXPECT_EQ(embedded_test_server()->GetURL("/beforeunload.html").spec(),
+            result.target->url);
+  EXPECT_FALSE(session->CanAccessTab(replacement->GetContents()));
+  DaoBrowserToolResult page = Execute(session.get(), "get_page_info");
+  ASSERT_FALSE(page.ok);
+  ASSERT_TRUE(page.error.has_value());
+  EXPECT_EQ(DaoToolErrorCode::kTargetGone, page.error->code);
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpTabToolsBrowserTest,

@@ -81,7 +81,7 @@ diff --git a/chrome/browser/renderer_context_menu/render_view_context_menu.cc b/
    }
  #endif
  }
-@@ -6118,3 +6134,51 @@
+@@ -6118,3 +6134,57 @@
    }
    return replacement->GetReplacementImageURL();
  }
@@ -128,6 +128,12 @@ diff --git a/chrome/browser/renderer_context_menu/render_view_context_menu.cc b/
 +  }
 +  BrowserView* browser_view = BrowserView::GetBrowserViewForNativeWindow(
 +      source_web_contents_->GetTopLevelNativeWindow());
++  if (!browser_view) {
++    if (auto* browser =
++            webui::GetBrowserWindowInterface(embedder_web_contents_)) {
++      browser_view = BrowserView::GetBrowserViewForBrowser(browser);
++    }
++  }
 +  if (!browser_view || !browser_view->dao_toast()) {
 +    return;
 +  }

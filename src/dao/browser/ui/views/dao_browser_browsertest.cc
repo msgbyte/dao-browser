@@ -230,6 +230,7 @@
 #include "ui/events/test/event_generator.h"
 #include "ui/gfx/animation/animation.h"
 #include "ui/gfx/canvas.h"
+#include "ui/gfx/test/sk_color_eq.h"
 #include "ui/gfx/geometry/point_f.h"
 #include "ui/gfx/image/image.h"
 #include "ui/gfx/image/image_skia_rep.h"
@@ -1805,16 +1806,24 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
         return null;
       };
 
+      const custom =
+          findInShadowTree(document, '#staleTabExpirationCustom');
+      if (!custom) {
+        return false;
+      }
+      custom.click();
+      await new Promise(requestAnimationFrame);
+
       const input =
           findInShadowTree(document, '#staleTabExpirationHours');
-      const unit = input?.querySelector('[slot="inline-suffix"]');
-      const nativeInput = input?.shadowRoot?.querySelector('#input');
-      if (!unit || !nativeInput) {
+      const unit =
+          input?.parentElement?.querySelector('.dao-stale-tab-expiration-unit');
+      if (!unit || !input) {
         return false;
       }
 
       const unitRect = unit.getBoundingClientRect();
-      const inputRect = nativeInput.getBoundingClientRect();
+      const inputRect = input.getBoundingClientRect();
       return unitRect.top < inputRect.bottom &&
           unitRect.bottom > inputRect.top;
     })()
@@ -3551,6 +3560,19 @@ IN_PROC_BROWSER_TEST_F(DaoAddressBarBrowserTest,
 
 class DaoCommandBarBrowserTest : public InProcessBrowserTest {
  protected:
+  bool EnterCommandBarText(DaoCommandBarView* command_bar,
+                           const std::u16string& text) {
+    auto* textfield = FindDescendantViewOfClass<views::Textfield>(command_bar);
+    // Showing the bar posts its focus request; key events need the real field.
+    if (!textfield ||
+        !base::test::RunUntil([&] { return textfield->HasFocus(); })) {
+      return false;
+    }
+    textfield->SelectAll(false);
+    textfield->InsertOrReplaceText(text);
+    return command_bar->GetUserInputTextForTesting() == text;
+  }
+
   bool LoadAgentWebUI() {
     agent_sidebar_ = GetBrowserView(browser())->dao_agent_sidebar();
     if (!agent_sidebar_) {
@@ -4759,12 +4781,28 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
   match.fill_into_edit = u"https://github.com";
   command_bar->SetAutocompleteMatchesForTesting(ACMatches{match});
   EXPECT_EQ(0, command_bar->GetSelectedIndexForTesting());
+  EXPECT_TRUE(command_bar->IsSelectionPreviewActiveForTesting());
   EXPECT_EQ(u"https://github.com", textfield->GetText());
   EXPECT_EQ(gfx::Range(18), textfield->GetSelectedRange());
 
   match.fill_into_edit.clear();
   command_bar->SetAutocompleteMatchesForTesting(ACMatches{match});
   EXPECT_EQ(0, command_bar->GetSelectedIndexForTesting());
+  EXPECT_EQ(u"git", textfield->GetText());
+  EXPECT_EQ(gfx::Range(3), textfield->GetSelectedRange());
+
+  // Without a destination, completion text must still identify the result.
+  match.destination_url = GURL();
+  match.fill_into_edit = u"github.com";
+  command_bar->SetAutocompleteMatchesForTesting(ACMatches{match});
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_DOWN);
+  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_UP);
+  ASSERT_TRUE(command_bar->IsSelectionPreviewActiveForTesting());
+  ASSERT_EQ(u"github.com", textfield->GetText());
+
+  match.fill_into_edit = u"gitlab.com";
+  command_bar->SetAutocompleteMatchesForTesting(ACMatches{match});
+  EXPECT_FALSE(command_bar->IsSelectionPreviewActiveForTesting());
   EXPECT_EQ(u"git", textfield->GetText());
   EXPECT_EQ(gfx::Range(3), textfield->GetSelectedRange());
 }
@@ -5595,17 +5633,18 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
   const int initial_tabs = browser()->tab_strip_model()->count();
 
   command_bar->ShowForNewTab();
-  command_bar->ContentsChanged(nullptr, u"> sett");
+  ASSERT_TRUE(EnterCommandBarText(command_bar, u"> sett"));
   SendDialogKey(widget, ui::VKEY_TAB);
   EXPECT_TRUE(command_bar->GetVisible());
   EXPECT_EQ(u"> Open Settings", command_bar->GetUserInputTextForTesting());
   EXPECT_EQ(initial_tabs, browser()->tab_strip_model()->count());
 
-  command_bar->ContentsChanged(nullptr, u"> task m");
+  ASSERT_TRUE(EnterCommandBarText(command_bar, u"> task m"));
   SendDialogKey(widget, ui::VKEY_RIGHT);
   EXPECT_TRUE(command_bar->GetVisible());
   EXPECT_EQ(u"> Open Task Manager", command_bar->GetUserInputTextForTesting());
   EXPECT_EQ(initial_tabs, browser()->tab_strip_model()->count());
+  EXPECT_EQ(nullptr, task_manager::TaskManagerView::GetInstanceForTests());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
@@ -5720,7 +5759,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
   auto* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
   command_bar->ShowForNewTab();
-  command_bar->ContentsChanged(nullptr, u"> reopen tab");
+  ASSERT_TRUE(EnterCommandBarText(command_bar, u"> reopen tab"));
   const std::u16string title =
       gfx::RemoveAccelerator(l10n_util::GetStringUTF16(IDS_REOPEN_WINDOW));
   ASSERT_EQ(title, command_bar->GetVisibleSuggestionTitleForTesting(0));
@@ -5762,7 +5801,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
   auto* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
   command_bar->ShowForNewTab();
-  command_bar->ContentsChanged(nullptr, u"> reopen tab");
+  ASSERT_TRUE(EnterCommandBarText(command_bar, u"> reopen tab"));
   const std::u16string title =
       gfx::RemoveAccelerator(l10n_util::GetStringUTF16(IDS_REOPEN_GROUP));
   ASSERT_EQ(title, command_bar->GetVisibleSuggestionTitleForTesting(0));
@@ -5809,7 +5848,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
   auto* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
   command_bar->ShowForNewTab();
-  command_bar->ContentsChanged(nullptr, u"> reopen tab");
+  ASSERT_TRUE(EnterCommandBarText(command_bar, u"> reopen tab"));
   ASSERT_EQ(1, command_bar->GetVisibleSuggestionCountForTesting());
   ASSERT_FALSE(command_bar->IsVisibleSuggestionEnabledForTesting(0));
   SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_DOWN);
@@ -5818,6 +5857,12 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
                        SystemCommandExecutionDoesNotCreateExtraTab) {
+  // Settings reuses an empty tab; the first-run welcome page is not empty.
+  browser()->GetProfile()->GetPrefs()->SetBoolean(dao::prefs::kDaoWelcomeShown,
+                                               true);
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL(url::kAboutBlankURL)));
+  content::WebContents* original =
+      browser()->tab_strip_model()->GetActiveWebContents();
   auto* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
   const int initial_tabs = browser()->tab_strip_model()->count();
@@ -5843,8 +5888,9 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 
   EXPECT_EQ(initial_tabs, browser()->tab_strip_model()->count());
   EXPECT_FALSE(command_bar->GetVisible());
-  EXPECT_EQ(GURL("chrome://settings/"),
-            browser()->tab_strip_model()->GetActiveWebContents()->GetURL());
+  EXPECT_EQ(original, browser()->tab_strip_model()->GetActiveWebContents());
+  ASSERT_TRUE(content::WaitForLoadStop(original));
+  EXPECT_EQ(GURL("dao://settings/"), original->GetURL());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
@@ -5860,16 +5906,23 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
   content::WebContents* original = tab_strip->GetActiveWebContents();
   chrome::AddTabAt(browser(), GURL("data:text/html,other"), -1, true);
   const int other_index = tab_strip->active_index();
+  ASSERT_TRUE(content::WaitForLoadStop(tab_strip->GetActiveWebContents()));
   tab_strip->ActivateTabAt(tab_strip->GetIndexOfWebContents(original));
 
   command_bar->Show();
+  ASSERT_TRUE(EnterCommandBarText(command_bar, u"> copy link"));
+  auto* textfield = FindDescendantViewOfClass<views::Textfield>(command_bar);
+  ASSERT_NE(nullptr, textfield);
   tab_strip->ActivateTabAt(other_index);
-  command_bar->ContentsChanged(nullptr, u"> copy link");
-  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_RETURN);
+  // Tab activation moves focus; exercise the command's captured target.
+  const ui::KeyEvent enter(ui::EventType::kKeyPressed, ui::VKEY_RETURN,
+                           ui::EF_NONE);
+  ASSERT_TRUE(command_bar->HandleKeyEvent(textfield, enter));
   EXPECT_EQ(u"data:text/html,original",
             ui::clipboard_test_util::ReadText(
                 ui::Clipboard::GetForCurrentThread(),
                 ui::ClipboardBuffer::kCopyPaste, nullptr));
+  base::RunLoop().RunUntilIdle();
 
   {
     ui::ScopedClipboardWriter writer(ui::ClipboardBuffer::kCopyPaste);
@@ -5877,7 +5930,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
   }
   tab_strip->ActivateTabAt(tab_strip->GetIndexOfWebContents(original));
   command_bar->Show();
-  command_bar->ContentsChanged(nullptr, u"> copy link");
+  ASSERT_TRUE(EnterCommandBarText(command_bar, u"> copy link"));
   ASSERT_TRUE(command_bar->IsSelectedCommandForTesting());
   tab_strip->CloseWebContentsAt(tab_strip->GetIndexOfWebContents(original),
                                 TabCloseTypes::CLOSE_NONE);
@@ -5889,7 +5942,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
                        IDS_DAO_COMMAND_COPY_CURRENT_LINK_UNAVAILABLE)));
   command_bar->SetAutocompleteMatchesForTesting(ACMatches{});
   EXPECT_EQ(-1, command_bar->GetSelectedIndexForTesting());
-  SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_RETURN);
+  ASSERT_TRUE(command_bar->HandleKeyEvent(textfield, enter));
   EXPECT_EQ(u"unchanged", ui::clipboard_test_util::ReadText(
                               ui::Clipboard::GetForCurrentThread(),
                               ui::ClipboardBuffer::kCopyPaste, nullptr));
@@ -5903,7 +5956,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
   ASSERT_NE(nullptr, command_bar);
   ASSERT_EQ(nullptr, task_manager::TaskManagerView::GetInstanceForTests());
   command_bar->ShowForNewTab();
-  command_bar->ContentsChanged(nullptr, u"> task manager");
+  ASSERT_TRUE(EnterCommandBarText(command_bar, u"> task manager"));
   SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_RETURN);
   task_manager::TaskManagerView* first_view =
       task_manager::TaskManagerView::GetInstanceForTests();
@@ -5911,7 +5964,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
   EXPECT_FALSE(command_bar->GetVisible());
 
   command_bar->ShowForNewTab();
-  command_bar->ContentsChanged(nullptr, u"> task manager");
+  ASSERT_TRUE(EnterCommandBarText(command_bar, u"> task manager"));
   SendDialogKey(GetBrowserView(browser())->GetWidget(), ui::VKEY_RETURN);
   EXPECT_EQ(first_view, task_manager::TaskManagerView::GetInstanceForTests());
   EXPECT_TRUE(first_view->GetWidget()->IsVisible());
@@ -6220,11 +6273,13 @@ IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest,
   base::RunLoop().RunUntilIdle();
   EXPECT_EQ(1, model->count());
   EXPECT_EQ(stale_tab, model->GetActiveWebContents());
-  ASSERT_EQ(1u, web_ui.call_data().size());
-  const content::TestWebUI::CallData& call = *web_ui.call_data().front();
-  EXPECT_EQ("cr.webUIListenerCallback", call.function_name());
-  ASSERT_NE(nullptr, call.arg1());
-  EXPECT_EQ("sidebarStateChanged", call.arg1()->GetString());
+  const auto state_changed_count = std::ranges::count_if(
+      web_ui.call_data(), [](const auto& call) {
+        return call->function_name() == "cr.webUIListenerCallback" &&
+               call->arg1() && call->arg1()->is_string() &&
+               call->arg1()->GetString() == "sidebarStateChanged";
+      });
+  ASSERT_EQ(1, state_changed_count);
 }
 
 IN_PROC_BROWSER_TEST_F(DaoTabBrowserTest,
@@ -9167,6 +9222,9 @@ IN_PROC_BROWSER_TEST_F(DaoToastViewBrowserTest,
                          ax::mojom::StringAttribute::kName));
 
   browser_view->DeprecatedLayoutImmediately();
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return !toast->layer()->GetAnimator()->is_animating(); }));
+  ASSERT_TRUE(toast->GetVisible());
   const gfx::Rect content_bounds =
       browser_view->GetActiveContentsWebView()->GetBoundsInScreen();
   const gfx::Rect toast_bounds = toast->GetBoundsInScreen();
@@ -11061,11 +11119,19 @@ IN_PROC_BROWSER_TEST_F(DaoDarkModeBrowserTest,
     overlay.SetSize(gfx::Size(100, 100));
     gfx::Canvas canvas(overlay.size(), 1.0f, false);
     canvas.FillRect(overlay.GetLocalBounds(), dao::SidebarBackground(browser()));
+    // The overlay paints into its own transparent compositor layer.
+    canvas.SaveLayerAlpha(SK_AlphaOPAQUE);
     overlay.OnPaint(&canvas);
+    canvas.Restore();
+    EXPECT_EQ(dao::SidebarBackground(browser()),
+              canvas.GetBitmap().getColor(overlay.width() / 2,
+                                          overlay.height() / 2));
 
     const SkColor edge = canvas.GetBitmap().getColor(
         dao::kContentShadowMargin - 1, overlay.height() / 2);
-    EXPECT_EQ(edge, dao::DividerColor(browser()));
+    // Layer alpha quantization differs from per-ring RGB rounding.
+    EXPECT_SKCOLOR_CLOSE(edge, dao::DividerColor(browser()), 3);
+    EXPECT_EQ(SK_AlphaOPAQUE, SkColorGetA(edge));
     EXPECT_EQ(SK_AlphaOPAQUE, SkColorGetA(dao::DividerColor(browser())));
 
     gfx::Canvas split_canvas(split_view->size(), 1.0f, false);
@@ -11073,7 +11139,8 @@ IN_PROC_BROWSER_TEST_F(DaoDarkModeBrowserTest,
     const SkBitmap bitmap = split_canvas.GetBitmap();
     // The backing exposed by both inner pane corners matches the divider.
     for (int offset : {-dao::kContentCornerRadius, dao::kContentCornerRadius}) {
-      EXPECT_EQ(edge, bitmap.getColor(split_view->width() / 2 + offset, 0));
+      EXPECT_EQ(dao::DividerColor(browser()),
+                bitmap.getColor(split_view->width() / 2 + offset, 0));
     }
     // Outer corners retain the frame's existing shadow and background.
     EXPECT_EQ(SK_ColorTRANSPARENT, bitmap.getColor(0, 0));
@@ -13109,12 +13176,19 @@ IN_PROC_BROWSER_TEST_F(
   EXPECT_EQ(initial_url.spec(),
             CallAgentNativeField(agent_contents_, "beginAgentTurn", "url"));
   content::WebContents* target =
-
       browser()->tab_strip_model()->GetActiveWebContents();
+  // Hold the native cursor completion after the page script returns, so neither
+  // animation timing nor a destroyed CDP execution context can finish the call.
+  auto* agent_ui =
+      static_cast<DaoAgentUI*>(agent_contents_->GetWebUI()->GetController());
+  ASSERT_TRUE(agent_ui->handler_for_testing());
+  base::test::TestFuture<base::OnceCallback<void(bool)>> cursor_move;
+  agent_ui->handler_for_testing()->HoldNextCursorMoveForTesting(
+      cursor_move.GetCallback());
   ASSERT_TRUE(content::ExecJs(agent_contents_, R"(
     (() => {
-      window.__daoAgentClickCallbackCount = 0;
-      window.__daoAgentClickResult = new Promise(resolve => {
+      window.__daoAgentToolCallbackCount = 0;
+      window.__daoAgentToolResult = new Promise(resolve => {
         const id = 'agent_click_cross_origin_' +
             Math.random().toString(36).slice(2);
         const cr = window.cr || (window.cr = {});
@@ -13126,8 +13200,8 @@ IN_PROC_BROWSER_TEST_F(
             }
             return;
           }
-          window.__daoAgentClickCallbackCount++;
-          cr.webUIResponse = previous;
+          window.__daoAgentToolCallbackCount++;
+          // Keep recording this ID so late duplicate callbacks are counted.
           resolve({isSuccess, payload: payload || {}});
         };
         chrome.send('agentClick', [id, {selector: 'body'}]);
@@ -13135,18 +13209,23 @@ IN_PROC_BROWSER_TEST_F(
       return true;
     })()
   )"));
-  ASSERT_TRUE(base::test::RunUntil([&]() {
-    return content::EvalJs(target,
-                           "window.__dao_agent__ && "
-                           "window.__dao_agent__.hasHighlight()")
-        .ExtractBool();
-  }));
+  ASSERT_TRUE(cursor_move.Wait());
+  ASSERT_EQ(
+      0, content::EvalJs(agent_contents_, "window.__daoAgentToolCallbackCount")
+             .ExtractInt());
 
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), cross_origin_url));
+  ASSERT_TRUE(content::ExecJs(target, R"(
+    window.__daoUnexpectedClickCount = 0;
+    document.body.addEventListener('click', () => {
+      window.__daoUnexpectedClickCount++;
+    });
+  )"));
+  cursor_move.Take().Run(true);
 
   EXPECT_EQ("TARGET_FORBIDDEN",
             content::EvalJs(agent_contents_,
-                            "window.__daoAgentClickResult.then("
+                            "window.__daoAgentToolResult.then("
                             "result => String(result.payload.code || ''))")
                 .ExtractString());
   base::RunLoop settle;
@@ -13154,8 +13233,10 @@ IN_PROC_BROWSER_TEST_F(
   timer.Start(FROM_HERE, base::Milliseconds(250), settle.QuitClosure());
   settle.Run();
   EXPECT_EQ(
-      1, content::EvalJs(agent_contents_, "window.__daoAgentClickCallbackCount")
+      1, content::EvalJs(agent_contents_, "window.__daoAgentToolCallbackCount")
              .ExtractInt());
+  EXPECT_EQ(0, content::EvalJs(target, "window.__daoUnexpectedClickCount")
+                   .ExtractInt());
 }
 
 // =============================================================================

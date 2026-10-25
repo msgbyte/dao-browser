@@ -274,16 +274,17 @@ void DaoChromiumMigrationTarget::OnPasswordAdded(
 
 void DaoChromiumMigrationTarget::OnGetPasswordStoreResultsOrErrorFrom(
     password_manager::PasswordStoreInterface*,
-    password_manager::LoginsResultOrError results_or_error) {
+    base::expected<std::vector<password_manager::StoredCredential>,
+                   password_manager::PasswordStoreBackendError>
+        results_or_error) {
   if (!pending_password_entry_ || pending_password_callback_.is_null()) {
     return;
   }
   const PasswordEntry entry = *pending_password_entry_;
   bool persisted = false;
-  if (std::holds_alternative<password_manager::LoginsResult>(
-          results_or_error)) {
+  if (results_or_error.has_value()) {
     persisted = std::ranges::any_of(
-        std::get<password_manager::LoginsResult>(results_or_error),
+        *results_or_error,
         [&entry](const password_manager::StoredCredential& credential) {
           return credential.signon_realm == entry.signon_realm &&
                  credential.username_value == entry.username &&

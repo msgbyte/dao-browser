@@ -603,10 +603,19 @@ void DaoAgentUIHandler::RegisterMessages() {
                           base::Unretained(this)));
 }
 
+void DaoAgentUIHandler::HoldNextCursorMoveForTesting(
+    base::OnceCallback<void(base::OnceCallback<void(bool)>)> callback) {
+  cursor_move_callback_for_testing_ = std::move(callback);
+}
+
 void DaoAgentUIHandler::MoveCursor(content::WebContents* target,
                                    double x,
                                    double y,
                                    base::OnceCallback<void(bool)> callback) {
+  if (cursor_move_callback_for_testing_) {
+    std::move(cursor_move_callback_for_testing_).Run(std::move(callback));
+    return;
+  }
   BrowserWindowInterface* browser =
       target ? GlobalBrowserCollection::GetInstance()
                ->FindBrowserWithTab(target)
@@ -4849,7 +4858,9 @@ DaoAgentUI::DaoAgentUI(content::WebUI* web_ui) : WebUIController(web_ui) {
 
   // Register message handlers.
   web_ui->AddMessageHandler(std::make_unique<DaoAgentSettingsHandler>());
-  web_ui->AddMessageHandler(std::make_unique<DaoAgentUIHandler>());
+  auto handler = std::make_unique<DaoAgentUIHandler>();
+  handler_ = handler.get();
+  web_ui->AddMessageHandler(std::move(handler));
   web_ui->AddMessageHandler(std::make_unique<DaoAgentMemoryHandler>());
   web_ui->AddMessageHandler(std::make_unique<DaoAgentDreamHandler>());
   web_ui->AddMessageHandler(std::make_unique<DaoAgentSkillHandler>());

@@ -1991,6 +1991,14 @@ IN_PROC_BROWSER_TEST_F(
       browser()->tab_strip_model()->GetWebContentsAt(1);
   ASSERT_TRUE(content::WaitForLoadStop(second_target));
   auto session = MakeSession(first_target);
+  session->SetTabAccessCheck(base::BindRepeating(
+      [](base::WeakPtr<content::WebContents> first,
+         base::WeakPtr<content::WebContents> second,
+         content::WebContents* candidate) {
+        return (first && first.get() == candidate) ||
+               (second && second.get() == candidate);
+      },
+      first_target->GetWeakPtr(), second_target->GetWeakPtr()));
   ASSERT_TRUE(Execute(session.get(), "enable_network_tracking").ok);
   ASSERT_TRUE(Execute(session.get(), "enable_console_tracking").ok);
   ASSERT_TRUE(content::ExecJs(first_target, "console.log('before-switch')"));

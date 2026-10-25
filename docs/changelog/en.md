@@ -5,6 +5,9 @@
 ### [Unreleased] Unreleased
 
 - Update the browser engine to Chromium 155.0.8059.86.
+- Keep recorded browsing time available in Dream reports for an ongoing period that spans midnight.
+- Keep the selected address suggestion when its displayed text updates, instead of reverting to the original query.
+- Show the image-copy confirmation when copying an image from the reading side panel.
 
 ### [1.0.122] - 2026-10-24
 

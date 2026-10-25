@@ -1322,8 +1322,10 @@ void DaoCommandBarView::UpdateSuggestions() {
           break;
         }
         const AutocompleteMatch& match = visible_matches_[row.index];
+        // Providers may reformat completion text for the same destination.
         if (match.destination_url == previously_selected_destination &&
-            match.fill_into_edit == previously_selected_fill_into_edit) {
+            (previously_selected_destination.is_valid() ||
+             match.fill_into_edit == previously_selected_fill_into_edit)) {
           next_selected_index = static_cast<int>(i);
           break;
         }

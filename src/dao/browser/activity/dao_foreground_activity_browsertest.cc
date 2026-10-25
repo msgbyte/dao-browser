@@ -13,13 +13,13 @@
 #include <utility>
 #include <vector>
 
-#include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/power_monitor/power_monitor_source.h"
 #include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
+#include "base/test/run_until.h"
 #include "base/test/scoped_libc_timezone_override.h"
 #include "base/test/simple_test_clock.h"
 #include "base/test/simple_test_tick_clock.h"
@@ -32,6 +32,7 @@
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/common/url_constants.h"
+#include "chrome/test/base/chrome_test_path_utils.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/keyed_service/core/keyed_service.h"
@@ -45,10 +46,10 @@
 #include "dao/browser/agent/dao_dream_foreground_policy.h"
 #include "dao/browser/ui/views/split/dao_split_pane_view.h"
 #include "dao/browser/ui/views/split/dao_split_view.h"
-#include "net/base/filename_util.h"
 #include "net/dns/mock_host_resolver.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/views/test/mock_activation_controller.h"
 #include "ui/views/view_utils.h"
 #include "ui/views/widget/widget.h"
 #include "url/gurl.h"
@@ -139,9 +140,10 @@ TEST(DaoForegroundActivityStoreTest, UpsertsQueriesAndPrunes371Dates) {
   const std::string reopened_retained_from =
       LocalDate(later_initialization - base::Days(370));
 
-  DaoForegroundActivityStore store(profile_dir.GetPath());
-  ASSERT_TRUE(store.Initialize().has_value());
-  const auto started = store.StartTracking(tracking_started_at);
+  auto store =
+      std::make_unique<DaoForegroundActivityStore>(profile_dir.GetPath());
+  ASSERT_TRUE(store->Initialize().has_value());
+  const auto started = store->StartTracking(tracking_started_at);
   ASSERT_TRUE(started.has_value());
   EXPECT_TRUE(started->available);
   EXPECT_EQ(tracking_started_at, started->tracking_started_at);
@@ -158,7 +160,7 @@ TEST(DaoForegroundActivityStoreTest, UpsertsQueriesAndPrunes371Dates) {
   deltas.push_back(
       {today, DaoForegroundActivityBucket::kEvening, "alpha.test", 7});
 
-  auto initial = store.ApplyDeltasAndQuery(pruned_date, today, today, deltas);
+  auto initial = store->ApplyDeltasAndQuery(pruned_date, today, today, deltas);
   ASSERT_TRUE(initial.has_value());
   EXPECT_EQ(tracking_started_at, initial->tracking_started_at);
   EXPECT_EQ(retained_from, initial->retained_from_date);
@@ -173,6 +175,7 @@ TEST(DaoForegroundActivityStoreTest, UpsertsQueriesAndPrunes371Dates) {
   EXPECT_EQ("alpha.test", initial->rows.back().host);
   EXPECT_EQ(7, initial->rows.back().foreground_ms);
 
+  store.reset();
   DaoForegroundActivityStore reopened_store(profile_dir.GetPath());
   ASSERT_TRUE(reopened_store.Initialize().has_value());
   const auto reopened_metadata =
@@ -456,6 +459,19 @@ TEST(DaoForegroundActivityDreamPolicyTest,
                                          LocalTime(2026, 8, 30, 18, 0));
   EXPECT_EQ(DreamForegroundCoverage::kPartial, query_clipped.coverage);
   EXPECT_EQ(base::Hours(12).InSeconds(), query_clipped.coverage_seconds);
+
+  const DreamForegroundRangePolicy midnight_clipped =
+      ResolveDreamForegroundWindowPolicy(start, end, snapshot,
+                                         LocalTime(2026, 8, 31, 0, 0));
+  EXPECT_EQ(DreamForegroundCoverage::kPartial, midnight_clipped.coverage);
+  EXPECT_EQ(base::Hours(18).InSeconds(), midnight_clipped.coverage_seconds);
+
+  const DreamForegroundRangePolicy future =
+      ResolveDreamForegroundWindowPolicy(start, end, snapshot, start);
+  EXPECT_EQ(DreamForegroundCoverage::kUnavailable, future.coverage);
+  EXPECT_EQ(0, future.coverage_seconds);
+  EXPECT_FALSE(future.use_native);
+  EXPECT_FALSE(future.use_legacy);
 }
 
 TEST(DaoForegroundActivityDreamPolicyTest,
@@ -513,6 +529,14 @@ class DaoForegroundActivityBrowserTest : public InProcessBrowserTest {
   }
   ~DaoForegroundActivityBrowserTest() override = default;
 
+  void SetUp() override {
+#if defined(USE_MOCK_ACTIVATION_CONTROLLER)
+    activation_controller_ =
+        std::make_unique<views::test::MockActivationController>();
+#endif
+    InProcessBrowserTest::SetUp();
+  }
+
  protected:
   void SetUpBrowserContextKeyedServices(
       content::BrowserContext* context) override {
@@ -534,10 +558,16 @@ class DaoForegroundActivityBrowserTest : public InProcessBrowserTest {
     service_ = DaoForegroundActivityServiceFactory::GetForProfile(
         browser()->GetProfile());
     ASSERT_TRUE(service_);
+    BrowserView::GetBrowserViewForBrowser(browser())->GetWidget()->Activate();
+    ui_test_utils::WaitUntilBrowserBecomeActive(browser());
+    ASSERT_TRUE(Snapshot().available);
   }
 
   void TearDownOnMainThread() override {
     service_ = nullptr;
+#if defined(USE_MOCK_ACTIVATION_CONTROLLER)
+    activation_controller_.reset();
+#endif
     InProcessBrowserTest::TearDownOnMainThread();
   }
 
@@ -578,13 +608,18 @@ class DaoForegroundActivityBrowserTest : public InProcessBrowserTest {
   net::EmbeddedTestServer https_server_;
   bool service_created_eagerly_ = false;
   raw_ptr<DaoForegroundActivityService> service_ = nullptr;
+#if defined(USE_MOCK_ACTIVATION_CONTROLLER)
+  std::unique_ptr<views::test::MockActivationController> activation_controller_;
+#endif
 };
 
 IN_PROC_BROWSER_TEST_F(DaoForegroundActivityBrowserTest,
                        CountsOnlySelectedHttpTabInForegroundWindow) {
-  const GURL first_url = HttpTestUrl("first.test", "/first");
+  const GURL first_url = HttpTestUrl("first.test", "/title1.html");
   const GURL second_url = HttpsTestUrl("second.test", "/title1.html");
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url));
+  content::WebContents* first_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
   Advance(base::Seconds(5));
 
   content::WebContents* second_contents =
@@ -593,14 +628,12 @@ IN_PROC_BROWSER_TEST_F(DaoForegroundActivityBrowserTest,
   ASSERT_TRUE(content::WaitForLoadStop(second_contents));
   DaoSplitView* split_view =
       BrowserView::GetBrowserViewForBrowser(browser())->dao_split_view();
-  ASSERT_TRUE(
-      split_view->SplitPane(browser()->tab_strip_model()->GetWebContentsAt(0),
-                            SplitDirection::kHorizontal,
-                            /*new_contents_first=*/false, second_contents));
+  ASSERT_TRUE(split_view->SplitPane(first_contents, SplitDirection::kHorizontal,
+                                    /*new_contents_first=*/false,
+                                    second_contents));
   ASSERT_TRUE(split_view->IsSplitActive());
   Advance(base::Seconds(7));
-  DaoSplitPaneView* first_pane = FindPaneForContents(
-      split_view, browser()->tab_strip_model()->GetWebContentsAt(0));
+  DaoSplitPaneView* first_pane = FindPaneForContents(split_view, first_contents);
   ASSERT_TRUE(first_pane);
   split_view->SetActivePane(first_pane);
   Advance(base::Seconds(11));
@@ -610,7 +643,7 @@ IN_PROC_BROWSER_TEST_F(DaoForegroundActivityBrowserTest,
   BrowserView::GetBrowserViewForBrowser(background_window)
       ->GetWidget()
       ->Activate();
-  base::RunLoop().RunUntilIdle();
+  ui_test_utils::WaitUntilBrowserBecomeActive(background_window);
   Advance(base::Seconds(13));
 
   const auto totals = ForegroundMsByHost(Snapshot());
@@ -621,21 +654,17 @@ IN_PROC_BROWSER_TEST_F(DaoForegroundActivityBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoForegroundActivityBrowserTest,
                        StopsForNavigationMinimizeSuspendAndClose) {
-  const GURL first_url = HttpTestUrl("first.test", "/first");
-  const GURL second_url = HttpTestUrl("second.test", "/second");
+  const GURL first_url = HttpTestUrl("first.test", "/title1.html");
+  const GURL second_url = HttpTestUrl("second.test", "/title2.html");
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url));
   Advance(base::Seconds(5));
 
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(),
                                            GURL(chrome::kChromeUIVersionURL)));
   Advance(base::Seconds(7));
-  base::ScopedTempDir temp_dir;
-  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
-  const base::FilePath local_file =
-      temp_dir.GetPath().AppendASCII("foreground-activity.html");
-  ASSERT_TRUE(base::WriteFile(local_file, "<title>file fixture</title>"));
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(),
-                                           net::FilePathToFileURL(local_file)));
+  const GURL file_url = chrome_test_utils::GetTestUrl(
+      base::FilePath(), base::FilePath(FILE_PATH_LITERAL("title1.html")));
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), file_url));
   Advance(base::Seconds(13));
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), second_url));
   Advance(base::Seconds(11));
@@ -643,19 +672,22 @@ IN_PROC_BROWSER_TEST_F(DaoForegroundActivityBrowserTest,
   views::Widget* widget =
       BrowserView::GetBrowserViewForBrowser(browser())->GetWidget();
   widget->Minimize();
-  base::RunLoop().RunUntilIdle();
+  ASSERT_TRUE(ui_test_utils::WaitForMinimized(browser()));
   Advance(base::Seconds(13));
   widget->Restore();
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return !widget->IsMinimized() && widget->IsVisible(); }));
   widget->Activate();
-  base::RunLoop().RunUntilIdle();
+  ui_test_utils::WaitUntilBrowserBecomeActive(browser());
   Advance(base::Seconds(17));
 
   widget->Hide();
-  base::RunLoop().RunUntilIdle();
+  ASSERT_TRUE(base::test::RunUntil([&]() { return !widget->IsVisible(); }));
   Advance(base::Seconds(23));
   widget->Show();
+  ASSERT_TRUE(base::test::RunUntil([&]() { return widget->IsVisible(); }));
   widget->Activate();
-  base::RunLoop().RunUntilIdle();
+  ui_test_utils::WaitUntilBrowserBecomeActive(browser());
   Advance(base::Seconds(19));
 
   TestPowerMonitorSource::Suspend();
@@ -683,8 +715,8 @@ IN_PROC_BROWSER_TEST_F(DaoForegroundActivityBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoForegroundActivityBrowserTest,
                        DirectWindowDestructionSelectsRemainingBrowser) {
-  const GURL first_url = HttpTestUrl("first.test", "/first");
-  const GURL second_url = HttpTestUrl("second.test", "/second");
+  const GURL first_url = HttpTestUrl("first.test", "/title1.html");
+  const GURL second_url = HttpTestUrl("second.test", "/title2.html");
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url));
   Advance(base::Seconds(5));
 
@@ -694,7 +726,7 @@ IN_PROC_BROWSER_TEST_F(DaoForegroundActivityBrowserTest,
   BrowserView::GetBrowserViewForBrowser(second_browser)
       ->GetWidget()
       ->Activate();
-  base::RunLoop().RunUntilIdle();
+  ui_test_utils::WaitUntilBrowserBecomeActive(second_browser);
   Advance(base::Seconds(7));
 
   views::Widget* second_widget =
@@ -704,7 +736,7 @@ IN_PROC_BROWSER_TEST_F(DaoForegroundActivityBrowserTest,
   Advance(base::Seconds(13));
 
   CloseBrowserSynchronously(second_browser);
-  base::RunLoop().RunUntilIdle();
+  ui_test_utils::WaitUntilBrowserBecomeActive(browser());
   Advance(base::Seconds(11));
 
   const auto totals = ForegroundMsByHost(Snapshot());
@@ -715,7 +747,7 @@ IN_PROC_BROWSER_TEST_F(DaoForegroundActivityBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoForegroundActivityBrowserTest,
                        TimeZoneChangeSettlesAndContinuesTiming) {
-  const GURL url = HttpTestUrl("timezone.test", "/page");
+  const GURL url = HttpTestUrl("timezone.test", "/title1.html");
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
   Advance(base::Seconds(5));
 
@@ -747,7 +779,7 @@ IN_PROC_BROWSER_TEST_F(DaoForegroundActivityBrowserTest,
 IN_PROC_BROWSER_TEST_F(DaoForegroundActivityBrowserTest,
                        SnapshotCheckpointContinuesWithoutDoubleCount) {
   ASSERT_TRUE(Snapshot().available);
-  const GURL url = HttpTestUrl("checkpoint.test", "/page");
+  const GURL url = HttpTestUrl("checkpoint.test", "/title1.html");
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
   Advance(base::Seconds(5));
 
@@ -769,7 +801,7 @@ IN_PROC_BROWSER_TEST_F(DaoForegroundActivityBrowserTest,
 IN_PROC_BROWSER_TEST_F(DaoForegroundActivityBrowserTest,
                        ShutdownCompletesAcceptedSnapshotExactlyOnce) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
-      browser(), HttpTestUrl("shutdown.test", "/page")));
+      browser(), HttpTestUrl("shutdown.test", "/title1.html")));
   Advance(base::Seconds(5));
   ASSERT_TRUE(Snapshot().available);
 
