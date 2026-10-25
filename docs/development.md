@@ -177,7 +177,7 @@ npm.cmd run start:debug
 `setup` resumes an existing checkout with `gclient sync`; keep partial downloads
 when retrying. Source and build output remain in `engine/`. Compilation
 confirmation must use `npm run rebuild`, which imports tracked changes before
-building `engine/src/out/dao-debug/chrome.exe`.
+building `engine/src/out/dao-debug/dao.exe`.
 
 If LLVM reports `out of memory`, reduce parallelism while retaining the same
 build configuration and incremental cache:

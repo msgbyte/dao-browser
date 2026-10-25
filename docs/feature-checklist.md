@@ -62,8 +62,12 @@ These are acceptance checks, not a claim that the port has passed them.
 
 - [ ] With Node managed by nvm-windows, run `npm.cmd run setup` twice and check
   that the pinned checkout and patch state remain usable.
-- [ ] Run `npm.cmd run rebuild`; verify `out/dao-debug/chrome.exe` is produced.
+- [ ] Run `npm.cmd run rebuild`; verify `out/dao-debug/dao.exe` is produced.
   Repeat after a small tracked change and confirm incremental cache reuse.
+- [ ] On a fresh Windows install and an upgrade from `chrome.exe`, check Task
+  Manager shows `dao.exe` for the browser and child processes. Check automatic
+  update restart, existing desktop/Start menu/taskbar shortcuts, web apps, URL
+  associations, and uninstall; the existing profile must remain available.
 - [ ] Launch with `npm.cmd run start:debug`; create, navigate, switch, and close
   tabs. Verify sidebar layout and native minimize/maximize/close controls.
 - [ ] In restored, maximized, and fullscreen sidebar windows, verify the native

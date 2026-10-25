@@ -509,7 +509,7 @@ class Installer {
   }
 
   void Launch() {
-    fs::path browser = fs::path(directory_) / L"Application" / L"chrome.exe";
+    fs::path browser = fs::path(directory_) / L"Application" / L"dao.exe";
     std::wstring command = L"\"" + browser.wstring() + L"\"";
     STARTUPINFOW startup{};
     startup.cb = sizeof(startup);

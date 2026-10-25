@@ -153,7 +153,7 @@ try {
   await mkdir(extension);
   await writeFile(path.join(extension, 'manifest.json'), JSON.stringify({manifest_version: 3,
     name: 'Migration E2E', version: '1.0'}));
-  child = spawn(path.resolve('engine/src/out/dao-debug/chrome.exe'), [
+  child = spawn(path.resolve('engine/src/out/dao-debug/dao.exe'), [
     '--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check',
     '--disable-background-networking', '--disable-component-update', '--disable-sync',
     '--enable-unsafe-extension-debugging', '--enable-logging=stderr', '--lang=en-US', '--remote-debugging-port=0',

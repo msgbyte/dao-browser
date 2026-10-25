@@ -1,0 +1,7 @@
+--- a/chrome/app/chrome_exe.ver
++++ b/chrome/app/chrome_exe.ver
+@@ -1,2 +1,2 @@
+-INTERNAL_NAME=chrome_exe
+-ORIGINAL_FILENAME=chrome.exe
++INTERNAL_NAME=dao_exe
++ORIGINAL_FILENAME=dao.exe

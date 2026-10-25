@@ -1,0 +1,11 @@
+--- a/chrome/installer/mini_installer/BUILD.gn
++++ b/chrome/installer/mini_installer/BUILD.gn
+@@ -151,7 +151,7 @@
+   inputs = [
+     "$root_out_dir/chrome.dll",
+     "$root_out_dir/chrome_elf.dll",
+-    "$root_out_dir/chrome.exe",
++    "$root_out_dir/dao.exe",
+     "$root_out_dir/locales/en-US.pak",
+     "$root_out_dir/setup.exe",
+     "//chrome/tools/build/win/makecab.py",

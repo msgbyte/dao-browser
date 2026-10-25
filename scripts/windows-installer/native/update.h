@@ -59,7 +59,8 @@ inline int RunUpdate(const std::wstring& token, const std::wstring& installer) {
     Sleep(250);
   if (AnotherBrowserRunning(browser) || RegisteredBrowser() != browser)
     return 10;
-  std::wstring root = browser.substr(0, browser.find_last_of(L'\\'));
+  const std::wstring application = browser.substr(0, browser.find_last_of(L'\\'));
+  std::wstring root = application;
   root.resize(root.find_last_of(L'\\'));
   if (root.size() > 180 || !NoReparsePoints(root))
     return 10;
@@ -75,13 +76,15 @@ inline int RunUpdate(const std::wstring& token, const std::wstring& installer) {
   CloseHandle(process.hThread);
   // Do not terminate an installer that may be committing files or registration.
   WaitForSingleObject(child.get(), INFINITE);
+  const std::wstring updated_browser = application + L"\\dao.exe";
   DWORD code = 10;
   if (!GetExitCodeProcess(child.get(), &code) || code != 0 ||
-      RegisteredBrowser() != browser || AnotherBrowserRunning(browser))
+      RegisteredBrowser() != updated_browser ||
+      AnotherBrowserRunning(updated_browser) || AnotherBrowserRunning(browser))
     return 10;
-  command = L"\"" + browser + L"\" --restore-last-session";
-  if (!CreateProcessW(browser.c_str(), command.data(), nullptr, nullptr, FALSE,
-                      0, nullptr, root.c_str(), &startup, &process))
+  command = L"\"" + updated_browser + L"\" --restore-last-session";
+  if (!CreateProcessW(updated_browser.c_str(), command.data(), nullptr, nullptr,
+                      FALSE, 0, nullptr, root.c_str(), &startup, &process))
     return 10;
   CloseHandle(process.hThread);
   CloseHandle(process.hProcess);

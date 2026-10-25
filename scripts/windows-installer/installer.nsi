@@ -40,7 +40,7 @@ Var UpdateToken
 !define MUI_PAGE_HEADER_SUBTEXT "$(InstallingSubtitle)"
 !define MUI_PAGE_CUSTOMFUNCTION_SHOW ProgressShow
 !insertmacro MUI_PAGE_INSTFILES
-!define MUI_FINISHPAGE_RUN "$INSTDIR\Application\chrome.exe"
+!define MUI_FINISHPAGE_RUN "$INSTDIR\Application\dao.exe"
 !define MUI_FINISHPAGE_RUN_TEXT "$(LaunchDao)"
 !define MUI_PAGE_CUSTOMFUNCTION_SHOW FinishShow
 !define MUI_PAGE_CUSTOMFUNCTION_DESTROYED ReleasePageIcon
@@ -267,7 +267,7 @@ Section
     MessageBox MB_OK|MB_ICONSTOP "$(UnexpectedDirectory)" /SD IDOK
     Abort
   ${EndIf}
-  ${IfNot} ${FileExists} "$INSTDIR\Application\chrome.exe"
+  ${IfNot} ${FileExists} "$INSTDIR\Application\dao.exe"
     SetErrorLevel 10
     MessageBox MB_OK|MB_ICONSTOP "$(UnexpectedDirectory)" /SD IDOK
     Abort

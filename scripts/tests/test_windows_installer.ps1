@@ -45,7 +45,7 @@ public class InstallerFixture {
         if (mode == "slow-success") System.Threading.Thread.Sleep(1500);
         string application = Path.Combine(root, "Application");
         Directory.CreateDirectory(application);
-        File.WriteAllText(Path.Combine(application, "chrome.exe"), "fixture");
+        File.WriteAllText(Path.Combine(application, "dao.exe"), "fixture");
         using (RegistryKey hive = RegistryKey.OpenBaseKey(RegistryHive.CurrentUser, RegistryView.Registry32))
         using (RegistryKey key = hive.CreateSubKey("TEST_KEY")) {
             key.SetValue("InstallLocation", application);
@@ -195,7 +195,7 @@ public static class WizardWindow {
     if (Test-Path -LiteralPath $destination) { throw 'Opening the wizard wrote to the installation folder.' }
     $env:DAO_INSTALLER_TEST_MODE = 'success'
     Run-Wizard $destination 0
-    if (-not (Test-Path -LiteralPath "$destination\Application\chrome.exe")) { throw 'Custom path was not passed literally.' }
+    if (-not (Test-Path -LiteralPath "$destination\Application\dao.exe")) { throw 'Custom path was not passed literally.' }
     Check-DirectoryPage $destination $false
     # Repairs keep the registered directory, including when /D requests a move.
     $other = Join-Path $testRoot 'Other Dao'
@@ -304,14 +304,14 @@ public static class WizardWindow {
         $finishMessage = [WizardWindow]::Text([WizardWindow]::Control($window, 1031))
         if (-not $finishMessage) { throw 'The finish message is missing.' }
         [WizardWindow]::CheckIcon($window)
-        if (-not (Test-Path -LiteralPath "$guiDestination\Application\chrome.exe")) { throw 'The edited installation path was ignored.' }
+        if (-not (Test-Path -LiteralPath "$guiDestination\Application\dao.exe")) { throw 'The edited installation path was ignored.' }
         if ($CaptureDir) {
             # Let nsDialogs finish showing the newly created controls before capture.
             Start-Sleep -Milliseconds 200
             [WizardWindow]::Capture($window, (Join-Path $CaptureDir "finish-$Language.png"))
         }
     } finally {
-        # Do not launch the fixture chrome.exe from the finish page.
+        # Do not launch the fixture dao.exe from the finish page.
         if (-not $process.HasExited) { Stop-Process -Id $process.Id -Force }
     }
     Clear-FixtureRegistration

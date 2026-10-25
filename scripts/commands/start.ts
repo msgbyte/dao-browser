@@ -45,7 +45,7 @@ export function createLaunchSpec(
   if (options.view) args.push("--enable-ui-devtools=9223", "--v=1");
   args.push(...options.urls);
   return {
-    command: target.os === "win" ? paths.join(output, "chrome.exe") :
+    command: target.os === "win" ? paths.join(output, "dao.exe") :
       paths.join(output, `${name}.app`, "Contents", "MacOS", name),
     args,
   };

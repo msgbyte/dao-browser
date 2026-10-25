@@ -8,7 +8,33 @@
    import("//content/public/app/mac_helpers.gni")
    import("//media/cdm/library_cdm/cdm_paths.gni")
    import("//services/on_device_model/on_device_model.gni")
-@@ -536,6 +537,11 @@
+@@ -87,12 +88,12 @@
+     # initialexe/ is used so that the we can reorder imports and write back to
+     # the final destination at $root_out_dir/.
+     inputs = [
+-      "$root_out_dir/initialexe/chrome.exe",
+-      "$root_out_dir/initialexe/chrome.exe.pdb",
++      "$root_out_dir/initialexe/dao.exe",
++      "$root_out_dir/initialexe/dao.exe.pdb",
+     ]
+     outputs = [
+-      "$root_out_dir/chrome.exe",
+-      "$root_out_dir/chrome.exe.pdb",
++      "$root_out_dir/dao.exe",
++      "$root_out_dir/dao.exe.pdb",
+     ]
+     args = [
+       "-i",
+@@ -150,7 +151,7 @@
+   }
+ 
+   if (is_win) {
+-    _chrome_output_name = "initialexe/chrome"
++    _chrome_output_name = "initialexe/dao"
+   } else {
+     _chrome_output_name = "chrome"
+   }
+@@ -515,6 +516,11 @@
        "--scm=1",
        "--bundle_id=$chrome_mac_bundle_id",
      ]
@@ -20,7 +46,7 @@
      if (enable_updater) {
        args += [ "--privileged_helper_id=$privileged_helper_name" ]
        if (is_chrome_branded) {
-@@ -579,6 +585,7 @@
+@@ -558,6 +564,7 @@
        "//build/config/compiler:compiler_buildflags",
        "//chrome/common:buildflags",
        "//chrome/common:version_header",
@@ -28,7 +54,7 @@
      ]
  
      if (enable_updater) {
-@@ -625,6 +632,8 @@
+@@ -604,6 +611,8 @@
          rebase_path(inputs[0], root_out_dir),
          "--allow",
          "/usr/lib/libSystem.B.dylib",
@@ -37,3 +63,21 @@
        ]
        deps = [ ":chrome_app" ]
      }
+@@ -1693,11 +1702,16 @@
+   }
+ }
+ 
++copy("visual_elements_manifest") {
++  sources = [ "app/visual_elements_resources/chrome.VisualElementsManifest.xml" ]
++  outputs = [ "$root_out_dir/dao.VisualElementsManifest.xml" ]
++}
++
+ copy("visual_elements_resources") {
++  deps = [ ":visual_elements_manifest" ]
+   sources = [
+     "//chrome/app/theme/$branding_path_component/win/tiles/Logo.png",
+     "//chrome/app/theme/$branding_path_component/win/tiles/SmallLogo.png",
+-    "app/visual_elements_resources/chrome.VisualElementsManifest.xml",
+   ]
+ 
+   if (is_chrome_branded) {

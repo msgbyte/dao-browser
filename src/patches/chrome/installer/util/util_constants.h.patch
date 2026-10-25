@@ -1,0 +1,15 @@
+--- a/chrome/installer/util/util_constants.h
++++ b/chrome/installer/util/util_constants.h
+@@ -348,9 +348,9 @@
+ // Active Setup.
+ inline constexpr wchar_t kActiveSetupExe[] = L"chrmstp.exe";
+ inline constexpr wchar_t kChromeDll[] = L"chrome.dll";
+-inline constexpr wchar_t kChromeExe[] = L"chrome.exe";
+-inline constexpr wchar_t kChromeNewExe[] = L"new_chrome.exe";
+-inline constexpr wchar_t kChromeOldExe[] = L"old_chrome.exe";
++inline constexpr wchar_t kChromeExe[] = L"dao.exe";
++inline constexpr wchar_t kChromeNewExe[] = L"new_dao.exe";
++inline constexpr wchar_t kChromeOldExe[] = L"old_dao.exe";
+ inline constexpr wchar_t kChromeProxyExe[] = L"chrome_proxy.exe";
+ inline constexpr wchar_t kChromeProxyNewExe[] = L"new_chrome_proxy.exe";
+ inline constexpr wchar_t kChromeProxyOldExe[] = L"old_chrome_proxy.exe";

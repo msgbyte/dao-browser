@@ -36,8 +36,11 @@ It preserves application versions and Mac appcast;
 installed browsers are not downgraded. See [the development guide](development.md#switch-website-downloads-to-a-previous-release).
 
 The development CLI supports native macOS arm64 and an experimental Windows x64 target.
-Windows uses the existing setup/import/rebuild commands, a local `chrome.exe`,
-and separate Dao debug/release profiles. Normal Windows browser windows combine
+Windows uses the existing setup/import/rebuild commands, a local `dao.exe`,
+and separate Dao debug/release profiles. Windows browser and child processes use
+`dao.exe`; installers, web-app launchers, and automatic updates use the same name.
+Upgrades from `chrome.exe` keep the installation and profile locations and retarget
+existing shortcuts in standard Windows locations. Normal Windows browser windows combine
 their address row and native Chromium minimize/maximize/close controls, removing
 the separate title-bar row. Caption buttons stay at the window's top right while
   either sidebar toggles or split panes resize. Address bars reserve the actual

@@ -1,0 +1,26 @@
+--- a/chrome/installer/setup/install.cc
++++ b/chrome/installer/setup/install.cc
+@@ -272,6 +272,23 @@
+                              const InitialPreferences& prefs,
+                              InstallShortcutLevel install_level,
+                              InstallShortcutOperation install_operation) {
++  // Keep existing Dao shortcuts usable after renaming the Windows executable.
++  const base::FilePath legacy_target = target.DirName().Append(L"chrome.exe");
++  const auto level = install_level == ALL_USERS ? ShellUtil::SYSTEM_LEVEL
++                                              : ShellUtil::CURRENT_USER;
++  bool migrated = true;
++  for (int location = ShellUtil::SHORTCUT_LOCATION_FIRST;
++       location <= ShellUtil::SHORTCUT_LOCATION_LAST; ++location) {
++    migrated &= ShellUtil::RetargetShortcuts(
++        static_cast<ShellUtil::ShortcutLocation>(location), level, legacy_target,
++        target, /*require_args=*/false);
++  }
++  if (migrated && base::PathExists(legacy_target)) {
++    // A running legacy browser keeps its executable until a later update.
++    LOG_IF(WARNING, !base::DeleteFile(legacy_target))
++        << "Could not remove the legacy Dao executable.";
++  }
++
+   bool do_not_create_any_shortcuts = false;
+   prefs.GetBool(initial_preferences::kDoNotCreateAnyShortcuts,
+                 &do_not_create_any_shortcuts);

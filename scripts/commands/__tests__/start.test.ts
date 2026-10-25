@@ -31,8 +31,8 @@ describe('native browser launch', () => {
         {debug: true, urls: [url]}, 'D:\\Dao Project\\engine', 'C:\\Local Data');
     const release = createLaunchSpec(config, {os: 'win', cpu: 'x64'},
         {urls: []}, 'D:\\Dao Project\\engine', 'C:\\Local Data');
-    expect(debug.command).toBe('D:\\Dao Project\\engine\\src\\out\\dao-debug\\chrome.exe');
-    expect(release.command).toBe('D:\\Dao Project\\engine\\src\\out\\dao\\chrome.exe');
+    expect(debug.command).toBe('D:\\Dao Project\\engine\\src\\out\\dao-debug\\dao.exe');
+    expect(release.command).toBe('D:\\Dao Project\\engine\\src\\out\\dao\\dao.exe');
     expect(debug.args).toContain('--user-data-dir=C:\\Local Data\\Dao Debug\\User Data');
     expect(release.args).toContain('--user-data-dir=C:\\Local Data\\Dao\\User Data');
     expect(debug.args).toContain('--enable-logging=stderr');
