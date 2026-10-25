@@ -346,6 +346,7 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
 
 ### 1.4 Address Bar and Active-Tab URL
 - **DaoAddressBarView** (`dao_address_bar_view.{h,cc}`) — Embedded URL pill (14px radius), referenced by sidebar / command bar / control center; adapts text color to background luminance
+  - Long URLs shrink to leave room for status icons and action buttons, including when high-performance mode is enabled after navigation
   - Shows a separately clickable red Lucide `ShieldOff` before the URL pill when Chromium reports a warning or dangerous connection state; clicking it opens native Page Info
   - The stop/reload button and page-load glow follow Chromium's loading UI
     state. Late iframe loads and same-document navigation stay quiet, including

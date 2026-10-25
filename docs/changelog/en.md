@@ -4,6 +4,8 @@
 
 ### [Unreleased] Unreleased
 
+- Keep address-bar status icons visible when the page URL is long.
+
 ### [1.0.123] - 2026-10-25
 
 - Update the browser engine to Chromium 155.0.8059.86.

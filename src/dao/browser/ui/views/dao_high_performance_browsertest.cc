@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <string>
 #include <string_view>
 
 #include "base/functional/bind.h"
@@ -382,6 +383,43 @@ IN_PROC_BROWSER_TEST_F(DaoHighPerformanceBrowserTest,
   DaoHighPerformanceMode::SetEnabled(contents, false);
   EXPECT_FALSE(indicator->GetVisible());
   popup->Hide();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoHighPerformanceBrowserTest,
+                       LongUrlKeepsIndicatorVisible) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), embedded_test_server()->GetURL(
+                     "/title1.html?query=" + std::string(2048, 'a'))));
+  auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
+  auto* address_bar = browser_view->dao_address_bar();
+  ASSERT_TRUE(address_bar);
+  browser_view->DeprecatedLayoutImmediately();
+  auto* contents = browser()->tab_strip_model()->GetActiveWebContents();
+  auto* indicator = FindHighPerformanceIndicator(address_bar);
+  ASSERT_TRUE(indicator);
+  auto* control_center = address_bar->control_center_button();
+  ASSERT_TRUE(control_center);
+
+  for (int width : {800, 400}) {
+    SCOPED_TRACE(width);
+    DaoHighPerformanceMode::SetEnabled(contents, false);
+    address_bar->SetSize(gfx::Size(width, DaoAddressBarView::kBarHeight));
+    address_bar->DeprecatedLayoutImmediately();
+    DaoHighPerformanceMode::SetEnabled(contents, true);
+    address_bar->DeprecatedLayoutImmediately();
+
+    EXPECT_TRUE(indicator->GetVisible());
+    EXPECT_EQ(indicator->GetPreferredSize().width(), indicator->width());
+    EXPECT_TRUE(address_bar->GetLocalBounds().Contains(indicator->bounds()));
+    const gfx::Rect url_bounds = address_bar->url_container_bounds();
+    EXPECT_FALSE(url_bounds.IsEmpty());
+    EXPECT_LE(indicator->bounds().right(), url_bounds.x());
+    EXPECT_LE(url_bounds.right(), control_center->x());
+    EXPECT_TRUE(control_center->GetVisible());
+    EXPECT_TRUE(
+        address_bar->GetLocalBounds().Contains(control_center->bounds()));
+  }
 }
 
 IN_PROC_BROWSER_TEST_F(DaoHighPerformanceBrowserTest,

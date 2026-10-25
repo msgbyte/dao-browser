@@ -493,13 +493,12 @@ DaoAddressBarView::DaoAddressBarView(BrowserWindowInterface* browser)
 
   // URL pill: wraps host + path labels, sized to content, centered by spacers.
   url_container_ = AddChildView(std::make_unique<views::View>());
-#if BUILDFLAG(IS_WIN)
+  // Shrink the URL before hiding status icons or action buttons.
   url_container_->SetProperty(
       views::kFlexBehaviorKey,
       views::FlexSpecification(views::MinimumFlexSizeRule::kScaleToZero,
                                views::MaximumFlexSizeRule::kPreferred)
           .WithOrder(2));
-#endif
   auto* url_layout =
       url_container_->SetLayoutManager(std::make_unique<views::FlexLayout>());
   url_layout->SetOrientation(views::LayoutOrientation::kHorizontal);
