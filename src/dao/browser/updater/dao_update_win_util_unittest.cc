@@ -20,6 +20,24 @@ TEST(DaoUpdateWinUtilTest, PipeTokensAndLocalPaths) {
   EXPECT_TRUE(SafeLocalPath(L"C:\\Users\\Test\\Dao"));
 }
 
+TEST(DaoUpdateWinUtilTest, LegacyBrowserMigration) {
+  base::ScopedTempDir directory;
+  ASSERT_TRUE(directory.CreateUniqueTempDir());
+  const auto application = directory.GetPath().AppendASCII("Application");
+  ASSERT_TRUE(base::CreateDirectory(application));
+  const auto legacy = application.AppendASCII("chrome.exe");
+  const auto browser = application.AppendASCII("dao.exe");
+  EXPECT_TRUE(BrowserInDirectory(application.value()).empty());
+  ASSERT_TRUE(base::WriteFile(legacy, "legacy"));
+  EXPECT_EQ(legacy.value(), BrowserInDirectory(application.value()));
+  ASSERT_TRUE(base::WriteFile(browser, "current"));
+  EXPECT_EQ(browser.value(), BrowserInDirectory(application.value()));
+  ASSERT_TRUE(base::DeleteFile(browser));
+  ASSERT_TRUE(base::CreateDirectory(browser));
+  EXPECT_TRUE(BrowserInDirectory(application.value()).empty());
+  EXPECT_TRUE(BrowserInDirectory(directory.GetPath().value()).empty());
+}
+
 TEST(DaoUpdateWinUtilTest, OpenedFileIdentity) {
   base::ScopedTempDir directory;
   ASSERT_TRUE(directory.CreateUniqueTempDir());

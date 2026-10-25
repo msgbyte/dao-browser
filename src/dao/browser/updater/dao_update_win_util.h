@@ -116,16 +116,30 @@ inline std::wstring ReadRegistration(HKEY root) {
   return path;
 }
 
+inline std::wstring BrowserInDirectory(const std::wstring& directory) {
+  const auto slash = directory.find_last_of(L'\\');
+  if (!SafeLocalPath(directory) || slash == std::wstring::npos ||
+      _wcsicmp(directory.substr(slash + 1).c_str(), L"Application") != 0)
+    return {};
+  std::wstring path = directory + L"\\dao.exe";
+  DWORD attributes = GetFileAttributesW(path.c_str());
+  if (attributes == INVALID_FILE_ATTRIBUTES) {
+    // Older Dao installations still use the Chromium executable name.
+    if (GetLastError() != ERROR_FILE_NOT_FOUND)
+      return {};
+    path = directory + L"\\chrome.exe";
+    attributes = GetFileAttributesW(path.c_str());
+  }
+  return attributes != INVALID_FILE_ATTRIBUTES &&
+                 !(attributes & FILE_ATTRIBUTE_DIRECTORY) && NoReparsePoints(path)
+             ? path
+             : std::wstring();
+}
+
 inline std::wstring RegisteredBrowser() {
   if (!ReadRegistration(HKEY_LOCAL_MACHINE).empty())
     return {};
-  std::wstring path = ReadRegistration(HKEY_CURRENT_USER);
-  const auto slash = path.find_last_of(L'\\');
-  if (!SafeLocalPath(path) || slash == std::wstring::npos ||
-      _wcsicmp(path.substr(slash + 1).c_str(), L"Application") != 0)
-    return {};
-  path += L"\\chrome.exe";
-  return NoReparsePoints(path) ? path : std::wstring();
+  return BrowserInDirectory(ReadRegistration(HKEY_CURRENT_USER));
 }
 
 inline std::wstring ProcessPath(HANDLE process) {
@@ -174,13 +188,17 @@ inline DWORD ParentPid(DWORD pid) {
 }
 
 inline bool AnotherBrowserRunning(const std::wstring& browser) {
+  const auto slash = browser.find_last_of(L'\\');
+  if (slash == std::wstring::npos)
+    return true;
+  const std::wstring filename = browser.substr(slash + 1);
   Handle snapshot(CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0));
   PROCESSENTRY32W entry{};
   entry.dwSize = sizeof(entry);
   if (!snapshot.valid() || !Process32FirstW(snapshot.get(), &entry))
     return true;
   do {
-    if (_wcsicmp(entry.szExeFile, L"chrome.exe") != 0)
+    if (_wcsicmp(entry.szExeFile, filename.c_str()) != 0)
       continue;
     Handle process(OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION | SYNCHRONIZE,
                                FALSE, entry.th32ProcessID));
