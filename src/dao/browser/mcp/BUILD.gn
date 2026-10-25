@@ -16,22 +16,42 @@ source_set("mcp_wire") {
   ]
 }
 
+if (is_win) {
+  source_set("mcp_win_support") {
+    sources = [
+      "dao_mcp_win_util.cc",
+      "dao_mcp_win_util.h",
+    ]
+    public_deps = [ "//base" ]
+    libs = [
+      "advapi32.lib",
+      "iphlpapi.lib",
+      "ws2_32.lib",
+    ]
+  }
+}
+
 source_set("browser_mcp") {
   public_deps = [ ":mcp_wire" ]
 
-  if (is_mac) {
+  if (is_mac || is_win) {
     sources = [
+      "dao_local_agent_integration.cc",
       "dao_local_agent_integration.h",
-      "dao_local_agent_integration.mm",
       "dao_mcp_connection.cc",
       "dao_mcp_connection.h",
       "dao_mcp_runtime_files.h",
-      "dao_mcp_runtime_files.mm",
       "dao_mcp_session_lifecycle_monitor.cc",
       "dao_mcp_session_lifecycle_monitor.h",
       "dao_mcp_transport.cc",
       "dao_mcp_transport.h",
     ]
+
+    if (is_mac) {
+      sources += [ "dao_mcp_runtime_files.mm" ]
+    } else {
+      sources += [ "dao_mcp_runtime_files_win.cc" ]
+    }
 
     deps = [
       "//base",
@@ -45,10 +65,13 @@ source_set("browser_mcp") {
       "//dao/browser/cli:dao_lite_entry_skill",
       "//net",
     ]
+    if (is_win) {
+      deps += [ ":mcp_win_support" ]
+    }
   }
 }
 
-if (is_mac) {
+if (is_mac || is_win) {
   # Socket client and MCP stdio server shared by dao-mcp and dao-browser.
   source_set("mcp_helper_core") {
     sources = [
@@ -62,6 +85,10 @@ if (is_mac) {
       ":mcp_wire",
       "//base",
     ]
+    if (is_win) {
+      public_deps += [ "//net" ]
+      deps = [ ":mcp_win_support" ]
+    }
   }
 
   executable("dao_mcp_helper") {
@@ -69,7 +96,9 @@ if (is_mac) {
     sources = [ "helper/main.cc" ]
 
     defines = [ "DAO_MCP_VERSION=\"$dao_display_version\"" ]
-    frameworks = [ "Foundation.framework" ]
+    if (is_mac) {
+      frameworks = [ "Foundation.framework" ]
+    }
 
     deps = [
       ":mcp_helper_core",
@@ -77,7 +106,9 @@ if (is_mac) {
       "//chrome/common:constants",
     ]
   }
+}
 
+if (is_mac) {
   bundle_data("dao_mcp_helper_files") {
     sources = [ "$root_out_dir/dao-mcp" ]
     outputs = [ "{{bundle_contents_dir}}/Helpers/{{source_file_part}}" ]

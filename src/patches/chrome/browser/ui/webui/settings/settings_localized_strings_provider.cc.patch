@@ -59,7 +59,7 @@ diff --git a/chrome/browser/ui/webui/settings/settings_localized_strings_provide
  }
  
 +void AddDaoStrings(content::WebUIDataSource* html_source) {
-+  html_source->AddBoolean("daoMcpSupported", BUILDFLAG(IS_MAC));
++  html_source->AddBoolean("daoMcpSupported", BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN));
 +  static constexpr webui::LocalizedString kLocalizedStrings[] = {
 +      {"daoPageTitle", IDS_SETTINGS_DAO_PAGE_TITLE},
 +      {"daoTabCategoriesTitle", IDS_DAO_TAB_CATEGORIES_TITLE},

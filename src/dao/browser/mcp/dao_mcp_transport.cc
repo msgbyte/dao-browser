@@ -4,8 +4,6 @@
 
 #include "dao/browser/mcp/dao_mcp_transport.h"
 
-#include <unistd.h>
-
 #include <utility>
 
 #include "base/functional/bind.h"
@@ -16,8 +14,19 @@
 #include "build/build_config.h"
 #include "dao/browser/mcp/dao_mcp_connection.h"
 #include "net/base/net_errors.h"
+#include "net/socket/server_socket.h"
 #include "net/socket/stream_socket.h"
+
+#if BUILDFLAG(IS_WIN)
+#include "dao/browser/mcp/dao_mcp_win_util.h"
+#include "net/base/ip_address.h"
+#include "net/base/ip_endpoint.h"
+#include "net/log/net_log_source.h"
+#include "net/socket/tcp_server_socket.h"
+#else
+#include <unistd.h>
 #include "net/socket/unix_domain_server_socket_posix.h"
+#endif
 
 namespace dao {
 namespace {
@@ -62,10 +71,22 @@ DaoMcpTransport::~DaoMcpTransport() {
   Stop();
 }
 
-int DaoMcpTransport::StartListening(base::FilePath socket_path) {
+base::expected<uint16_t, int> DaoMcpTransport::StartListening(
+    base::FilePath socket_path) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   Stop();
   socket_path_ = std::move(socket_path);
+#if BUILDFLAG(IS_WIN)
+  listener_ =
+      std::make_unique<net::TCPServerSocket>(nullptr, net::NetLogSource());
+  int result =
+      listener_->Listen(net::IPEndPoint(net::IPAddress::IPv4Localhost(), 0),
+                        kListenerBacklog, std::nullopt);
+  net::IPEndPoint address;
+  if (result == net::OK) {
+    result = listener_->GetLocalAddress(&address);
+  }
+#else
   listener_ = std::make_unique<net::UnixDomainServerSocket>(
       base::BindRepeating(
           [](base::WeakPtr<DaoMcpTransport> transport,
@@ -83,12 +104,19 @@ int DaoMcpTransport::StartListening(base::FilePath socket_path) {
           weak_factory_.GetWeakPtr()),
       /*use_abstract_namespace=*/false);
   const int result =
-      listener_->BindAndListen(socket_path_.value(), kListenerBacklog);
+      static_cast<net::UnixDomainServerSocket*>(listener_.get())
+          ->BindAndListen(socket_path_.value(), kListenerBacklog);
+#endif
   if (result != net::OK) {
     listener_.reset();
     socket_path_.clear();
+    return base::unexpected(result);
   }
-  return result;
+#if BUILDFLAG(IS_WIN)
+  return address.port();
+#else
+  return uint16_t{0};
+#endif
 }
 
 void DaoMcpTransport::StartAccepting() {
@@ -173,6 +201,7 @@ void DaoMcpTransport::CloseConnection(uint64_t connection_generation) {
   }
 }
 
+#if !BUILDFLAG(IS_WIN)
 bool DaoMcpTransport::AuthenticatePeer(
     uid_t peer_uid,
     std::optional<base::ProcessId> peer_pid) {
@@ -183,6 +212,8 @@ bool DaoMcpTransport::AuthenticatePeer(
   accepted_verified_pid_ = peer_pid;
   return true;
 }
+
+#endif
 
 void DaoMcpTransport::AcceptNext() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -212,6 +243,26 @@ void DaoMcpTransport::OnAccepted(int result) {
                                   weak_factory_.GetWeakPtr()));
     return;
   }
+
+#if BUILDFLAG(IS_WIN)
+  net::IPEndPoint peer;
+  net::IPEndPoint local;
+  if (accepted_socket_->GetPeerAddress(&peer) == net::OK &&
+      accepted_socket_->GetLocalAddress(&local) == net::OK &&
+      peer.address() == net::IPAddress::IPv4Localhost()) {
+    accepted_verified_pid_ =
+        GetDaoMcpLoopbackTcpOwner(peer.port(), local.port());
+  }
+  if (!accepted_verified_pid_ ||
+      !IsDaoMcpCurrentUserProcess(*accepted_verified_pid_)) {
+    accepted_socket_->Disconnect();
+    accepted_socket_.reset();
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(&DaoMcpTransport::AcceptNext,
+                                  weak_factory_.GetWeakPtr()));
+    return;
+  }
+#endif
 
   if (connections_.size() >= kMaxConnections) {
     if (!overflow_logged_) {

@@ -4,10 +4,7 @@
 
 #include "dao/browser/mcp/helper/dao_mcp_stdio_server.h"
 
-#include <fcntl.h>
-#include <poll.h>
-#include <unistd.h>
-
+#include <algorithm>
 #include <array>
 #include <cerrno>
 #include <cstdio>
@@ -19,8 +16,21 @@
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/strings/strcat.h"
+#include "base/threading/platform_thread.h"
+#include "base/time/time.h"
+#include "build/build_config.h"
 #include "dao/browser/mcp/dao_mcp_protocol.h"
 #include "dao/browser/mcp/helper/dao_mcp_browser_client.h"
+
+#if BUILDFLAG(IS_WIN)
+#include <fcntl.h>
+#include <io.h>
+#include <windows.h>
+#else
+#include <fcntl.h>
+#include <poll.h>
+#include <unistd.h>
+#endif
 
 namespace dao {
 namespace {
@@ -30,7 +40,20 @@ constexpr char kCodexMcpProtocolVersion[] = "2025-06-18";
 constexpr size_t kMaxQueuedStdoutBytes = kDaoMcpMaxLineBytes + 1;
 
 void WriteDiagnostic(std::string_view message) {
+#if BUILDFLAG(IS_WIN)
+  HANDLE output = GetStdHandle(STD_ERROR_HANDLE);
+  if (GetFileType(output) == FILE_TYPE_PIPE) {
+    DWORD mode = PIPE_READMODE_BYTE | PIPE_NOWAIT;
+    if (!SetNamedPipeHandleState(output, &mode, nullptr, nullptr)) {
+      return;
+    }
+  }
+  DWORD written = 0;
+  WriteFile(output, message.data(), static_cast<DWORD>(message.size()),
+            &written, nullptr);
+#else
   std::ignore = write(STDERR_FILENO, message.data(), message.size());
+#endif
 }
 
 bool IsSupportedProtocolVersion(std::string_view version) {
@@ -88,6 +111,35 @@ int DaoMcpStdioServer::Run() {
   }
 
   while (!stdout_failed_ && (!stdin_eof_ || !stdout_writes_.empty())) {
+#if BUILDFLAG(IS_WIN)
+    if (!stdin_eof_ && !ReadStdin()) {
+      stdin_eof_ = true;
+    }
+    if (browser_ && browser_->is_connected()) {
+      std::vector<base::DictValue> responses;
+      const bool read_succeeded = browser_->ReadResponses(&responses);
+      for (base::DictValue& response : responses) {
+        HandleBrowserResponse(std::move(response));
+      }
+      if (!read_succeeded && browser_->is_connected()) {
+        FailBrowser(browser_->last_error());
+      }
+      if (browser_->is_connected() && !browser_->FlushWrites()) {
+        FailBrowser(browser_->last_error());
+      }
+    }
+    if (!FlushStdout()) {
+      return 1;
+    }
+    // Inherited anonymous pipes cannot participate in a socket wait.
+    if (browser_ && browser_->is_connected()) {
+      if (!browser_->WaitForIO(true, browser_->wants_write(), 10)) {
+        FailBrowser(browser_->last_error());
+      }
+    } else {
+      base::PlatformThread::Sleep(base::Milliseconds(10));
+    }
+#else
     std::array<pollfd, 3> descriptors = {};
     descriptors[0] = {.fd = STDIN_FILENO,
                       .events = static_cast<short>(stdin_eof_ ? 0 : POLLIN),
@@ -139,23 +191,64 @@ int DaoMcpStdioServer::Run() {
     if (descriptors[1].revents & (POLLHUP | POLLERR | POLLNVAL)) {
       return 1;
     }
+#endif
   }
   return stdout_failed_ ? 1 : 0;
 }
 
 bool DaoMcpStdioServer::ConfigureStdio() {
+#if BUILDFLAG(IS_WIN)
+  if (_setmode(_fileno(stdin), _O_BINARY) == -1 ||
+      _setmode(_fileno(stdout), _O_BINARY) == -1) {
+    return false;
+  }
+  for (DWORD stream : {STD_INPUT_HANDLE, STD_OUTPUT_HANDLE}) {
+    HANDLE handle = GetStdHandle(stream);
+    const DWORD type = GetFileType(handle);
+    if (type != FILE_TYPE_PIPE && type != FILE_TYPE_DISK) {
+      return false;
+    }
+    if (stream == STD_OUTPUT_HANDLE && type == FILE_TYPE_PIPE) {
+      // Keep the bounded queue responsive even when the MCP client stops reading.
+      DWORD mode = PIPE_READMODE_BYTE | PIPE_NOWAIT;
+      if (!SetNamedPipeHandleState(handle, &mode, nullptr, nullptr)) {
+        return false;
+      }
+    }
+  }
+#else
   for (int descriptor : {STDIN_FILENO, STDOUT_FILENO}) {
     const int flags = fcntl(descriptor, F_GETFL);
     if (flags < 0 || fcntl(descriptor, F_SETFL, flags | O_NONBLOCK) != 0) {
       return false;
     }
   }
+#endif
   return true;
 }
 
 bool DaoMcpStdioServer::ReadStdin() {
   std::array<char, 32 * 1024> buffer;
-  while (true) {
+  // Yield between batches so a continuously writing client cannot starve output.
+  for (size_t batch = 0; batch < 32; ++batch) {
+#if BUILDFLAG(IS_WIN)
+    HANDLE input = GetStdHandle(STD_INPUT_HANDLE);
+    DWORD available = static_cast<DWORD>(buffer.size());
+    if (GetFileType(input) == FILE_TYPE_PIPE) {
+      if (!PeekNamedPipe(input, nullptr, 0, nullptr, &available, nullptr)) {
+        return FinishStdin();
+      }
+      if (available == 0) {
+        return true;
+      }
+    }
+    DWORD bytes = 0;
+    if (!ReadFile(input, buffer.data(),
+                  std::min(available, static_cast<DWORD>(buffer.size())),
+                  &bytes, nullptr)) {
+      return FinishStdin();
+    }
+#else
     const ssize_t bytes = read(STDIN_FILENO, buffer.data(), buffer.size());
     if (bytes < 0 && errno == EINTR) {
       continue;
@@ -166,6 +259,7 @@ bool DaoMcpStdioServer::ReadStdin() {
     if (bytes < 0) {
       return false;
     }
+#endif
     if (bytes == 0) {
       return FinishStdin();
     }
@@ -179,6 +273,7 @@ bool DaoMcpStdioServer::ReadStdin() {
       return false;
     }
   }
+  return true;
 }
 
 bool DaoMcpStdioServer::FinishStdin() {
@@ -636,6 +731,17 @@ bool DaoMcpStdioServer::FlushStdout() {
     const std::string& front = stdout_writes_.front();
     const base::span<const char> remaining =
         base::span(front).subspan(stdout_write_offset_);
+#if BUILDFLAG(IS_WIN)
+    DWORD written = 0;
+    HANDLE output = GetStdHandle(STD_OUTPUT_HANDLE);
+    if (!WriteFile(output, remaining.data(),
+                   static_cast<DWORD>(remaining.size()), &written, nullptr)) {
+      return false;
+    }
+    if (written == 0) {
+      return GetFileType(output) == FILE_TYPE_PIPE;
+    }
+#else
     const ssize_t written =
         write(STDOUT_FILENO, remaining.data(), remaining.size());
     if (written < 0 && errno == EINTR) {
@@ -647,6 +753,7 @@ bool DaoMcpStdioServer::FlushStdout() {
     if (written <= 0) {
       return false;
     }
+#endif
     stdout_write_offset_ += static_cast<size_t>(written);
     stdout_queued_bytes_ -= static_cast<size_t>(written);
     if (stdout_write_offset_ == front.size()) {

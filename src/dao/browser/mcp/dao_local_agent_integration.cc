@@ -6,7 +6,7 @@
 
 #include <string_view>
 
-#include "base/apple/bundle_locations.h"
+#include "base/base_paths.h"
 #include "base/command_line.h"
 #include "base/files/file_util.h"
 #include "base/files/important_file_writer.h"
@@ -17,14 +17,65 @@
 #include "base/strings/string_util.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
+#include "build/build_config.h"
 #include "dao/browser/cli/dao_browser_entry_skill.h"
 #include "dao/browser/cli/dao_lite_entry_skill.h"
+
+#if BUILDFLAG(IS_MAC)
+#include "base/apple/bundle_locations.h"
+#endif
 
 namespace dao {
 namespace {
 
 // Lines Dao writes into files it owns. Removing them hands a file to the user.
 constexpr char kSkillMarker[] = "<!-- dao-browser: managed by Dao Browser -->";
+
+bool IsDaoManagedFile(const base::FilePath& path,
+                     std::string_view marker = kSkillMarker) {
+  std::string contents;
+  return !base::IsLink(path) && !base::IsLink(path.DirName()) &&
+         base::ReadFileToString(path, &contents) &&
+         contents.find(marker) != std::string::npos;
+}
+
+base::FilePath GetLauncherPath(const base::FilePath& home) {
+  return home.AppendASCII(".local").AppendASCII("bin").AppendASCII(
+#if BUILDFLAG(IS_WIN)
+      "dao-browser.cmd"
+#else
+      "dao-browser"
+#endif
+  );
+}
+
+#if BUILDFLAG(IS_WIN)
+constexpr char kLauncherMarker[] = "rem dao-browser: managed by Dao Browser";
+
+std::string BuildHelperLauncher(const base::FilePath& helper_path) {
+  std::string path = helper_path.AsUTF8Unsafe();
+  base::ReplaceSubstringsAfterOffset(&path, 0, "%", "%%");
+  // Decode UTF-8 paths without expanding exclamation marks from the parent shell.
+  return base::StrCat({
+      "@echo off\r\n", kLauncherMarker,
+      "\r\nsetlocal DisableDelayedExpansion\r\n"
+      "for /f \"tokens=2 delims=:\" %%c in ('chcp') do set \"_DAO_CODE_PAGE=%%c\"\r\n"
+      "chcp 65001 >nul\r\n\"", path,
+      "\" %*\r\nset \"_DAO_EXIT_CODE=%errorlevel%\"\r\n"
+      "chcp %_DAO_CODE_PAGE% >nul\r\nexit /b %_DAO_EXIT_CODE%\r\n"});
+}
+
+bool IsDaoHelperLink(const base::FilePath& link) {
+  return IsDaoManagedFile(link, kLauncherMarker);
+}
+
+bool IsHelperLinkCurrent(const base::FilePath& link,
+                        const base::FilePath& helper_path) {
+  std::string contents;
+  return base::ReadFileToString(link, &contents) &&
+         contents == BuildHelperLauncher(helper_path);
+}
+#else
 constexpr std::string_view kHelperSuffix = "/Contents/Helpers/dao-browser";
 
 bool IsDaoHelperLink(const base::FilePath& link) {
@@ -33,11 +84,17 @@ bool IsDaoHelperLink(const base::FilePath& link) {
          base::EndsWith(target.value(), kHelperSuffix);
 }
 
+bool IsHelperLinkCurrent(const base::FilePath& link,
+                        const base::FilePath& helper_path) {
+  base::FilePath target;
+  return base::ReadSymbolicLink(link, &target) && target == helper_path;
+}
+#endif
+
 bool UpdateHelperLink(const base::FilePath& home,
                       const base::FilePath& helper_path,
                       bool installed) {
-  const base::FilePath link =
-      home.Append(".local").Append("bin").Append("dao-browser");
+  const base::FilePath link = GetLauncherPath(home);
   const bool exists = base::PathExists(link) || base::IsLink(link);
   if (!installed) {
     return !exists || !IsDaoHelperLink(link) || base::DeleteFile(link);
@@ -46,16 +103,22 @@ bool UpdateHelperLink(const base::FilePath& home,
     if (!IsDaoHelperLink(link)) {
       return false;
     }
-    base::FilePath target;
-    if (base::ReadSymbolicLink(link, &target) && target == helper_path) {
+    if (IsHelperLinkCurrent(link, helper_path)) {
       return true;
     }
-    if (!base::DeleteFile(link)) {
-      return false;
-    }
+  }
+#if BUILDFLAG(IS_WIN)
+  return !base::IsLink(link.DirName()) &&
+         base::CreateDirectory(link.DirName()) &&
+         base::ImportantFileWriter::WriteFileAtomically(
+             link, BuildHelperLauncher(helper_path));
+#else
+  if (exists && !base::DeleteFile(link)) {
+    return false;
   }
   return base::CreateDirectory(link.DirName()) &&
          base::CreateSymbolicLink(helper_path, link);
+#endif
 }
 
 // Installs and status reads run in order, so the settings page sees the
@@ -69,25 +132,26 @@ scoped_refptr<base::SequencedTaskRunner> GetIntegrationTaskRunner() {
 }
 
 base::FilePath GetHelperPath() {
+#if BUILDFLAG(IS_WIN)
+  base::FilePath module_dir;
+  if (!base::PathService::Get(base::DIR_MODULE, &module_dir)) {
+    return {};
+  }
+  return module_dir.AppendASCII("dao-browser.exe");
+#else
   return base::apple::OuterBundlePath()
-      .Append("Contents")
-      .Append("Helpers")
-      .Append("dao-browser");
-}
-
-bool IsDaoManagedFile(const base::FilePath& path) {
-  std::string contents;
-  return !base::IsLink(path) && !base::IsLink(path.DirName()) &&
-         base::ReadFileToString(path, &contents) &&
-         contents.find(kSkillMarker) != std::string::npos;
+      .AppendASCII("Contents")
+      .AppendASCII("Helpers")
+      .AppendASCII("dao-browser");
+#endif
 }
 
 bool UpdateSkill(const base::FilePath& skills_dir,
                  std::string_view name,
                  const std::string& contents,
                  bool installed) {
-  const base::FilePath skill_dir = skills_dir.Append(name);
-  const base::FilePath skill = skill_dir.Append("SKILL.md");
+  const base::FilePath skill_dir = skills_dir.AppendASCII(name);
+  const base::FilePath skill = skill_dir.AppendASCII("SKILL.md");
   const bool exists = base::PathExists(skill) || base::IsLink(skill);
   if (base::IsLink(skill_dir) || (exists && !IsDaoManagedFile(skill))) {
     return !installed;
@@ -120,8 +184,16 @@ std::string BuildDaoEntrySkill(const base::FilePath& helper_path, bool lite) {
   if (front_matter_end != std::string::npos) {
     skill.insert(front_matter_end + 5, base::StrCat({kSkillMarker, "\n"}));
   }
+#if BUILDFLAG(IS_WIN)
+  std::string path = helper_path.AsUTF8Unsafe();
+  base::ReplaceSubstringsAfterOffset(&path, 0, "'", "''");
+  return base::StrCat({skill,
+                       "\nIf `dao-browser` is not on PATH, run `& '", path,
+                       "'` in PowerShell instead.\n"});
+#else
   return base::StrCat({skill, "\nIf `dao-browser` is not on PATH, run `",
-                       helper_path.value(), "` instead.\n"});
+                       helper_path.AsUTF8Unsafe(), "` instead.\n"});
+#endif
 }
 
 bool UpdateDaoLocalAgentIntegration(const base::FilePath& home,
@@ -138,8 +210,8 @@ bool UpdateDaoLocalAgentIntegration(const base::FilePath& home,
   if (id != "shared" && id != "claude") {
     return false;
   }
-  const auto root = home.Append(id == "shared" ? ".agents/skills"
-                                              : ".claude/skills");
+  const auto root = home.AppendASCII(id == "shared" ? ".agents/skills"
+                                                  : ".claude/skills");
   bool success = true;
   for (bool lite : {false, true}) {
     success = UpdateSkill(root, lite ? "dao-lite" : "dao-browser",
@@ -149,7 +221,7 @@ bool UpdateDaoLocalAgentIntegration(const base::FilePath& home,
   if (id == "shared" && (success || !installed)) {
     // Remove legacy copies only after both shared skills are ready.
     for (const char* name : {"dao-browser", "dao-lite"}) {
-      success = UpdateSkill(home.Append(".codex/skills"), name, "", false) &&
+      success = UpdateSkill(home.AppendASCII(".codex/skills"), name, "", false) &&
                 success;
     }
   }
@@ -190,15 +262,15 @@ base::DictValue GetDaoLocalAgentIntegrationStatus(
     const base::FilePath& helper_path) {
   base::ListValue agents;
   const bool legacy =
-      IsDaoManagedFile(home.Append(".codex/skills/dao-browser/SKILL.md")) ||
-      IsDaoManagedFile(home.Append(".codex/skills/dao-lite/SKILL.md"));
+      IsDaoManagedFile(home.AppendASCII(".codex/skills/dao-browser/SKILL.md")) ||
+      IsDaoManagedFile(home.AppendASCII(".codex/skills/dao-lite/SKILL.md"));
   auto add = [&](std::string_view id, const base::FilePath& root, bool shared) {
     bool installed = shared && legacy;
     bool complete = true;
     for (bool lite : {false, true}) {
-      const auto skill = root.Append("skills")
-                             .Append(lite ? "dao-lite" : "dao-browser")
-                             .Append("SKILL.md");
+      const auto skill = root.AppendASCII("skills")
+                             .AppendASCII(lite ? "dao-lite" : "dao-browser")
+                             .AppendASCII("SKILL.md");
       const bool managed = IsDaoManagedFile(skill);
       installed |= managed;
       std::string contents;
@@ -212,17 +284,14 @@ base::DictValue GetDaoLocalAgentIntegrationStatus(
             .Set("installed", installed)
             .Set("needsUpdate", installed && (!complete || (shared && legacy))));
   };
-  add("shared", home.Append(".agents"), true);
-  add("claude", home.Append(".claude"), false);
-  const base::FilePath link =
-      home.Append(".local").Append("bin").Append("dao-browser");
-  base::FilePath target;
-  const bool linked = base::ReadSymbolicLink(link, &target) &&
-                      base::EndsWith(target.value(), kHelperSuffix);
+  add("shared", home.AppendASCII(".agents"), true);
+  add("claude", home.AppendASCII(".claude"), false);
+  const base::FilePath link = GetLauncherPath(home);
+  const bool linked = IsDaoHelperLink(link);
   return base::DictValue()
       .Set("agents", std::move(agents))
       .Set("cliLinked", linked)
-      .Set("cliNeedsUpdate", linked && target != helper_path);
+      .Set("cliNeedsUpdate", linked && !IsHelperLinkCurrent(link, helper_path));
 }
 
 void RequestDaoLocalAgentIntegrationStatus(

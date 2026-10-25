@@ -10,8 +10,11 @@
 #include "build/build_config.h"
 #if BUILDFLAG(IS_MAC)
 #include "base/apple/bundle_locations.h"
+#endif
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
 #include "dao/browser/mcp/dao_local_agent_integration.h"
 #endif
+#include "base/base_paths.h"
 #include "base/check.h"
 #include "base/functional/bind.h"
 #include "base/i18n/rtl.h"
@@ -43,17 +46,14 @@ namespace {
 
 constexpr char kStatusChangedEvent[] = "dao-mcp-status-changed";
 
-std::string QuotePosixShellWord(std::string_view value) {
-  std::string quoted("'");
-  for (char character : value) {
-    if (character == '\'') {
-      quoted.append("'\"'\"'");
-    } else {
-      quoted.push_back(character);
-    }
-  }
-  quoted.push_back('\'');
-  return quoted;
+std::string QuoteShellWord(std::string_view value) {
+  std::string quoted(value);
+#if BUILDFLAG(IS_WIN)
+  base::ReplaceSubstringsAfterOffset(&quoted, 0, "'", "''");
+#else
+  base::ReplaceSubstringsAfterOffset(&quoted, 0, "'", "'\"'\"'");
+#endif
+  return base::StrCat({"'", quoted, "'"});
 }
 
 std::string SanitizeClientName(std::string_view client_name) {
@@ -128,17 +128,21 @@ std::optional<std::string> BuildDaoMcpInstallCommandForBundle(
     return std::nullopt;
   }
   const std::string helper_path =
+#if BUILDFLAG(IS_WIN)
+      bundle_path.Append(FILE_PATH_LITERAL("dao-mcp.exe")).AsUTF8Unsafe();
+#else
       bundle_path.Append(FILE_PATH_LITERAL("Contents"))
           .Append(FILE_PATH_LITERAL("Helpers"))
           .Append(FILE_PATH_LITERAL("dao-mcp"))
           .AsUTF8Unsafe();
+#endif
   const std::string user_data_argument =
       base::StrCat({"--user-data-dir=",
                     base::PathService::CheckedGet(chrome::DIR_USER_DATA)
                         .AsUTF8Unsafe()});
-  const std::string quoted_helper_path = QuotePosixShellWord(helper_path);
+  const std::string quoted_helper_path = QuoteShellWord(helper_path);
   const std::string quoted_user_data_argument =
-      QuotePosixShellWord(user_data_argument);
+      QuoteShellWord(user_data_argument);
   if (client_id == "codex") {
     return base::StrCat({"codex mcp add dao -- ", quoted_helper_path, " ",
                          quoted_user_data_argument});
@@ -305,7 +309,7 @@ void DaoMcpSettingsHandler::HandleGetDaoLocalAgents(
   CHECK_EQ(1u, args.size());
   AllowJavascript();
   std::string callback_id = args[0].GetString();
-#if BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
   RequestDaoLocalAgentIntegrationStatus(
       base::BindOnce(&DaoMcpSettingsHandler::OnLocalAgentStatus,
                      weak_factory_.GetWeakPtr(), std::move(callback_id)));
@@ -326,7 +330,7 @@ void DaoMcpSettingsHandler::HandleSetDaoLocalAgentInstalled(
   CHECK(args[2].is_bool());
   AllowJavascript();
   std::string callback_id = args[0].GetString();
-#if BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
   RequestDaoLocalAgentIntegrationUpdate(
       id, args[2].GetBool(),
       base::BindOnce(&DaoMcpSettingsHandler::OnLocalAgentStatus,
@@ -379,6 +383,12 @@ std::optional<std::string> DaoMcpSettingsHandler::GetSetupContent(
 #if BUILDFLAG(IS_MAC)
   return BuildDaoMcpInstallCommandForBundle(base::apple::OuterBundlePath(),
                                              option_id);
+#elif BUILDFLAG(IS_WIN)
+  base::FilePath module_dir;
+  if (!base::PathService::Get(base::DIR_MODULE, &module_dir)) {
+    return std::nullopt;
+  }
+  return BuildDaoMcpInstallCommandForBundle(module_dir, option_id);
 #else
   return std::nullopt;
 #endif

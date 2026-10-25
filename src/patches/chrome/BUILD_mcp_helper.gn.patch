@@ -2,6 +2,15 @@ diff --git a/chrome/BUILD.gn b/chrome/BUILD.gn
 index de4c0ef37f..7f6ad86c31 100644
 --- a/chrome/BUILD.gn
 +++ b/chrome/BUILD.gn
+@@ -199,6 +199,8 @@
+       ]
+ 
+       deps += [
++        "//dao/browser/cli:dao_browser_cli",
++        "//dao/browser/mcp:dao_mcp_helper",
+         ":chrome_dll",
+         ":chrome_exe_version",
+         ":copy_first_run",
 @@ -557,6 +557,8 @@ if (is_win) {
        deps += [ ":chromium_updater_privileged_helper" ]
      }

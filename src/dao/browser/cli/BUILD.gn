@@ -51,13 +51,15 @@ action("dao_lite_entry_skill") {
   ]
 }
 
-if (is_mac) {
+if (is_mac || is_win) {
   executable("dao_browser_cli") {
     output_name = "dao-browser"
     sources = [ "dao_browser_cli.cc" ]
 
     defines = [ "DAO_MCP_VERSION=\"$dao_display_version\"" ]
-    frameworks = [ "Foundation.framework" ]
+    if (is_mac) {
+      frameworks = [ "Foundation.framework" ]
+    }
 
     deps = [
       ":dao_browser_guide",
@@ -67,7 +69,9 @@ if (is_mac) {
       "//dao/browser/mcp:mcp_helper_core",
     ]
   }
+}
 
+if (is_mac) {
   bundle_data("dao_browser_cli_bundle_data") {
     sources = [ "$root_out_dir/dao-browser" ]
     outputs = [ "{{bundle_contents_dir}}/Helpers/{{source_file_part}}" ]

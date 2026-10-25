@@ -324,6 +324,15 @@ if (is_win) {
   ]
   dao_browser_ui_deps += [ "//ui/aura" ]
   dao_browser_ui_test_deps += [ "//ui/aura" ]
-  dao_browser_ui_test_sources +=
-      [ "//dao/browser/ui/views/dao_windows_browsertest.cc" ]
+  dao_browser_ui_test_deps += [
+    "//dao/browser/mcp:dao_mcp_helper",
+    "//dao/browser/mcp:mcp_helper_core",
+    "//dao/browser/mcp:mcp_win_support",
+  ]
+  dao_browser_ui_test_sources += [
+    "//dao/browser/mcp/dao_mcp_foundation_unittest.cc",
+    "//dao/browser/mcp/dao_mcp_settings_handler_browsertest.cc",
+    "//dao/browser/mcp/dao_mcp_win_unittest.cc",
+    "//dao/browser/ui/views/dao_windows_browsertest.cc",
+  ]
 }

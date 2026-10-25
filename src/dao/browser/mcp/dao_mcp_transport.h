@@ -5,8 +5,6 @@
 #ifndef DAO_BROWSER_MCP_DAO_MCP_TRANSPORT_H_
 #define DAO_BROWSER_MCP_DAO_MCP_TRANSPORT_H_
 
-#include <sys/types.h>
-
 #include <cstdint>
 #include <map>
 #include <memory>
@@ -18,12 +16,18 @@
 #include "base/memory/weak_ptr.h"
 #include "base/process/process_handle.h"
 #include "base/sequence_checker.h"
+#include "base/types/expected.h"
+#include "build/build_config.h"
+
+#if !BUILDFLAG(IS_WIN)
+#include <sys/types.h>
+#endif
 #include "dao/browser/automation/dao_browser_tool_types.h"
 #include "dao/browser/mcp/dao_mcp_protocol.h"
 
 namespace net {
 class StreamSocket;
-class UnixDomainServerSocket;
+class ServerSocket;
 }  // namespace net
 
 namespace dao {
@@ -33,7 +37,7 @@ namespace dao {
 // active idle connection or rejects the newcomer with TOO_MANY_CLIENTS.
 inline constexpr size_t kDaoMcpMaxConnections = 32;
 
-// Owns the Unix socket listener and accepted connections. Every method and
+// Owns the local socket listener and accepted connections. Every method and
 // callback runs on the browser IO thread.
 class DaoMcpTransport {
  public:
@@ -51,7 +55,7 @@ class DaoMcpTransport {
   DaoMcpTransport(const DaoMcpTransport&) = delete;
   DaoMcpTransport& operator=(const DaoMcpTransport&) = delete;
 
-  int StartListening(base::FilePath socket_path);
+  base::expected<uint16_t, int> StartListening(base::FilePath socket_path);
   void StartAccepting();
   void Stop();
 
@@ -68,8 +72,10 @@ class DaoMcpTransport {
  private:
   struct ConnectionState;
 
+#if !BUILDFLAG(IS_WIN)
   bool AuthenticatePeer(uid_t peer_uid,
                         std::optional<base::ProcessId> peer_pid);
+#endif
   void AcceptNext();
   void OnAccepted(int result);
   void OnRequest(uint64_t connection_generation,
@@ -82,7 +88,7 @@ class DaoMcpTransport {
   RequestCallback request_callback_;
   DisconnectedCallback disconnected_callback_;
   base::FilePath socket_path_;
-  std::unique_ptr<net::UnixDomainServerSocket> listener_;
+  std::unique_ptr<net::ServerSocket> listener_;
   std::unique_ptr<net::StreamSocket> accepted_socket_;
   std::map<uint64_t, std::unique_ptr<ConnectionState>> connections_;
   std::optional<base::ProcessId> accepted_verified_pid_;

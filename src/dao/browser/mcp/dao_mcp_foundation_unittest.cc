@@ -14,6 +14,7 @@
 #include "base/files/scoped_temp_dir.h"
 #include "base/path_service.h"
 #include "base/values.h"
+#include "build/build_config.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
@@ -35,6 +36,10 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/base/resource/resource_scale_factor.h"
+
+#if BUILDFLAG(IS_WIN)
+#include "base/test/file_path_reparse_point_win.h"
+#endif
 
 namespace dao {
 namespace {
@@ -671,14 +676,26 @@ class DaoLocalAgentIntegrationTest : public testing::Test {
  protected:
   void SetUp() override {
     ASSERT_TRUE(temp_.CreateUniqueTempDir());
-    home_ = temp_.GetPath().Append("home");
-    helper_ = temp_.GetPath().Append("Dao.app/Contents/Helpers/dao-browser");
+    home_ = temp_.GetPath().AppendASCII("home");
+#if BUILDFLAG(IS_WIN)
+    helper_ = temp_.GetPath().AppendASCII("Dao/154.0.1/dao-browser.exe");
+#else
+    helper_ = temp_.GetPath().AppendASCII("Dao.app/Contents/Helpers/dao-browser");
+#endif
     ASSERT_TRUE(base::CreateDirectory(helper_.DirName()));
     ASSERT_TRUE(base::WriteFile(helper_, "#!/bin/sh\n"));
   }
 
+  base::FilePath LauncherPath() {
+#if BUILDFLAG(IS_WIN)
+    return home_.AppendASCII(".local/bin/dao-browser.cmd");
+#else
+    return home_.AppendASCII(".local/bin/dao-browser");
+#endif
+  }
+
   base::FilePath SkillPath(const char* root) {
-    return home_.Append(root).Append("skills/dao-browser/SKILL.md");
+    return home_.AppendASCII(root).AppendASCII("skills/dao-browser/SKILL.md");
   }
 
   void WriteSkill(const char* root, const std::string& contents) {
@@ -713,34 +730,42 @@ TEST_F(DaoLocalAgentIntegrationTest, InstallsAndRemovesSelectedIntegration) {
   std::string contents;
   ASSERT_TRUE(base::ReadFileToString(SkillPath(".agents"), &contents));
   EXPECT_EQ(BuildDaoEntrySkill(helper_), contents);
-  EXPECT_TRUE(base::PathExists(home_.Append(".agents/skills/dao-lite/SKILL.md")));
+  EXPECT_TRUE(
+      base::PathExists(home_.AppendASCII(".agents/skills/dao-lite/SKILL.md")));
   EXPECT_EQ(false, SharedStatus().FindBool("needsUpdate"));
-  EXPECT_FALSE(base::PathExists(home_.Append(".codex")));
-  EXPECT_FALSE(base::PathExists(home_.Append(".claude")));
-  EXPECT_FALSE(base::PathExists(home_.Append(".local")));
+  EXPECT_FALSE(base::PathExists(home_.AppendASCII(".codex")));
+  EXPECT_FALSE(base::PathExists(home_.AppendASCII(".claude")));
+  EXPECT_FALSE(base::PathExists(home_.AppendASCII(".local")));
 
   ASSERT_TRUE(UpdateDaoLocalAgentIntegration(home_, helper_, "claude", true));
   ASSERT_TRUE(UpdateDaoLocalAgentIntegration(home_, helper_, "cli", true));
-  const auto link = home_.Append(".local/bin/dao-browser");
+  const auto link = LauncherPath();
+#if BUILDFLAG(IS_WIN)
+  EXPECT_TRUE(base::PathExists(link));
+  EXPECT_FALSE(base::IsLink(link));
+#else
   base::FilePath target;
   ASSERT_TRUE(base::ReadSymbolicLink(link, &target));
   EXPECT_EQ(helper_, target);
+#endif
 
   ASSERT_TRUE(UpdateDaoLocalAgentIntegration(home_, helper_, "shared", false));
   EXPECT_FALSE(base::PathExists(SkillPath(".agents")));
-  EXPECT_FALSE(base::PathExists(home_.Append(".agents/skills/dao-lite/SKILL.md")));
-  EXPECT_TRUE(base::PathExists(home_.Append(".claude/skills/dao-lite/SKILL.md")));
+  EXPECT_FALSE(
+      base::PathExists(home_.AppendASCII(".agents/skills/dao-lite/SKILL.md")));
+  EXPECT_TRUE(
+      base::PathExists(home_.AppendASCII(".claude/skills/dao-lite/SKILL.md")));
   EXPECT_TRUE(base::PathExists(SkillPath(".claude")));
-  EXPECT_TRUE(base::IsLink(link));
+  EXPECT_TRUE(base::PathExists(link));
   ASSERT_TRUE(UpdateDaoLocalAgentIntegration(home_, helper_, "cli", false));
-  EXPECT_FALSE(base::IsLink(link));
+  EXPECT_FALSE(base::PathExists(link));
 }
 
 TEST_F(DaoLocalAgentIntegrationTest, RepairsPartialSkillPairAndPreservesCustomLite) {
   WriteSkill(".agents", BuildDaoEntrySkill(helper_));
   EXPECT_EQ(true, SharedStatus().FindBool("needsUpdate"));
   ASSERT_TRUE(UpdateDaoLocalAgentIntegration(home_, helper_, "shared", true));
-  const auto lite = home_.Append(".agents/skills/dao-lite/SKILL.md");
+  const auto lite = home_.AppendASCII(".agents/skills/dao-lite/SKILL.md");
   std::string contents;
   ASSERT_TRUE(base::ReadFileToString(lite, &contents));
   EXPECT_EQ(BuildDaoEntrySkill(helper_, true), contents);
@@ -761,7 +786,7 @@ TEST_F(DaoLocalAgentIntegrationTest, DetectsAndUpdatesOutdatedSkills) {
   EXPECT_EQ(false, SharedStatus().FindBool("needsUpdate"));
   // An app move also makes the embedded fallback command stale.
   const auto moved =
-      temp_.GetPath().Append("Moved.app/Contents/Helpers/dao-browser");
+      temp_.GetPath().AppendASCII("Moved.app/Contents/Helpers/dao-browser");
   auto status = GetDaoLocalAgentIntegrationStatus(home_, moved);
   EXPECT_EQ(true,
             (*status.FindList("agents"))[0].GetDict().FindBool("needsUpdate"));
@@ -800,7 +825,7 @@ TEST_F(DaoLocalAgentIntegrationTest, PreservesCustomFilesAndReportsConflicts) {
 
   WriteSkill(".codex", "custom codex skill");
   WriteSkill(".agents", BuildDaoEntrySkill(helper_));
-  const auto extra = SkillPath(".agents").DirName().Append("notes.txt");
+  const auto extra = SkillPath(".agents").DirName().AppendASCII("notes.txt");
   ASSERT_TRUE(base::WriteFile(extra, "keep me"));
   ASSERT_TRUE(UpdateDaoLocalAgentIntegration(home_, helper_, "shared", false));
   EXPECT_TRUE(base::PathExists(extra));
@@ -812,14 +837,15 @@ TEST_F(DaoLocalAgentIntegrationTest, RejectsInvalidTargetsAndUnavailableHelper) 
   EXPECT_FALSE(UpdateDaoLocalAgentIntegration(home_, helper_, "../other", true));
   EXPECT_FALSE(base::PathExists(home_));
   ASSERT_TRUE(base::CreateDirectory(home_));
-  ASSERT_TRUE(base::WriteFile(home_.Append(".agents"), "blocked"));
+  ASSERT_TRUE(base::WriteFile(home_.AppendASCII(".agents"), "blocked"));
   EXPECT_FALSE(UpdateDaoLocalAgentIntegration(home_, helper_, "shared", true));
   ASSERT_TRUE(base::DeleteFile(helper_));
   EXPECT_FALSE(UpdateDaoLocalAgentIntegration(home_, helper_, "cli", true));
 }
 
+#if !BUILDFLAG(IS_WIN)
 TEST_F(DaoLocalAgentIntegrationTest, PreservesSymlinksToUserSkills) {
-  const auto source = temp_.GetPath().Append("user-skill.md");
+  const auto source = temp_.GetPath().AppendASCII("user-skill.md");
   ASSERT_TRUE(base::WriteFile(source, BuildDaoEntrySkill(helper_)));
   const auto skill = SkillPath(".agents");
   ASSERT_TRUE(base::CreateDirectory(skill.DirName()));
@@ -829,12 +855,20 @@ TEST_F(DaoLocalAgentIntegrationTest, PreservesSymlinksToUserSkills) {
   EXPECT_TRUE(base::IsLink(skill));
   EXPECT_TRUE(base::PathExists(source));
 }
+#endif
 
 TEST_F(DaoLocalAgentIntegrationTest, DetectsOldCliLinksAndPreservesCustomCommands) {
-  const auto link = home_.Append(".local/bin/dao-browser");
-  const auto old = temp_.GetPath().Append("Old.app/Contents/Helpers/dao-browser");
+  const auto link = LauncherPath();
+  const auto old =
+      temp_.GetPath().AppendASCII("Old.app/Contents/Helpers/dao-browser");
   ASSERT_TRUE(base::CreateDirectory(link.DirName()));
+#if BUILDFLAG(IS_WIN)
+  ASSERT_TRUE(base::CreateDirectory(old.DirName()));
+  ASSERT_TRUE(base::WriteFile(old, "old helper"));
+  ASSERT_TRUE(UpdateDaoLocalAgentIntegration(home_, old, "cli", true));
+#else
   ASSERT_TRUE(base::CreateSymbolicLink(old, link));
+#endif
   auto status = GetDaoLocalAgentIntegrationStatus(home_, helper_);
   EXPECT_EQ(true, status.FindBool("cliLinked"));
   EXPECT_EQ(true, status.FindBool("cliNeedsUpdate"));
@@ -847,6 +881,43 @@ TEST_F(DaoLocalAgentIntegrationTest, DetectsOldCliLinksAndPreservesCustomCommand
   EXPECT_TRUE(UpdateDaoLocalAgentIntegration(home_, helper_, "cli", false));
   EXPECT_TRUE(base::PathExists(link));
 }
+
+#if BUILDFLAG(IS_WIN)
+TEST_F(DaoLocalAgentIntegrationTest, QuotesWindowsPathsInLauncherAndSkills) {
+  helper_ = temp_.GetPath().Append(base::FilePath::FromUTF8Unsafe(
+      "Dao 100% ready! O'Brien 中文/dao-browser.exe"));
+  ASSERT_TRUE(base::CreateDirectory(helper_.DirName()));
+  ASSERT_TRUE(base::WriteFile(helper_, "helper"));
+  ASSERT_TRUE(UpdateDaoLocalAgentIntegration(home_, helper_, "cli", true));
+  std::string contents;
+  ASSERT_TRUE(base::ReadFileToString(LauncherPath(), &contents));
+  EXPECT_NE(std::string::npos, contents.find("100%% ready! O'Brien 中文"));
+  EXPECT_NE(std::string::npos, contents.find("setlocal DisableDelayedExpansion"));
+  EXPECT_NE(std::string::npos, contents.find("chcp 65001 >nul"));
+  EXPECT_NE(std::string::npos, contents.find("\" %*\r\n"));
+  EXPECT_NE(std::string::npos, contents.find("exit /b %_DAO_EXIT_CODE%"));
+  for (bool lite : {false, true}) {
+    const std::string skill = BuildDaoEntrySkill(helper_, lite);
+    EXPECT_NE(std::string::npos, skill.find("O''Brien 中文"));
+    EXPECT_NE(std::string::npos, skill.find("run `& '"));
+  }
+}
+
+TEST_F(DaoLocalAgentIntegrationTest, PreservesJunctionsToUserSkills) {
+  const auto source = temp_.GetPath().AppendASCII("user-skill");
+  ASSERT_TRUE(base::CreateDirectory(source));
+  const auto source_skill = source.AppendASCII("SKILL.md");
+  ASSERT_TRUE(base::WriteFile(source_skill, BuildDaoEntrySkill(helper_)));
+  const auto skill_dir = SkillPath(".agents").DirName();
+  ASSERT_TRUE(base::CreateDirectory(skill_dir));
+  auto junction = base::test::FilePathReparsePoint::Create(skill_dir, source);
+  ASSERT_TRUE(junction.has_value());
+  EXPECT_FALSE(UpdateDaoLocalAgentIntegration(home_, helper_, "shared", true));
+  EXPECT_TRUE(UpdateDaoLocalAgentIntegration(home_, helper_, "shared", false));
+  EXPECT_TRUE(base::IsLink(skill_dir));
+  EXPECT_TRUE(base::PathExists(source_skill));
+}
+#endif
 
 }  // namespace
 }  // namespace dao

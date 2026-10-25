@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // dao-browser: the command line entry point local agents use to work in Dao.
-// It ships inside Dao.app, so the CLI, its guide and the browser always have
+// It ships with Dao, so the CLI, its guide and the browser always have
 // the same version.
 
 #include <algorithm>
@@ -31,15 +31,22 @@
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/threading/platform_thread.h"
 #include "base/time/time.h"
 #include "base/values.h"
+#include "build/build_config.h"
 #include "chrome/common/chrome_paths.h"
 #include "dao/browser/cli/dao_browser_guide.h"
 #include "dao/browser/cli/dao_lite_guide.h"
 #include "dao/browser/mcp/dao_mcp_protocol.h"
 #include "dao/browser/mcp/helper/dao_mcp_browser_client.h"
 #include "dao/browser/mcp/helper/dao_mcp_stdio_server.h"
+
+#if BUILDFLAG(IS_WIN)
+#include <fcntl.h>
+#include <io.h>
+#endif
 
 #ifndef DAO_MCP_VERSION
 #define DAO_MCP_VERSION "0.0.0.0"
@@ -94,9 +101,7 @@ std::string PrettyJson(const base::Value& value) {
       .value_or("null");
 }
 
-// Finds Dao.app from Contents/Helpers/dao-browser, following the symlink that
-// Dao installs in ~/.local/bin.
-std::optional<base::FilePath> FindAppBundle() {
+std::optional<base::FilePath> FindBrowser() {
   base::FilePath exe;
   if (!base::PathService::Get(base::FILE_EXE, &exe)) {
     return std::nullopt;
@@ -105,8 +110,17 @@ std::optional<base::FilePath> FindAppBundle() {
   if (resolved.empty()) {
     resolved = exe;
   }
+#if BUILDFLAG(IS_WIN)
+  base::FilePath app = resolved.DirName().AppendASCII("dao.exe");
+  if (!base::PathExists(app)) {
+    app = resolved.DirName().DirName().AppendASCII("dao.exe");
+  }
+  if (!base::PathExists(app)) {
+#else
+  // Resolve the ~/.local/bin link back to Dao.app/Contents/Helpers.
   base::FilePath app = resolved.DirName().DirName().DirName();
-  if (app.Extension() != ".app") {
+  if (app.Extension() != FILE_PATH_LITERAL(".app")) {
+#endif
     return std::nullopt;
   }
   return app;
@@ -211,11 +225,17 @@ std::unique_ptr<SyncBrowser> ConnectToDao(const Options& options) {
   if (browser->Connect(options.client_name, &error)) {
     return browser;
   }
-  std::optional<base::FilePath> app = FindAppBundle();
+  std::optional<base::FilePath> app = FindBrowser();
   if (options.launch && app) {
-    base::LaunchProcess(
-        std::vector<std::string>{"/usr/bin/open", "-g", app->value()},
-        base::LaunchOptions());
+#if BUILDFLAG(IS_WIN)
+    base::CommandLine launch_command(*app);
+    launch_command.AppendSwitchPath("user-data-dir", options.user_data_dir);
+#else
+    base::CommandLine launch_command(base::FilePath("/usr/bin/open"));
+    launch_command.AppendArg("-g");
+    launch_command.AppendArgPath(*app);
+#endif
+    base::LaunchProcess(launch_command, base::LaunchOptions());
     const base::TimeTicks deadline = base::TimeTicks::Now() + kLaunchWait;
     while (base::TimeTicks::Now() < deadline) {
       base::PlatformThread::Sleep(base::Milliseconds(500));
@@ -294,7 +314,7 @@ std::optional<base::DictValue> CallTool(SyncBrowser& browser,
 // Remembers which guide the agent read, so later runs can tell it to read
 // the guide again after Dao updates.
 base::FilePath GuideVersionFile(const Options& options) {
-  return options.user_data_dir.Append("dao_browser_guide_version");
+  return options.user_data_dir.AppendASCII("dao_browser_guide_version");
 }
 
 int RunSkill(const Options& options, bool lite) {
@@ -357,7 +377,7 @@ void SaveScriptFiles(const base::ListValue& files) {
       PrintError("could not decode " + *path + " as base64.");
       continue;
     }
-    const base::FilePath target(*path);
+    const base::FilePath target = base::FilePath::FromUTF8Unsafe(*path);
     if (!base::CreateDirectory(target.DirName()) ||
         !base::WriteFile(target, bytes)) {
       PrintError("could not save " + *path);
@@ -369,14 +389,15 @@ void SaveScriptFiles(const base::ListValue& files) {
 }
 
 int RunScript(const Options& options,
-              const base::CommandLine::StringVector& args,
+              const std::vector<std::string>& args,
               const base::CommandLine& command_line) {
   std::string code;
   const bool from_stdin = args.size() < 2 || args[1] == "-";
   if (from_stdin) {
     code.assign(std::istreambuf_iterator<char>(std::cin),
                 std::istreambuf_iterator<char>());
-  } else if (!base::ReadFileToString(base::FilePath(args[1]), &code)) {
+  } else if (!base::ReadFileToString(base::FilePath::FromUTF8Unsafe(args[1]),
+                                    &code)) {
     PrintError("could not read " + args[1]);
     return kExitUsage;
   }
@@ -452,7 +473,7 @@ int RunScript(const Options& options,
 }
 
 int RunCall(const Options& options,
-            const base::CommandLine::StringVector& args) {
+            const std::vector<std::string>& args) {
   if (args.size() < 2) {
     PrintError("call needs a tool name, e.g. dao-browser call list_spaces");
     return kExitUsage;
@@ -490,16 +511,22 @@ namespace {
 
 // Options that take a value. Agents write both `--space ID` and
 // `--space=ID`; base::CommandLine only understands the second form.
-constexpr std::string_view kValueSwitches[] = {
-    "--space", "--timeout", "--client", "--reason", "--user-data-dir"};
+constexpr std::basic_string_view<base::CommandLine::CharType> kValueSwitches[] = {
+    FILE_PATH_LITERAL("--space"), FILE_PATH_LITERAL("--timeout"),
+    FILE_PATH_LITERAL("--client"), FILE_PATH_LITERAL("--reason"),
+    FILE_PATH_LITERAL("--user-data-dir")};
 
-std::vector<std::string> NormalizeArguments(
-    const std::vector<std::string>& argv) {
-  std::vector<std::string> args;
+base::CommandLine::StringVector NormalizeArguments(
+    const base::CommandLine::StringVector& argv) {
+  base::CommandLine::StringVector args;
   for (auto it = argv.begin(); it != argv.end(); ++it) {
+    if (*it == FILE_PATH_LITERAL("--")) {
+      args.insert(args.end(), it, argv.end());
+      break;
+    }
     if (std::next(it) != argv.end() &&
         std::ranges::contains(kValueSwitches, *it)) {
-      args.push_back(base::StrCat({*it, "=", *std::next(it)}));
+      args.push_back(*it + FILE_PATH_LITERAL("=") + *std::next(it));
       ++it;
     } else {
       args.push_back(*it);
@@ -508,20 +535,41 @@ std::vector<std::string> NormalizeArguments(
   return args;
 }
 
+std::string ArgumentToUtf8(const base::CommandLine::StringType& argument) {
+#if BUILDFLAG(IS_WIN)
+  return base::WideToUTF8(argument);
+#else
+  return argument;
+#endif
+}
+
 }  // namespace
 }  // namespace dao
 
+#if BUILDFLAG(IS_WIN)
+int wmain(int argc, wchar_t** argv) {
+#else
 int main(int argc, char** argv) {
+#endif
   base::AtExitManager at_exit_manager;
   // SAFETY: main() receives `argc` valid entries in `argv`.
-  const base::span<char*> raw_argv =
-      UNSAFE_BUFFERS(base::span<char*>(argv, static_cast<size_t>(argc)));
+  const base::span<base::CommandLine::CharType*> raw_argv = UNSAFE_BUFFERS(
+      base::span<base::CommandLine::CharType*>(argv, static_cast<size_t>(argc)));
+#if BUILDFLAG(IS_WIN)
+  base::CommandLine::Init(0, nullptr);
+  _setmode(_fileno(stdin), _O_BINARY);
+  _setmode(_fileno(stdout), _O_BINARY);
+#else
   base::CommandLine::Init(argc, argv);
+#endif
   base::CommandLine::ForCurrentProcess()->InitFromArgv(dao::NormalizeArguments(
-      std::vector<std::string>(raw_argv.begin(), raw_argv.end())));
+      base::CommandLine::StringVector(raw_argv.begin(), raw_argv.end())));
   const base::CommandLine& command_line =
       *base::CommandLine::ForCurrentProcess();
-  const base::CommandLine::StringVector args = command_line.GetArgs();
+  std::vector<std::string> args;
+  for (const auto& argument : command_line.GetArgs()) {
+    args.push_back(dao::ArgumentToUtf8(argument));
+  }
 
   if (command_line.HasSwitch("version")) {
     std::cout << DAO_MCP_VERSION << std::endl;
@@ -529,7 +577,7 @@ int main(int argc, char** argv) {
   }
   if (args.empty() || command_line.HasSwitch("help")) {
     std::cout << dao::kUsage;
-    return args.empty() ? dao::kExitUsage : dao::kExitOk;
+    return command_line.HasSwitch("help") ? dao::kExitOk : dao::kExitUsage;
   }
   const std::string& command = args[0];
   dao::Options options;
@@ -549,14 +597,16 @@ int main(int argc, char** argv) {
   std::unique_ptr<base::Environment> env = base::Environment::Create();
   if (command_line.HasSwitch("client")) {
     // Names and reasons are shown to the user, often in their language.
-    options.client_name = command_line.GetSwitchValueNative("client");
+    options.client_name =
+        dao::ArgumentToUtf8(command_line.GetSwitchValueNative("client"));
   } else if (std::optional<std::string> client =
                  env->GetVar("DAO_BROWSER_CLIENT");
              client && !client->empty()) {
     options.client_name = *client;
   }
   if (command_line.HasSwitch("reason")) {
-    options.reason = command_line.GetSwitchValueNative("reason");
+    options.reason =
+        dao::ArgumentToUtf8(command_line.GetSwitchValueNative("reason"));
   }
   options.launch = !command_line.HasSwitch("no-launch");
 

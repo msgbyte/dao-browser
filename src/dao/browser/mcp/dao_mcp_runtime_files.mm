@@ -57,7 +57,7 @@ base::expected<void, DaoToolError> DaoMcpRuntimeFiles::Prepare() {
   return base::ok();
 }
 
-base::expected<void, DaoToolError> DaoMcpRuntimeFiles::CaptureBoundSocket() {
+base::expected<void, DaoToolError> DaoMcpRuntimeFiles::CaptureBoundSocket(uint16_t port) {
   struct stat socket_stat = {};
   if (!VerifySocket(&socket_stat)) {
     return base::unexpected(

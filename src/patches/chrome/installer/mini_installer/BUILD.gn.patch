@@ -1,11 +1,21 @@
 --- a/chrome/installer/mini_installer/BUILD.gn
 +++ b/chrome/installer/mini_installer/BUILD.gn
-@@ -151,7 +151,7 @@
+@@ -151,7 +151,9 @@
    inputs = [
      "$root_out_dir/chrome.dll",
      "$root_out_dir/chrome_elf.dll",
 -    "$root_out_dir/chrome.exe",
 +    "$root_out_dir/dao.exe",
++    "$root_out_dir/dao-browser.exe",
++    "$root_out_dir/dao-mcp.exe",
      "$root_out_dir/locales/en-US.pak",
      "$root_out_dir/setup.exe",
      "//chrome/tools/build/win/makecab.py",
+@@ -197,5 +199,7 @@
+     "//chrome/chrome_elf",
+     "//chrome/common/win:eventlog_provider",
+     "//chrome/installer/setup",
++    "//dao/browser/cli:dao_browser_cli",
++    "//dao/browser/mcp:dao_mcp_helper",
+     "//third_party/icu:icudata",
+   ]

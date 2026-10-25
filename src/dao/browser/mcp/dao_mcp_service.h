@@ -35,7 +35,7 @@
 #include "dao/browser/automation/dao_agent_lease_manager.h"
 #include "dao/browser/automation/dao_browser_tool_catalog.h"
 #include "dao/browser/mcp/dao_mcp_protocol.h"
-#if BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
 #include "dao/browser/mcp/dao_mcp_transport.h"
 #endif
 
@@ -134,7 +134,7 @@ class DaoMcpApprovalDelegate {
       base::OnceCallback<void(std::optional<std::string>)> callback);
 };
 
-#if BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
 std::string BuildDaoMcpConfigurationForBundle(
     const base::FilePath& bundle_path);
 #endif
@@ -147,7 +147,9 @@ class DaoMcpService {
       base::RepeatingCallback<void(const DaoMcpServiceStatus&)>;
 
   static DaoMcpService* Get();
-  static constexpr bool IsSupported() { return BUILDFLAG(IS_MAC); }
+  static constexpr bool IsSupported() {
+    return BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN);
+  }
 
   void Initialize(PrefService* local_state, base::FilePath user_data_dir);
   void Shutdown();
@@ -165,7 +167,7 @@ class DaoMcpService {
   void RevokeTab(std::string_view connection_id, std::string_view tab_id);
   base::CallbackListSubscription AddObserver(StatusObserver observer);
   void SetApprovalDelegate(DaoMcpApprovalDelegate* delegate);
-#if BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
   void SetTimeoutsForTesting(base::TimeDelta hello_timeout,
                              base::TimeDelta approval_timeout);
   void SetDevToolsCommandCallbackForTesting(
@@ -195,7 +197,7 @@ class DaoMcpService {
   DaoMcpService();
   ~DaoMcpService();
 
-#if BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
 
   enum class ApprovalState {
     kNotRequested,
@@ -226,7 +228,8 @@ class DaoMcpService {
   void StartListening();
   void OnRuntimePrepared(uint64_t runtime_generation,
                          base::expected<void, DaoToolError> prepared);
-  void OnTransportListening(uint64_t runtime_generation, int result);
+  void OnTransportListening(uint64_t runtime_generation,
+                            base::expected<uint16_t, int> result);
   void OnRuntimePublished(uint64_t runtime_generation,
                           base::expected<void, DaoToolError> published);
   void QueueRuntimeCleanup();

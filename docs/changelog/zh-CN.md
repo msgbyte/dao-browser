@@ -4,6 +4,7 @@
 
 ### [Unreleased] 未发布
 
+- Windows 支持本地 MCP 服务和 Dao Lite，可在设置中安装和管理本机 Agent 技能及 dao-browser 命令。
 - Windows 任务管理器中的 Dao 进程名改为 `dao.exe`，不再显示为 `chrome.exe`。
 - 复制链接等浏览器原生提示统一使用 Dao 的提示样式，显示在网页内容区域内，并保留原有按钮和菜单。
 - 隐藏设置侧边栏、总览和搜索中的 Chromium Google AI 设置，保留“Dao 智能体”设置。

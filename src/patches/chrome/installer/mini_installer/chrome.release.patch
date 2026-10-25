@@ -9,3 +9,12 @@
  chrome_proxy.exe: %(ChromeDir)s\
  #
  # Chrome version dir assembly manifest.
+@@ -26,6 +26,8 @@
+ chrome_renderer.dll: %(VersionDir)s\
+ chrome_wer.dll: %(VersionDir)s\
+ d3dcompiler_47.dll: %(VersionDir)s\
++dao-browser.exe: %(VersionDir)s\
++dao-mcp.exe: %(VersionDir)s\
+ eventlog_provider.dll: %(VersionDir)s\
+ icudtl.dat: %(VersionDir)s\
+ libEGL.dll: %(VersionDir)s\

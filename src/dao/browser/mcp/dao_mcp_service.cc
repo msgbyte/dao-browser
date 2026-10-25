@@ -15,13 +15,14 @@
 #include "dao/browser/dao_pref_names.h"
 #include "dao/browser/updater/dao_updater_service.h"
 
-#if BUILDFLAG(IS_MAC)
-#include <unistd.h>
-
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
 #include <algorithm>
 #include <vector>
 
+#include "base/base_paths.h"
+#if BUILDFLAG(IS_MAC)
 #include "base/apple/bundle_locations.h"
+#endif
 #include "base/containers/span.h"
 #include "base/json/json_writer.h"
 #include "base/location.h"
@@ -71,7 +72,7 @@
 namespace dao {
 namespace {
 
-#if BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
 constexpr size_t kMaxClientLabelBytes = 256;
 constexpr size_t kMaxPendingToolCalls = 64;
 constexpr size_t kMaxPendingToolCallBytes = kDaoMcpMaxLineBytes;
@@ -103,7 +104,7 @@ base::DictValue NewMcpUsageStats(base::Time last_reset) {
   return stats;
 }
 
-#if BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
 void RecordMcpToolUsage(PrefService* prefs, std::string_view tool_name) {
   if (!prefs || tool_name.empty()) {
     return;
@@ -253,7 +254,7 @@ void DaoMcpApprovalDelegate::RequestTabAccess(
           request.tab_target->tab_id, std::move(callback)));
 }
 
-#if BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
 struct DaoMcpService::TargetContext {
   TargetContext() = default;
   ~TargetContext() = default;
@@ -425,10 +426,14 @@ class DaoMcpPageUiDelegate final : public DaoPageTools::UiDelegate {
 
 std::string BuildDaoMcpConfigurationForBundle(
     const base::FilePath& bundle_path) {
+#if BUILDFLAG(IS_WIN)
+  const base::FilePath helper_path = bundle_path.AppendASCII("dao-mcp.exe");
+#else
   const base::FilePath helper_path =
       bundle_path.Append(FILE_PATH_LITERAL("Contents"))
           .Append(FILE_PATH_LITERAL("Helpers"))
           .Append(FILE_PATH_LITERAL("dao-mcp"));
+#endif
   const base::FilePath user_data_dir =
       base::PathService::CheckedGet(chrome::DIR_USER_DATA);
 
@@ -462,7 +467,7 @@ DaoMcpService* DaoMcpService::Get() {
   return instance.get();
 }
 
-#if BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
 DaoMcpService::PendingToolCall::PendingToolCall() = default;
 DaoMcpService::PendingToolCall::~PendingToolCall() = default;
 DaoMcpService::PendingToolCall::PendingToolCall(PendingToolCall&&) noexcept =
@@ -545,7 +550,12 @@ DaoMcpServiceStatus DaoMcpService::GetStatus() const {
 
 std::string DaoMcpService::GetMcpConfiguration() const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+#if BUILDFLAG(IS_MAC)
   return BuildDaoMcpConfigurationForBundle(base::apple::OuterBundlePath());
+#else
+  return BuildDaoMcpConfigurationForBundle(
+      base::PathService::CheckedGet(base::DIR_MODULE));
+#endif
 }
 
 BrowserWindowInterface* DaoMcpService::GetAuthorizedBrowser() const {
@@ -930,13 +940,13 @@ void DaoMcpService::OnRuntimePrepared(
                            weak_factory_.GetWeakPtr(), runtime_generation));
 }
 
-void DaoMcpService::OnTransportListening(uint64_t runtime_generation,
-                                         int result) {
+void DaoMcpService::OnTransportListening(
+    uint64_t runtime_generation, base::expected<uint16_t, int> result) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (runtime_generation != runtime_generation_) {
     return;
   }
-  if (result != net::OK) {
+  if (!result.has_value()) {
     listener_start_pending_ = false;
     transport_.Reset();
     QueueRuntimeCleanup();
@@ -946,15 +956,15 @@ void DaoMcpService::OnTransportListening(uint64_t runtime_generation,
   runtime_task_runner_->PostTaskAndReplyWithResult(
       FROM_HERE,
       base::BindOnce(
-          [](scoped_refptr<DaoMcpRuntimeFiles> runtime_files)
+          [](scoped_refptr<DaoMcpRuntimeFiles> runtime_files, uint16_t port)
               -> base::expected<void, DaoToolError> {
-            auto captured = runtime_files->CaptureBoundSocket();
+            auto captured = runtime_files->CaptureBoundSocket(port);
             if (!captured.has_value()) {
               return captured;
             }
             return runtime_files->Publish();
           },
-          runtime_files_),
+          runtime_files_, result.value()),
       base::BindOnce(&DaoMcpService::OnRuntimePublished,
                      weak_factory_.GetWeakPtr(), runtime_generation));
 }

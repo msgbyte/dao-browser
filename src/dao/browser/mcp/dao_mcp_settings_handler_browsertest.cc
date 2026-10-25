@@ -8,16 +8,18 @@
 #include <string>
 #include <utility>
 
-#include "base/apple/bundle_locations.h"
+#include "base/base_paths.h"
 #include "base/files/file_path.h"
 #include "base/i18n/rtl.h"
 #include "base/json/json_reader.h"
+#include "base/path_service.h"
 #include "base/json/json_writer.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/scoped_path_override.h"
 #include "base/test/test_future.h"
 #include "base/values.h"
+#include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -37,8 +39,20 @@
 #include "ui/base/clipboard/test/test_clipboard.h"
 #include "url/gurl.h"
 
+#if BUILDFLAG(IS_MAC)
+#include "base/apple/bundle_locations.h"
+#endif
+
 namespace dao {
 namespace {
+
+base::FilePath GetApplicationPath() {
+#if BUILDFLAG(IS_WIN)
+  return base::PathService::CheckedGet(base::DIR_MODULE);
+#else
+  return base::apple::OuterBundlePath();
+#endif
+}
 
 constexpr char kTestMcpConfiguration[] =
     R"({"mcpServers":{"dao":{"command":"/test/dao-mcp"}}})";
@@ -251,8 +265,7 @@ TEST_F(DaoMcpSettingsHandlerTest, ReturnsAndCopiesValidatedCliSetupContent) {
   EXPECT_EQ("preview", preview_call.arg1()->GetString());
   EXPECT_TRUE(preview_call.arg2()->GetBool());
   const std::optional<std::string> expected_codex =
-      BuildDaoMcpInstallCommandForBundle(base::apple::OuterBundlePath(),
-                                         "codex");
+      BuildDaoMcpInstallCommandForBundle(GetApplicationPath(), "codex");
   ASSERT_TRUE(expected_codex);
   EXPECT_EQ(*expected_codex, preview_call.arg3()->GetString());
 
@@ -274,8 +287,7 @@ TEST_F(DaoMcpSettingsHandlerTest, ReturnsAndCopiesValidatedCliSetupContent) {
   clipboard->ReadText(ui::ClipboardBuffer::kCopyPaste, std::nullopt,
                       clipboard_text.GetCallback());
   const std::optional<std::string> expected_claude =
-      BuildDaoMcpInstallCommandForBundle(base::apple::OuterBundlePath(),
-                                         "claude-code");
+      BuildDaoMcpInstallCommandForBundle(GetApplicationPath(), "claude-code");
   ASSERT_TRUE(expected_claude);
   EXPECT_EQ(base::UTF8ToUTF16(*expected_claude), clipboard_text.Get());
 
@@ -416,6 +428,7 @@ TEST_F(DaoMcpSettingsHandlerTest, ObservesOnlyWhileJavascriptIsAllowed) {
   EXPECT_TRUE(web_ui()->call_data().empty());
 }
 
+#if !BUILDFLAG(IS_WIN)
 TEST(DaoMcpSettingsConfigurationTest, UsesProvidedApplicationBundlePath) {
   const base::FilePath bundle_path(
       FILE_PATH_LITERAL("/Volumes/Test/Dao Debug.app"));
@@ -506,6 +519,29 @@ TEST(DaoMcpInstallCommandTest, QuotesEmbeddedSingleQuote) {
       "'--user-data-dir=/Users/Test/Dao'",
       *command);
 }
+
+#else
+TEST(DaoMcpInstallCommandTest, QuotesWindowsModuleAndProfilePathsForPowerShell) {
+  const auto module_dir =
+      base::FilePath::FromUTF8Unsafe("C:\\Dao's Builds\\中文\\154.0.1");
+  base::ScopedPathOverride user_data_override(
+      chrome::DIR_USER_DATA,
+      base::FilePath::FromUTF8Unsafe("C:\\Users\\Test's Profile\\Dao"), true);
+  const std::string arguments =
+      "'C:\\Dao''s Builds\\中文\\154.0.1\\dao-mcp.exe' "
+      "'--user-data-dir=C:\\Users\\Test''s Profile\\Dao'";
+  EXPECT_EQ("codex mcp add dao -- " + arguments,
+            BuildDaoMcpInstallCommandForBundle(module_dir, "codex"));
+  EXPECT_EQ("claude mcp add --scope user dao -- " + arguments,
+            BuildDaoMcpInstallCommandForBundle(module_dir, "claude-code"));
+  const auto configuration = base::JSONReader::Read(
+      BuildDaoMcpConfigurationForBundle(module_dir), base::JSON_PARSE_RFC);
+  ASSERT_TRUE(configuration);
+  EXPECT_EQ("C:\\Dao's Builds\\中文\\154.0.1\\dao-mcp.exe",
+            *configuration->GetDict().FindStringByDottedPath(
+                "mcpServers.dao.command"));
+}
+#endif
 
 TEST(DaoMcpInstallCommandTest, RejectsUnknownClient) {
   EXPECT_FALSE(BuildDaoMcpInstallCommandForBundle(
@@ -681,8 +717,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpSettingsPageBrowserTest,
   )JS"));
 
   const std::optional<std::string> expected_claude_command =
-      BuildDaoMcpInstallCommandForBundle(base::apple::OuterBundlePath(),
-                                         "claude-code");
+      BuildDaoMcpInstallCommandForBundle(GetApplicationPath(), "claude-code");
   ASSERT_TRUE(expected_claude_command);
   EXPECT_EQ(*expected_claude_command,
             content::EvalJs(contents, R"JS(

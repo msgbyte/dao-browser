@@ -4,13 +4,6 @@
 
 #include "dao/browser/mcp/helper/dao_mcp_browser_client.h"
 
-#include <fcntl.h>
-#include <poll.h>
-#include <sys/socket.h>
-#include <sys/stat.h>
-#include <sys/un.h>
-#include <unistd.h>
-
 #include <array>
 #include <cerrno>
 #include <utility>
@@ -18,7 +11,24 @@
 #include "base/containers/span.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
+#include "base/numerics/safe_conversions.h"
 #include "dao/browser/mcp/dao_mcp_protocol.h"
+
+#if BUILDFLAG(IS_WIN)
+#include <winsock2.h>
+
+#include <windows.h>
+
+#include "dao/browser/mcp/dao_mcp_win_util.h"
+#include "net/base/winsock_init.h"
+#else
+#include <fcntl.h>
+#include <poll.h>
+#include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/un.h>
+#include <unistd.h>
+#endif
 
 namespace dao {
 namespace {
@@ -44,17 +54,47 @@ bool IsHexNonce(std::string_view nonce) {
 DaoMcpBrowserClient::DaoMcpBrowserClient(base::FilePath user_data_dir)
     : user_data_dir_(std::move(user_data_dir)) {}
 
-DaoMcpBrowserClient::~DaoMcpBrowserClient() = default;
+DaoMcpBrowserClient::~DaoMcpBrowserClient() {
+  Disconnect();
+}
 
 bool DaoMcpBrowserClient::Connect(std::string_view client_name,
                                   std::string_view client_version) {
   Disconnect();
-  std::string socket_path;
   std::string nonce;
-  if (!ReadMetadata(&socket_path, &nonce)) {
+  if (!ReadMetadata(&nonce)) {
     return false;
   }
 
+#if BUILDFLAG(IS_WIN)
+  net::EnsureWinsockInit();
+  socket_ = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+  if (!is_connected()) {
+    return Fail("could not create the browser socket");
+  }
+  u_long nonblocking = 1;
+  if (ioctlsocket(socket_, FIONBIO, &nonblocking) != 0) {
+    Disconnect();
+    return Fail("could not configure the browser socket");
+  }
+  sockaddr_in address = {};
+  address.sin_family = AF_INET;
+  address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+  address.sin_port = htons(port_);
+  const int result =
+      connect(socket_, reinterpret_cast<sockaddr*>(&address), sizeof(address));
+  if (result != 0 && WSAGetLastError() != WSAEWOULDBLOCK) {
+    Disconnect();
+    return Fail("could not connect to the running browser");
+  }
+  connecting_ = result != 0;
+  if (!connecting_ && !VerifySocketIdentity()) {
+    Disconnect();
+    return false;
+  }
+#else
+  const std::string socket_path =
+      user_data_dir_.AppendASCII("MCP").AppendASCII("mcp.sock").value();
   base::ScopedFD socket_fd(socket(AF_UNIX, SOCK_STREAM, 0));
   if (!socket_fd.is_valid()) {
     return Fail("could not create the browser socket");
@@ -78,10 +118,11 @@ bool DaoMcpBrowserClient::Connect(std::string_view client_name,
     return Fail("could not connect to the running browser");
   }
   connecting_ = result != 0;
-  if (!connecting_ && !VerifySocketIdentity(base::FilePath(socket_path))) {
+  if (!connecting_ && !VerifySocketIdentity()) {
     return false;
   }
   socket_ = std::move(socket_fd);
+#endif
 
   return QueueRequest(
       base::DictValue()
@@ -97,7 +138,7 @@ bool DaoMcpBrowserClient::Connect(std::string_view client_name,
 }
 
 bool DaoMcpBrowserClient::QueueRequest(base::DictValue request) {
-  if (!socket_.is_valid()) {
+  if (!is_connected()) {
     return Fail("the browser socket is not connected");
   }
   std::string serialized;
@@ -127,6 +168,13 @@ bool DaoMcpBrowserClient::FlushWrites() {
     const std::string& front = writes_.front();
     const base::span<const char> remaining =
         base::span(front).subspan(write_offset_);
+#if BUILDFLAG(IS_WIN)
+    const int written = send(socket_, remaining.data(),
+                             base::checked_cast<int>(remaining.size()), 0);
+    if (written < 0 && WSAGetLastError() == WSAEWOULDBLOCK) {
+      return true;
+    }
+#else
     const ssize_t written =
         write(socket_.get(), remaining.data(), remaining.size());
     if (written < 0 && errno == EINTR) {
@@ -135,6 +183,7 @@ bool DaoMcpBrowserClient::FlushWrites() {
     if (written < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
       return true;
     }
+#endif
     if (written <= 0) {
       return Fail("the browser socket closed while writing");
     }
@@ -164,6 +213,13 @@ bool DaoMcpBrowserClient::ReadResponses(
   std::array<char, 32 * 1024> buffer;
   bool disconnected = false;
   while (true) {
+#if BUILDFLAG(IS_WIN)
+    const int bytes =
+        recv(socket_, buffer.data(), base::checked_cast<int>(buffer.size()), 0);
+    if (bytes < 0 && WSAGetLastError() == WSAEWOULDBLOCK) {
+      break;
+    }
+#else
     const ssize_t bytes = read(socket_.get(), buffer.data(), buffer.size());
     if (bytes < 0 && errno == EINTR) {
       continue;
@@ -171,6 +227,7 @@ bool DaoMcpBrowserClient::ReadResponses(
     if (bytes < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
       break;
     }
+#endif
     if (bytes == 0) {
       disconnected = true;
       break;
@@ -215,20 +272,30 @@ bool DaoMcpBrowserClient::ReadResponses(
 }
 
 void DaoMcpBrowserClient::Disconnect() {
+#if BUILDFLAG(IS_WIN)
+  if (is_connected()) {
+    closesocket(socket_);
+    socket_ = net::kInvalidSocket;
+  }
+  runtime_dir_handle_.Close();
+  port_ = 0;
+  browser_pid_ = 0;
+#else
   socket_.reset();
-  connecting_ = false;
   runtime_device_ = 0;
   runtime_inode_ = 0;
   socket_device_ = 0;
   socket_inode_ = 0;
+#endif
+  connecting_ = false;
   received_.clear();
   writes_.clear();
   write_offset_ = 0;
   queued_write_bytes_ = 0;
 }
 
-bool DaoMcpBrowserClient::ReadMetadata(std::string* socket_path,
-                                       std::string* nonce) {
+#if !BUILDFLAG(IS_WIN)
+bool DaoMcpBrowserClient::ReadMetadata(std::string* nonce) {
   const base::FilePath runtime_dir = user_data_dir_.AppendASCII("MCP");
   const base::FilePath expected_socket = runtime_dir.AppendASCII("mcp.sock");
   base::ScopedFD runtime_fd(
@@ -301,7 +368,6 @@ bool DaoMcpBrowserClient::ReadMetadata(std::string* socket_path,
   runtime_inode_ = runtime_stat.st_ino;
   socket_device_ = socket_stat.st_dev;
   socket_inode_ = socket_stat.st_ino;
-  *socket_path = *parsed_socket_path;
   *nonce = *parsed_nonce;
   return true;
 }
@@ -320,17 +386,16 @@ bool DaoMcpBrowserClient::CompleteConnection() {
     errno = socket_error;
     return Fail("could not connect to the running browser");
   }
-  if (!VerifySocketIdentity(
-          user_data_dir_.AppendASCII("MCP").AppendASCII("mcp.sock"))) {
+  if (!VerifySocketIdentity()) {
     return false;
   }
   connecting_ = false;
   return true;
 }
 
-bool DaoMcpBrowserClient::VerifySocketIdentity(
-    const base::FilePath& socket_path) {
-  const base::FilePath runtime_dir = socket_path.DirName();
+bool DaoMcpBrowserClient::VerifySocketIdentity() {
+  const base::FilePath runtime_dir = user_data_dir_.AppendASCII("MCP");
+  const base::FilePath socket_path = runtime_dir.AppendASCII("mcp.sock");
   struct stat runtime_stat = {};
   struct stat socket_stat = {};
   if (lstat(runtime_dir.value().c_str(), &runtime_stat) != 0 ||
@@ -347,6 +412,95 @@ bool DaoMcpBrowserClient::VerifySocketIdentity(
   }
   return true;
 }
+#else
+
+bool DaoMcpBrowserClient::ReadMetadata(std::string* nonce) {
+  const base::FilePath runtime_dir = user_data_dir_.AppendASCII("MCP");
+  runtime_dir_handle_ =
+      OpenDaoMcpPrivatePath(runtime_dir, true, false, FILE_LIST_DIRECTORY);
+  if (!runtime_dir_handle_.is_valid()) {
+    return Fail("the private MCP runtime directory is unavailable");
+  }
+  auto file = OpenDaoMcpPrivatePath(runtime_dir.AppendASCII("runtime.json"),
+                                    false, false, GENERIC_READ);
+  std::string contents;
+  if (!file.is_valid() ||
+      !ReadDaoMcpPrivateFile(file.get(), kMaxMetadataBytes, &contents)) {
+    return Fail("the private MCP runtime metadata is unavailable");
+  }
+  auto metadata = base::JSONReader::ReadDict(contents, base::JSON_PARSE_RFC);
+  if (!metadata) {
+    return Fail("private MCP runtime metadata is invalid");
+  }
+  const std::optional<int> port = metadata->FindInt("port");
+  const std::optional<int> pid = metadata->FindInt("browser_pid");
+  const std::string* parsed_nonce = metadata->FindString("nonce");
+  if (metadata->FindInt("version") != kDaoMcpIpcVersion || !port ||
+      *port <= 0 || *port > 65535 || !pid || *pid <= 0 || !parsed_nonce ||
+      !IsHexNonce(*parsed_nonce)) {
+    return Fail("private MCP runtime metadata has an unsupported shape");
+  }
+  port_ = base::checked_cast<uint16_t>(*port);
+  browser_pid_ = base::checked_cast<base::ProcessId>(*pid);
+  if (GetDaoMcpLoopbackTcpOwner(port_) != browser_pid_ ||
+      !IsDaoMcpCurrentUserProcess(browser_pid_)) {
+    return Fail("the private MCP browser listener is unavailable");
+  }
+  *nonce = *parsed_nonce;
+  return true;
+}
+
+bool DaoMcpBrowserClient::CompleteConnection() {
+  int socket_error = 0;
+  int error_size = sizeof(socket_error);
+  if (getsockopt(socket_, SOL_SOCKET, SO_ERROR,
+                 reinterpret_cast<char*>(&socket_error), &error_size) != 0) {
+    return Fail("could not inspect the browser socket connection");
+  }
+  if (socket_error == WSAEWOULDBLOCK || socket_error == WSAEINPROGRESS ||
+      socket_error == WSAEALREADY) {
+    return true;
+  }
+  if (socket_error != 0) {
+    return Fail("could not connect to the running browser");
+  }
+  sockaddr_in peer = {};
+  int peer_size = sizeof(peer);
+  if (getpeername(socket_, reinterpret_cast<sockaddr*>(&peer), &peer_size) !=
+      0) {
+    return WSAGetLastError() == WSAENOTCONN
+               ? true
+               : Fail("could not inspect the browser socket peer");
+  }
+  if (!VerifySocketIdentity()) {
+    return false;
+  }
+  connecting_ = false;
+  return true;
+}
+
+bool DaoMcpBrowserClient::VerifySocketIdentity() {
+  sockaddr_in peer = {};
+  sockaddr_in local = {};
+  int peer_size = sizeof(peer);
+  int local_size = sizeof(local);
+  // Check the established tuple before any nonce bytes leave this process.
+  if (getpeername(socket_, reinterpret_cast<sockaddr*>(&peer), &peer_size) !=
+          0 ||
+      getsockname(socket_, reinterpret_cast<sockaddr*>(&local), &local_size) !=
+          0 ||
+      peer.sin_family != AF_INET || local.sin_family != AF_INET ||
+      peer.sin_addr.s_addr != htonl(INADDR_LOOPBACK) ||
+      local.sin_addr.s_addr != htonl(INADDR_LOOPBACK) ||
+      peer.sin_port != htons(port_) ||
+      GetDaoMcpLoopbackTcpOwner(port_, ntohs(local.sin_port)) != browser_pid_ ||
+      !IsDaoMcpCurrentUserProcess(browser_pid_)) {
+    return Fail("the private MCP browser peer changed before connection");
+  }
+  return true;
+}
+
+#endif
 
 bool DaoMcpBrowserClient::WaitForIO(bool readable,
                                     bool writable,
@@ -354,6 +508,21 @@ bool DaoMcpBrowserClient::WaitForIO(bool readable,
   if (!is_connected()) {
     return Fail("the browser socket is not connected");
   }
+#if BUILDFLAG(IS_WIN)
+  fd_set reads = {};
+  fd_set writes = {};
+  fd_set errors = {};
+  if (readable) {
+    FD_SET(socket_, &reads);
+  }
+  if (writable) {
+    FD_SET(socket_, &writes);
+  }
+  FD_SET(socket_, &errors);
+  timeval timeout = {timeout_ms / 1000, (timeout_ms % 1000) * 1000};
+  const int result =
+      select(0, &reads, &writes, &errors, timeout_ms < 0 ? nullptr : &timeout);
+#else
   pollfd descriptor = {
       socket_.get(),
       static_cast<short>((readable ? POLLIN : 0) | (writable ? POLLOUT : 0)),
@@ -362,6 +531,7 @@ bool DaoMcpBrowserClient::WaitForIO(bool readable,
   do {
     result = poll(&descriptor, 1, timeout_ms);
   } while (result < 0 && errno == EINTR);
+#endif
   return result >= 0 || Fail("could not wait for the browser socket");
 }
 
