@@ -59,6 +59,14 @@ export function TopNav({ changelogLocale = 'en' }: { changelogLocale?: Changelog
         >
           <span className={styles.linkText}>Versions</span>
         </Link>
+        <Link
+          href={changelogLocale === 'zh-CN' ? '/changelog/zh-CN' : '/changelog'}
+          className={styles.link}
+          lang={changelogLocale}
+          onClick={() => trackEvent('nav_link_click', { target: 'changelog' })}
+        >
+          {changelogLocale === 'zh-CN' ? changelogZh.nav : changelogEn.nav}
+        </Link>
         <a
           href={GITHUB_URL}
           target="_blank"
@@ -69,14 +77,6 @@ export function TopNav({ changelogLocale = 'en' }: { changelogLocale?: Changelog
         >
           <GitHubIcon size={18} aria-hidden />
         </a>
-        <Link
-          href={changelogLocale === 'zh-CN' ? '/changelog/zh-CN' : '/changelog'}
-          className={styles.link}
-          lang={changelogLocale}
-          onClick={() => trackEvent('nav_link_click', { target: 'changelog' })}
-        >
-          {changelogLocale === 'zh-CN' ? changelogZh.nav : changelogEn.nav}
-        </Link>
         <Button
           href="/download"
           variant="primary"

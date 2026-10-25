@@ -22,7 +22,8 @@ release failures restore them along with version metadata. Windows attachments a
 `--skip-bump` preserve pending notes. See [the changelog guide](changelog.md).
 The website's `/changelog` and `/changelog/zh-CN` pages read those documents at
 build time, with platform switching, permanent version links, and a responsive
-release timeline. Only archived versions are public; `/history` remains the
+release timeline. The navigation places Changelog before the GitHub icon.
+Only archived versions are public; `/history` remains the
 download archive. Website deployment also runs when changelog documents change.
 
 `npm run release:rollback` uses an interactive arrow-key menu to select a historical
