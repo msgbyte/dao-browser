@@ -135,7 +135,9 @@ Never hardcode user-facing copy in Dao-owned UI. All user-visible text must have
 
 ## Native Toast Feedback
 
-- Use the shared `dao::DaoToastView` for lightweight feedback initiated by Dao-owned native browser surfaces or Dao-patched Chromium actions. Do not introduce a parallel Dao toast implementation or route those actions through Chromium's `ToastController`.
+- All native browser toasts, including upstream Chromium actions such as Copy Link, must render through the shared `dao::DaoToastView`. Do not introduce a parallel toast surface or restore Chromium's toast appearance.
+- Dao-owned feedback uses `DaoToastView::ShowToast`. Existing Chromium callers may keep `ToastController`: its toast view hosts `DaoToastView` and anchors inside the active content area. Keep this shared integration when upgrading Chromium instead of adding per-command replacements.
+- Preserve localized messages, action buttons, menus, accessibility, dismissal callbacks, queueing, and tab/navigation scope when adapting Chromium toasts.
 - Keep toast messages action-specific and localized.
 
 ## Testing And Verification
