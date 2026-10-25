@@ -717,6 +717,7 @@ void EndTabDragNativeEvents() {
   ClearAllDaoEventInterceptors();
 }
 
+// TODO(dao): temporary fullscreen diagnostics; remove after finding the cause.
 void LogFullscreenDiagnostic(BrowserView* browser_view,
                              const char* event,
                              bool include_stack) {

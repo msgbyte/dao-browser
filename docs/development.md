@@ -611,6 +611,10 @@ file with `npm run export -- <file>`; never run bare `npm run export`.
 
 ## macOS fullscreen diagnostics
 
+**Temporary investigation only:** remove these diagnostics after identifying
+the unexpected immersive/fullscreen exit. Code sites use the searchable marker
+`TODO(dao): temporary fullscreen diagnostics`.
+
 Builds containing the fullscreen diagnostics write to the macOS unified log at
 default level, including release launches without `--enable-logging`. They record
 active-tab changes, fullscreen requests, and native transition start/completion.
@@ -634,6 +638,12 @@ of the original cause. `input_type` is only AppKit's current event type and may
 refer to an earlier event. Stripped release stacks may need the matching build's
 symbols for a precise caller. These diagnostics do not change fullscreen behavior
 and only take effect after installing and launching a build containing them.
+
+Removal checklist after the cause is confirmed:
+
+- Remove `LogFullscreenDiagnostic`, and logging-only includes/declarations from `src/dao/browser/ui/views/dao_native_util_mac.{h,mm}`.
+- Remove the temporary calls from `src/patches/chrome/browser/ui/views/frame/browser_view.cc.patch` and `browser_native_widget_mac.mm.patch`; preserve unrelated Dao changes in those patches.
+- Remove this section, search for the marker and `LogFullscreenDiagnostic` to ensure no call sites remain, then run `npm run rebuild`.
 
 ## Project Structure
 

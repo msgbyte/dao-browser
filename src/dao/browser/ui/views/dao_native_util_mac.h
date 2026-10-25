@@ -74,6 +74,7 @@ void ArmTabDragWatchdog();
 void StopTabDragWatchdog();
 
 #if BUILDFLAG(IS_MAC)
+// TODO(dao): temporary fullscreen diagnostics; remove after finding the cause.
 // Write window/fullscreen state to the macOS unified log without page content.
 // Exit paths also capture a bounded call stack for release-build diagnosis.
 void LogFullscreenDiagnostic(BrowserView* browser_view,

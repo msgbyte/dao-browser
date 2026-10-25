@@ -66,10 +66,11 @@ diff --git a/chrome/browser/ui/views/frame/browser_native_widget_mac.mm b/chrome
      }
    } else {
      *override_titlebar_height = false;
-@@ -344,6 +377,11 @@
+@@ -344,6 +377,12 @@
  
  void BrowserNativeWidgetMac::OnWindowFullscreenTransitionStart() {
    if (browser_view_) {
++    // TODO(dao): temporary fullscreen diagnostics; remove after finding the cause.
 +    dao::LogFullscreenDiagnostic(
 +        browser_view_,
 +        browser_view_->IsFullscreen() ? "native-enter-start"
@@ -78,17 +79,18 @@ diff --git a/chrome/browser/ui/views/frame/browser_native_widget_mac.mm b/chrome
      browser_view_->FullscreenStateChanging();
    }
  }
-@@ -351,6 +389,9 @@
+@@ -351,6 +390,10 @@
  void BrowserNativeWidgetMac::OnWindowFullscreenTransitionComplete() {
    if (browser_view_) {
      browser_view_->FullscreenStateChanged();
++    // TODO(dao): temporary fullscreen diagnostics; remove after finding the cause.
 +    dao::LogFullscreenDiagnostic(
 +        browser_view_, browser_view_->IsFullscreen() ? "native-enter-complete"
 +                                                    : "native-exit-complete");
    }
  }
  
-@@ -382,6 +423,38 @@
+@@ -382,6 +425,38 @@
  void BrowserNativeWidgetMac::ValidateUserInterfaceItem(
      int32_t tag,
      remote_cocoa::mojom::ValidateUserInterfaceItemResult* result) {
@@ -127,7 +129,7 @@ diff --git a/chrome/browser/ui/views/frame/browser_native_widget_mac.mm b/chrome
    BrowserWindowInterface* const browser =
        browser_view_ ? browser_view_->browser() : nullptr;
    if (!browser || !chrome::SupportsCommand(browser, tag)) {
-@@ -628,6 +701,36 @@
+@@ -628,6 +703,36 @@
      int32_t command,
      WindowOpenDisposition window_open_disposition,
      bool is_before_first_responder) {
@@ -164,7 +166,7 @@ diff --git a/chrome/browser/ui/views/frame/browser_native_widget_mac.mm b/chrome
    if (!WillExecuteCommand(command, window_open_disposition,
                            is_before_first_responder)) {
      return false;
-@@ -718,6 +821,16 @@
+@@ -718,6 +823,16 @@
      if (browser_view_->GetIsWebAppType()) {
        params->window_title_hidden = true;
      }
@@ -181,7 +183,7 @@ diff --git a/chrome/browser/ui/views/frame/browser_native_widget_mac.mm b/chrome
    } else {
      params->window_class = remote_cocoa::mojom::WindowClass::kDefault;
    }
-@@ -840,6 +953,17 @@
+@@ -840,6 +955,17 @@
  content::KeyboardEventProcessingResult
  BrowserNativeWidgetMac::PreHandleKeyboardEvent(
      const input::NativeWebKeyboardEvent& event) {
