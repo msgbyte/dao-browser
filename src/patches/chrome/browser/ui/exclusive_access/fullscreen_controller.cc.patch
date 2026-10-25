@@ -1,0 +1,64 @@
+diff --git a/chrome/browser/ui/exclusive_access/fullscreen_controller.cc b/chrome/browser/ui/exclusive_access/fullscreen_controller.cc
+--- a/chrome/browser/ui/exclusive_access/fullscreen_controller.cc
++++ b/chrome/browser/ui/exclusive_access/fullscreen_controller.cc
+@@ -43,6 +43,11 @@
+ #include "ui/display/screen.h"
+ #include "ui/display/types/display_constants.h"
+ 
++#if BUILDFLAG(IS_MAC)
++// TODO(dao): temporary fullscreen diagnostics; remove after finding the cause.
++#include "dao/browser/ui/views/dao_native_util_mac.h"
++#endif
++
+ #if !BUILDFLAG(IS_MAC)
+ #include "chrome/common/pref_names.h"
+ #include "components/prefs/pref_service.h"
+@@ -293,6 +298,11 @@
+ 
+   if (IsFullscreenCausedByTab()) {
+     // Tab Fullscreen -> Normal.
++#if BUILDFLAG(IS_MAC)
++    // TODO(dao): temporary fullscreen diagnostics; remove after finding the cause.
++    dao::LogFullscreenDiagnostic(
++        exclusive_access_manager()->context(), "exit-source-tab");
++#endif
+     ExitFullscreenModeInternal();
+     return;
+   }
+@@ -474,6 +484,11 @@
+       exclusive_access_manager()->context();
+   if (RequiresPressAndHoldEscToExit() &&
+       exclusive_access_context->CanUserExitFullscreen()) {
++#if BUILDFLAG(IS_MAC)
++    // TODO(dao): temporary fullscreen diagnostics; remove after finding the cause.
++    dao::LogFullscreenDiagnostic(
++        exclusive_access_manager()->context(), "exit-source-held-escape");
++#endif
+     ExitFullscreenModeInternal();
+     base::RecordAction(
+         base::UserMetricsAction("ExitFullscreen_PressAndHoldEsc"));
+@@ -490,6 +505,11 @@
+   if (IsWindowFullscreenForTabOrPending()) {
+     ExitFullscreenModeForTab(exclusive_access_tab());
+   } else if (IsFullscreenForBrowser()) {
++#if BUILDFLAG(IS_MAC)
++    // TODO(dao): temporary fullscreen diagnostics; remove after finding the cause.
++    dao::LogFullscreenDiagnostic(
++        exclusive_access_manager()->context(), "exit-source-exclusive-access");
++#endif
+     ExitFullscreenModeInternal();
+   }
+ }
+@@ -554,6 +574,12 @@
+ 
+   if (!enter_fullscreen &&
+       (exclusive_access_context->CanUserExitFullscreen() || !user_initiated)) {
++#if BUILDFLAG(IS_MAC)
++    // TODO(dao): temporary fullscreen diagnostics; remove after finding the cause.
++    dao::LogFullscreenDiagnostic(
++        exclusive_access_manager()->context(), "exit-source-toggle",
++        user_initiated ? "user_initiated=1" : "user_initiated=0");
++#endif
+     ExitFullscreenModeInternal();
+   }
+ }

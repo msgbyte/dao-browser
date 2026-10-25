@@ -629,6 +629,7 @@ The temporary input/timer records fill the gap left by stripped release stacks:
 - `native-key` observes only Escape and left/right Command in Dao windows. It records the AppKit event type (`10` down, `11` up, `12` modifier change), original event timestamp, modifier flags, and repeat state. Command transitions arrive as modifier changes. The app-local monitor returns every event unchanged and stays installed for the process lifetime after the first diagnostic event.
 - `escape-key` records Escape as received by Chromium's exclusive-access manager, including the Blink event type/modifiers, repeat state, feature flag, and both timer states. Compare it with `native-key` to find missing or reinterpreted events; AppKit and Blink numeric event types/modifiers use different enums.
 - `escape-hold-start`, `escape-hold-stop` (key release), and `escape-hold-fire` trace the 1500 ms hold timer. Starting also arms the 500 ms exit-bubble timer. A fire record means the callback ran; it does not by itself mean fullscreen exited.
+- `exit-source-held-escape`, `exit-source-toggle`, `exit-source-tab`, and `exit-source-exclusive-access` identify the branch calling `FullscreenController::ExitFullscreenModeInternal()`. Pair the source with the following request/native transition for the same window; toggle records also include `user_initiated`.
 
 After an unexpected exit, note the approximate time and collect promptly:
 
@@ -650,7 +651,7 @@ Removal checklist after the cause is confirmed:
 
 - Remove both `LogFullscreenDiagnostic` overloads, the app-local key monitor, and logging-only includes/declarations from `src/dao/browser/ui/views/dao_native_util_mac.{h,mm}`.
 - Remove the temporary calls from `src/patches/chrome/browser/ui/views/frame/browser_view.cc.patch` and `browser_native_widget_mac.mm.patch`; preserve unrelated Dao changes in those patches.
-- Delete the logging-only `src/patches/chrome/browser/ui/exclusive_access/exclusive_access_manager.cc.patch` if it still contains only these diagnostics.
+- Delete the logging-only `src/patches/chrome/browser/ui/exclusive_access/exclusive_access_manager.cc.patch` and `fullscreen_controller.cc.patch` if they still contain only these diagnostics.
 - Remove this section, search for the marker and `LogFullscreenDiagnostic` to ensure no call sites remain, then run `npm run rebuild`.
 
 ## Project Structure
