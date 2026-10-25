@@ -54,7 +54,7 @@ diff --git a/chrome/browser/resources/settings/settings_menu/settings_menu.html 
 +      }
 +
 +      #agent svg {
-+        color: var(--iron-icon-fill-color);
++        color: inherit;
 +        flex-shrink: 0;
 +        height: var(--iron-icon-height);
 +        margin-inline-end: 20px;

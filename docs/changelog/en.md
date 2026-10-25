@@ -5,6 +5,7 @@
 ### [Unreleased] Unreleased
 
 - Hide Chromium's Google AI settings from the settings sidebar, overview, and search; Dao Agent settings remain available.
+- Match the Dao Agent settings icon to its label color, including when hovered or selected.
 - Keep address-bar status icons visible when the page URL is long.
 - Browse release notes on the website in English, switch between desktop, Android, and iOS, and share links to individual versions.
 - Find Changelog before the GitHub icon in the website navigation.
