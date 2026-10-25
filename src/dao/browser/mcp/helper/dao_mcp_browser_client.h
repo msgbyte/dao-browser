@@ -33,6 +33,7 @@ class DaoMcpBrowserClient {
   bool FlushWrites();
   bool ReadResponses(std::vector<base::DictValue>* responses);
   void Disconnect();
+  bool WaitForIO(bool readable, bool writable, int timeout_ms);
 
   int file_descriptor() const { return socket_.get(); }
   bool is_connected() const { return socket_.is_valid(); }

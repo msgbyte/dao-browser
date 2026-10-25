@@ -6,11 +6,7 @@
 // It ships inside Dao.app, so the CLI, its guide and the browser always have
 // the same version.
 
-#include <poll.h>
-#include <unistd.h>
-
 #include <algorithm>
-#include <cerrno>
 #include <cstdio>
 #include <iostream>
 #include <iterator>
@@ -187,14 +183,10 @@ class SyncBrowser {
         *error = "timed out waiting for Dao";
         return std::nullopt;
       }
-      pollfd descriptor = {};
-      descriptor.fd = client_.file_descriptor();
-      descriptor.events =
-          POLLIN | static_cast<short>(client_.wants_write() ? POLLOUT : 0);
       const int wait_ms = static_cast<int>(
           std::min<int64_t>(remaining.InMilliseconds() + 1, 1000));
-      if (poll(&descriptor, 1, wait_ms) < 0 && errno != EINTR) {
-        *error = "could not wait for Dao";
+      if (!client_.WaitForIO(true, client_.wants_write(), wait_ms)) {
+        *error = client_.last_error();
         return std::nullopt;
       }
     }

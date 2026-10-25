@@ -5,6 +5,7 @@
 #include "dao/browser/mcp/helper/dao_mcp_browser_client.h"
 
 #include <fcntl.h>
+#include <poll.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/un.h>
@@ -345,6 +346,23 @@ bool DaoMcpBrowserClient::VerifySocketIdentity(
     return Fail("the private MCP browser socket changed before connection");
   }
   return true;
+}
+
+bool DaoMcpBrowserClient::WaitForIO(bool readable,
+                                    bool writable,
+                                    int timeout_ms) {
+  if (!is_connected()) {
+    return Fail("the browser socket is not connected");
+  }
+  pollfd descriptor = {
+      socket_.get(),
+      static_cast<short>((readable ? POLLIN : 0) | (writable ? POLLOUT : 0)),
+      0};
+  int result;
+  do {
+    result = poll(&descriptor, 1, timeout_ms);
+  } while (result < 0 && errno == EINTR);
+  return result >= 0 || Fail("could not wait for the browser socket");
 }
 
 bool DaoMcpBrowserClient::Fail(std::string message) {

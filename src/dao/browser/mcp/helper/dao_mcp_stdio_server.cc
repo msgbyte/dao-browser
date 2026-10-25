@@ -29,6 +29,10 @@ constexpr char kMcpProtocolVersion[] = "2025-11-25";
 constexpr char kCodexMcpProtocolVersion[] = "2025-06-18";
 constexpr size_t kMaxQueuedStdoutBytes = kDaoMcpMaxLineBytes + 1;
 
+void WriteDiagnostic(std::string_view message) {
+  std::ignore = write(STDERR_FILENO, message.data(), message.size());
+}
+
 bool IsSupportedProtocolVersion(std::string_view version) {
   return version == kMcpProtocolVersion ||
          version == kCodexMcpProtocolVersion;
@@ -163,12 +167,7 @@ bool DaoMcpStdioServer::ReadStdin() {
       return false;
     }
     if (bytes == 0) {
-      if (!input_.empty()) {
-        QueueError(nullptr, -32600,
-                   "Each MCP message must end with a newline.");
-        input_.clear();
-      }
-      return false;
+      return FinishStdin();
     }
     input_.append(buffer.data(), static_cast<size_t>(bytes));
     if (!ProcessInputLines()) {
@@ -180,6 +179,14 @@ bool DaoMcpStdioServer::ReadStdin() {
       return false;
     }
   }
+}
+
+bool DaoMcpStdioServer::FinishStdin() {
+  if (!input_.empty()) {
+    QueueError(nullptr, -32600, "Each MCP message must end with a newline.");
+    input_.clear();
+  }
+  return false;
 }
 
 bool DaoMcpStdioServer::ProcessInputLines() {
@@ -511,7 +518,7 @@ void DaoMcpStdioServer::FailBrowser(std::string_view reason,
   // The browser is reachable and explained the failure, so surface its
   // message instead of the unavailability notice.
   const std::string line = base::StrCat({"dao-mcp: ", shown_message, "\n"});
-  std::ignore = write(STDERR_FILENO, line.data(), line.size());
+  WriteDiagnostic(line);
   base::DictValue normalized_error =
       ErrorPayload(code && !code->empty() ? *code : "INTERNAL_ERROR",
                    shown_message,
@@ -657,7 +664,7 @@ void DaoMcpStdioServer::LogUnavailableOnce() {
   unavailable_logged_ = true;
   constexpr char kMessage[] =
       "dao-mcp: Dao Browser MCP server is unavailable\n";
-  std::ignore = write(STDERR_FILENO, kMessage, sizeof(kMessage) - 1);
+  WriteDiagnostic(kMessage);
 }
 
 base::DictValue DaoMcpStdioServer::AdaptToolList(base::DictValue result) {

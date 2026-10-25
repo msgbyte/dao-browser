@@ -48,6 +48,7 @@ class DaoMcpStdioServer {
 
   bool ConfigureStdio();
   bool ReadStdin();
+  bool FinishStdin();
   bool ProcessInputLines();
   void HandleMessage(std::string_view line);
   void HandleInitialize(const base::DictValue& request,
