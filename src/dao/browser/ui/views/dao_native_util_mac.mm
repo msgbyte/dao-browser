@@ -5,6 +5,7 @@
 #include "dao/browser/ui/views/dao_native_util_mac.h"
 
 #import <AppKit/AppKit.h>
+#import <Carbon/Carbon.h>
 #import <os/log.h>
 
 #include <stdint.h>
@@ -18,6 +19,7 @@
 #include "base/no_destructor.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
+#include "base/strings/stringprintf.h"
 #include "base/strings/sys_string_conversions.h"
 #include "base/timer/timer.h"
 #include "chrome/browser/ui/browser_window.h"
@@ -720,8 +722,38 @@ void EndTabDragNativeEvents() {
 // TODO(dao): temporary fullscreen diagnostics; remove after finding the cause.
 void LogFullscreenDiagnostic(BrowserView* browser_view,
                              const char* event,
-                             bool include_stack) {
+                             bool include_stack,
+                             std::string_view details) {
   DCHECK([NSThread isMainThread]);
+  // Process-lifetime, app-local observer; never consume or rewrite an event.
+  [[maybe_unused]] static id key_monitor =
+      [NSEvent addLocalMonitorForEventsMatchingMask:
+                   NSEventMaskKeyDown | NSEventMaskKeyUp | NSEventMaskFlagsChanged
+          handler:^NSEvent*(NSEvent* input) {
+            const unsigned short key = input.keyCode;
+            if (key != kVK_Escape && key != kVK_Command &&
+                key != kVK_RightCommand) {
+              return input;
+            }
+            auto* browser = BrowserForWindow(input.window);
+            auto* view = browser
+                             ? BrowserView::GetBrowserViewForBrowser(browser)
+                             : nullptr;
+            if (view) {
+              LogFullscreenDiagnostic(
+                  view, "native-key", false,
+                  base::StringPrintf(
+                      "key=%s native_type=%lu native_timestamp=%.6f "
+                      "modifiers=%llu repeat=%d",
+                      key == kVK_Escape ? "escape"
+                                       : key == kVK_Command ? "command-left"
+                                                            : "command-right",
+                      static_cast<unsigned long>(input.type), input.timestamp,
+                      static_cast<unsigned long long>(input.modifierFlags),
+                      input.type == NSEventTypeKeyDown && input.isARepeat));
+            }
+            return input;
+          }];
   static os_log_t log = os_log_create("com.dao.browser", "fullscreen");
   static uint64_t next_event_id = 0;
   const uint64_t event_id = ++next_event_id;
@@ -735,7 +767,8 @@ void LogFullscreenDiagnostic(BrowserView* browser_view,
          "id=%llu event=%{public}@ version=%{public}@ window=%ld "
          "active_tab=%d tabs=%d widget_fullscreen=%d native_fullscreen=%d "
          "browser_fullscreen=%d tab_fullscreen=%d tab_pending=%d "
-         "caused_by_tab=%d input_type=%lu",
+         "caused_by_tab=%d input_type=%lu app_active=%d window_key=%d "
+         "current_modifiers=%llu details=%{public}@",
          static_cast<unsigned long long>(event_id), base::SysUTF8ToNSString(event),
          [NSBundle.mainBundle objectForInfoDictionaryKey:
                                   @"CFBundleShortVersionString"],
@@ -746,7 +779,10 @@ void LogFullscreenDiagnostic(BrowserView* browser_view,
          controller ? controller->IsTabFullscreen() : -1,
          controller ? controller->IsWindowFullscreenForTabOrPending() : -1,
          controller ? controller->IsFullscreenCausedByTab() : -1,
-         static_cast<unsigned long>(NSApp.currentEvent.type));
+         static_cast<unsigned long>(NSApp.currentEvent.type), NSApp.active,
+         window.keyWindow,
+         static_cast<unsigned long long>(NSEvent.modifierFlags),
+         base::SysUTF8ToNSString(details));
 
   if (include_stack) {
     NSArray<NSString*>* stack = NSThread.callStackSymbols;

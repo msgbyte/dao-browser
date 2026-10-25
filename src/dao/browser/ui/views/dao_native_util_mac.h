@@ -5,6 +5,8 @@
 #ifndef DAO_BROWSER_UI_VIEWS_DAO_NATIVE_UTIL_MAC_H_
 #define DAO_BROWSER_UI_VIEWS_DAO_NATIVE_UTIL_MAC_H_
 
+#include <string_view>
+
 #include "base/functional/callback.h"
 #include "build/build_config.h"
 #include "ui/base/dragdrop/mojom/drag_drop_types.mojom-forward.h"
@@ -79,7 +81,8 @@ void StopTabDragWatchdog();
 // Exit paths also capture a bounded call stack for release-build diagnosis.
 void LogFullscreenDiagnostic(BrowserView* browser_view,
                              const char* event,
-                             bool include_stack = false);
+                             bool include_stack = false,
+                             std::string_view details = {});
 
 // Move macOS traffic light buttons (close/minimize/zoom) to the given
 // origin within the window's content view. Call after the widget is shown.

@@ -619,9 +619,14 @@ Builds containing the fullscreen diagnostics write to the macOS unified log at
 default level, including release launches without `--enable-logging`. They record
 active-tab changes, fullscreen requests, and native transition start/completion.
 Each event includes the app version, native window number, selected tab index,
-tab count, and Chromium/native fullscreen state. Exit requests and native exit
+tab count, Chromium/native fullscreen state, app/window activation, and current
+modifier flags. Exit requests and native exit
 starts include up to 24 stack frames, linked by process ID and event ID. No page
 URLs, titles, page content, or typed text are recorded; records stay on the Mac.
+
+The temporary input records fill the gap left by stripped release stacks:
+
+- `native-key` observes only Escape and left/right Command in Dao windows. It records the AppKit event type (`10` down, `11` up, `12` modifier change), original event timestamp, modifier flags, and repeat state. Command transitions arrive as modifier changes. The app-local monitor returns every event unchanged and stays installed for the process lifetime after the first diagnostic event.
 
 After an unexpected exit, note the approximate time and collect promptly:
 
@@ -641,7 +646,7 @@ and only take effect after installing and launching a build containing them.
 
 Removal checklist after the cause is confirmed:
 
-- Remove `LogFullscreenDiagnostic`, and logging-only includes/declarations from `src/dao/browser/ui/views/dao_native_util_mac.{h,mm}`.
+- Remove `LogFullscreenDiagnostic`, the app-local key monitor, and logging-only includes/declarations from `src/dao/browser/ui/views/dao_native_util_mac.{h,mm}`.
 - Remove the temporary calls from `src/patches/chrome/browser/ui/views/frame/browser_view.cc.patch` and `browser_native_widget_mac.mm.patch`; preserve unrelated Dao changes in those patches.
 - Remove this section, search for the marker and `LogFullscreenDiagnostic` to ensure no call sites remain, then run `npm run rebuild`.
 
