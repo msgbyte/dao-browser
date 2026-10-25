@@ -1,39 +1,33 @@
 import Link from 'next/link';
 import { TopNav } from '@/components/TopNav';
 import { Footer } from '@/components/Footer';
-import { loadChangelog, type ChangelogLocale } from '@/lib/changelog';
+import { loadChangelog } from '@/lib/changelog';
 import { createMetadata } from '@/lib/seo';
-import en from '@/locales/en/changelog.json';
-import zh from '@/locales/zh-CN/changelog.json';
+import copy from '@/locales/en/changelog.json';
 import { ChangelogTimeline } from './ChangelogTimeline';
 import styles from './changelog.module.css';
 
-export function changelogMetadata(locale: ChangelogLocale) {
-  const copy = locale === 'zh-CN' ? zh : en;
-  const path = locale === 'en' ? '/changelog' : '/changelog/zh-CN';
-  const metadata = createMetadata({ title: copy.metadataTitle, description: copy.metadataDescription, path });
-  return {
-    ...metadata,
-    alternates: { ...metadata.alternates, languages: { en: '/changelog', 'zh-CN': '/changelog/zh-CN' } },
-  };
-}
+export const changelogMetadata = createMetadata({
+  title: copy.metadataTitle,
+  description: copy.metadataDescription,
+  path: '/changelog',
+});
 
-export async function ChangelogPage({ locale }: { locale: ChangelogLocale }) {
-  const copy = locale === 'zh-CN' ? zh : en;
-  const platforms = await loadChangelog(locale);
+export async function ChangelogPage() {
+  const platforms = await loadChangelog();
   return (
     <>
-      <TopNav changelogLocale={locale} />
-      <main className={styles.root} lang={locale}>
+      <TopNav />
+      <main className={styles.root} lang="en">
         <header className={styles.header}>
           <p className={styles.eyebrow}>{copy.nav}</p>
           <h1>{copy.title}</h1>
           <p className={styles.description}>{copy.description}</p>
         </header>
-        <ChangelogTimeline platforms={platforms} locale={locale} />
+        <ChangelogTimeline platforms={platforms} />
         <p className={styles.history}>{copy.history} <Link href="/history">{copy.historyLink}</Link></p>
       </main>
-      <Footer changelogLocale={locale} />
+      <Footer />
     </>
   );
 }

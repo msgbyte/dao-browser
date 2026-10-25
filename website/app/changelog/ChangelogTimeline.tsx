@@ -1,17 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { ChangelogLocale, ChangelogPlatform } from '@/lib/changelog';
-import en from '@/locales/en/changelog.json';
-import zh from '@/locales/zh-CN/changelog.json';
+import type { ChangelogPlatform } from '@/lib/changelog';
+import copy from '@/locales/en/changelog.json';
 import { InlineMarkdown } from './InlineMarkdown';
 import styles from './changelog.module.css';
 
-export function ChangelogTimeline({ platforms, locale }: {
+export function ChangelogTimeline({ platforms }: {
   platforms: ChangelogPlatform[];
-  locale: ChangelogLocale;
 }) {
-  const copy = locale === 'zh-CN' ? zh : en;
   const [anchor, setAnchor] = useState('');
   const active = platforms.find(({ id, releases }) =>
     anchor === id || releases.some(({ version }) => anchor === `${id}-${version}`),
@@ -38,11 +35,6 @@ export function ChangelogTimeline({ platforms, locale }: {
             </a>
           ))}
         </nav>
-        <nav className={styles.languages} aria-label={copy.language}>
-          <a href={`/changelog${anchor ? `#${anchor}` : ''}`} lang="en" aria-current={locale === 'en' ? 'page' : undefined}>{copy.english}</a>
-          <span aria-hidden="true">/</span>
-          <a href={`/changelog/zh-CN${anchor ? `#${anchor}` : ''}`} lang="zh-CN" aria-current={locale === 'zh-CN' ? 'page' : undefined}>{copy.chinese}</a>
-        </nav>
       </div>
 
       {platforms.map(({ id, title, releases }) => (
@@ -59,7 +51,7 @@ export function ChangelogTimeline({ platforms, locale }: {
                         {index === 0 && <span className={styles.latest}>{copy.latest}</span>}
                       </div>
                       <time dateTime={release.date}>
-                        {new Intl.DateTimeFormat(locale, { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' }).format(new Date(`${release.date}T00:00:00Z`))}
+                        {new Intl.DateTimeFormat('en', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' }).format(new Date(`${release.date}T00:00:00Z`))}
                       </time>
                     </div>
                     <ul className={styles.entries}>

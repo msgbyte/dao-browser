@@ -49,23 +49,23 @@ describe('changelog navigation', () => {
     vi.unstubAllGlobals();
   });
 
-  it('opens a shared Android version and preserves its anchor when changing language', async () => {
+  it('opens a shared Android version without language-switch links', async () => {
     window.history.replaceState(null, '', '/changelog#android-0.1.0');
-    await act(async () => root.render(createElement(ChangelogTimeline, { platforms, locale: 'en' })));
+    await act(async () => root.render(createElement(ChangelogTimeline, { platforms })));
     expect(container.querySelector<HTMLElement>('#android')?.hidden).toBe(false);
     expect(container.querySelector<HTMLElement>('#desktop')?.hidden).toBe(true);
     expect(scrollIntoView).toHaveBeenCalled();
-    expect(container.querySelector('a[lang="zh-CN"]')?.getAttribute('href')).toBe('/changelog/zh-CN#android-0.1.0');
+    expect(container.querySelector('a[lang]')).toBeNull();
   });
 
-  it('follows hash changes and browser history, including the localized empty platform', async () => {
-    await act(async () => root.render(createElement(ChangelogTimeline, { platforms, locale: 'zh-CN' })));
+  it('follows hash changes and browser history, including the empty platform', async () => {
+    await act(async () => root.render(createElement(ChangelogTimeline, { platforms })));
     await act(async () => {
       window.history.replaceState(null, '', '#ios');
       window.dispatchEvent(new HashChangeEvent('hashchange'));
     });
     expect(container.querySelector<HTMLElement>('#ios')?.hidden).toBe(false);
-    expect(container.querySelector('#ios')?.textContent).toContain('暂无已发布的更新日志');
+    expect(container.querySelector('#ios')?.textContent).toContain('No published release notes yet.');
     expect(container.querySelector('a[aria-current="true"]')?.getAttribute('href')).toBe('#ios');
     await act(async () => {
       window.history.replaceState(null, '', '/changelog');

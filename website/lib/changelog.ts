@@ -1,7 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-export type ChangelogLocale = 'en' | 'zh-CN';
 export type ChangelogPlatformId = 'desktop' | 'android' | 'ios';
 
 export interface ChangelogRelease {
@@ -86,8 +85,8 @@ export function parseChangelog(source: string): ChangelogPlatform[] {
   return platformIds.map((id) => platforms.find((item) => item.id === id)!);
 }
 
-export async function loadChangelog(locale: ChangelogLocale): Promise<ChangelogPlatform[]> {
-  // Both routes are prerendered; source documents are only needed during builds.
-  const source = await readFile(join(process.cwd(), '../docs/changelog', `${locale}.md`), 'utf8');
+export async function loadChangelog(): Promise<ChangelogPlatform[]> {
+  // The page is prerendered; the source document is only needed during builds.
+  const source = await readFile(join(process.cwd(), '../docs/changelog/en.md'), 'utf8');
   return parseChangelog(source);
 }

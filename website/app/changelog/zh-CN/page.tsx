@@ -1,8 +1,5 @@
-import { ChangelogPage, changelogMetadata } from '../ChangelogPage';
-
-export const dynamic = 'error';
-export const metadata = changelogMetadata('zh-CN');
+import { permanentRedirect } from 'next/navigation';
 
 export default function Page() {
-  return <ChangelogPage locale="zh-CN" />;
+  permanentRedirect('/changelog');
 }

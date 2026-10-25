@@ -7,12 +7,10 @@ import { Button } from './ui/Button';
 import { LucideIcon } from './ui/LucideIcon';
 import { GitHubIcon } from './ui/BrandIcons';
 import { trackEvent } from '@/lib/analytics';
-import type { ChangelogLocale } from '@/lib/changelog';
 import changelogEn from '@/locales/en/changelog.json';
-import changelogZh from '@/locales/zh-CN/changelog.json';
 import styles from './TopNav.module.css';
 
-export function TopNav({ changelogLocale = 'en' }: { changelogLocale?: ChangelogLocale }) {
+export function TopNav() {
   return (
     <nav className={styles.nav} aria-label="Primary">
       <Link href="/" className={styles.brand}>
@@ -60,12 +58,11 @@ export function TopNav({ changelogLocale = 'en' }: { changelogLocale?: Changelog
           <span className={styles.linkText}>Versions</span>
         </Link>
         <Link
-          href={changelogLocale === 'zh-CN' ? '/changelog/zh-CN' : '/changelog'}
+          href="/changelog"
           className={styles.link}
-          lang={changelogLocale}
           onClick={() => trackEvent('nav_link_click', { target: 'changelog' })}
         >
-          {changelogLocale === 'zh-CN' ? changelogZh.nav : changelogEn.nav}
+          {changelogEn.nav}
         </Link>
         <a
           href={GITHUB_URL}

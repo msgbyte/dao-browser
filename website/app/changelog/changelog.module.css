@@ -35,8 +35,6 @@
   font-size: 15px;
 }
 .platforms a[aria-current] { border-color: var(--accent); color: var(--text); }
-.languages { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-secondary); }
-.languages a[aria-current] { color: var(--text); }
 .root a:hover { color: var(--accent-hover); }
 .root a:focus-visible { outline: 2px solid var(--accent); outline-offset: 5px; border-radius: 2px; }
 .platform { scroll-margin-top: 160px; }
@@ -65,7 +63,6 @@
   .root { padding: 48px 24px; }
   .header { margin-bottom: 32px; }
   .description { font-size: 16px; }
-  .controls { align-items: flex-start; flex-direction: column-reverse; gap: 12px; }
   .platforms { width: 100%; }
   .release { grid-template-columns: minmax(0, 1fr); gap: 20px; padding: 28px 0; }
   .meta { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px 16px; }

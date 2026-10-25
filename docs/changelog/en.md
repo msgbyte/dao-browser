@@ -5,6 +5,7 @@
 ### [Unreleased] Unreleased
 
 - Keep address-bar status icons visible when the page URL is long.
+- Browse release notes on the website in English, switch between desktop, Android, and iOS, and share links to individual versions.
 - Find Changelog before the GitHub icon in the website navigation.
 
 ### [1.0.123] - 2026-10-25
