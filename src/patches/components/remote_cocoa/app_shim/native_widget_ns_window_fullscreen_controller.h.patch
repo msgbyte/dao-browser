@@ -1,0 +1,18 @@
+diff --git a/components/remote_cocoa/app_shim/native_widget_ns_window_fullscreen_controller.h b/components/remote_cocoa/app_shim/native_widget_ns_window_fullscreen_controller.h
+--- a/components/remote_cocoa/app_shim/native_widget_ns_window_fullscreen_controller.h
++++ b/components/remote_cocoa/app_shim/native_widget_ns_window_fullscreen_controller.h
+@@ -67,6 +67,14 @@
+   NativeWidgetNSWindowFullscreenController& operator=(
+       const NativeWidgetNSWindowFullscreenController&) = delete;
+   ~NativeWidgetNSWindowFullscreenController();
++
++  // TODO(dao): temporary fullscreen debugging logs; remove after diagnosis.
++  // Records attempts and callbacks even when the original cause is unknown.
++  void LogFullscreenDiagnostic(
++      const char* event,
++      bool include_stack = false,
++      long window_number = -1,
++      int64_t requested_display_id = display::kInvalidDisplayId) const;
+ 
+   // Called by NativeWidget::SetFullscreen.
+   void EnterFullscreen(int64_t target_display_id);

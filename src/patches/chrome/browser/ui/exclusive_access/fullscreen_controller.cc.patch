@@ -62,3 +62,15 @@ diff --git a/chrome/browser/ui/exclusive_access/fullscreen_controller.cc b/chrom
      ExitFullscreenModeInternal();
    }
  }
+@@ -632,6 +658,11 @@
+ }
+ 
+ void FullscreenController::ExitFullscreenModeInternal() {
++#if BUILDFLAG(IS_MAC)
++  // TODO(dao): temporary fullscreen debugging logs; record every caller.
++  dao::LogFullscreenDiagnostic(exclusive_access_manager()->context(),
++                               "exit-internal");
++#endif
+   // In kiosk mode, we always want to be fullscreen.
+   if (IsRunningInAppMode()) {
+     return;

@@ -1,0 +1,53 @@
+diff --git a/components/remote_cocoa/app_shim/views_nswindow_delegate.mm b/components/remote_cocoa/app_shim/views_nswindow_delegate.mm
+--- a/components/remote_cocoa/app_shim/views_nswindow_delegate.mm
++++ b/components/remote_cocoa/app_shim/views_nswindow_delegate.mm
+@@ -128,6 +128,9 @@
+ // NSWindowDelegate implementation.
+ 
+ - (void)windowDidFailToEnterFullScreen:(NSWindow*)window {
++  // TODO(dao): temporary fullscreen debugging logs; remove after diagnosis.
++  _parent->fullscreen_controller().LogFullscreenDiagnostic(
++      "cocoa-enter-failed-callback", true, window.windowNumber);
+   // This method is called when the window fails to enter fullscreen. If Cocoa
+   // has already sent an (unexpected) windowDidExitFullScreen: notification,
+   // there is nothing to do. If not, notify `parent_` about this error and
+@@ -140,6 +143,9 @@
+ }
+ 
+ - (void)windowDidFailToExitFullScreen:(NSWindow*)window {
++  // TODO(dao): temporary fullscreen debugging logs; remove after diagnosis.
++  _parent->fullscreen_controller().LogFullscreenDiagnostic(
++      "cocoa-exit-failed-callback", true, window.windowNumber);
+   // Unlike entering fullscreen, windowDidFailToExitFullScreen: is sent *before*
+   // windowDidExitFullScreen:. Also, failing to exit fullscreen just dumps the
+   // window out of fullscreen without an animation; still sending the expected,
+@@ -366,17 +372,29 @@
+ }
+ 
+ - (void)windowWillEnterFullScreen:(NSNotification*)notification {
++  // TODO(dao): temporary fullscreen debugging logs; remove after diagnosis.
++  _parent->fullscreen_controller().LogFullscreenDiagnostic(
++      "cocoa-will-enter-callback", false, [(NSWindow*)notification.object windowNumber]);
+   _parent->fullscreen_controller().OnWindowWillEnterFullscreen();
+ }
+ 
+ - (void)windowDidEnterFullScreen:(NSNotification*)notification {
++  // TODO(dao): temporary fullscreen debugging logs; remove after diagnosis.
++  _parent->fullscreen_controller().LogFullscreenDiagnostic(
++      "cocoa-did-enter-callback", false, [(NSWindow*)notification.object windowNumber]);
+   _parent->fullscreen_controller().OnWindowDidEnterFullscreen();
+ }
+ 
+ - (void)windowWillExitFullScreen:(NSNotification*)notification {
++  // TODO(dao): temporary fullscreen debugging logs; remove after diagnosis.
++  _parent->fullscreen_controller().LogFullscreenDiagnostic(
++      "cocoa-will-exit-callback", true, [(NSWindow*)notification.object windowNumber]);
+   _parent->fullscreen_controller().OnWindowWillExitFullscreen();
+ }
+ 
+ - (void)windowDidExitFullScreen:(NSNotification*)notification {
++  // TODO(dao): temporary fullscreen debugging logs; remove after diagnosis.
++  _parent->fullscreen_controller().LogFullscreenDiagnostic(
++      "cocoa-did-exit-callback", true, [(NSWindow*)notification.object windowNumber]);
+   _parent->fullscreen_controller().OnWindowDidExitFullscreen();
+ }

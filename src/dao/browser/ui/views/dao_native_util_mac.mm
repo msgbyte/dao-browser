@@ -764,7 +764,8 @@ void LogFullscreenDiagnostic(BrowserView* browser_view,
 
   // Default-level unified logging survives release launches without stderr.
   os_log(log,
-         "id=%llu event=%{public}@ version=%{public}@ window=%ld "
+         "debug_only=1 layer=browser id=%llu event=%{public}@ "
+         "version=%{public}@ window=%ld "
          "active_tab=%d tabs=%d widget_fullscreen=%d native_fullscreen=%d "
          "browser_fullscreen=%d tab_fullscreen=%d tab_pending=%d "
          "caused_by_tab=%d input_type=%lu app_active=%d window_key=%d "
@@ -789,7 +790,7 @@ void LogFullscreenDiagnostic(BrowserView* browser_view,
     const NSUInteger count = std::min<NSUInteger>(stack.count, 24);
     for (NSUInteger i = 0; i < count; ++i) {
       // Separate records avoid the unified log's per-message size limit.
-      os_log(log, "id=%llu frame=%lu %{public}@",
+      os_log(log, "debug_only=1 layer=browser id=%llu frame=%lu %{public}@",
              static_cast<unsigned long long>(event_id),
              static_cast<unsigned long>(i), stack[i]);
     }

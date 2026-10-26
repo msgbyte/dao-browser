@@ -1,0 +1,223 @@
+diff --git a/components/remote_cocoa/app_shim/native_widget_ns_window_fullscreen_controller.mm b/components/remote_cocoa/app_shim/native_widget_ns_window_fullscreen_controller.mm
+--- a/components/remote_cocoa/app_shim/native_widget_ns_window_fullscreen_controller.mm
++++ b/components/remote_cocoa/app_shim/native_widget_ns_window_fullscreen_controller.mm
+@@ -4,8 +4,15 @@
+ 
+ #include "components/remote_cocoa/app_shim/native_widget_ns_window_fullscreen_controller.h"
+ 
++// TODO(dao): temporary fullscreen debugging logs; remove after diagnosis.
++#import <Foundation/Foundation.h>
++#import <os/log.h>
++
++#include <algorithm>
++
+ #include "base/functional/callback_helpers.h"
+ #include "base/logging.h"
++#include "base/strings/sys_string_conversions.h"
+ #import "base/task/single_thread_task_runner.h"
+ #include "base/task/single_thread_task_runner.h"
+ #include "ui/base/cocoa/nswindow_test_util.h"
+@@ -22,13 +29,75 @@
+ 
+ NativeWidgetNSWindowFullscreenController::
+     NativeWidgetNSWindowFullscreenController(Client* client)
+-    : client_(client) {}
++    : client_(client) {
++  LogFullscreenDiagnostic("native-controller-created");
++}
+ 
+ NativeWidgetNSWindowFullscreenController::
+-    ~NativeWidgetNSWindowFullscreenController() = default;
++    ~NativeWidgetNSWindowFullscreenController() {
++  LogFullscreenDiagnostic("native-controller-destroyed");
++}
++
++// TODO(dao): temporary fullscreen debugging logs, not product telemetry.
++void NativeWidgetNSWindowFullscreenController::LogFullscreenDiagnostic(
++    const char* event,
++    bool include_stack,
++    long window_number,
++    int64_t requested_display_id) const {
++  static os_log_t log = os_log_create("com.dao.browser", "fullscreen");
++  static uint64_t next_event_id = 0;
++  const uint64_t event_id = ++next_event_id;
++  const auto state_name = [](State state) {
++    switch (state) {
++      case State::kWindowed:
++        return "windowed";
++      case State::kWindowedMovingToFullscreenTarget:
++        return "moving-display";
++      case State::kEnterFullscreenTransition:
++        return "entering";
++      case State::kFullscreen:
++        return "fullscreen";
++      case State::kExitFullscreenTransition:
++        return "exiting";
++      case State::kWindowedRestoringOriginalFrame:
++        return "restoring-frame";
++      case State::kClosed:
++        return "closed";
++    }
++    return "unknown";
++  };
++  os_log(log,
++         "debug_only=1 layer=native id=%llu event=%{public}@ "
++         "controller=%{public}p window=%ld state=%{public}@ "
++         "target_fullscreen=%d transition=%d requested_display=%lld "
++         "pending_fullscreen=%d pending_display=%lld deferred_close=%d "
++         "restore_frame=%d",
++         static_cast<unsigned long long>(event_id), base::SysUTF8ToNSString(event),
++         static_cast<const void*>(this), window_number,
++         base::SysUTF8ToNSString(state_name(state_)),
++         GetTargetFullscreenState(), IsInFullscreenTransition(),
++         static_cast<long long>(requested_display_id),
++         pending_state_ ? static_cast<int>(pending_state_->is_fullscreen) : -1,
++         static_cast<long long>(pending_state_ ? pending_state_->display_id
++                                              : display::kInvalidDisplayId),
++         has_deferred_window_close_, restore_windowed_frame_);
++  if (include_stack) {
++    NSArray<NSString*>* stack = NSThread.callStackSymbols;
++    const NSUInteger count = std::min<NSUInteger>(stack.count, 24);
++    for (NSUInteger i = 0; i < count; ++i) {
++      os_log(log,
++             "debug_only=1 layer=native id=%llu controller=%{public}p "
++             "frame=%lu %{public}@",
++             static_cast<unsigned long long>(event_id),
++             static_cast<const void*>(this), static_cast<unsigned long>(i),
++             stack[i]);
++    }
++  }
++}
+ 
+ void NativeWidgetNSWindowFullscreenController::EnterFullscreen(
+     int64_t target_display_id) {
++  LogFullscreenDiagnostic("native-request-enter", true, -1, target_display_id);
+   if (IsFakeForTesting()) {
+     if (state_ == State::kWindowed) {
+       state_ = State::kEnterFullscreenTransition;
+@@ -68,6 +137,7 @@
+ }
+ 
+ void NativeWidgetNSWindowFullscreenController::ExitFullscreen() {
++  LogFullscreenDiagnostic("native-request-exit", true);
+   if (IsFakeForTesting()) {
+     if (state_ == State::kFullscreen) {
+       state_ = State::kExitFullscreenTransition;
+@@ -97,6 +167,7 @@
+ 
+ void NativeWidgetNSWindowFullscreenController::
+     MoveToTargetDisplayThenToggleFullscreen(int64_t target_display_id) {
++  LogFullscreenDiagnostic("native-move-display", false, -1, target_display_id);
+   DCHECK_EQ(state_, State::kWindowedMovingToFullscreenTarget);
+ 
+   gfx::Rect display_frame =
+@@ -114,6 +185,7 @@
+ }
+ 
+ void NativeWidgetNSWindowFullscreenController::RestoreWindowedFrame() {
++  LogFullscreenDiagnostic("native-restore-frame");
+   DCHECK_EQ(state_, State::kWindowedRestoringOriginalFrame);
+   DCHECK(restore_windowed_frame_);
+   DCHECK(windowed_frame_);
+@@ -126,6 +198,7 @@
+ }
+ 
+ void NativeWidgetNSWindowFullscreenController::OnWindowedFrameRestored() {
++  LogFullscreenDiagnostic("native-frame-restored");
+   restore_windowed_frame_ = false;
+ 
+   SetStateAndCancelPostedTasks(State::kWindowed);
+@@ -137,6 +210,7 @@
+ }
+ 
+ void NativeWidgetNSWindowFullscreenController::ToggleFullscreen() {
++  LogFullscreenDiagnostic("native-toggle", true);
+   // Note that OnWindowWillEnterFullscreen or OnWindowWillExitFullscreen will
+   // be called within the below call.
+   client_->FullscreenControllerToggleFullscreen();
+@@ -151,11 +225,14 @@
+ 
+ void NativeWidgetNSWindowFullscreenController::SetStateAndCancelPostedTasks(
+     State new_state) {
++  LogFullscreenDiagnostic("state-before");
+   weak_factory_.InvalidateWeakPtrs();
+   state_ = new_state;
++  LogFullscreenDiagnostic("state-after");
+ }
+ 
+ void NativeWidgetNSWindowFullscreenController::OnWindowWantsToClose() {
++  LogFullscreenDiagnostic("native-window-close-request", true);
+   if (state_ == State::kEnterFullscreenTransition ||
+       state_ == State::kExitFullscreenTransition) {
+     has_deferred_window_close_ = true;
+@@ -163,6 +240,7 @@
+ }
+ 
+ void NativeWidgetNSWindowFullscreenController::OnWindowWillClose() {
++  LogFullscreenDiagnostic("native-window-will-close", true);
+   // If a window closes while in a fullscreen transition, then the window will
+   // hang in a zombie-like state.
+   // https://crbug.com/945237
+@@ -173,6 +251,7 @@
+ }
+ 
+ void NativeWidgetNSWindowFullscreenController::OnWindowWillEnterFullscreen() {
++  LogFullscreenDiagnostic("cocoa-will-enter");
+   if (state_ == State::kWindowed) {
+     windowed_frame_ = client_->FullscreenControllerGetFrame();
+   }
+@@ -187,9 +266,11 @@
+ }
+ 
+ void NativeWidgetNSWindowFullscreenController::OnWindowDidEnterFullscreen() {
++  LogFullscreenDiagnostic("cocoa-did-enter");
+   if (HandleDeferredClose())
+     return;
+   if (state_ == State::kExitFullscreenTransition) {
++    LogFullscreenDiagnostic("native-exit-rolled-back");
+     // If transitioning out of fullscreen failed, then just remain in
+     // fullscreen. Note that `pending_state_` could have been left present for a
+     // fullscreen-to-fullscreen-on-another-display transition. If it looks like
+@@ -207,6 +288,7 @@
+ 
+ void NativeWidgetNSWindowFullscreenController::
+     OnWindowDidFailToEnterFullscreen() {
++  LogFullscreenDiagnostic("cocoa-enter-failed", true);
+   if (state_ != State::kWindowed) {
+     SetStateAndCancelPostedTasks(State::kWindowed);
+     client_->FullscreenControllerTransitionComplete(
+@@ -215,6 +297,7 @@
+ }
+ 
+ void NativeWidgetNSWindowFullscreenController::OnWindowWillExitFullscreen() {
++  LogFullscreenDiagnostic("cocoa-will-exit", true);
+   // If we are starting a new transition, then notify `client_`.
+   if (!IsInFullscreenTransition())
+     client_->FullscreenControllerTransitionStart(false);
+@@ -224,6 +307,10 @@
+ }
+ 
+ void NativeWidgetNSWindowFullscreenController::OnWindowDidExitFullscreen() {
++  LogFullscreenDiagnostic("cocoa-did-exit", true);
++  if (state_ == State::kEnterFullscreenTransition) {
++    LogFullscreenDiagnostic("native-enter-rolled-back");
++  }
+   if (HandleDeferredClose())
+     return;
+   SetStateAndCancelPostedTasks(State::kWindowed);
+@@ -287,6 +374,7 @@
+             pending_state_.reset();
+             return;
+           }
++          LogFullscreenDiagnostic("native-cross-display-exit");
+           // Leave `pending_state_` in place. It will be consumed when we
+           // come through here again via OnWindowDidExitFullscreen (or
+           // via OnWindowDidEnterFullscreen, if we fail to exit fullscreen).
+@@ -311,6 +399,7 @@
+ bool NativeWidgetNSWindowFullscreenController::HandleDeferredClose() {
+   CHECK_NE(state_, State::kClosed);
+   if (has_deferred_window_close_) {
++    LogFullscreenDiagnostic("native-deferred-close", true);
+     SetStateAndCancelPostedTasks(State::kClosed);
+     // Note that `this` may be deleted by the below call.
+     client_->FullscreenControllerCloseWindow();

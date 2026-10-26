@@ -613,16 +613,23 @@ file with `npm run export -- <file>`; never run bare `npm run export`.
 
 **Temporary investigation only:** remove these diagnostics after identifying
 the unexpected immersive/fullscreen exit. Code sites use the searchable marker
-`TODO(dao): temporary fullscreen diagnostics`.
+`TODO(dao): temporary fullscreen`; every emitted record has `debug_only=1`.
 
 Builds containing the fullscreen diagnostics write to the macOS unified log at
 default level, including release launches without `--enable-logging`. They record
-active-tab changes, fullscreen requests, and native transition start/completion.
-Each event includes the app version, native window number, selected tab index,
-tab count, Chromium/native fullscreen state, app/window activation, and current
-modifier flags. Exit requests and native exit
-starts include up to 24 stack frames, linked by process ID and event ID. No page
-URLs, titles, page content, or typed text are recorded; records stay on the Mac.
+active-tab changes, fullscreen requests, native callbacks, failures, and state
+changes. Browser records (`layer=browser`) include the app version, native window
+number, selected tab index, tab count, Chromium/native fullscreen state,
+app/window activation, and current modifier flags. Native state-machine records
+(`layer=native`) include the controller identity, state, target fullscreen state,
+requested/pending display, and deferred-close/frame-restoration flags. Bridge and
+Cocoa callback records include the native window number; other native records
+use `window=-1` and can be joined to those records by process and controller.
+
+Requests, native exits, failures, and native toggle dispatches capture up to 24
+stack frames. Match frames by process ID, `layer`, and event `id`; browser and
+native layers have independent counters. No page URLs, titles, page content, or
+typed text are recorded; records stay on the Mac.
 
 The temporary input/timer records fill the gap left by stripped release stacks:
 
@@ -630,6 +637,28 @@ The temporary input/timer records fill the gap left by stripped release stacks:
 - `escape-key` records Escape as received by Chromium's exclusive-access manager, including the Blink event type/modifiers, repeat state, feature flag, and both timer states. Compare it with `native-key` to find missing or reinterpreted events; AppKit and Blink numeric event types/modifiers use different enums.
 - `escape-hold-start`, `escape-hold-stop` (key release), and `escape-hold-fire` trace the 1500 ms hold timer. Starting also arms the 500 ms exit-bubble timer. A fire record means the callback ran; it does not by itself mean fullscreen exited.
 - `exit-source-held-escape`, `exit-source-toggle`, `exit-source-tab`, and `exit-source-exclusive-access` identify the branch calling `FullscreenController::ExitFullscreenModeInternal()`. Pair the source with the following request/native transition for the same window; toggle records also include `user_initiated`.
+- `exit-internal` records every call to the shared browser exit function, including callers without a known `exit-source-*` label. It records an attempt before guards, not proof that the window exited.
+- `bridge-request-enter/exit`, `native-request-enter/exit`, `native-toggle`, and `native-toggle-dispatch` trace requests through the native state machine and into AppKit, including requests that are ignored or deferred.
+- `cocoa-will-enter/exit-callback`, `cocoa-did-enter/exit-callback`, and the corresponding controller events record system-initiated transitions even when no browser request or known source precedes them.
+- `cocoa-enter-failed-callback` and `cocoa-exit-failed-callback` record raw AppKit failures before guards; `cocoa-enter-failed`, `native-enter-rolled-back`, and `native-exit-rolled-back` distinguish failed transitions from normal exits, including rollback delivered through an ordinary completion callback.
+- `native-cross-display-exit`, `native-move-display`, `native-restore-frame`, and `native-frame-restored` explain intermediate exits while moving fullscreen to another display.
+- `state-before/after` record every normal state-machine transition, including pending transitions and task cancellation, without requiring a recognized cause.
+- `native-window-bound`, `native-window-close-request`, `native-window-will-close`, `native-deferred-close`, and controller creation/destruction records identify window lifetime changes that can interrupt a transition. `native-transition-enter/exit-start/complete` join native controller and window identities; the event name records the callback direction independently of the current state snapshot.
+- `native-immersive-enable/disable` record the native immersive UI calls separately from the window's fullscreen state; a disable call can be a no-op.
+
+Verify that the real unified log contains records for direct native exits,
+programmatic exits, failed transitions, cross-display transitions, raw failure
+callbacks, and the browser-to-native path:
+
+```bash
+npm run rebuild -- -- --target chrome browser_tests -j 4
+python3 scripts/check-fullscreen-diagnostics.py engine/src/out/dao-debug/browser_tests
+```
+
+The checker reuses Chromium's native state-machine tests and isolates each log
+query by the test process ID. It checks emitted records, not source text. Native
+display transitions are simulated by the existing state-machine test client;
+the callback browser test exercises the actual window delegate.
 
 After an unexpected exit, note the approximate time and collect promptly:
 
@@ -644,14 +673,19 @@ start first can indicate an AppKit-originated transition. A later `request-exit`
 can be Chromium synchronizing that native change, so it is not by itself proof
 of the original cause. `input_type` is only AppKit's current event type and may
 refer to an earlier event. Stripped release stacks may need the matching build's
-symbols for a precise caller. These diagnostics do not change fullscreen behavior
-and only take effect after installing and launching a build containing them.
+symbols for a precise caller. Every reached diagnostic site emits a record even
+when its cause is unknown; this cannot guarantee disk persistence across process
+termination, power loss, or macOS log retention. These diagnostics do not change
+fullscreen behavior and only take effect after installing and launching a build
+containing them.
 
 Removal checklist after the cause is confirmed:
 
 - Remove both `LogFullscreenDiagnostic` overloads, the app-local key monitor, and logging-only includes/declarations from `src/dao/browser/ui/views/dao_native_util_mac.{h,mm}`.
 - Remove the temporary calls from `src/patches/chrome/browser/ui/views/frame/browser_view.cc.patch` and `browser_native_widget_mac.mm.patch`; preserve unrelated Dao changes in those patches.
 - Delete the logging-only `src/patches/chrome/browser/ui/exclusive_access/exclusive_access_manager.cc.patch` and `fullscreen_controller.cc.patch` if they still contain only these diagnostics.
+- Delete the logging-only patches for `components/remote_cocoa/app_shim/native_widget_ns_window_fullscreen_controller.{h,mm}`, `native_widget_ns_window_bridge.mm`, and `views_nswindow_delegate.mm`.
+- Remove `scripts/check-fullscreen-diagnostics.py`, `dao_fullscreen_diagnostics_mac_browsertest.mm`, and their temporary native-test registrations/dependencies in `dao_ui_sources.gni`.
 - Remove this section, search for the marker and `LogFullscreenDiagnostic` to ensure no call sites remain, then run `npm run rebuild`.
 
 ## Project Structure

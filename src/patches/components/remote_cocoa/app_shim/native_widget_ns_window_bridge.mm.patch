@@ -1,0 +1,86 @@
+diff --git a/components/remote_cocoa/app_shim/native_widget_ns_window_bridge.mm b/components/remote_cocoa/app_shim/native_widget_ns_window_bridge.mm
+--- a/components/remote_cocoa/app_shim/native_widget_ns_window_bridge.mm
++++ b/components/remote_cocoa/app_shim/native_widget_ns_window_bridge.mm
+@@ -471,6 +471,9 @@
+   window_.bridgedNativeWidgetId = id_;
+   window_.releasedWhenClosed = NO;
+   window_.delegate = window_delegate_;
++  // TODO(dao): temporary fullscreen debugging logs; remove after diagnosis.
++  fullscreen_controller_.LogFullscreenDiagnostic(
++      "native-window-bound", false, window_.windowNumber);
+   ui::CATransactionCoordinator::Get().AddPreCommitObserver(this);
+ }
+ 
+@@ -1238,6 +1241,9 @@
+ void NativeWidgetNSWindowBridge::EnableImmersiveFullscreen(
+     uint64_t fullscreen_overlay_widget_id,
+     uint64_t tab_widget_id) {
++  // TODO(dao): temporary fullscreen debugging logs; remove after diagnosis.
++  fullscreen_controller_.LogFullscreenDiagnostic(
++      "native-immersive-enable", false, window_.windowNumber);
+   NativeWidgetNSWindowBridge* tab_widget_bridge = GetFromId(tab_widget_id);
+   if (tab_widget_bridge) {
+     NSWindow* tab_window = tab_widget_bridge->ns_window();
+@@ -1267,6 +1273,9 @@
+ }
+ 
+ void NativeWidgetNSWindowBridge::DisableImmersiveFullscreen() {
++  // TODO(dao): temporary fullscreen debugging logs; remove after diagnosis.
++  fullscreen_controller_.LogFullscreenDiagnostic(
++      "native-immersive-disable", true, window_.windowNumber);
+   immersive_mode_controller_.reset();
+ }
+ 
+@@ -1698,6 +1707,11 @@
+ 
+ void NativeWidgetNSWindowBridge::FullscreenControllerTransitionStart(
+     bool is_target_fullscreen) {
++  // TODO(dao): temporary fullscreen debugging logs; remove after diagnosis.
++  fullscreen_controller_.LogFullscreenDiagnostic(
++      is_target_fullscreen ? "native-transition-enter-start"
++                           : "native-transition-exit-start",
++      false, window_.windowNumber);
+   host_->OnWindowFullscreenTransitionStart(is_target_fullscreen);
+   if (!is_target_fullscreen) {
+     // Immersive full screen needs to be disabled synchronously during the
+@@ -1710,6 +1724,11 @@
+ 
+ void NativeWidgetNSWindowBridge::FullscreenControllerTransitionComplete(
+     bool is_fullscreen) {
++  // TODO(dao): temporary fullscreen debugging logs; remove after diagnosis.
++  fullscreen_controller_.LogFullscreenDiagnostic(
++      is_fullscreen ? "native-transition-enter-complete"
++                    : "native-transition-exit-complete",
++      false, window_.windowNumber);
+   DCHECK(!fullscreen_controller_.IsInFullscreenTransition());
+   UpdateWindowGeometry();
+   UpdateWindowDisplay();
+@@ -1744,6 +1763,9 @@
+ }
+ 
+ void NativeWidgetNSWindowBridge::FullscreenControllerToggleFullscreen() {
++  // TODO(dao): temporary fullscreen debugging logs; remove after diagnosis.
++  fullscreen_controller_.LogFullscreenDiagnostic(
++      "native-toggle-dispatch", true, window_.windowNumber);
+   bool is_key_window = [window_ isKeyWindow];
+ 
+   // If a request to close the window comes in during the nested loop of
+@@ -1890,6 +1912,9 @@
+ }
+ 
+ void NativeWidgetNSWindowBridge::EnterFullscreen(int64_t target_display_id) {
++  // TODO(dao): temporary fullscreen debugging logs; remove after diagnosis.
++  fullscreen_controller_.LogFullscreenDiagnostic(
++      "bridge-request-enter", true, window_.windowNumber, target_display_id);
+   // Going fullscreen implicitly makes the window visible. AppKit does this.
+   // That is, -[NSWindow isVisible] is always true after a call to -[NSWindow
+   // toggleFullScreen:]. Unfortunately, this change happens after AppKit calls
+@@ -1914,5 +1939,8 @@
+ }
+ 
+ void NativeWidgetNSWindowBridge::ExitFullscreen() {
++  // TODO(dao): temporary fullscreen debugging logs; remove after diagnosis.
++  fullscreen_controller_.LogFullscreenDiagnostic(
++      "bridge-request-exit", true, window_.windowNumber);
+   fullscreen_controller_.ExitFullscreen();
+ }
