@@ -4,6 +4,11 @@
 
 ### [Unreleased] Unreleased
 
+- Prevent native browser notifications from crashing when displayed or when their buttons are used.
+- Restore keyboard access to notification buttons when switching focus between browser panes.
+- Keep native browser notifications inside the active page in Split View.
+- Keep loading indicators visible in native browser notifications after the Chromium update, including in incognito windows.
+- Open the reading list from its notification without a crash or a blank panel.
 - Browser-control requests now highlight who is asking, which page they want to use, and what access allows; expand details to see the full URL, version, and request time.
 - Use the local MCP server and Dao Lite on Windows, with settings to install and manage local agent skills and the dao-browser command.
 - Show Dao as `dao.exe` instead of `chrome.exe` in Windows Task Manager.

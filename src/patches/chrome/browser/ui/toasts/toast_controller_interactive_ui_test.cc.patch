@@ -1,0 +1,21 @@
+diff --git a/chrome/browser/ui/toasts/toast_controller_interactive_ui_test.cc b/chrome/browser/ui/toasts/toast_controller_interactive_ui_test.cc
+--- a/chrome/browser/ui/toasts/toast_controller_interactive_ui_test.cc
++++ b/chrome/browser/ui/toasts/toast_controller_interactive_ui_test.cc
+@@ -325,6 +325,17 @@
+       })));
+ }
+ 
++IN_PROC_BROWSER_TEST_F(ToastControllerInteractiveTest, DaoFocusTraversal) {
++  RunTestSequence(TestToastFocus(
++      CheckView(kBrowserViewElementId, [](BrowserView* browser_view) {
++        auto* focused = browser_view->GetFocusManager()->GetFocusedView();
++        return focused && browser_view->Contains(focused) && focused->IsDrawn();
++      }),
++      CheckView(kBrowserViewElementId, [](BrowserView* browser_view) {
++        return browser_view->GetActiveContentsWebView()->HasFocus();
++      })));
++}
++
+ IN_PROC_BROWSER_TEST_F(ToastControllerInteractiveTest,
+                        FocusTraversalSplitStart) {
+   ui::Accelerator next_pane;

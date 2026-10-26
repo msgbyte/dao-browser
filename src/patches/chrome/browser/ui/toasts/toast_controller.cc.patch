@@ -1,15 +1,7 @@
 diff --git a/chrome/browser/ui/toasts/toast_controller.cc b/chrome/browser/ui/toasts/toast_controller.cc
 --- a/chrome/browser/ui/toasts/toast_controller.cc
 +++ b/chrome/browser/ui/toasts/toast_controller.cc
-@@ -35,6 +35,7 @@
- #include "chrome/browser/ui/toasts/toast_features.h"
- #include "chrome/browser/ui/toasts/toast_metrics.h"
- #include "chrome/browser/ui/toasts/toast_view.h"
-+#include "chrome/browser/ui/views/frame/contents_web_view.h"
- #include "chrome/browser/ui/views/frame/multi_contents_view.h"
- #include "chrome/browser/ui/views/interaction/browser_elements_views.h"
- #include "chrome/browser/ui/webui_browser/webui_browser.h"
-@@ -418,25 +419,17 @@
+@@ -435,25 +435,17 @@
    UpdateToastWidgetFocusTraversableParent(anchor_view);
  }
  
@@ -37,7 +29,7 @@ diff --git a/chrome/browser/ui/toasts/toast_controller.cc b/chrome/browser/ui/to
 +        browser_elements_views->GetView(kMultiContentsViewElementId));
 +    if (multi_contents_view) {
 +      return multi_contents_view->GetActiveContentsContainerView()
-+          ->contents_view();
++          ->GetToastAnchorView();
 +    }
 +    return browser_elements_views->GetView(kTopContainerElementId);
    }

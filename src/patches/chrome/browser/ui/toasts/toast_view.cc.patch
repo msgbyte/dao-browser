@@ -1,17 +1,23 @@
 diff --git a/chrome/browser/ui/toasts/toast_view.cc b/chrome/browser/ui/toasts/toast_view.cc
 --- a/chrome/browser/ui/toasts/toast_view.cc
 +++ b/chrome/browser/ui/toasts/toast_view.cc
-@@ -17,6 +17,9 @@
+@@ -14,9 +14,15 @@
+ #include "chrome/browser/ui/browser_element_identifiers.h"
+ #include "chrome/browser/ui/views/chrome_layout_provider.h"
+ #include "chrome/browser/ui/views/chrome_typography.h"
++#include "chrome/browser/ui/views/frame/browser_view.h"
  #include "chrome/grit/generated_resources.h"
  #include "components/strings/grit/components_strings.h"
  #include "components/vector_icons/vector_icons.h"
++#include "content/public/browser/web_contents.h"
 +#include "dao/browser/ui/views/dao_colors.h"
 +#include "dao/browser/ui/views/dao_lucide_icons.h"
 +#include "dao/browser/ui/views/dao_toast_view.h"
++#include "dao/browser/ui/views/split/dao_split_view.h"
  #include "ui/base/accelerators/accelerator.h"
  #include "ui/base/interaction/element_identifier.h"
  #include "ui/base/l10n/l10n_util.h"
-@@ -25,8 +28,10 @@
+@@ -25,8 +31,10 @@
  #include "ui/base/mojom/menu_source_type.mojom.h"
  #include "ui/base/ui_base_features.h"
  #include "ui/compositor/layer.h"
@@ -22,15 +28,15 @@ diff --git a/chrome/browser/ui/toasts/toast_view.cc b/chrome/browser/ui/toasts/t
  #include "ui/views/border.h"
  #include "ui/views/controls/button/image_button.h"
  #include "ui/views/controls/button/image_button_factory.h"
-@@ -36,6 +41,7 @@
- #include "ui/views/controls/menu/menu_item_view.h"
+@@ -37,6 +45,7 @@
  #include "ui/views/controls/menu/menu_model_adapter.h"
  #include "ui/views/controls/menu/menu_runner.h"
+ #include "ui/views/controls/throbber.h"
 +#include "ui/views/layout/fill_layout.h"
  #include "ui/views/layout/flex_layout.h"
  #include "ui/views/layout/flex_layout_types.h"
  #include "ui/views/layout/layout_provider.h"
-@@ -45,18 +51,9 @@
+@@ -46,18 +55,9 @@
  #include "ui/views/window/dialog_delegate.h"
  
  namespace {
@@ -52,7 +58,7 @@ diff --git a/chrome/browser/ui/toasts/toast_view.cc b/chrome/browser/ui/toasts/t
  
  bool IsCompatibleImageSize(const ui::ImageModel& image) {
    const auto intended_size = toasts::ToastView::GetIconSize();
-@@ -118,7 +115,8 @@
+@@ -119,7 +119,8 @@
        image_override_(std::move(image_override)),
        render_toast_over_web_contents_(render_toast_over_web_contents),
        toast_close_callback_(std::move(toast_close_callback)) {
@@ -62,7 +68,17 @@ diff --git a/chrome/browser/ui/toasts/toast_view.cc b/chrome/browser/ui/toasts/t
    SetShowCloseButton(false);
    DialogDelegate::SetButtons(static_cast<int>(ui::mojom::DialogButton::kNone));
    set_corner_radius(ChromeLayoutProvider::Get()->GetDistanceMetric(
-@@ -167,37 +165,38 @@
+@@ -142,7 +143,8 @@
+       icon_(nullptr),
+       render_toast_over_web_contents_(render_toast_over_web_contents),
+       toast_close_callback_(std::move(toast_close_callback)) {
+-  SetBackgroundColor(ui::kColorToastBackgroundProminent);
++  SetBackgroundColor(SK_ColorTRANSPARENT);
++  set_shadow(views::BubbleBorder::NO_SHADOW);
+   SetShowCloseButton(false);
+   DialogDelegate::SetButtons(static_cast<int>(ui::mojom::DialogButton::kNone));
+   set_corner_radius(ChromeLayoutProvider::Get()->GetDistanceMetric(
+@@ -195,16 +197,16 @@
    ChromeLayoutProvider* lp = ChromeLayoutProvider::Get();
  
    // FlexLayout lets the toast compress itself in narrow browser windows.
@@ -71,12 +87,30 @@ diff --git a/chrome/browser/ui/toasts/toast_view.cc b/chrome/browser/ui/toasts/t
 +  contents->SetLayoutManager(std::make_unique<views::FlexLayout>())
        ->SetOrientation(views::LayoutOrientation::kHorizontal);
  
--  icon_view_ = AddChildView(std::make_unique<views::ImageView>());
-+  icon_view_ = contents->AddChildView(std::make_unique<views::ImageView>());
-   icon_view_->SetProperty(
-       views::kMarginsKey,
-       gfx::Insets::VH(0, lp->GetDistanceMetric(
-                              DISTANCE_TOAST_BUBBLE_LEADING_ICON_SIDE_MARGINS)));
+   if (has_throbber_) {
+     CHECK(!icon_);
+     CHECK(!image_override_.has_value());
+     auto throbber = std::make_unique<views::Throbber>(GetIconSize());
+-    throbber->SetColorId(ui::kColorToastForeground);
+     throbber->Start();
+-    throbber_ = AddChildView(std::move(throbber));
++    throbber_ = contents->AddChildView(std::move(throbber));
+     throbber_->SetProperty(
+         views::kMarginsKey,
+         gfx::Insets::VH(0,
+@@ -212,7 +214,8 @@
+                             DISTANCE_TOAST_BUBBLE_LEADING_ICON_SIDE_MARGINS)));
+   } else {
+     CHECK(icon_ || image_override_.has_value());
+-    icon_view_ = AddChildView(std::make_unique<views::ImageView>());
++    icon_view_ = contents->AddChildView(std::make_unique<views::ImageView>());
++    icon_view_->SetVisible(image_override_.has_value());
+     icon_view_->SetProperty(
+         views::kMarginsKey,
+         gfx::Insets::VH(0,
+@@ -220,35 +223,34 @@
+                             DISTANCE_TOAST_BUBBLE_LEADING_ICON_SIDE_MARGINS)));
+   }
  
 -  label_ = AddChildView(
 +  label_ = contents->AddChildView(
@@ -87,18 +121,20 @@ diff --git a/chrome/browser/ui/toasts/toast_view.cc b/chrome/browser/ui/toasts/t
 +      gfx::FontList()
 +          .DeriveWithSizeDelta(13 - gfx::FontList().GetFontSize())
 +          .DeriveWithWeight(gfx::Font::Weight::SEMIBOLD));
-+  icon_view_->SetVisible(image_override_.has_value());
    label_->SetMultiLine(false);
    label_->SetHorizontalAlignment(gfx::ALIGN_LEFT);
    label_->SetAllowCharacterBreak(false);
    label_->SetAutoColorReadabilityEnabled(false);
 -  label_->SetLineHeight(
 -      lp->GetDistanceMetric(DISTANCE_TOAST_BUBBLE_HEIGHT_CONTENT));
-+  label_->SetLineHeight(28);
-   label_->SetProperty(views::kMarginsKey,
+-  label_->SetProperty(views::kMarginsKey,
 -                      GetLeftMargin(lp->GetDistanceMetric(
 -                          DISTANCE_TOAST_BUBBLE_BETWEEN_CHILD_SPACING)));
-+                      GetLeftMargin(image_override_.has_value() ? 8 : 0));
++  label_->SetBackgroundColor(SK_ColorTRANSPARENT);
++  label_->SetLineHeight(28);
++  label_->SetProperty(
++      views::kMarginsKey,
++      GetLeftMargin(has_throbber_ || image_override_.has_value() ? 8 : 0));
    label_->SetProperty(
        views::kFlexBehaviorKey,
        views::FlexSpecification(views::LayoutOrientation::kHorizontal,
@@ -113,7 +149,14 @@ diff --git a/chrome/browser/ui/toasts/toast_view.cc b/chrome/browser/ui/toasts/t
          action_button_callback_.Then(
              base::BindRepeating(&ToastView::Close, base::Unretained(this),
                                  ToastCloseReason::kActionButton)),
-@@ -218,22 +217,13 @@
+         action_button_text_));
+     action_button_->SetEnabledTextColors(ui::kColorToastButton);
+-    action_button_->SetBgColorIdOverride(ui::kColorToastBackgroundProminent);
+-    action_button_->SetStrokeColorIdOverride(ui::kColorToastButton);
+     action_button_->SetPreferredSize(gfx::Size(
+         action_button_->GetPreferredSize().width(),
+         lp->GetDistanceMetric(DISTANCE_TOAST_BUBBLE_HEIGHT_ACTION_BUTTON)));
+@@ -262,22 +264,13 @@
          GetLeftMargin(lp->GetDistanceMetric(
              DISTANCE_TOAST_BUBBLE_BETWEEN_LABEL_ACTION_BUTTON_SPACING)));
      SetInitiallyFocusedView(action_button_);
@@ -138,7 +181,7 @@ diff --git a/chrome/browser/ui/toasts/toast_view.cc b/chrome/browser/ui/toasts/t
      // Override the image button's border with the appropriate icon border size.
      const gfx::Insets insets =
          lp->GetInsetsMetric(views::InsetsMetric::INSETS_VECTOR_IMAGE_BUTTON);
-@@ -249,21 +239,11 @@
+@@ -293,21 +286,11 @@
      if (!HasConfiguredInitiallyFocusedView()) {
        SetInitiallyFocusedView(close_button_);
      }
@@ -162,7 +205,7 @@ diff --git a/chrome/browser/ui/toasts/toast_view.cc b/chrome/browser/ui/toasts/t
      views::InstallCircleHighlightPathGenerator(menu_button_);
      menu_button_->SetProperty(views::kElementIdentifierKey, kToastMenuButton);
      menu_button_->SetButtonController(
-@@ -284,35 +264,13 @@
+@@ -328,35 +311,13 @@
      if (!HasConfiguredInitiallyFocusedView()) {
        SetInitiallyFocusedView(menu_button_);
      }
@@ -205,7 +248,7 @@ diff --git a/chrome/browser/ui/toasts/toast_view.cc b/chrome/browser/ui/toasts/t
  
    if (has_action_button_ || has_close_button_ || menu_model_) {
      SetFocusTraversesOut(true);
-@@ -345,18 +303,11 @@
+@@ -389,18 +350,11 @@
    views::View* const bubble_frame_view = GetBubbleFrameView();
    bubble_frame_view->SetPaintToLayer();
    bubble_frame_view->layer()->SetFillsBoundsOpaquely(false);
@@ -225,10 +268,11 @@ diff --git a/chrome/browser/ui/toasts/toast_view.cc b/chrome/browser/ui/toasts/t
        .SetDuration(base::Milliseconds(50))
        .SetOpacity(bubble_frame_view, 1)
        .Then()
-@@ -411,27 +362,15 @@
+@@ -454,32 +408,34 @@
+ 
    const gfx::Size preferred_size =
        GetWidget()->GetContentsView()->GetPreferredSize();
-   const gfx::Rect anchor_bounds = anchor_view->GetBoundsInScreen();
+-  const gfx::Rect anchor_bounds = anchor_view->GetBoundsInScreen();
 -  const gfx::Rect anchor_widget_bounds =
 -      anchor_view->GetWidget()->GetWindowBoundsInScreen();
 -
@@ -250,6 +294,16 @@ diff --git a/chrome/browser/ui/toasts/toast_view.cc b/chrome/browser/ui/toasts/t
 -                                              ? views::BubbleBorder::kShadowBlur
 -                                              : (preferred_size.height() / 2));
 -  return gfx::Rect(x, y, width, preferred_size.height());
++  gfx::Rect anchor_bounds = anchor_view->GetBoundsInScreen();
++  auto* browser_view = BrowserView::GetBrowserViewForNativeWindow(
++      anchor_view->GetWidget()->GetNativeWindow());
++  if (browser_view && browser_view->dao_split_view() &&
++      browser_view->dao_split_view()->IsSplitActive()) {
++    // Dao split panes park the native toast anchor in a tiny placeholder.
++    if (auto* contents = browser_view->GetActiveWebContents()) {
++      anchor_bounds = contents->GetContainerBounds();
++    }
++  }
 +  // Keep the full toast and its slide-in inside the active content card.
 +  constexpr int kHorizontalMargin = 12;
 +  constexpr int kTopMargin = 20;
@@ -262,9 +316,18 @@ diff --git a/chrome/browser/ui/toasts/toast_view.cc b/chrome/browser/ui/toasts/t
  }
  
  void ToastView::OnThemeChanged() {
-@@ -445,6 +384,26 @@
-         *icon_, color_provider->GetColor(ui::kColorToastForeground),
-         GetIconSize()));
+   BubbleDialogDelegateView::OnThemeChanged();
++  if (throbber_) {
++    // Dao's surface follows the system theme, even in incognito windows.
++    throbber_->SetColorId(dao::IsDarkMode() ? ui::kColorSysWhite
++                                          : ui::kColorSysBlack);
++  }
+   if (icon_view_) {
+     const auto* color_provider = GetColorProvider();
+     if (image_override_.has_value() &&
+@@ -492,6 +448,26 @@
+           GetIconSize()));
+     }
    }
 +  label_->SetEnabledColor(dao::ToastTextColor());
 +  if (action_button_) {
@@ -289,7 +352,7 @@ diff --git a/chrome/browser/ui/toasts/toast_view.cc b/chrome/browser/ui/toasts/t
  }
  
  void ToastView::AnimateOut(base::OnceClosure callback,
-@@ -467,21 +426,14 @@
+@@ -514,21 +490,14 @@
      height_animation_tween_ = gfx::Tween::ACCEL_30_DECEL_20_85;
      height_animation_.SetDuration(base::Milliseconds(kAnimationExitDuration));
      height_animation_.Start();

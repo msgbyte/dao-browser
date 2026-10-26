@@ -222,6 +222,7 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/base/test/scoped_fake_nswindow_fullscreen.h"
+#include "ui/color/color_provider.h"
 #include "ui/compositor/layer.h"
 #include "ui/compositor/layer_animator.h"
 #include "ui/display/display.h"
@@ -234,6 +235,7 @@
 #include "ui/events/test/event_generator.h"
 #include "ui/gfx/animation/animation.h"
 #include "ui/gfx/canvas.h"
+#include "ui/gfx/color_utils.h"
 #include "ui/gfx/test/sk_color_eq.h"
 #include "ui/gfx/geometry/point_f.h"
 #include "ui/gfx/image/image.h"
@@ -250,6 +252,7 @@
 #include "ui/views/controls/image_view.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/controls/scroll_view.h"
+#include "ui/views/controls/throbber.h"
 #include "ui/views/controls/textfield/textfield.h"
 #include "ui/views/controls/webview/webview.h"
 #include "ui/views/focus/focus_manager.h"
@@ -9197,6 +9200,62 @@ IN_PROC_BROWSER_TEST_F(DaoToastViewBrowserTest, ShowToastMakesVisible) {
 }
 
 IN_PROC_BROWSER_TEST_F(DaoToastViewBrowserTest,
+                       ChromiumLoadingToastKeepsIndicator) {
+  ui::NativeTheme* theme = ui::NativeTheme::GetInstanceForNativeUi();
+  const auto original_color_scheme = theme->preferred_color_scheme();
+  base::ScopedClosureRunner restore_color_scheme(base::BindOnce(
+      [](ui::NativeTheme* theme,
+         ui::NativeTheme::PreferredColorScheme color_scheme) {
+        theme->set_preferred_color_scheme(color_scheme);
+        theme->NotifyOnNativeThemeUpdated();
+      },
+      theme, original_color_scheme));
+
+  for (auto* test_browser : {browser(), CreateIncognitoBrowser()}) {
+    SCOPED_TRACE(test_browser->GetProfile()->IsIncognitoProfile());
+    auto* contents = GetBrowserView(test_browser)->GetActiveContentsWebView();
+    auto toast = std::make_unique<toasts::ToastView>(
+        contents, l10n_util::GetStringUTF16(IDS_LINK_COPIED_TOAST_BODY), true,
+        base::DoNothing());
+    toast->AddThrobber();
+    auto* toast_view = toast.get();
+    auto* widget =
+        views::BubbleDialogDelegateView::CreateBubble(std::move(toast));
+    widget->ShowInactive();
+    toast_view->SizeToContents();
+
+    ASSERT_EQ(1u, toast_view->children().size());
+    auto* surface =
+        views::AsViewClass<DaoToastView>(toast_view->children().front());
+    ASSERT_TRUE(surface);
+    auto* indicator = toast_view->throbber_for_testing();
+    ASSERT_TRUE(indicator);
+    EXPECT_TRUE(surface->Contains(indicator));
+    EXPECT_TRUE(indicator->IsDrawn());
+    EXPECT_FALSE(indicator->bounds().IsEmpty());
+    EXPECT_LE(indicator->GetBoundsInScreen().right(),
+              toast_view->label_for_testing()->GetBoundsInScreen().x());
+    EXPECT_TRUE(contents->GetBoundsInScreen().Contains(
+        widget->GetWindowBoundsInScreen()));
+
+    for (auto color_scheme : {ui::NativeTheme::PreferredColorScheme::kLight,
+                              ui::NativeTheme::PreferredColorScheme::kDark,
+                              ui::NativeTheme::PreferredColorScheme::kLight}) {
+      SCOPED_TRACE(static_cast<int>(color_scheme));
+      theme->set_preferred_color_scheme(color_scheme);
+      theme->NotifyOnNativeThemeUpdated();
+      ASSERT_TRUE(indicator->GetColorId().has_value());
+      EXPECT_GE(
+          color_utils::GetContrastRatio(indicator->GetColorProvider()->GetColor(
+                                            *indicator->GetColorId()),
+                                        ToastBackground()),
+          3.0f);
+    }
+    widget->CloseNow();
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(DaoToastViewBrowserTest,
                        ChromiumCopyLinkUsesDaoToastSurface) {
   auto* controller = ToastController::From(browser());
   ASSERT_TRUE(controller);
@@ -9207,6 +9266,8 @@ IN_PROC_BROWSER_TEST_F(DaoToastViewBrowserTest,
   EXPECT_TRUE(views::AsViewClass<DaoToastView>(toast->children().front()));
   EXPECT_EQ(l10n_util::GetStringUTF16(IDS_LINK_COPIED_TOAST_BODY),
             toast->label_for_testing()->GetText());
+  EXPECT_EQ(SK_ColorTRANSPARENT,
+            toast->label_for_testing()->GetBackgroundColor());
 
   toast->SizeToContents();
   const gfx::Rect content_bounds =
@@ -9240,7 +9301,61 @@ IN_PROC_BROWSER_TEST_F(DaoToastViewBrowserTest,
                      base::TimeTicks(), ui::EF_LEFT_MOUSE_BUTTON, 0));
   ASSERT_TRUE(closed.Wait());
   EXPECT_FALSE(controller->IsShowingToast());
-  EXPECT_TRUE(browser()->GetFeatures().side_panel_ui()->IsSidePanelShowing());
+  EXPECT_TRUE(base::test::RunUntil(
+      [&] { return SidePanelUI::From(browser())->IsSidePanelShowing(); }));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoToastViewBrowserTest,
+                       ChromiumToastStaysInsideDaoSplitPane) {
+  auto* browser_view = GetBrowserView(browser());
+  chrome::AddTabAt(browser(), GURL(url::kAboutBlankURL), -1, false);
+  auto* model = browser()->tab_strip_model();
+  auto* first = model->GetWebContentsAt(0);
+  auto* second = model->GetWebContentsAt(1);
+  ASSERT_TRUE(browser_view->dao_split_view()->SplitPane(
+      first, SplitDirection::kHorizontal, false, second));
+  browser_view->DeprecatedLayoutImmediately();
+
+  auto* controller = ToastController::From(browser());
+  ASSERT_TRUE(controller->MaybeShowToast(ToastParams(ToastId::kLinkCopied)));
+  auto* toast = controller->GetToastViewForTesting();
+  ASSERT_TRUE(toast);
+  toast->SizeToContents();
+  auto* contents = model->GetActiveWebContents();
+  ASSERT_TRUE(contents->GetRenderWidgetHostView());
+  const gfx::Rect content_bounds =
+      contents->GetRenderWidgetHostView()->GetViewBounds();
+  const gfx::Rect toast_bounds =
+      controller->GetToastWidgetForTesting()->GetWindowBoundsInScreen();
+  EXPECT_GT(toast_bounds.width(), 0);
+  EXPECT_TRUE(content_bounds.Contains(toast_bounds));
+  EXPECT_EQ(content_bounds.right() - 12, toast_bounds.right());
+  EXPECT_EQ(content_bounds.y() + 20, toast_bounds.y());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoToastViewBrowserTest,
+                       ChromiumToastScopeTracksTabChanges) {
+  auto* model = browser()->tab_strip_model();
+  chrome::AddTabAt(browser(), GURL(url::kAboutBlankURL), -1, false);
+  ASSERT_EQ(2, model->count());
+  auto* controller = ToastController::From(browser());
+  ASSERT_TRUE(controller);
+
+  for (bool global_scope : {false, true}) {
+    SCOPED_TRACE(global_scope);
+    model->ActivateTabAt(0);
+    ASSERT_TRUE(controller->MaybeShowToast(ToastParams(
+        global_scope ? ToastId::kNonMilestoneUpdate : ToastId::kLinkCopied)));
+    ASSERT_TRUE(controller->GetToastWidgetForTesting()->IsVisible());
+    model->ActivateTabAt(1);
+    if (global_scope) {
+      EXPECT_TRUE(controller->IsShowingToast());
+      EXPECT_TRUE(controller->GetToastWidgetForTesting()->IsVisible());
+      controller->GetToastWidgetForTesting()->Close();
+    }
+    ASSERT_TRUE(base::test::RunUntil(
+        [&] { return !controller->IsShowingToast(); }));
+  }
 }
 
 IN_PROC_BROWSER_TEST_F(DaoToastViewBrowserTest,

@@ -1,7 +1,7 @@
 diff --git a/chrome/common/webui_url_constants.h b/chrome/common/webui_url_constants.h
 --- a/chrome/common/webui_url_constants.h
 +++ b/chrome/common/webui_url_constants.h
-@@ -239,11 +239,11 @@
+@@ -244,11 +244,11 @@
  inline constexpr char kChromeUIOmniboxEverywhereHost[] =
      "omnibox-everywhere.top-chrome";
  inline constexpr char kChromeUIOmniboxEverywhereURL[] =
@@ -16,7 +16,16 @@ diff --git a/chrome/common/webui_url_constants.h b/chrome/common/webui_url_const
  inline constexpr char kChromeUIOmniboxURL[] = "chrome://omnibox/";
  inline constexpr char kChromeUIOrganizerPanelHost[] =
      "organizer-panel.top-chrome";
-@@ -421,7 +421,7 @@
+@@ -418,7 +418,7 @@
+ inline constexpr char kChromeUIOnDeviceInternalsHost[] = "on-device-internals";
+ inline constexpr char kChromeUIReadLaterHost[] = "read-later.top-chrome";
+ inline constexpr char kChromeUIReadLaterURL[] =
+-    "chrome://read-later.top-chrome/";
++    "dao://read-later.top-chrome/";
+ inline constexpr char kChromeUISearchEngineChoiceHost[] =
+     "search-engine-choice";
+ inline constexpr char kChromeUISearchEngineChoiceURL[] =
+@@ -427,7 +427,7 @@
  inline constexpr char kChromeUISearchSettingsPath[] = "/search";
  inline constexpr char kChromeUITabSearchHost[] = "tab-search.top-chrome";
  inline constexpr char kChromeUITabSearchURL[] =
@@ -25,7 +34,7 @@ diff --git a/chrome/common/webui_url_constants.h b/chrome/common/webui_url_const
  inline constexpr char kChromeUITabsFromOtherDevicesSidePanelHost[] =
      "tabs-from-other-devices.top-chrome";
  inline constexpr char kChromeUITabsFromOtherDevicesSidePanelURL[] =
-@@ -434,7 +434,7 @@
+@@ -440,7 +440,7 @@
  inline constexpr char kChromeUIWebuiBrowserHost[] = "webui-browser";
  inline constexpr char kChromeUIWebuiBrowserURL[] = "chrome://webui-browser/";
  inline constexpr char kChromeUIWebUIJsErrorHost[] = "webuijserror";
@@ -34,7 +43,7 @@ diff --git a/chrome/common/webui_url_constants.h b/chrome/common/webui_url_const
  #endif  // BUILDFLAG(IS_ANDROID)
  
  #if BUILDFLAG(IS_CHROMEOS)
-@@ -479,34 +479,34 @@
+@@ -485,34 +485,34 @@
  
  #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
  inline constexpr char kChromeUIBrowserSwitchHost[] = "browser-switch";
@@ -76,7 +85,7 @@ diff --git a/chrome/common/webui_url_constants.h b/chrome/common/webui_url_const
  inline constexpr char kChromeUIHistorySyncOptinHost[] = "history-sync-optin";
  inline constexpr char kChromeUIHistorySyncOptinURL[] =
      "chrome://history-sync-optin/";
-@@ -604,11 +604,11 @@
+@@ -610,11 +610,11 @@
  
  #if BUILDFLAG(CHROME_ROOT_STORE_CERT_MANAGEMENT_UI)
  inline constexpr char kChromeUICertificateManagerDialogURL[] =

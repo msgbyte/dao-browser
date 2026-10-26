@@ -1,0 +1,12 @@
+diff --git a/chrome/browser/resources/side_panel/reading_list/reading_list.html b/chrome/browser/resources/side_panel/reading_list/reading_list.html
+--- a/chrome/browser/resources/side_panel/reading_list/reading_list.html
++++ b/chrome/browser/resources/side_panel/reading_list/reading_list.html
+@@ -16,6 +16,7 @@
+ </head>
+ <body>
+   <reading-list-app></reading-list-app>
+-  <script type="module" src="reading_list_app.js"></script>
++  <!-- Keep relative imports on the same scheme as Chromium's explicit imports. -->
++  <script type="module" src="chrome://read-later.top-chrome/reading_list_app.js"></script>
+ </body>
+ </html>
