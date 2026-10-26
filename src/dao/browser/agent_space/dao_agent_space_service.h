@@ -142,6 +142,7 @@ class DaoAgentSpaceService : public base::SupportsUserData::Data,
   static void RegisterSpaceBrowser(const BrowserWindowInterface* browser,
                                    DaoAgentSpace* space);
   static DaoAgentSpace* FindSpaceForContents(content::WebContents* contents);
+  static bool StopSpaceForBrowser(BrowserWindowInterface* browser);
   static void OnHiddenDialogOpened(content::WebContents* contents,
                                    content::JavaScriptDialogType type,
                                    const std::u16string& message,

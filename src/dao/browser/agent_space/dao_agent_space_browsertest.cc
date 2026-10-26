@@ -6,6 +6,9 @@
 #include <string>
 #include <utility>
 
+#include "base/auto_reset.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/run_loop.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
@@ -14,7 +17,14 @@
 #include "base/test/run_until.h"
 #include "base/test/test_future.h"
 #include "base/values.h"
+#include "chrome/browser/browser_process.h"
+#include "chrome/browser/lifetime/application_lifetime_desktop.h"
+#include "chrome/browser/lifetime/browser_shutdown.h"
+#include "chrome/browser/profiles/keep_alive/profile_keep_alive_types.h"
+#include "chrome/browser/profiles/keep_alive/scoped_profile_keep_alive.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/profiles/profile_manager.h"
+#include "chrome/browser/profiles/profile_test_util.h"
 #include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
@@ -155,6 +165,83 @@ IN_PROC_BROWSER_TEST_F(DaoAgentSpaceBrowserTest,
                 ->FindTabbedBrowser(false));
   EXPECT_EQ(1, space->GetTabCount());
   EXPECT_EQ(1, TabListInterface::From(browser())->GetTabCount());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentSpaceBrowserTest,
+                       ClosingProfileWindowsStopsSpacesWithoutBeforeUnload) {
+  auto user_browser = browser()->GetWeakPtr();
+  for (bool with_callback : {false, true}) {
+    SCOPED_TRACE(with_callback);
+    ProfileManager* manager = g_browser_process->profile_manager();
+    Profile& profile = profiles::testing::CreateProfileSync(
+        manager, manager->GenerateNextProfileDirectoryPath());
+    auto keep_alive = ScopedProfileKeepAlive::TryAcquire(
+        &profile, ProfileKeepAliveOrigin::kBrowserWindow);
+    ASSERT_TRUE(keep_alive);
+    auto profile_browser = CreateBrowser(&profile)->GetWeakPtr();
+    base::AutoReset<raw_ptr<DaoAgentSpaceService>> use_profile(
+        &service_, DaoAgentSpaceService::GetForProfile(&profile));
+    base::ScopedClosureRunner stop_spaces(base::BindOnce(
+        [](DaoAgentSpaceService* service) {
+          for (DaoAgentSpace* space : service->GetSpaces()) {
+            service->Stop(space->id());
+          }
+        },
+        base::Unretained(service_.get())));
+    const std::string space_id =
+        CreateSpace(embedded_test_server()->GetURL("/title1.html"));
+    ASSERT_TRUE(WaitForLoad(space_id));
+    DaoAgentSpace* space = Space(space_id);
+    auto space_browser = space->browser()->GetWeakPtr();
+    if (with_callback) {
+      ASSERT_TRUE(service_->ShowWindow(space_id));
+    }
+
+    ASSERT_FALSE(browser_shutdown::IsTryingToQuit());
+    if (with_callback) {
+      base::test::TestFuture<const base::FilePath&> closed;
+      chrome::CloseAllBrowsersWithProfile(
+          &profile, /*skip_beforeunload=*/false,
+          closed.GetRepeatingCallback(), base::NullCallback());
+      EXPECT_EQ(profile.GetPath(), closed.Get());
+    } else {
+      chrome::CloseAllBrowsersWithProfile(&profile);
+    }
+
+    ASSERT_TRUE(base::test::RunUntil(
+        [&] { return !space_browser && !profile_browser; }));
+    EXPECT_EQ(DaoAgentSpaceState::kStopped, space->state());
+    EXPECT_EQ("SPACE_CLOSED",
+              ErrorCode(Call("get_page_info",
+                             base::DictValue().Set("space_id", space_id))));
+    EXPECT_TRUE(user_browser);
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentSpaceBrowserTest,
+                       ClosingIncognitoProfileStopsCleanSpace) {
+  DaoBrowserToolResult result =
+      Call("create_space", base::DictValue()
+                               .Set("name", "Clean task")
+                               .Set("url", embedded_test_server()
+                                               ->GetURL("/title1.html")
+                                               .spec())
+                               .Set("logins", false));
+  ASSERT_FALSE(result.error) << result.error->message;
+  const std::string space_id = *result.data.GetDict().FindString("space_id");
+  ASSERT_TRUE(WaitForLoad(space_id));
+  DaoAgentSpace* space = Space(space_id);
+  auto space_browser = space->browser()->GetWeakPtr();
+  Profile* profile = space_browser->GetProfile();
+  ASSERT_TRUE(profile->IsOffTheRecord());
+
+  chrome::CloseAllBrowsersWithIncognitoProfile(profile,
+                                              /*skip_beforeunload=*/false);
+  ASSERT_TRUE(base::test::RunUntil([&] { return !space_browser; }));
+  EXPECT_EQ(DaoAgentSpaceState::kStopped, space->state());
+  EXPECT_EQ("SPACE_CLOSED",
+            ErrorCode(Call("get_page_info",
+                           base::DictValue().Set("space_id", space_id))));
 }
 
 // The hidden window must behave like a foreground one: visible to the page,

@@ -21,6 +21,11 @@ using DaoHiddenBrowserPredicate = bool (*)(BrowserWindowInterface* browser);
 void SetDaoHiddenBrowserPredicate(DaoHiddenBrowserPredicate predicate);
 bool IsDaoHiddenBrowser(BrowserWindowInterface* browser);
 
+// Bulk window closure must stop tasks instead of hiding their windows.
+using DaoAgentSpaceStopHandler = bool (*)(BrowserWindowInterface* browser);
+void SetDaoAgentSpaceStopHandler(DaoAgentSpaceStopHandler handler);
+bool StopDaoAgentSpaceForBrowser(BrowserWindowInterface* browser);
+
 // Browser UI that only the user can answer and that nobody would see in a
 // hidden task window. Chromium cancels it there and reports it instead, so
 // the Agent Space can hand the task to the user.

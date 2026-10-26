@@ -285,6 +285,7 @@ DaoAgentSpaceService::DaoAgentSpaceService(Profile* profile)
     : profile_(profile), idle_timeout_(kDefaultIdleTimeout) {
   SetDaoHiddenBrowserPredicate(
       &DaoAgentSpaceService::IsHiddenAgentSpaceBrowser);
+  SetDaoAgentSpaceStopHandler(&DaoAgentSpaceService::StopSpaceForBrowser);
   SetDaoHiddenDialogHandlers(&DaoAgentSpaceService::OnHiddenDialogOpened,
                              &DaoAgentSpaceService::OnHiddenDialogClosed);
   SetDaoHiddenPageNeedHandler(&DaoAgentSpaceService::OnHiddenPageNeed);
@@ -368,6 +369,16 @@ DaoAgentSpace* DaoAgentSpaceService::FindSpaceForBrowser(
     const BrowserWindowInterface* browser) {
   auto it = SpaceBrowsers().find(browser);
   return it == SpaceBrowsers().end() ? nullptr : it->second;
+}
+
+// static
+bool DaoAgentSpaceService::StopSpaceForBrowser(BrowserWindowInterface* browser) {
+  DaoAgentSpace* space = FindSpaceForBrowser(browser);
+  if (!space || space->is_closed()) {
+    return false;
+  }
+  auto* service = GetForProfile(browser->GetProfile()->GetOriginalProfile());
+  return service && service->Stop(space->id());
 }
 
 // static

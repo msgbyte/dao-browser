@@ -1,7 +1,25 @@
 diff --git a/chrome/browser/lifetime/application_lifetime_desktop.cc b/chrome/browser/lifetime/application_lifetime_desktop.cc
 --- a/chrome/browser/lifetime/application_lifetime_desktop.cc
 +++ b/chrome/browser/lifetime/application_lifetime_desktop.cc
-@@ -177,7 +177,23 @@
+@@ -52,6 +52,7 @@
+ #include "components/prefs/pref_service.h"
+ #include "content/public/browser/browser_task_traits.h"
+ #include "content/public/browser/browser_thread.h"
++#include "dao/browser/agent_space/dao_hidden_browser.h"
+ #include "ui/base/base_window.h"
+ 
+ #if BUILDFLAG(IS_CHROMEOS)
+@@ -228,7 +229,8 @@
+ 
+   GlobalBrowserCollection::GetInstance()->ForEach(
+       [&](BrowserWindowInterface* browser) {
+-        if (matches_profile(browser) && browser->GetWindow()) {
++        if (matches_profile(browser) && browser->GetWindow() &&
++            !StopDaoAgentSpaceForBrowser(browser)) {
+           browser->GetWindow()->Close();
+         }
+         return true;
+@@ -357,7 +359,23 @@
        new BrowserCloseManager;
    browser_close_manager->StartClosingBrowsers();
  }
@@ -25,3 +43,13 @@ diff --git a/chrome/browser/lifetime/application_lifetime_desktop.cc b/chrome/br
  void AttemptRestart() {
    AttemptRestartInternal(IgnoreUnloadHandlers(false), RelaunchMode::kNormal);
  }
+@@ -536,7 +554,8 @@
+ 
+   browser_collection->ForEach([profile](BrowserWindowInterface* browser) {
+     if (browser->GetProfile()->GetOriginalProfile() ==
+-        profile->GetOriginalProfile()) {
++            profile->GetOriginalProfile() &&
++        !StopDaoAgentSpaceForBrowser(browser)) {
+       browser->GetWindow()->Close();
+     }
+     return true;
