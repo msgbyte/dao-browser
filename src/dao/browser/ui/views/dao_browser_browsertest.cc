@@ -13182,6 +13182,38 @@ IN_PROC_BROWSER_TEST_F(DaoAgentCursorViewBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoAgentCursorViewBrowserTest,
+                       NewMoveCancelsPreviousRipple) {
+  if (gfx::Animation::PrefersReducedMotion()) {
+    GTEST_SKIP() << "Reduced motion completes moves synchronously";
+  }
+  DaoAgentCursorView cursor;
+  cursor.SetSize(gfx::Size(1600, 600));
+  cursor.ShowAtCenter();
+  cursor.PlayClickRipple();
+  base::test::TestFuture<bool> move;
+  cursor.AnimateTo(1500, 300, move.GetCallback());
+
+  EXPECT_TRUE(move.Get());
+  EXPECT_TRUE(cursor.is_visible());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentCursorViewBrowserTest,
+                       LateRippleDoesNotInterruptMove) {
+  if (gfx::Animation::PrefersReducedMotion()) {
+    GTEST_SKIP() << "Reduced motion completes moves synchronously";
+  }
+  DaoAgentCursorView cursor;
+  cursor.SetSize(gfx::Size(1600, 600));
+  cursor.ShowAtCenter();
+  base::test::TestFuture<bool> move;
+  cursor.AnimateTo(1500, 300, move.GetCallback());
+  cursor.PlayClickRipple();
+
+  EXPECT_TRUE(move.Get());
+  EXPECT_TRUE(cursor.is_visible());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentCursorViewBrowserTest,
                        ActiveTargetStopsAnimatingAfterTabSwitch) {
   BrowserView* browser_view = GetBrowserView(browser());
   content::WebContents* target =

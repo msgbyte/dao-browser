@@ -118,6 +118,7 @@ void DaoAgentCursorView::AnimateTo(float x,
   move_end_ = gfx::PointF(x, y);
   move_complete_callback_ = std::move(callback);
   move_timer_.Stop();
+  ripple_timer_.Stop();
   cursor_rotation_degrees_ = 0.0f;
   cursor_scale_x_ = 1.0f;
 
@@ -161,6 +162,10 @@ void DaoAgentCursorView::AnimateTo(float x,
 }
 
 void DaoAgentCursorView::PlayClickRipple() {
+  // A delayed click response must not interrupt a newer move.
+  if (state_ == State::kMoving) {
+    return;
+  }
   move_timer_.Stop();
   cursor_rotation_degrees_ = 0.0f;
   cursor_scale_x_ = 1.0f;
