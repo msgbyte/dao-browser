@@ -196,8 +196,6 @@ const daoAgentManagementTranslations = [
   ['DAO_MCP_STATUS_READY', 'daoMcpStatusReady', '就绪'],
   ['DAO_LOCAL_AGENTS_ERROR', 'daoLocalAgentsError',
    '无法读取或修改此集成。请检查文件权限及已有文件后重试。'],
-  ['DAO_LOCAL_AGENTS_CHECK_UPDATES', 'daoLocalAgentsCheckUpdates',
-   '检查更新'],
   ['DAO_LOCAL_AGENT_NEEDS_UPDATE', 'daoLocalAgentNeedsUpdate',
    '需要更新'],
   ['DAO_LOCAL_AGENT_UNINSTALL', 'daoLocalAgentUninstall',

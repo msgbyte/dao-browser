@@ -9,6 +9,7 @@
 - Open Quick setup directly below the MCP switch and manage skill installation in a separate Skills and command card.
 - Identify MCP server status more clearly, with a localized Ready indicator.
 - Refresh local skill and command status when you return through the sidebar, scroll back to the section, or reopen the settings overview.
+- Simplify local agent settings by removing the redundant Check for updates button.
 - Keep AI task hover previews from reappearing after leaving the sidebar or covering a tab preview, and reduce unnecessary window redraws while watching a task.
 - Prevent browser slowdowns from repeated pinned-tab syncing when multiple windows or Dao Lite tasks are open.
 ### [1.0.124] - 2026-10-27

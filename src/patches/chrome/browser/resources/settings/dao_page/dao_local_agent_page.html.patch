@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_local_agent_page.html
-@@ -0,0 +1,385 @@
+@@ -0,0 +1,378 @@
 +<style include="settings-shared">
 +  .dao-mcp-page {
 +    margin-top: 12px;
@@ -345,14 +345,7 @@ index 0000000000..0000000001
 +      </div>
 +    </div>
 +    <div id="daoLocalAgentsSection" class="dao-local-agent-settings">
-+      <div class="dao-mcp-usage-header">
-+        <div class="dao-mcp-section-title">$i18n{daoLocalAgentsTitle}</div>
-+        <cr-button id="daoLocalAgentsRefresh"
-+            disabled="[[daoLocalAgentsBusy_]]"
-+            on-click="refreshLocalAgents">
-+          $i18n{daoLocalAgentsCheckUpdates}
-+        </cr-button>
-+      </div>
++      <div class="dao-mcp-section-title">$i18n{daoLocalAgentsTitle}</div>
 +      <div class="dao-mcp-quick-setup-description">
 +        $i18n{daoLocalAgentsDescription}
 +      </div>

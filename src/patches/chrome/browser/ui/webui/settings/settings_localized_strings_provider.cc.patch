@@ -54,7 +54,7 @@ diff --git a/chrome/browser/ui/webui/settings/settings_localized_strings_provide
  
    std::u16string license = l10n_util::GetStringFUTF16(
        IDS_VERSION_UI_LICENSE, chrome::kChromiumProjectURL,
-@@ -4451,6 +4461,331 @@
+@@ -4451,6 +4461,330 @@
                                    IDS_SETTINGS_EXTENSIONS_CHECKBOX_LABEL);
  }
  
@@ -301,7 +301,6 @@ diff --git a/chrome/browser/ui/webui/settings/settings_localized_strings_provide
 +      {"daoLocalAgentUpdate", IDS_SETTINGS_DAO_LOCAL_AGENT_UPDATE},
 +      {"daoLocalAgentUninstall", IDS_SETTINGS_DAO_LOCAL_AGENT_UNINSTALL},
 +      {"daoLocalAgentNeedsUpdate", IDS_SETTINGS_DAO_LOCAL_AGENT_NEEDS_UPDATE},
-+      {"daoLocalAgentsCheckUpdates", IDS_SETTINGS_DAO_LOCAL_AGENTS_CHECK_UPDATES},
 +      {"daoLocalAgentsError", IDS_SETTINGS_DAO_LOCAL_AGENTS_ERROR},
 +      {"daoLocalAgentCli", IDS_SETTINGS_DAO_LOCAL_AGENT_CLI},
 +      {"daoLocalAgentInstalled", IDS_SETTINGS_DAO_LOCAL_AGENT_INSTALLED},
@@ -386,7 +385,7 @@ diff --git a/chrome/browser/ui/webui/settings/settings_localized_strings_provide
  void AddSecurityKeysStrings(content::WebUIDataSource* html_source) {
    static constexpr webui::LocalizedString kSecurityKeysStrings[] = {
        {"securityBundleResetToDefaultsButtonLabel",
-@@ -4600,6 +4935,7 @@
+@@ -4600,6 +4934,7 @@
    AddClearBrowsingDataStrings(html_source, profile);
    AddCommonStrings(html_source, profile);
    AddDownloadsStrings(html_source);
