@@ -5,6 +5,7 @@
 import {afterEach, beforeAll, beforeEach, describe, expect, it, vi} from 'vitest';
 
 import type {AgentSpaceData, AgentSpacesState} from '../dao_agent_spaces.js';
+import {SIDEBAR_POINTER_EXITED_EVENT} from '../sidebar_bridge.js';
 
 vi.mock('//resources/lit/v3_0/lit.rollup.js', async () => {
   return await import('./lit_test_shim.js');
@@ -69,6 +70,7 @@ describe('dao-agent-spaces', () => {
 
   afterEach(() => {
     document.body.innerHTML = '';
+    vi.useRealTimers();
     vi.restoreAllMocks();
     delete (globalThis as unknown as {chrome?: unknown}).chrome;
   });
@@ -159,6 +161,49 @@ describe('dao-agent-spaces', () => {
     await el.updateComplete;
     expect(send).toHaveBeenCalledWith('stopAgentSpaceStream', []);
   });
+
+  it.each(['pointerleave', 'native exit', 'disconnect', 'removed', 'finished',
+           'stopped'])(
+      'cancels pending and active hover capture on %s', async reason => {
+        vi.useFakeTimers();
+        for (const delay of [0, 300]) {
+          const {el, send} = await createElement({
+            spaces: [space()], currentSpaceId: '',
+          });
+          const row = el.shadowRoot!.querySelector('.row')!;
+          row.dispatchEvent(new MouseEvent('pointerenter'));
+          vi.advanceTimersByTime(delay);
+          if (delay) {
+            expect(send).toHaveBeenCalledWith(
+                'showAgentSpacePreview', [1032, 0, 's1-abcd']);
+          }
+          send.mockClear();
+
+          if (reason === 'pointerleave') {
+            row.dispatchEvent(new MouseEvent('pointerleave'));
+          } else if (reason === 'native exit') {
+            window.dispatchEvent(new Event(SIDEBAR_POINTER_EXITED_EVENT));
+          } else if (reason === 'disconnect') {
+            el.remove();
+          } else {
+            push('agentSpacesChanged', {
+              spaces: reason === 'removed' ? [] : [space({
+                state: reason as 'finished'|'stopped',
+              })],
+              currentSpaceId: '',
+            });
+          }
+          await el.updateComplete;
+          vi.advanceTimersByTime(1000);
+
+          expect(send).not.toHaveBeenCalledWith(
+              'showAgentSpacePreview', expect.anything());
+          if (delay) {
+            expect(send).toHaveBeenCalledWith('hideAgentSpacePreview', []);
+          }
+          el.remove();
+        }
+      });
 
   it('counts running tasks in the section header', async () => {
     const {el} = await createElement({

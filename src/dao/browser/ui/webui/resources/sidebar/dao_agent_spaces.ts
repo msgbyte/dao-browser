@@ -11,7 +11,12 @@
 import {CrLitElement, css, html, nothing} from '//resources/lit/v3_0/lit.rollup.js';
 import {loadTimeData} from '//resources/js/load_time_data.js';
 
-import {addListener, removeListener, sendNative} from './sidebar_bridge.js';
+import {
+  addListener,
+  removeListener,
+  sendNative,
+  SIDEBAR_POINTER_EXITED_EVENT,
+} from './sidebar_bridge.js';
 
 export type AgentSpaceState =
     'running'|'user_in_control'|'finished'|'stopped';
@@ -596,6 +601,7 @@ export class DaoAgentSpacesElement extends CrLitElement {
   private listeners_: Array<ReturnType<typeof addListener>> = [];
   private previewTimer_ = 0;
   private previewId_ = '';
+  private boundSidebarPointerExited_ = () => this.hidePreview_();
 
   constructor() {
     super();
@@ -608,6 +614,8 @@ export class DaoAgentSpacesElement extends CrLitElement {
 
   override connectedCallback() {
     super.connectedCallback();
+    window.addEventListener(
+        SIDEBAR_POINTER_EXITED_EVENT, this.boundSidebarPointerExited_);
     this.listeners_.push(
         addListener('agentSpacesChanged', (...args: unknown[]) => {
           this.onStateChanged_(args[0] as AgentSpacesState);
@@ -623,6 +631,8 @@ export class DaoAgentSpacesElement extends CrLitElement {
 
   override disconnectedCallback() {
     super.disconnectedCallback();
+    window.removeEventListener(
+        SIDEBAR_POINTER_EXITED_EVENT, this.boundSidebarPointerExited_);
     for (const listener of this.listeners_) {
       removeListener(listener);
     }
@@ -636,6 +646,11 @@ export class DaoAgentSpacesElement extends CrLitElement {
   private onStateChanged_(state: AgentSpacesState) {
     this.spaces_ = state?.spaces || [];
     this.currentSpaceId_ = state?.currentSpaceId || '';
+    const preview = this.spaces_.find(s => s.space_id === this.previewId_);
+    if (this.previewId_ &&
+        (!preview || this.isClosed_(preview) || this.currentSpaceId_)) {
+      this.hidePreview_();
+    }
     const expanded = this.spaces_.find(s => s.space_id === this.expandedId_);
     if (this.expandedId_ && (!expanded || this.isClosed_(expanded))) {
       this.collapse_();
@@ -693,14 +708,14 @@ export class DaoAgentSpacesElement extends CrLitElement {
   }
 
   private onRowEnter_(space: AgentSpaceData, e: PointerEvent) {
+    this.hidePreview_();
     if (this.isClosed_(space) || this.expandedId_ === space.space_id) {
       return;
     }
     const row = e.currentTarget as HTMLElement;
-    window.clearTimeout(this.previewTimer_);
+    this.previewId_ = space.space_id;
     this.previewTimer_ = window.setTimeout(() => {
       this.previewTimer_ = 0;
-      this.previewId_ = space.space_id;
       sendNative('showAgentSpacePreview',
           Math.round(e.screenX - e.clientX + window.innerWidth + 8),
           Math.round(e.screenY - e.clientY + row.getBoundingClientRect().top),
