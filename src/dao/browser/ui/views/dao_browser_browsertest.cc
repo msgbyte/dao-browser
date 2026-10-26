@@ -2787,6 +2787,8 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
   const GURL third_url = embedded_test_server()->GetURL("/title3.html");
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url));
   chrome::AddTabAt(browser(), second_url, 1, true);
+  ASSERT_TRUE(content::WaitForLoadStop(
+      browser()->tab_strip_model()->GetActiveWebContents()));
   chrome::AddTabAt(browser(), third_url, 2, true);
   ASSERT_TRUE(content::WaitForLoadStop(
       browser()->tab_strip_model()->GetActiveWebContents()));
