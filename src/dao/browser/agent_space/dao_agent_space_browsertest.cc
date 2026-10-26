@@ -32,6 +32,11 @@
 #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/test/base/in_process_browser_test.h"
+#include "chrome/test/base/ui_test_utils.h"
+#include "components/javascript_dialogs/app_modal_dialog_controller.h"
+#include "components/javascript_dialogs/app_modal_dialog_view.h"
+#include "components/keep_alive_registry/keep_alive_types.h"
+#include "components/keep_alive_registry/scoped_keep_alive.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
@@ -242,6 +247,64 @@ IN_PROC_BROWSER_TEST_F(DaoAgentSpaceBrowserTest,
   EXPECT_EQ("SPACE_CLOSED",
             ErrorCode(Call("get_page_info",
                            base::DictValue().Set("space_id", space_id))));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentSpaceBrowserTest,
+                       ClosingAllWindowsWithoutQuittingStopsSpaces) {
+  ScopedKeepAlive keep_alive(KeepAliveOrigin::PANEL_VIEW,
+                            KeepAliveRestartOption::DISABLED);
+  Profile* profile = browser()->GetProfile();
+  auto profile_keep_alive = ScopedProfileKeepAlive::TryAcquire(
+      profile, ProfileKeepAliveOrigin::kBrowserWindow);
+  ASSERT_TRUE(profile_keep_alive);
+  const std::string space_id =
+      CreateSpace(embedded_test_server()->GetURL("/title1.html"));
+  ASSERT_TRUE(WaitForLoad(space_id));
+  DaoAgentSpace* space = Space(space_id);
+  auto space_browser = space->browser()->GetWeakPtr();
+
+  ASSERT_FALSE(browser_shutdown::IsTryingToQuit());
+  chrome::CloseAllBrowsers();
+  EXPECT_TRUE(base::test::RunUntil(
+      [] { return GlobalBrowserCollection::GetInstance()->IsEmpty(); }));
+  EXPECT_FALSE(browser_shutdown::IsTryingToQuit());
+  EXPECT_FALSE(space_browser);
+  EXPECT_EQ(DaoAgentSpaceState::kStopped, space->state());
+  EXPECT_EQ("SPACE_CLOSED",
+            ErrorCode(Call("get_page_info",
+                           base::DictValue().Set("space_id", space_id))));
+
+  // Keep the fixture's profile and services alive after closing every window.
+  SetBrowser(CreateBrowser(profile));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentSpaceBrowserTest,
+                       CancellingCloseAllWindowsKeepsSpacesRunning) {
+  content::WebContents* contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(content::NavigateToURL(
+      contents, embedded_test_server()->GetURL("/beforeunload.html")));
+  content::PrepContentsForBeforeUnloadTest(contents);
+  const std::string space_id =
+      CreateSpace(embedded_test_server()->GetURL("/title1.html"));
+  ASSERT_TRUE(WaitForLoad(space_id));
+  DaoAgentSpace* space = Space(space_id);
+  auto space_browser = space->browser()->GetWeakPtr();
+  auto user_browser = browser()->GetWeakPtr();
+
+  ASSERT_FALSE(browser_shutdown::IsTryingToQuit());
+  chrome::CloseAllBrowsers();
+  auto* dialog = ui_test_utils::WaitForAppModalDialog();
+  ASSERT_TRUE(dialog);
+  EXPECT_EQ(DaoAgentSpaceState::kRunning, space->state());
+  dialog->view()->CancelAppModalDialog();
+  base::RunLoop().RunUntilIdle();
+  ASSERT_TRUE(content::ExecJs(contents, "window.onbeforeunload = null;"));
+
+  EXPECT_TRUE(user_browser);
+  EXPECT_TRUE(space_browser);
+  EXPECT_EQ(DaoAgentSpaceState::kRunning, space->state());
+  EXPECT_EQ(base::Value("visible"), Eval(space_id, "document.visibilityState"));
 }
 
 // The hidden window must behave like a foreground one: visible to the page,

@@ -1,16 +1,17 @@
 diff --git a/chrome/browser/lifetime/browser_close_manager.cc b/chrome/browser/lifetime/browser_close_manager.cc
 --- a/chrome/browser/lifetime/browser_close_manager.cc
 +++ b/chrome/browser/lifetime/browser_close_manager.cc
-@@ -19,6 +19,8 @@
+@@ -19,6 +19,9 @@
  #include "chrome/browser/download/download_core_service_factory.h"
  #include "chrome/browser/global_features.h"
  #include "chrome/browser/lifetime/application_lifetime.h"
 +#include "chrome/browser/lifetime/application_lifetime_desktop.h"
++#include "dao/browser/agent_space/dao_hidden_browser.h"
 +#include "dao/browser/updater/dao_updater_service.h"
  #include "chrome/browser/lifetime/browser_shutdown.h"
  #include "chrome/browser/profiles/profile_manager.h"
  #include "chrome/browser/ui/browser_manager_service.h"
-@@ -189,6 +191,13 @@
+@@ -189,6 +192,13 @@
  }
  
  void BrowserCloseManager::CloseBrowsers() {
@@ -24,3 +25,15 @@ diff --git a/chrome/browser/lifetime/browser_close_manager.cc b/chrome/browser/l
  #if BUILDFLAG(ENABLE_SESSION_SERVICE)
    // Before we close the browsers shutdown all session services. That way an
    // exit can restore all browsers open before exiting.
+@@ -220,6 +230,11 @@
+         bool ignore_unload_handlers =
+             browser_shutdown::ShouldIgnoreUnloadHandlers();
+ 
++        if (!ignore_unload_handlers &&
++            StopDaoAgentSpaceForBrowser(browser_window)) {
++          return true;
++        }
++
+         UnloadController::From(browser_window)
+             ->set_force_skip_warning_user_on_close(ignore_unload_handlers);
+         browser_window->GetWindow()->Close();
