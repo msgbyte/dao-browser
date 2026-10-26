@@ -2589,6 +2589,59 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
+                       PinnedStateRefreshDoesNotRepublishAcrossWindows) {
+  BrowserWindowInterface* second_browser =
+      CreateBrowser(browser()->GetProfile());
+  ASSERT_NE(nullptr, second_browser);
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return DetachLiveSidebarHandlerForTesting(browser()) &&
+           DetachLiveSidebarHandlerForTesting(second_browser);
+  }));
+
+  content::TestWebUI web_ui;
+  auto state_changed_count = [&]() {
+    return std::ranges::count_if(web_ui.call_data(), [](const auto& call) {
+      return call->function_name() == "cr.webUIListenerCallback" &&
+             call->arg1() && call->arg1()->is_string() &&
+             call->arg1()->GetString() == "sidebarStateChanged";
+    });
+  };
+  TestDaoSidebarUIHandler first_handler;
+  first_handler.set_web_ui(&web_ui);
+  AttachSidebarHandlerForTesting(browser(), &first_handler);
+  first_handler.SetSessionRestoreCompletedForTesting(true);
+  ASSERT_TRUE(first_handler.LoadPinnedItemsForTesting(
+      R"({"version":2,"items":[]})"));
+
+  // Keep the second handler's JavaScript disabled so a regression reports an
+  // extra refresh instead of spinning indefinitely between the two windows.
+  DaoSidebarUIHandler second_handler;
+  AttachSidebarHandlerForTesting(second_browser, &second_handler);
+  second_handler.SetSessionRestoreCompletedForTesting(true);
+  first_handler.AllowJavascriptForTesting();
+  first_handler.PinTabForTesting(0);
+  base::RunLoop().RunUntilIdle();
+  web_ui.ClearTrackedCalls();
+
+  base::ListValue items = second_handler.GetPinnedItemsForTesting();
+  ASSERT_EQ(1u, items.size());
+  EXPECT_EQ("open", *items[0].GetDict().FindString("state"));
+  base::RunLoop().RunUntilIdle();
+  EXPECT_EQ(0, state_changed_count());
+
+  // A newly attached sidebar must adopt the same runtime state as well.
+  DaoSidebarUIHandler new_handler;
+  AttachSidebarHandlerForTesting(second_browser, &new_handler);
+  new_handler.SetSessionRestoreCompletedForTesting(true);
+  web_ui.ClearTrackedCalls();
+  items = new_handler.GetPinnedItemsForTesting();
+  ASSERT_EQ(1u, items.size());
+  EXPECT_EQ("open", *items[0].GetDict().FindString("state"));
+  base::RunLoop().RunUntilIdle();
+  EXPECT_EQ(0, state_changed_count());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
                        ActivatingPinnedItemReusesTabFromAnotherWindow) {
   ASSERT_TRUE(embedded_test_server()->Start());
   const GURL pinned_url = embedded_test_server()->GetURL("/title1.html");

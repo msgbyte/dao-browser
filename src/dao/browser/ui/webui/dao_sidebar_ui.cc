@@ -357,7 +357,7 @@ PrivateFolderData& GetPrivateFolderData(Profile* profile) {
 
 struct PinnedItemsProfileState {
   std::set<DaoSidebarUIHandler*> handlers;
-  std::string json;
+  DaoPinnedTabModel model;
   bool initialized = false;
 };
 
@@ -1706,10 +1706,7 @@ bool DaoSidebarUIHandler::AdoptPinnedItemsFromProfileState() {
   if (state_it == states.end() || !state_it->second.initialized) {
     return false;
   }
-  if (!pinned_tab_model_.LoadFromJson(state_it->second.json)) {
-    LOG(ERROR) << "Failed to adopt the in-memory Dao pinned tab state";
-    return false;
-  }
+  pinned_tab_model_ = state_it->second.model;
   pinned_items_loaded_ = true;
   pinned_items_auto_save_enabled_ = true;
   initial_pinned_reconciliation_pending_ = true;
@@ -1724,16 +1721,14 @@ void DaoSidebarUIHandler::PublishPinnedItemsToProfileHandlers() {
 
   PinnedItemsProfileState& state = GetPinnedItemsProfileStates()[profile];
   state.initialized = true;
-  state.json = pinned_tab_model_.ToJson();
+  // JSON loading resets runtime states for session restore, not live syncing.
+  state.model = pinned_tab_model_;
   for (DaoSidebarUIHandler* handler : state.handlers) {
     if (handler == this || !handler->browser_ ||
         handler->browser_->GetProfile() != profile) {
       continue;
     }
-    if (!handler->pinned_tab_model_.LoadFromJson(state.json)) {
-      LOG(ERROR) << "Failed to synchronize the in-memory Dao pinned tab state";
-      continue;
-    }
+    handler->pinned_tab_model_ = state.model;
     handler->pinned_items_loaded_ = true;
     handler->pinned_items_auto_save_enabled_ = true;
     handler->SchedulePinnedItemsProfileRefresh();

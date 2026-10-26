@@ -245,12 +245,14 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
   profile, so activating a Pin focuses the existing tab instead of opening a
   second copy. Pin mutations are propagated to every same-profile sidebar
   handler before persistence, preventing a stale window from rewriting newer
-  state. Dragging a Pin into another window's ordinary tab list moves its
-  backing tab into that window. URL remains display/reopen metadata and is used
-  for legacy migration only when exactly one candidate exists. Confirmed
-  dormant items reopen once; identity conflicts fail closed without increasing
-  the tab count. Pin state is serialized through a shared sequenced writer and
-  atomically replaces the previous profile file.
+  state. Live synchronization preserves open and dormant states without
+  repeating session reconciliation, avoiding refresh loops across ordinary
+  windows and Dao Lite tasks. Dragging a Pin into another window's ordinary
+  tab list moves its backing tab into that window. URL remains display/reopen
+  metadata and is used for legacy migration only when exactly one candidate
+  exists. Confirmed dormant items reopen once; identity conflicts fail closed
+  without increasing the tab count. Pin state is serialized through a shared
+  sequenced writer and atomically replaces the previous profile file.
 - **dao_folder_item.ts** / **dao_folder_model.ts** — Folder grouping with
   profile-wide persistence and per-window rendering. Ordinary tab identities
   are recorded in the session log as soon as the sidebar exposes them. Stable

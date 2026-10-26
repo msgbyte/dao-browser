@@ -5,6 +5,7 @@
 ### [Unreleased] Unreleased
 
 - Keep AI task hover previews from reappearing after leaving the sidebar or covering a tab preview, and reduce unnecessary window redraws while watching a task.
+- Prevent browser slowdowns from repeated pinned-tab syncing when multiple windows or Dao Lite tasks are open.
 ### [1.0.124] - 2026-10-27
 
 - Prevent native browser notifications from crashing when displayed or when their buttons are used.
