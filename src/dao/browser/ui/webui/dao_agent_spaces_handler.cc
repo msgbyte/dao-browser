@@ -164,15 +164,18 @@ void DaoAgentSpacesHandler::PushState() {
 }
 
 void DaoAgentSpacesHandler::StopPreview() {
-  preview_capturer_.reset();
-  if (!preview_space_id_.empty() && browser_) {
+  if (preview_capturer_) {
+    // A rejected frame can stop its own capture callback; keep the object alive.
+    preview_capturer_->Stop();
+  }
+  if (preview_id_ && browser_) {
     BrowserView* view = BrowserView::GetBrowserViewForBrowser(browser_);
     if (view && view->dao_tab_tooltip()) {
-      view->dao_tab_tooltip()->HideTooltip();
-      view->InvalidateLayout();
+      view->dao_tab_tooltip()->HidePreview(preview_id_);
     }
   }
   preview_space_id_.clear();
+  preview_id_ = 0;
 }
 
 void DaoAgentSpacesHandler::StopStream() {
@@ -182,6 +185,12 @@ void DaoAgentSpacesHandler::StopStream() {
 
 void DaoAgentSpacesHandler::RestartCapturersIfNeeded() {
   DaoAgentSpaceService* service = GetService();
+  DaoAgentSpace* preview_space =
+      service ? service->FindSpace(preview_space_id_) : nullptr;
+  if (!preview_space || preview_space->is_closed() ||
+      !preview_space->GetActiveContents()) {
+    StopPreview();
+  }
   auto restart = [&](const std::string& space_id,
                      std::unique_ptr<DaoAgentSpaceFrameCapturer>& capturer,
                      gfx::Size size, int fps,
@@ -221,18 +230,23 @@ void DaoAgentSpacesHandler::OnPreviewFrame(const SkBitmap& frame) {
       service ? service->FindSpace(preview_space_id_) : nullptr;
   BrowserView* view =
       browser_ ? BrowserView::GetBrowserViewForBrowser(browser_) : nullptr;
-  if (!space || !view || !view->dao_tab_tooltip()) {
+  if (!space || space->is_closed() || !view || !view->dao_tab_tooltip()) {
+    StopPreview();
     return;
   }
   SkBitmap copy = CopyWithCursor(frame, space->cursor());
   if (copy.drawsNothing()) {
     return;
   }
-  view->dao_tab_tooltip()->ShowTooltip(
+  if (!view->dao_tab_tooltip()->UpdatePreview(
+      preview_id_,
       base::UTF8ToUTF16(space->status_text().empty() ? space->name()
                                                      : space->status_text()),
-      preview_anchor_, gfx::ImageSkia::CreateFrom1xBitmap(copy));
-  view->InvalidateLayout();
+      gfx::ImageSkia::CreateFrom1xBitmap(copy))) {
+    StopPreview();
+  } else {
+    view->InvalidateLayout();
+  }
 }
 
 void DaoAgentSpacesHandler::OnStreamFrame(const SkBitmap& frame) {
@@ -303,11 +317,10 @@ void DaoAgentSpacesHandler::HandleShowAgentSpacePreview(
   }
   gfx::Point anchor(args[0].GetInt(), args[1].GetInt());
   views::View::ConvertPointFromScreen(view, &anchor);
-  preview_anchor_ = anchor;
-  if (preview_space_id_ != args[2].GetString()) {
-    preview_capturer_.reset();
-    preview_space_id_ = args[2].GetString();
-  }
+  StopPreview();
+  preview_capturer_.reset();
+  preview_space_id_ = args[2].GetString();
+  preview_id_ = view->dao_tab_tooltip()->BeginPreview(anchor);
   RestartCapturersIfNeeded();
 }
 

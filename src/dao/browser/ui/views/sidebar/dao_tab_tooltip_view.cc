@@ -94,6 +94,35 @@ void DaoTabTooltipView::OnNativeThemeUpdated(ui::NativeTheme* observed_theme) {
 void DaoTabTooltipView::ShowTooltip(const std::u16string& title,
                                     const gfx::Point& anchor,
                                     const gfx::ImageSkia& preview) {
+  ++preview_generation_;
+  SetTooltip(title, anchor, preview);
+}
+
+uint64_t DaoTabTooltipView::BeginPreview(const gfx::Point& anchor) {
+  HideTooltip();
+  preview_anchor_ = anchor;
+  return preview_generation_;
+}
+
+bool DaoTabTooltipView::UpdatePreview(uint64_t id,
+                                     const std::u16string& title,
+                                     const gfx::ImageSkia& preview) {
+  if (!id || id != preview_generation_ || preview.isNull()) {
+    return false;
+  }
+  SetTooltip(title, preview_anchor_, preview);
+  return true;
+}
+
+void DaoTabTooltipView::HidePreview(uint64_t id) {
+  if (id && id == preview_generation_) {
+    HideTooltip();
+  }
+}
+
+void DaoTabTooltipView::SetTooltip(const std::u16string& title,
+                                  const gfx::Point& anchor,
+                                  const gfx::ImageSkia& preview) {
   ApplyTheme();
   preview_ = preview;
   // A preview card stays as wide as its snapshot and wraps the title to two
@@ -121,12 +150,14 @@ void DaoTabTooltipView::ShowTooltip(const std::u16string& title,
   if (parent()) {
     parent()->InvalidateLayout();
   }
+  SchedulePaint();
 }
 
 void DaoTabTooltipView::ShowDetailedTooltip(
     const std::u16string& title,
     const std::vector<std::u16string>& details,
     const gfx::Point& anchor) {
+  ++preview_generation_;
   ApplyTheme();
   preview_ = gfx::ImageSkia();
   title_label_->SetMultiLine(true);
@@ -208,6 +239,7 @@ gfx::Size DaoTabTooltipView::GetPreviewSize() const {
 }
 
 void DaoTabTooltipView::HideTooltip() {
+  ++preview_generation_;
   SetVisible(false);
   preview_ = gfx::ImageSkia();
 }

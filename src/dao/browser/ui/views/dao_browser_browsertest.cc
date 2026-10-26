@@ -12668,6 +12668,37 @@ IN_PROC_BROWSER_TEST_F(DaoTabTooltipViewBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoTabTooltipViewBrowserTest,
+                       StaleLiveFramesCannotReplaceOrHideAnotherTooltip) {
+  DaoTabTooltipView tooltip;
+  SkBitmap bitmap;
+  bitmap.allocN32Pixels(480, 300);
+  bitmap.eraseColor(SK_ColorBLUE);
+  const auto frame = gfx::ImageSkia::CreateFrom1xBitmap(bitmap);
+  const gfx::Point anchor(120, 30);
+  const uint64_t first = tooltip.BeginPreview(anchor);
+  tooltip.HideTooltip();
+  EXPECT_FALSE(tooltip.UpdatePreview(first, u"Old task", frame));
+  EXPECT_FALSE(tooltip.GetVisible());
+
+  const uint64_t second = tooltip.BeginPreview(anchor);
+  ASSERT_TRUE(tooltip.UpdatePreview(second, u"Task", frame));
+  tooltip.ShowTooltip(u"Tab", gfx::Point(180, 60), frame);
+  EXPECT_FALSE(tooltip.UpdatePreview(second, u"Old task", frame));
+  tooltip.HidePreview(second);
+  EXPECT_TRUE(tooltip.GetVisible());
+  EXPECT_EQ(gfx::Point(180, 60), tooltip.anchor_point());
+
+  const uint64_t third = tooltip.BeginPreview(anchor);
+  tooltip.HidePreview(second);
+  ASSERT_TRUE(tooltip.UpdatePreview(third, u"New task", frame));
+  tooltip.ShowDetailedTooltip(u"Download", {u"12 MB"}, anchor);
+  EXPECT_FALSE(tooltip.UpdatePreview(third, u"Old task", frame));
+  tooltip.HidePreview(third);
+  EXPECT_TRUE(tooltip.GetVisible());
+  EXPECT_FALSE(tooltip.has_preview());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoTabTooltipViewBrowserTest,
                        DetailedModeShowsTwoDetailLines) {
   DaoTabTooltipView tooltip;
   tooltip.ShowTooltip(u"archive.zip", gfx::Point(120, 30));

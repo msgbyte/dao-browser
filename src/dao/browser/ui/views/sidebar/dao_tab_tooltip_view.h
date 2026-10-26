@@ -5,6 +5,7 @@
 #ifndef DAO_BROWSER_UI_VIEWS_SIDEBAR_DAO_TAB_TOOLTIP_VIEW_H_
 #define DAO_BROWSER_UI_VIEWS_SIDEBAR_DAO_TAB_TOOLTIP_VIEW_H_
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -51,6 +52,14 @@ class DaoTabTooltipView : public views::View, public ui::NativeThemeObserver {
   // Hide the tooltip immediately.
   void HideTooltip();
 
+  // Reserve the shared surface for live frames. Any other show/hide invalidates
+  // this session, so late frames and cleanup cannot replace another tooltip.
+  uint64_t BeginPreview(const gfx::Point& anchor);
+  bool UpdatePreview(uint64_t id,
+                     const std::u16string& title,
+                     const gfx::ImageSkia& preview);
+  void HidePreview(uint64_t id);
+
   // Whether the tooltip is showing a page snapshot.
   bool has_preview() const { return !preview_.isNull(); }
 
@@ -68,6 +77,9 @@ class DaoTabTooltipView : public views::View, public ui::NativeThemeObserver {
   void OnNativeThemeUpdated(ui::NativeTheme* observed_theme) override;
 
  private:
+  void SetTooltip(const std::u16string& title,
+                  const gfx::Point& anchor,
+                  const gfx::ImageSkia& preview);
   void ApplyTheme();
   void UpdatePreferredSize();
   gfx::Size GetPreviewSize() const;
@@ -77,6 +89,8 @@ class DaoTabTooltipView : public views::View, public ui::NativeThemeObserver {
   raw_ptr<views::Label> detail_label_2_ = nullptr;
   gfx::ImageSkia preview_;
   gfx::Point anchor_point_;
+  gfx::Point preview_anchor_;
+  uint64_t preview_generation_ = 0;
   SkColor background_color_ = SK_ColorTRANSPARENT;
 
   base::ScopedObservation<ui::NativeTheme, ui::NativeThemeObserver>

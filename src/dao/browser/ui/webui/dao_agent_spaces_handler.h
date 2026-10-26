@@ -5,6 +5,7 @@
 #ifndef DAO_BROWSER_UI_WEBUI_DAO_AGENT_SPACES_HANDLER_H_
 #define DAO_BROWSER_UI_WEBUI_DAO_AGENT_SPACES_HANDLER_H_
 
+#include <cstdint>
 #include <memory>
 #include <string>
 
@@ -14,7 +15,6 @@
 #include "base/values.h"
 #include "content/public/browser/web_ui_message_handler.h"
 #include "dao/browser/agent_space/dao_agent_space_service.h"
-#include "ui/gfx/geometry/point.h"
 
 class BrowserWindowInterface;
 class SkBitmap;
@@ -67,7 +67,7 @@ class DaoAgentSpacesHandler : public content::WebUIMessageHandler,
       observation_{this};
 
   std::string preview_space_id_;
-  gfx::Point preview_anchor_;
+  uint64_t preview_id_ = 0;
   std::unique_ptr<DaoAgentSpaceFrameCapturer> preview_capturer_;
 
   std::string stream_space_id_;
