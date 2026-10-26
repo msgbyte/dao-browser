@@ -8,6 +8,7 @@
 #include <cerrno>
 #include <utility>
 
+#include "base/compiler_specific.h"
 #include "base/containers/span.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
@@ -513,12 +514,15 @@ bool DaoMcpBrowserClient::WaitForIO(bool readable,
   fd_set writes = {};
   fd_set errors = {};
   if (readable) {
-    FD_SET(socket_, &reads);
+    // SAFETY: reads is empty and has room for this single socket.
+    UNSAFE_BUFFERS(FD_SET(socket_, &reads));
   }
   if (writable) {
-    FD_SET(socket_, &writes);
+    // SAFETY: writes is empty and has room for this single socket.
+    UNSAFE_BUFFERS(FD_SET(socket_, &writes));
   }
-  FD_SET(socket_, &errors);
+  // SAFETY: errors is empty and has room for this single socket.
+  UNSAFE_BUFFERS(FD_SET(socket_, &errors));
   timeval timeout = {timeout_ms / 1000, (timeout_ms % 1000) * 1000};
   const int result =
       select(0, &reads, &writes, &errors, timeout_ms < 0 ? nullptr : &timeout);
