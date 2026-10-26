@@ -1,0 +1,472 @@
+diff --git a/chrome/browser/resources/settings/dao_page/dao_local_agent_page.ts b/chrome/browser/resources/settings/dao_page/dao_local_agent_page.ts
+new file mode 100644
+index 0000000000..0000000001
+--- /dev/null
++++ b/chrome/browser/resources/settings/dao_page/dao_local_agent_page.ts
+@@ -0,0 +1,466 @@
++// Copyright 2026 Dao Browser Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++
++import 'chrome://resources/cr_elements/cr_button/cr_button.js';
++import '../controls/settings_toggle_button.js';
++import '../settings_page/settings_section.js';
++import '../settings_shared.css.js';
++
++import {WebUiListenerMixin} from 'chrome://resources/cr_elements/web_ui_listener_mixin.js';
++import {sendWithPromise} from 'chrome://resources/js/cr.js';
++import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
++
++import type {SettingsToggleButtonElement} from '../controls/settings_toggle_button.js';
++import {loadTimeData} from '../i18n_setup.js';
++import {getSearchManager} from '../search_settings.js';
++import type {SettingsPlugin} from '../settings_main/settings_plugin.js';
++
++import {getTemplate} from './dao_local_agent_page.html.js';
++
++export type DaoMcpStatusState =
++    'disabled'|'ready'|'approval_requested'|'connected';
++export type DaoMcpSetupOption = 'codex'|'claude-code'|'generic-mcp';
++
++export interface DaoMcpUsageStats {
++  totalCalls: number;
++  toolCalls: Record<string, number>;
++  lastReset: number;
++}
++
++export interface DaoMcpConnection {
++  connectionId: string;
++  clientName: string;
++  clientVersion: string;
++  clientPid?: number;
++  windowLabel: string;
++  canCreateTabs: boolean;
++  pageCountLabel: string;
++  tabs: Array<{tabId: string, title: string, url: string}>;
++}
++
++export interface DaoMcpStatus {
++  enabled: boolean;
++  state: DaoMcpStatusState;
++  clientName?: string;
++  clientPid?: number;
++  canStop: boolean;
++  usageStats?: DaoMcpUsageStats;
++  connections?: DaoMcpConnection[];
++}
++
++export interface DaoLocalAgentStatus {
++  agents: Array<{
++    id: string, detected: boolean, installed: boolean, needsUpdate: boolean,
++  }>;
++  cliLinked: boolean;
++  cliNeedsUpdate: boolean;
++}
++
++export interface DaoMcpBrowserProxy {
++  getDaoMcpStatus(): Promise<DaoMcpStatus>;
++  setDaoMcpEnabled(enabled: boolean): void;
++  getDaoMcpSetupContent(option: DaoMcpSetupOption): Promise<string>;
++  copyDaoMcpSetupContent(option: DaoMcpSetupOption): Promise<boolean>;
++  stopDaoMcpControl(connectionId: string): void;
++  revokeDaoMcpTab(connectionId: string, tabId: string): void;
++  getDaoLocalAgents(): Promise<DaoLocalAgentStatus>;
++  setDaoLocalAgentInstalled(id: string, installed: boolean):
++      Promise<DaoLocalAgentStatus&{success: boolean}>;
++  resetDaoMcpUsageStats(): void;
++}
++
++export class DaoMcpBrowserProxyImpl implements DaoMcpBrowserProxy {
++  getDaoMcpStatus(): Promise<DaoMcpStatus> {
++    return sendWithPromise('getDaoMcpStatus');
++  }
++
++  setDaoMcpEnabled(enabled: boolean): void {
++    chrome.send('setDaoMcpEnabled', [enabled]);
++  }
++
++  getDaoMcpSetupContent(option: DaoMcpSetupOption): Promise<string> {
++    return sendWithPromise('getDaoMcpSetupContent', option);
++  }
++
++  copyDaoMcpSetupContent(option: DaoMcpSetupOption): Promise<boolean> {
++    return sendWithPromise('copyDaoMcpSetupContent', option);
++  }
++
++  stopDaoMcpControl(connectionId: string): void {
++    chrome.send('stopDaoMcpControl', [connectionId]);
++  }
++
++  revokeDaoMcpTab(connectionId: string, tabId: string): void {
++    chrome.send('revokeDaoMcpTab', [connectionId, tabId]);
++  }
++
++  getDaoLocalAgents(): Promise<DaoLocalAgentStatus> {
++    return sendWithPromise('getDaoLocalAgents');
++  }
++
++  setDaoLocalAgentInstalled(id: string, installed: boolean):
++      Promise<DaoLocalAgentStatus&{success: boolean}> {
++    return sendWithPromise('setDaoLocalAgentInstalled', id, installed);
++  }
++
++  resetDaoMcpUsageStats(): void {
++    chrome.send('resetDaoMcpUsageStats');
++  }
++
++  static getInstance(): DaoMcpBrowserProxy {
++    return instance || (instance = new DaoMcpBrowserProxyImpl());
++  }
++
++  static setInstance(proxy: DaoMcpBrowserProxy): void {
++    instance = proxy;
++  }
++}
++
++let instance: DaoMcpBrowserProxy|null = null;
++
++const SettingsDaoLocalAgentPageElementBase = WebUiListenerMixin(PolymerElement);
++
++export class SettingsDaoLocalAgentPageElement extends
++    SettingsDaoLocalAgentPageElementBase implements SettingsPlugin {
++  static get is() {
++    return 'settings-dao-local-agent-page';
++  }
++
++  static get template() {
++    return getTemplate();
++  }
++
++  static get properties() {
++    return {
++      daoMcpSupported_: {
++        type: Boolean,
++        value: () => loadTimeData.getBoolean('daoMcpSupported'),
++      },
++      daoMcpEnabledPref_: {
++        type: Object,
++        value() {
++          return {
++            key: 'dao.mcp_server_enabled',
++            type: chrome.settingsPrivate.PrefType.BOOLEAN,
++            value: false,
++          };
++        },
++      },
++
++      daoMcpStatusText_: {
++        type: String,
++        value: () => loadTimeData.getString('daoMcpStatusDisabled'),
++      },
++
++      daoMcpStatusState_: {
++        type: String,
++        value: 'disabled',
++      },
++
++      daoMcpConnections_: {
++        type: Array,
++        value: () => [],
++      },
++
++      showDaoMcpQuickSetup_: {
++        type: Boolean,
++        value: false,
++      },
++
++      daoLocalAgents_: {
++        type: Array,
++        value: () => [],
++      },
++
++      daoLocalAgentsBusy_: {
++        type: Boolean,
++        value: false,
++      },
++
++      daoLocalAgentsError_: {
++        type: String,
++        value: '',
++      },
++
++      daoMcpSetupOption_: {
++        type: String,
++        value: 'codex',
++      },
++
++      daoMcpSetupContent_: {
++        type: String,
++        value: '',
++      },
++
++      daoMcpSetupCopied_: {
++        type: Boolean,
++        value: false,
++      },
++
++      daoMcpGenericSetup_: {
++        type: Boolean,
++        value: false,
++      },
++
++      daoMcpUsageTotal_: {
++        type: Number,
++        value: 0,
++      },
++
++      daoMcpUsageTools_: {
++        type: Array,
++        value: () => [],
++      },
++    };
++  }
++
++  declare private daoMcpSupported_: boolean;
++  declare private daoMcpEnabledPref_:
++      chrome.settingsPrivate.PrefObject<boolean>;
++  declare private daoMcpStatusText_: string;
++  declare private daoMcpStatusState_: DaoMcpStatusState;
++  declare private daoMcpConnections_: DaoMcpConnection[];
++  declare private showDaoMcpQuickSetup_: boolean;
++  declare private daoLocalAgents_: Array<{
++    id: string, name: string, status: string, badge: string,
++    installed: boolean, canInstall: boolean, action: string,
++  }>;
++  declare private daoLocalAgentsBusy_: boolean;
++  declare private daoLocalAgentsError_: string;
++  declare private daoMcpSetupOption_: DaoMcpSetupOption;
++  declare private daoMcpSetupContent_: string;
++  declare private daoMcpSetupCopied_: boolean;
++  declare private daoMcpGenericSetup_: boolean;
++  declare private daoMcpUsageTotal_: number;
++  declare private daoMcpUsageTools_: Array<{name: string, count: number}>;
++  private daoMcpSetupContentRequest_ = 0;
++  private daoMcpCopyRequest_ = 0;
++  private daoLocalAgentsRequest_ = 0;
++  private daoMcpBrowserProxy_: DaoMcpBrowserProxy =
++      DaoMcpBrowserProxyImpl.getInstance();
++
++  override connectedCallback() {
++    super.connectedCallback();
++    this.addWebUiListener(
++        'dao-mcp-status-changed',
++        (status: DaoMcpStatus) => this.updateDaoMcpStatus_(status));
++    this.daoMcpBrowserProxy_.getDaoMcpStatus().then(
++        status => this.updateDaoMcpStatus_(status));
++  }
++
++  async searchContents(query: string) {
++    const searchRequest = await getSearchManager().search(query, this);
++    return searchRequest.getSearchResult();
++  }
++
++  private async refreshDaoLocalAgents_() {
++    if (this.daoLocalAgentsBusy_) {
++      return;
++    }
++    const request = ++this.daoLocalAgentsRequest_;
++    try {
++      const status = await this.daoMcpBrowserProxy_.getDaoLocalAgents();
++      if (request === this.daoLocalAgentsRequest_) {
++        this.updateDaoLocalAgents_(status);
++        this.daoLocalAgentsError_ = '';
++      }
++    } catch {
++      if (request === this.daoLocalAgentsRequest_) {
++        this.daoLocalAgentsError_ =
++            loadTimeData.getString('daoLocalAgentsError');
++      }
++    }
++  }
++
++  private updateDaoLocalAgents_(status: DaoLocalAgentStatus) {
++    const nameKeys: Record<string, string> = {
++      claude: 'daoLocalAgentClaude',
++      shared: 'daoLocalAgentShared',
++      cli: 'daoLocalAgentCli',
++    };
++    const agents = [...status.agents, {
++      id: 'cli', detected: true, installed: status.cliLinked,
++      needsUpdate: status.cliNeedsUpdate,
++    }];
++    this.daoLocalAgents_ = agents.filter(agent => nameKeys[agent.id])
++        .map(agent => {
++          let statusKey = agent.installed ? 'daoLocalAgentInstalled' :
++              agent.detected ? 'daoLocalAgentNotInstalled' :
++                               'daoLocalAgentNotFound';
++          if (agent.id === 'cli') {
++            statusKey = agent.installed ? 'daoLocalAgentLinked' :
++                                         'daoLocalAgentNotLinked';
++          }
++          return {
++            id: agent.id,
++            name: loadTimeData.getString(nameKeys[agent.id]),
++            status: loadTimeData.getString(
++                agent.needsUpdate ? 'daoLocalAgentNeedsUpdate' : statusKey),
++            badge: agent.needsUpdate ? 'approval_requested' :
++                agent.installed ? 'connected' : 'disabled',
++            installed: agent.installed,
++            canInstall: !agent.installed || agent.needsUpdate,
++            action: loadTimeData.getString(
++                agent.needsUpdate ? 'daoLocalAgentUpdate' :
++                                    'daoLocalAgentInstall'),
++          };
++        });
++  }
++
++  private async onDaoLocalAgentAction_(event: Event) {
++    const {id, install} = (event.currentTarget as HTMLElement).dataset;
++    if (this.daoLocalAgentsBusy_ ||
++        !id || !['shared', 'claude', 'cli'].includes(id) ||
++        (install !== 'true' && install !== 'false')) {
++      return;
++    }
++    ++this.daoLocalAgentsRequest_;
++    this.daoLocalAgentsBusy_ = true;
++    this.daoLocalAgentsError_ = '';
++    try {
++      const status = await this.daoMcpBrowserProxy_.setDaoLocalAgentInstalled(
++          id, install === 'true');
++      this.updateDaoLocalAgents_(status);
++      if (!status.success) {
++        this.daoLocalAgentsError_ =
++            loadTimeData.getString('daoLocalAgentsError');
++      }
++    } catch {
++      this.daoLocalAgentsError_ =
++          loadTimeData.getString('daoLocalAgentsError');
++    } finally {
++      this.daoLocalAgentsBusy_ = false;
++    }
++  }
++
++  private onDaoMcpEnabledChange_(event: Event) {
++    const enabled = (event.target as SettingsToggleButtonElement).checked;
++    this.daoMcpBrowserProxy_.setDaoMcpEnabled(enabled);
++  }
++
++  private onDaoMcpSetupOptionChange_(event: Event) {
++    const option = (event.target as HTMLSelectElement).value;
++    if (option !== 'codex' && option !== 'claude-code' &&
++        option !== 'generic-mcp') {
++      ++this.daoMcpSetupContentRequest_;
++      ++this.daoMcpCopyRequest_;
++      this.daoMcpSetupContent_ = '';
++      this.daoMcpSetupCopied_ = false;
++      return;
++    }
++    this.daoMcpSetupOption_ = option;
++    this.daoMcpGenericSetup_ = option === 'generic-mcp';
++    ++this.daoMcpCopyRequest_;
++    this.daoMcpSetupContent_ = '';
++    this.daoMcpSetupCopied_ = false;
++    void this.refreshDaoMcpSetupContent_();
++  }
++
++  private async onDaoMcpCopySetupContent_() {
++    const request = ++this.daoMcpCopyRequest_;
++    const option = this.daoMcpSetupOption_;
++    const copied =
++        await this.daoMcpBrowserProxy_.copyDaoMcpSetupContent(option);
++    if (request === this.daoMcpCopyRequest_ &&
++        option === this.daoMcpSetupOption_ && this.showDaoMcpQuickSetup_) {
++      this.daoMcpSetupCopied_ = copied;
++    }
++  }
++
++  private async refreshDaoMcpSetupContent_() {
++    const request = ++this.daoMcpSetupContentRequest_;
++    const option = this.daoMcpSetupOption_;
++    try {
++      const content =
++          await this.daoMcpBrowserProxy_.getDaoMcpSetupContent(option);
++      if (request === this.daoMcpSetupContentRequest_ &&
++          option === this.daoMcpSetupOption_) {
++        this.daoMcpSetupContent_ = content;
++      }
++    } catch {
++      if (request === this.daoMcpSetupContentRequest_) {
++        this.daoMcpSetupContent_ = '';
++      }
++    }
++  }
++
++  private onDaoMcpStopControl_(event: Event) {
++    const {connectionId} = (event.currentTarget as HTMLElement).dataset;
++    if (connectionId) {
++      this.daoMcpBrowserProxy_.stopDaoMcpControl(connectionId);
++    }
++  }
++
++  private onDaoMcpRevokeTab_(event: Event) {
++    const {connectionId, tabId} =
++        (event.currentTarget as HTMLElement).dataset;
++    if (connectionId && tabId) {
++      this.daoMcpBrowserProxy_.revokeDaoMcpTab(connectionId, tabId);
++    }
++  }
++
++  private getDaoMcpClientDetails_(connection: DaoMcpConnection): string {
++    const name = [connection.clientName, connection.clientVersion]
++        .filter(Boolean).join(' ');
++    return connection.clientPid !== undefined ?
++        loadTimeData.getStringF(
++            'daoMcpClientDetails', name, String(connection.clientPid)) : name;
++  }
++
++  private getDaoMcpScope_(canCreateTabs: boolean): string {
++    return loadTimeData.getString(
++        canCreateTabs ? 'daoMcpCreateAllowed' : 'daoMcpPageOnly');
++  }
++
++  private onDaoMcpResetUsage_() {
++    this.daoMcpBrowserProxy_.resetDaoMcpUsageStats();
++  }
++
++  private updateDaoMcpStatus_(status: DaoMcpStatus) {
++    this.daoMcpStatusState_ = status.state;
++    this.daoMcpEnabledPref_ = {
++      key: 'dao.mcp_server_enabled',
++      type: chrome.settingsPrivate.PrefType.BOOLEAN,
++      value: status.enabled,
++    };
++
++    const statusStringKeys: Record<DaoMcpStatusState, string> = {
++      disabled: 'daoMcpStatusDisabled',
++      ready: 'daoMcpStatusReady',
++      approval_requested: 'daoMcpStatusApprovalRequested',
++      connected: 'daoMcpStatusConnected',
++    };
++    this.daoMcpStatusText_ =
++        loadTimeData.getString(statusStringKeys[status.state]);
++    this.daoMcpUsageTotal_ = status.usageStats?.totalCalls ?? 0;
++    this.daoMcpUsageTools_ =
++        Object.entries(status.usageStats?.toolCalls ?? {})
++            .map(([name, count]) => ({name, count}))
++            .sort((left, right) =>
++                right.count - left.count ||
++                left.name.localeCompare(right.name));
++
++    this.showDaoMcpQuickSetup_ = status.enabled;
++    void this.refreshDaoLocalAgents_();
++    if (status.enabled) {
++      void this.refreshDaoMcpSetupContent_();
++    } else {
++      ++this.daoMcpSetupContentRequest_;
++      ++this.daoMcpCopyRequest_;
++      this.daoMcpSetupContent_ = '';
++      this.daoMcpSetupCopied_ = false;
++    }
++
++    this.daoMcpConnections_ = status.connections ?? [];
++  }
++}
++
++declare global {
++  interface HTMLElementTagNameMap {
++    'settings-dao-local-agent-page': SettingsDaoLocalAgentPageElement;
++  }
++}
++
++customElements.define(
++    SettingsDaoLocalAgentPageElement.is, SettingsDaoLocalAgentPageElement);

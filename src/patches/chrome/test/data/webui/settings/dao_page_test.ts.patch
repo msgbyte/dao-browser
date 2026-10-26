@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/test/data/webui/settings/dao_page_test.ts
-@@ -0,0 +1,852 @@
+@@ -0,0 +1,864 @@
 +// Copyright 2026 Dao Browser Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -19,6 +19,7 @@ index 0000000000..0000000001
 +  DaoMcpBrowserProxy,
 +  DaoMcpStatus,
 +  SettingsDaoPageElement,
++  SettingsDaoLocalAgentPageElement,
 +  SettingsToggleButtonElement,
 +} from 'chrome://settings/settings.js';
 +import {
@@ -177,6 +178,7 @@ index 0000000000..0000000001
 +
 +suite('DaoPage', function() {
 +  let page: SettingsDaoPageElement;
++  let localAgentPage: SettingsDaoLocalAgentPageElement;
 +  let mcpBrowserProxy: TestDaoMcpBrowserProxy;
 +  let folderBrowserProxy: TestDaoFolderBrowserProxy;
 +  let openWindowProxy: TestOpenWindowProxy;
@@ -243,6 +245,9 @@ index 0000000000..0000000001
 +      },
 +    };
 +    document.body.appendChild(page);
++    localAgentPage = document.createElement(
++        'settings-dao-local-agent-page');
++    document.body.appendChild(localAgentPage);
 +    await mcpBrowserProxy.whenCalled('getDaoMcpStatus');
 +    await flushTasks();
 +    flush();
@@ -250,11 +255,12 @@ index 0000000000..0000000001
 +
 +  teardown(function() {
 +    page.remove();
++    localAgentPage.remove();
 +  });
 +
 +  function getMcpToggle(): SettingsToggleButtonElement {
 +    const toggle =
-+        page.shadowRoot!.querySelector<SettingsToggleButtonElement>(
++        localAgentPage.shadowRoot!.querySelector<SettingsToggleButtonElement>(
 +            '#daoMcpServerEnabled');
 +    assertTrue(!!toggle);
 +    return toggle;
@@ -292,7 +298,7 @@ index 0000000000..0000000001
 +
 +  test('mcpRendersDisabledReadyAndApprovalRequestedStates', function() {
 +    const status =
-+        page.shadowRoot!.querySelector<HTMLElement>('#daoMcpStatusValue');
++        localAgentPage.shadowRoot!.querySelector<HTMLElement>('#daoMcpStatusValue');
 +    assertTrue(!!status);
 +    assertEquals(loadTimeData.getString('daoMcpStatusDisabled'), status.textContent.trim());
 +
@@ -311,8 +317,8 @@ index 0000000000..0000000001
 +    assertEquals(
 +        loadTimeData.getString('daoMcpStatusApprovalRequested'),
 +        status.textContent.trim());
-+    assertNull(page.shadowRoot!.querySelector('.dao-mcp-client'));
-+    assertNull(page.shadowRoot!.querySelector('.dao-mcp-stop-control'));
++    assertNull(localAgentPage.shadowRoot!.querySelector('.dao-mcp-client'));
++    assertNull(localAgentPage.shadowRoot!.querySelector('.dao-mcp-stop-control'));
 +  });
 +
 +  test('mcpShowsEachAuthorizedConnection', function() {
@@ -323,8 +329,8 @@ index 0000000000..0000000001
 +      clientPid: 99,
 +      canStop: false,
 +    });
-+    assertNull(page.shadowRoot!.querySelector('.dao-mcp-client'));
-+    assertNull(page.shadowRoot!.querySelector('.dao-mcp-stop-control'));
++    assertNull(localAgentPage.shadowRoot!.querySelector('.dao-mcp-client'));
++    assertNull(localAgentPage.shadowRoot!.querySelector('.dao-mcp-stop-control'));
 +
 +    sendMcpStatus({
 +      enabled: true,
@@ -339,27 +345,27 @@ index 0000000000..0000000001
 +    });
 +
 +    const status =
-+        page.shadowRoot!.querySelector<HTMLElement>('#daoMcpStatusValue');
++        localAgentPage.shadowRoot!.querySelector<HTMLElement>('#daoMcpStatusValue');
 +    assertTrue(!!status);
 +    assertEquals(
 +        loadTimeData.getString('daoMcpStatusConnected'),
 +        status.textContent.trim());
 +    const client =
-+        page.shadowRoot!.querySelector<HTMLElement>('.dao-mcp-client');
++        localAgentPage.shadowRoot!.querySelector<HTMLElement>('.dao-mcp-client');
 +    assertTrue(!!client);
 +    assertEquals(
 +        loadTimeData.getStringF('daoMcpClientDetails', 'Codex', '12345'),
 +        client.textContent.trim());
 +    assertTrue(
-+        !!page.shadowRoot!.querySelector('.dao-mcp-stop-control'));
++        !!localAgentPage.shadowRoot!.querySelector('.dao-mcp-stop-control'));
 +
 +    sendMcpStatus({
 +      enabled: true,
 +      state: 'ready',
 +      canStop: false,
 +    });
-+    assertNull(page.shadowRoot!.querySelector('.dao-mcp-client'));
-+    assertNull(page.shadowRoot!.querySelector('.dao-mcp-stop-control'));
++    assertNull(localAgentPage.shadowRoot!.querySelector('.dao-mcp-client'));
++    assertNull(localAgentPage.shadowRoot!.querySelector('.dao-mcp-stop-control'));
 +  });
 +
 +  test('mcpShowsAndResetsUsageStats', async function() {
@@ -378,10 +384,10 @@ index 0000000000..0000000001
 +    });
 +
 +    const total =
-+        page.shadowRoot!.querySelector<HTMLElement>('#daoMcpUsageTotal');
++        localAgentPage.shadowRoot!.querySelector<HTMLElement>('#daoMcpUsageTotal');
 +    assertTrue(!!total);
 +    assertTrue(total.textContent.includes('3'));
-+    const rows = page.shadowRoot!.querySelectorAll<HTMLElement>(
++    const rows = localAgentPage.shadowRoot!.querySelectorAll<HTMLElement>(
 +        '.dao-mcp-usage-row');
 +    assertEquals(2, rows.length);
 +    assertTrue(rows[0]!.textContent.includes('click'));
@@ -389,18 +395,18 @@ index 0000000000..0000000001
 +    assertTrue(rows[1]!.textContent.includes('get_page_info'));
 +    assertTrue(rows[1]!.textContent.includes('1'));
 +
-+    page.shadowRoot!
++    localAgentPage.shadowRoot!
 +        .querySelector<HTMLElement>('#daoMcpResetUsage')!.click();
 +    await mcpBrowserProxy.whenCalled('resetDaoMcpUsageStats');
 +  });
 +
-+  test('mcpListsLocalAgentsWithTheirStatus', async function() {
++  test('localAgentSectionListsSkillsWithTheirStatus', async function() {
 +    mcpBrowserProxy.resetResolver('getDaoLocalAgents');
 +    sendMcpStatus({enabled: true, state: 'ready', canStop: false});
 +    await mcpBrowserProxy.whenCalled('getDaoLocalAgents');
 +    await flushTasks();
 +
-+    const rows = page.shadowRoot!.querySelectorAll<HTMLElement>(
++    const rows = localAgentPage.shadowRoot!.querySelectorAll<HTMLElement>(
 +        '#daoLocalAgentList .dao-local-agent-row');
 +    assertEquals(3, rows.length);
 +    assertTrue(rows[0]!.textContent.includes(
@@ -417,7 +423,7 @@ index 0000000000..0000000001
 +    sendMcpStatus({enabled: false, state: 'disabled', canStop: false});
 +    await flushTasks();
 +    assertEquals(0, mcpBrowserProxy.getCallCount('setDaoLocalAgentInstalled'));
-+    const update = page.shadowRoot!.querySelector<HTMLElement>(
++    const update = localAgentPage.shadowRoot!.querySelector<HTMLElement>(
 +        '.dao-local-agent-install[data-id="shared"]')!;
 +    assertFalse(update.hidden);
 +    assertEquals(loadTimeData.getString('daoLocalAgentUpdate'),
@@ -427,14 +433,20 @@ index 0000000000..0000000001
 +        await mcpBrowserProxy.whenCalled('setDaoLocalAgentInstalled'));
 +    await flushTasks();
 +    mcpBrowserProxy.resetResolver('setDaoLocalAgentInstalled');
-+    page.shadowRoot!.querySelector<HTMLElement>(
++    localAgentPage.shadowRoot!.querySelector<HTMLElement>(
 +        '.dao-local-agent-uninstall[data-id="shared"]')!.click();
 +    assertDeepEquals(['shared', false],
 +        await mcpBrowserProxy.whenCalled('setDaoLocalAgentInstalled'));
 +  });
 +
++  test('localAgentCollaborationHasDedicatedSection', function() {
++    assertNull(page.shadowRoot!.querySelector('#daoMcpServerEnabled'));
++    assertEquals('localAgents', localAgentPage.shadowRoot!
++        .querySelector('settings-section')!.getAttribute('section'));
++  });
++
 +  test('mcpQuickSetupPreviewsAndCopiesSelectedClient', async function() {
-+    assertNull(page.shadowRoot!.querySelector('#daoMcpQuickSetup'));
++    assertNull(localAgentPage.shadowRoot!.querySelector('#daoMcpQuickSetup'));
 +
 +    sendMcpStatus({
 +      enabled: true,
@@ -448,19 +460,19 @@ index 0000000000..0000000001
 +    await flushTasks();
 +
 +    const quickSetup =
-+        page.shadowRoot!.querySelector<HTMLElement>('#daoMcpQuickSetup');
++        localAgentPage.shadowRoot!.querySelector<HTMLElement>('#daoMcpQuickSetup');
 +    const selector =
-+        page.shadowRoot!.querySelector<HTMLSelectElement>(
++        localAgentPage.shadowRoot!.querySelector<HTMLSelectElement>(
 +            '#daoMcpClientSelector');
 +    const preview =
-+        page.shadowRoot!.querySelector<HTMLElement>(
++        localAgentPage.shadowRoot!.querySelector<HTMLElement>(
 +            '#daoMcpSetupPreview');
 +    assertTrue(
-+        !!page.shadowRoot!.querySelector('#daoMcpConnectionSection'));
++        !!localAgentPage.shadowRoot!.querySelector('#daoMcpConnectionSection'));
 +    const setupControls =
-+        page.shadowRoot!.querySelector<HTMLElement>('#daoMcpSetupControls');
++        localAgentPage.shadowRoot!.querySelector<HTMLElement>('#daoMcpSetupControls');
 +    assertTrue(!!setupControls);
-+    assertNull(page.shadowRoot!.querySelector('.dao-mcp-title'));
++    assertNull(localAgentPage.shadowRoot!.querySelector('.dao-mcp-title'));
 +    assertTrue(!!quickSetup);
 +    assertTrue(!!selector);
 +    assertTrue(!!preview);
@@ -475,14 +487,14 @@ index 0000000000..0000000001
 +    await flushTasks();
 +    assertEquals(claudeCommand, preview.textContent.trim());
 +
-+    page.shadowRoot!
++    localAgentPage.shadowRoot!
 +        .querySelector<HTMLElement>('#daoMcpCopySetup')!.click();
 +    assertEquals(
 +        'claude-code',
 +        await mcpBrowserProxy.whenCalled('copyDaoMcpSetupContent'));
 +    mcpBrowserProxy.resolveCopyContent('claude-code', true);
 +    await flushTasks();
-+    const feedback = page.shadowRoot!.querySelector<HTMLElement>(
++    const feedback = localAgentPage.shadowRoot!.querySelector<HTMLElement>(
 +        '#daoMcpSetupFeedback');
 +    assertTrue(!!feedback);
 +    assertEquals(
@@ -499,7 +511,7 @@ index 0000000000..0000000001
 +    assertEquals(
 +        '{\\n   "mcpServers": {', preview.textContent.trim().slice(0, 20));
 +
-+    page.shadowRoot!
++    localAgentPage.shadowRoot!
 +        .querySelector<HTMLElement>('#daoMcpCopySetup')!.click();
 +    assertEquals(
 +        'generic-mcp',
@@ -516,7 +528,7 @@ index 0000000000..0000000001
 +      canStop: false,
 +    });
 +    flush();
-+    assertNull(page.shadowRoot!.querySelector('#daoMcpQuickSetup'));
++    assertNull(localAgentPage.shadowRoot!.querySelector('#daoMcpQuickSetup'));
 +  });
 +
 +  test('mcpQuickSetupIgnoresStalePreviewResponse', async function() {
@@ -527,7 +539,7 @@ index 0000000000..0000000001
 +    });
 +    flush();
 +    const selector =
-+        page.shadowRoot!.querySelector<HTMLSelectElement>(
++        localAgentPage.shadowRoot!.querySelector<HTMLSelectElement>(
 +            '#daoMcpClientSelector')!;
 +    selector.value = 'claude-code';
 +    selector.dispatchEvent(new Event('change'));
@@ -537,7 +549,7 @@ index 0000000000..0000000001
 +    mcpBrowserProxy.resolveSetupContent('codex', 'stale codex command');
 +    await flushTasks();
 +
-+    const preview = page.shadowRoot!.querySelector<HTMLElement>(
++    const preview = localAgentPage.shadowRoot!.querySelector<HTMLElement>(
 +        '#daoMcpSetupPreview')!;
 +    assertEquals('claude command', preview.textContent.trim());
 +  });
@@ -553,7 +565,7 @@ index 0000000000..0000000001
 +    mcpBrowserProxy.resolveSetupContent('codex', codexCommand);
 +    await flushTasks();
 +
-+    page.shadowRoot!
++    localAgentPage.shadowRoot!
 +        .querySelector<HTMLElement>('#daoMcpCopySetup')!.click();
 +    assertEquals(
 +        'codex', await mcpBrowserProxy.whenCalled('copyDaoMcpSetupContent'));
@@ -572,7 +584,7 @@ index 0000000000..0000000001
 +    mcpBrowserProxy.resolveSetupContent('codex', codexCommand);
 +    await flushTasks();
 +
-+    const feedback = page.shadowRoot!.querySelector<HTMLElement>(
++    const feedback = localAgentPage.shadowRoot!.querySelector<HTMLElement>(
 +        '#daoMcpSetupFeedback');
 +    assertTrue(!!feedback);
 +    assertEquals('', feedback.textContent.trim());
@@ -587,7 +599,7 @@ index 0000000000..0000000001
 +    mcpBrowserProxy.resolveSetupContent('codex', 'codex command');
 +    await flushTasks();
 +
-+    const style = page.shadowRoot!.querySelector<HTMLStyleElement>('style');
++    const style = localAgentPage.shadowRoot!.querySelector<HTMLStyleElement>('style');
 +    assertTrue(!!style && !!style.sheet);
 +    const narrowRule = Array.from(style.sheet.cssRules).find(
 +        (rule): rule is CSSMediaRule =>
@@ -603,7 +615,7 @@ index 0000000000..0000000001
 +  });
 +
 +  test('mcpHasNoStandaloneCopyConfigButton', function() {
-+    assertNull(page.shadowRoot!.querySelector('#daoMcpCopyConfig'));
++    assertNull(localAgentPage.shadowRoot!.querySelector('#daoMcpCopyConfig'));
 +  });
 +
 +  test('mcpStopCallsHandlerWhenLeaseIsActive', async function() {
@@ -619,14 +631,14 @@ index 0000000000..0000000001
 +      }],
 +    });
 +    const button =
-+        page.shadowRoot!.querySelector<HTMLElement>('.dao-mcp-stop-control');
++        localAgentPage.shadowRoot!.querySelector<HTMLElement>('.dao-mcp-stop-control');
 +    assertTrue(!!button);
 +    button.click();
 +
 +    assertEquals(
 +        'approved-connection',
 +        await mcpBrowserProxy.whenCalled('stopDaoMcpControl'));
-+    const revoke = page.shadowRoot!.querySelector<HTMLElement>(
++    const revoke = localAgentPage.shadowRoot!.querySelector<HTMLElement>(
 +        '.dao-mcp-revoke-tab');
 +    assertTrue(!!revoke);
 +    revoke.click();

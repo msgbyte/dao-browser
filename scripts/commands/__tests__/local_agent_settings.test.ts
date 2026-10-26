@@ -15,7 +15,7 @@ const status = {
 
 function createPage() {
   const source = readFileSync(
-      'src/patches/chrome/browser/resources/settings/dao_page/dao_page.ts.patch',
+      'src/patches/chrome/browser/resources/settings/dao_page/dao_local_agent_page.ts.patch',
       'utf8').split('\n')
       .filter(line => line.startsWith('+') && !line.startsWith('+++'))
       .map(line => line.slice(1)).join('\n')
@@ -24,7 +24,7 @@ function createPage() {
   const output = ts.transpileModule(source, {
     compilerOptions: {target: ts.ScriptTarget.ES2022},
   }).outputText;
-  const Page = vm.runInNewContext(output + '; SettingsDaoPageElement', {
+  const Page = vm.runInNewContext(output + '; SettingsDaoLocalAgentPageElement', {
     PolymerElement: class {},
     WebUiListenerMixin: (base: unknown) => base,
     PrefsMixin: (base: unknown) => base,

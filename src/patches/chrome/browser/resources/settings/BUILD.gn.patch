@@ -1,17 +1,18 @@
 diff --git a/chrome/browser/resources/settings/BUILD.gn b/chrome/browser/resources/settings/BUILD.gn
 --- a/chrome/browser/resources/settings/BUILD.gn
 +++ b/chrome/browser/resources/settings/BUILD.gn
-@@ -97,6 +97,9 @@
+@@ -97,6 +97,10 @@
      "controls/settings_checkbox.ts",
      "controls/settings_radio_group.ts",
      "controls/settings_toggle_button.ts",
 +    "dao_page/dao_agent_page.ts",
 +    "dao_page/dao_agent_page_index.ts",
 +    "dao_page/dao_page.ts",
++    "dao_page/dao_local_agent_page.ts",
      "glic_page/glic_page.ts",
      "glic_page/glic_login_permissions_page.ts",
      "glic_page/glic_subpage.ts",
-@@ -294,6 +297,7 @@
+@@ -294,6 +298,7 @@
      "controls/settings_dropdown_menu.ts",
      "controls/settings_slider.html.ts",
      "controls/settings_slider.ts",

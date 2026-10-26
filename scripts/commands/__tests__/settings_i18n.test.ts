@@ -189,6 +189,8 @@ const daoSettingsTranslations = [
 ];
 
 const daoAgentManagementTranslations = [
+  ['DAO_LOCAL_AGENT_COLLABORATION_TITLE', 'daoLocalAgentCollaborationTitle',
+   '本机智能体协作'],
   ['DAO_LOCAL_AGENTS_ERROR', 'daoLocalAgentsError',
    '无法读取或修改此集成。请检查文件权限及已有文件后重试。'],
   ['DAO_LOCAL_AGENTS_CHECK_UPDATES', 'daoLocalAgentsCheckUpdates',
@@ -511,7 +513,7 @@ describe('settings i18n patches', () => {
     const pagePatchPath = path.join(
         process.cwd(),
         'src/patches/chrome/browser/resources/settings/dao_page/' +
-            'dao_page.ts.patch');
+            'dao_local_agent_page.ts.patch');
     const handlerPath = path.join(
         process.cwd(),
         'src/dao/browser/mcp/dao_mcp_settings_handler.cc');
@@ -528,7 +530,7 @@ describe('settings i18n patches', () => {
     const pagePatchPath = path.join(
         process.cwd(),
         'src/patches/chrome/browser/resources/settings/dao_page/' +
-            'dao_page.ts.patch');
+            'dao_local_agent_page.ts.patch');
     const handlerPath = path.join(
         process.cwd(),
         'src/dao/browser/mcp/dao_mcp_settings_handler.cc');
@@ -559,11 +561,11 @@ describe('settings i18n patches', () => {
     ]);
     const pageHtmlPatch = readPatches([
       'src/patches/chrome/browser/resources/settings/dao_page/' +
-          'dao_page.html.patch',
+          'dao_local_agent_page.html.patch',
     ]);
     const pageTsPatch = readPatches([
       'src/patches/chrome/browser/resources/settings/dao_page/' +
-          'dao_page.ts.patch',
+          'dao_local_agent_page.ts.patch',
     ]);
 
     for (const messageName of [

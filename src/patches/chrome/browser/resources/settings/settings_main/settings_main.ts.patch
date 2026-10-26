@@ -1,16 +1,17 @@
 diff --git a/chrome/browser/resources/settings/settings_main/settings_main.ts b/chrome/browser/resources/settings/settings_main/settings_main.ts
 --- a/chrome/browser/resources/settings/settings_main/settings_main.ts
 +++ b/chrome/browser/resources/settings/settings_main/settings_main.ts
-@@ -17,6 +17,8 @@
+@@ -17,6 +17,9 @@
  import '../on_startup_page/on_startup_page.js';
  import '../people_page/people_page_index.js';
  import '../performance_page/performance_page_index.js';
 +import '../dao_page/dao_agent_page_index.js';
 +import '../dao_page/dao_page.js';
++import '../dao_page/dao_local_agent_page.js';
  import '../privacy_page/privacy_page_index.js';
  import '../reset_page/reset_profile_banner.js';
  import '../search_page/search_page_index.js';
-@@ -49,6 +51,10 @@
+@@ -49,6 +52,10 @@
      noSearchResults: HTMLElement,
      switcher: CrViewManagerElement,
    };
@@ -21,7 +22,7 @@ diff --git a/chrome/browser/resources/settings/settings_main/settings_main.ts b/
  }
  
  const SettingsMainElementBase = RouteObserverMixin(PolymerElement);
-@@ -96,6 +102,12 @@
+@@ -96,6 +103,12 @@
          value: false,
        },
  
@@ -34,7 +35,7 @@ diff --git a/chrome/browser/resources/settings/settings_main/settings_main.ts b/
        showNoResultsFound_: {
          type: Boolean,
          value: false,
-@@ -121,6 +133,7 @@
+@@ -121,6 +134,7 @@
    declare private lastRoute_: Route|null;
    declare private routes_: SettingsRoutes;
    declare private inSearchMode_: boolean;
@@ -42,7 +43,7 @@ diff --git a/chrome/browser/resources/settings/settings_main/settings_main.ts b/
    declare private showNoResultsFound_: boolean;
    declare private showResetProfileBanner_: boolean;
    declare toolbarSpinnerActive: boolean;
-@@ -128,6 +141,9 @@
+@@ -128,6 +142,9 @@
    private pendingViewSwitching_: PromiseResolver<void> = new PromiseResolver();
    private topLevelEquivalentRoute_: Route = getTopLevelRoute();
    private currentQuery_: string = '';
@@ -52,7 +53,7 @@ diff --git a/chrome/browser/resources/settings/settings_main/settings_main.ts b/
  
    override connectedCallback() {
      super.connectedCallback();
-@@ -140,6 +156,8 @@
+@@ -140,6 +157,8 @@
  
    override disconnectedCallback() {
      super.disconnectedCallback();
@@ -61,7 +62,7 @@ diff --git a/chrome/browser/resources/settings/settings_main/settings_main.ts b/
    }
  
    private beforeNextRenderPromise_(): Promise<void> {
-@@ -151,32 +169,51 @@
+@@ -151,32 +170,51 @@
    override async currentRouteChanged(route: Route) {
      this.pendingViewSwitching_ = new PromiseResolver();
  
@@ -122,7 +123,7 @@ diff --git a/chrome/browser/resources/settings/settings_main/settings_main.ts b/
          this.pendingViewSwitching_.resolve();
          return;
        }
-@@ -184,8 +221,16 @@
+@@ -184,8 +222,16 @@
      }
  
      assert(sectionElement);
@@ -139,7 +140,7 @@ diff --git a/chrome/browser/resources/settings/settings_main/settings_main.ts b/
      this.pendingViewSwitching_.resolve();
    }
  
-@@ -200,6 +245,9 @@
+@@ -200,6 +246,9 @@
     * @return A promise indicating that searching finished.
     */
    searchContents(query: string): Promise<void> {
@@ -149,7 +150,7 @@ diff --git a/chrome/browser/resources/settings/settings_main/settings_main.ts b/
      this.inSearchMode_ = true;
      this.toolbarSpinnerActive = true;
      this.currentQuery_ = query;
-@@ -249,6 +297,19 @@
+@@ -249,6 +298,19 @@
        this.inSearchMode_ = !result.wasClearSearch;
        this.showNoResultsFound_ = this.inSearchMode_ && result.matchCount === 0;
  
@@ -169,7 +170,7 @@ diff --git a/chrome/browser/resources/settings/settings_main/settings_main.ts b/
        if (this.inSearchMode_) {
          getAnnouncerInstance().announce(
              this.showNoResultsFound_ ?
-@@ -259,7 +320,7 @@
+@@ -259,7 +321,7 @@
    }
  
    private renderPlugin_(route: Route): boolean {
@@ -178,7 +179,7 @@ diff --git a/chrome/browser/resources/settings/settings_main/settings_main.ts b/
          (!!this.lastRoute_ && route.contains(this.lastRoute_));
    }
  
-@@ -277,8 +338,138 @@
+@@ -277,8 +339,138 @@
    }
  
    private shouldShowAll_(): boolean {

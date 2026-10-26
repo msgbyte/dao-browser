@@ -17,7 +17,7 @@ diff --git a/chrome/browser/resources/settings/settings_main/settings_main.html 
  </style>
  <div id="noSearchResults" hidden$="[[!showNoResultsFound_]]">
    <div>$i18n{searchNoResults}</div>
-@@ -55,12 +64,44 @@
+@@ -55,12 +64,54 @@
  
  <cr-view-manager id="switcher"
      show-all$="[[shouldShowAll_(inSearchMode_, lastRoute_)]]">
@@ -37,6 +37,16 @@ diff --git a/chrome/browser/resources/settings/settings_main/settings_main.html 
 +          routes_.DAO_AGENT, lastRoute_, inSearchMode_)]]">
 +        <settings-dao-agent-page-index prefs="{{prefs}}">
 +        </settings-dao-agent-page-index>
++      </template>
++    </div>
++  </template>
++
++  <template is="dom-if" if="[[routes_.DAO_LOCAL_AGENTS]]">
++    <div slot="view" id="localAgents">
++      <template is="dom-if" if="[[renderPlugin_(
++          routes_.DAO_LOCAL_AGENTS, lastRoute_, inSearchMode_)]]">
++        <settings-dao-local-agent-page>
++        </settings-dao-local-agent-page>
 +      </template>
 +    </div>
 +  </template>
@@ -62,7 +72,7 @@ diff --git a/chrome/browser/resources/settings/settings_main/settings_main.html 
        </template>
      </div>
    </template>
-@@ -72,18 +113,6 @@
+@@ -72,18 +123,6 @@
          <settings-privacy-page-index prefs="{{prefs}}"
              in-search-mode="[[inSearchMode_]]">
          </settings-privacy-page-index>

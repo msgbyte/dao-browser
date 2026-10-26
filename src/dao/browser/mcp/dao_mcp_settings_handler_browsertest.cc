@@ -606,7 +606,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpSettingsPageBrowserTest,
   ASSERT_FALSE(local_state->GetBoolean(prefs::kDaoMcpServerEnabled));
 
   ASSERT_TRUE(
-      ui_test_utils::NavigateToURL(browser(), GURL("dao://settings/dao")));
+      ui_test_utils::NavigateToURL(browser(), GURL("dao://settings/localAgents")));
   content::WebContents* contents =
       browser()->tab_strip_model()->GetActiveWebContents();
   ASSERT_TRUE(contents);
@@ -632,7 +632,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpSettingsPageBrowserTest,
       const deadline = performance.now() + 10000;
       let page = null;
       while (!page && performance.now() < deadline) {
-        page = findDeep('settings-dao-page');
+        page = findDeep('settings-dao-local-agent-page');
         if (!page) {
           await new Promise(resolve => setTimeout(resolve, 25));
         }

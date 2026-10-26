@@ -246,6 +246,12 @@ describe("settings continuous overview contract", () => {
     expect(uiPatch).not.toContain('id="daoSettingsBrand"');
     expect(uiPatch).not.toContain('id="daoSettingsRailFooter"');
     expect(menuPatch).toContain('data-section="dao"');
+    expect(menuPatch).toContain('data-section="localAgents"');
+    expect(readPatch("settings_main/settings_main.html.patch"))
+      .toContain('id="localAgents"');
+    expect(readPatch("route.ts.patch")).toContain("r.DAO_LOCAL_AGENTS =");
+    expect(readPatch("dao_page/dao_local_agent_page.ts.patch"))
+      .toContain("getSearchManager().search(query, this)");
     expect(menuPatch).not.toContain("dao-settings-menu-group");
     expect(menuTsPatch).toContain("settings-section-activate");
     expect(mainTsPatch).toContain("overviewMode_");
