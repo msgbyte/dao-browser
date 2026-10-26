@@ -831,6 +831,14 @@ bool DaoCommandBarView::HandleKeyEvent(views::Textfield* sender,
     return true;
   }
 
+  if (key_event.key_code() == ui::VKEY_DELETE && key_event.IsShiftDown()) {
+    const AutocompleteMatch* match = GetSelectedVisibleAutocompleteMatch();
+    if (match && match->SupportsDeletion()) {
+      OnSuggestionRemoved(selected_index_);
+      return true;
+    }
+  }
+
   // First Backspace rejects a non-identical preview without deleting query
   // text. Suppression prevents the same async result from restoring it until
   // the user explicitly selects a row again.

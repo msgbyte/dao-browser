@@ -3840,10 +3840,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
   ASSERT_NE(nullptr, remove);
   SimulateMouseEnter(row);
   EXPECT_TRUE(remove->GetVisible());
-  views::test::ButtonTestApi(remove).NotifyClick(ui::MouseEvent(
-      ui::EventType::kMouseReleased, gfx::Point(), gfx::Point(),
-      ui::EventTimeForNow(), ui::EF_LEFT_MOUSE_BUTTON,
-      ui::EF_LEFT_MOUSE_BUTTON));
+  SendDialogKey(command_bar->GetWidget(), ui::VKEY_DELETE, ui::EF_SHIFT_DOWN);
   EXPECT_EQ(std::vector<GURL>{match.destination_url},
             deletion_provider_->deleted_urls);
 
@@ -3857,7 +3854,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
-                       RemoveSuggestionHidesUnsupportedButtons) {
+                       RemoveSuggestionPreservesTextEditing) {
   auto* command_bar = GetBrowserView(browser())->dao_command_bar();
   command_bar->ShowForNewTab();
   ASSERT_TRUE(EnterCommandBarText(command_bar, u"dao.example"));
@@ -3867,6 +3864,13 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
   match.contents = u"dao.example";
   match.destination_url = GURL("https://dao.example/");
   command_bar->SetAutocompleteMatchesForTesting(ACMatches{match}, true);
+  auto* textfield = FindDescendantViewOfClass<views::Textfield>(command_bar);
+  ASSERT_NE(nullptr, textfield);
+  textfield->SelectAll(false);
+  EXPECT_FALSE(command_bar->HandleKeyEvent(
+      textfield, ui::KeyEvent(ui::EventType::kKeyPressed, ui::VKEY_DELETE,
+                             ui::EF_SHIFT_DOWN)));
+
   auto* first_row = FindDescendantViewOfClass<DaoSuggestionItemView>(command_bar);
   ASSERT_NE(nullptr, first_row);
   // Non-deletable results and Dao actions must not offer a delete button.
