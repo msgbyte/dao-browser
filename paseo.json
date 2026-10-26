@@ -1,0 +1,11 @@
+{
+  "worktree": {
+    "setup": "npm run setup:worktree",
+    "teardown": "npm run archive:worktree"
+  },
+  "scripts": {
+    "rebuild": {
+      "command": "npm run rebuild && npm run start:debug"
+    }
+  }
+}
