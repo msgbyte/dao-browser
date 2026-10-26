@@ -531,7 +531,7 @@
 +      Let local AI agents such as Claude Code and Codex request browser access through MCP or the dao-browser command.
 +    </message>
 +    <message name="IDS_SETTINGS_DAO_MCP_STATUS_LABEL" desc="Label for the current status of Dao Browser's Model Context Protocol server.">
-+      Status
++      MCP server status
 +    </message>
 +    <message name="IDS_SETTINGS_DAO_MCP_STATUS_DISABLED" desc="Status shown when Dao Browser's Model Context Protocol server is disabled.">
 +      Disabled

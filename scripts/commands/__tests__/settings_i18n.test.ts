@@ -192,6 +192,8 @@ const daoAgentManagementTranslations = [
   ['DAO_LOCAL_AGENT_COLLABORATION_TITLE', 'daoLocalAgentCollaborationTitle',
    '本机智能体协作'],
   ['DAO_LOCAL_AGENTS_TITLE', 'daoLocalAgentsTitle', '技能与命令'],
+  ['DAO_MCP_STATUS_LABEL', 'daoMcpStatusLabel', 'MCP 服务状态'],
+  ['DAO_MCP_STATUS_READY', 'daoMcpStatusReady', '就绪'],
   ['DAO_LOCAL_AGENTS_ERROR', 'daoLocalAgentsError',
    '无法读取或修改此集成。请检查文件权限及已有文件后重试。'],
   ['DAO_LOCAL_AGENTS_CHECK_UPDATES', 'daoLocalAgentsCheckUpdates',
