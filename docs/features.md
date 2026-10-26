@@ -370,6 +370,12 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
   - Cmd+L → `Show()` pre-fills current URL (`SetFocusToLocationBar(is_user_initiated=true)`)
   - Cmd+T → `ShowForNewTab()` opens the Command Bar without creating a tab;
     navigation creates the destination tab only after submission
+  - **Remove recommendations** — Hover a deletable recommendation and click
+    its X. Chromium's
+    `SupportsDeletion()` controls availability and `AutocompleteController::DeleteMatch()`
+    delegates deletion, including duplicate matches, to the original providers.
+    History-backed suggestions may delete their history entries; bookmarks stay
+    intact.
   - **Ask AI** — Submits prompt directly to the Agent
   - **System commands** — Normal input supplements Chromium results with at
     most two whole-title or alias prefix matches; an exact safe UI command is

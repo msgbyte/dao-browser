@@ -4,6 +4,7 @@
 
 #include "dao/browser/ui/views/dao_suggestion_item_view.h"
 
+#include "base/functional/bind.h"
 #include "chrome/browser/favicon/favicon_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/favicon/core/favicon_service.h"
@@ -21,6 +22,7 @@
 #include "ui/gfx/paint_vector_icon.h"
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/background.h"
+#include "ui/views/controls/button/image_button.h"
 #include "ui/views/controls/image_view.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/layout/box_layout.h"
@@ -31,12 +33,14 @@ BEGIN_METADATA(DaoSuggestionItemView)
 END_METADATA
 
 DaoSuggestionItemView::DaoSuggestionItemView(int index,
-                                               ClickCallback click_callback,
-                                               Profile* profile)
+                                           ClickCallback click_callback,
+                                           ClickCallback remove_callback,
+                                           Profile* profile)
     : index_(index),
       click_callback_(std::move(click_callback)),
       profile_(profile) {
   GetViewAccessibility().SetRole(ax::mojom::Role::kListBoxOption);
+  SetNotifyEnterExitOnChild(true);
 
   auto* layout = SetLayoutManager(std::make_unique<views::BoxLayout>(
       views::BoxLayout::Orientation::kHorizontal,
@@ -94,6 +98,21 @@ DaoSuggestionItemView::DaoSuggestionItemView(int index,
   intent->SetBackgroundColor(SK_ColorTRANSPARENT);
   intent->SetVisible(false);
   intent_label_ = AddChildView(std::move(intent));
+
+  auto remove = std::make_unique<views::ImageButton>(
+      base::BindRepeating(std::move(remove_callback), index));
+  remove->SetPreferredSize(gfx::Size(28, 28));
+  remove->SetImageHorizontalAlignment(views::ImageButton::ALIGN_CENTER);
+  remove->SetImageVerticalAlignment(views::ImageButton::ALIGN_MIDDLE);
+  remove->SetFocusBehavior(FocusBehavior::ACCESSIBLE_ONLY);
+  remove->SetInstallFocusRingOnFocus(false);
+  remove->SetAccessibleName(
+      l10n_util::GetStringUTF16(IDS_DAO_SUGGESTION_REMOVE));
+  remove->SetTooltipText(
+      l10n_util::GetStringUTF16(IDS_DAO_SUGGESTION_REMOVE));
+  remove->SetVisible(false);
+  remove_button_ = AddChildView(std::move(remove));
+  RefreshTheme();
 }
 
 DaoSuggestionItemView::~DaoSuggestionItemView() = default;
@@ -283,6 +302,14 @@ void DaoSuggestionItemView::OnFaviconFetched(
 }
 
 void DaoSuggestionItemView::RefreshTheme() {
+  remove_button_->SetImageModel(
+      views::Button::STATE_NORMAL,
+      ui::ImageModel::FromImageSkia(
+          CreateLucideImageSkia(LucideIcon::kX, 14, TextMuted())));
+  remove_button_->SetImageModel(
+      views::Button::STATE_HOVERED,
+      ui::ImageModel::FromImageSkia(
+          CreateLucideImageSkia(LucideIcon::kX, 14, SuggestionTitleColor())));
   // Labels cache their color via SetEnabledColor; reapply with the current
   // theme.
   if (title_label_) {
@@ -325,13 +352,20 @@ void DaoSuggestionItemView::SetSelected(bool selected) {
   UpdateBackground();
 }
 
+void DaoSuggestionItemView::SetRemovable(bool removable) {
+  is_removable_ = removable;
+  remove_button_->SetVisible(is_removable_ && is_hovered_);
+}
+
 void DaoSuggestionItemView::OnMouseEntered(const ui::MouseEvent& event) {
   is_hovered_ = GetEnabled();
+  remove_button_->SetVisible(is_removable_ && is_hovered_);
   UpdateBackground();
 }
 
 void DaoSuggestionItemView::OnMouseExited(const ui::MouseEvent& event) {
   is_hovered_ = false;
+  remove_button_->SetVisible(false);
   UpdateBackground();
 }
 

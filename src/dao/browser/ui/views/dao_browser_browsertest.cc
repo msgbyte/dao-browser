@@ -23,6 +23,7 @@
 #include "base/i18n/time_formatting.h"
 #include "base/json/json_reader.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/ref_counted.h"
 #include "base/run_loop.h"
 #include "base/scoped_observation.h"
 #include "base/strings/strcat.h"
@@ -175,6 +176,7 @@
 #include "dao/browser/ui/views/dao_pinned_extensions_container.h"
 #include "dao/browser/ui/views/dao_qr_code_image.h"
 #include "dao/browser/ui/views/dao_qr_code_result_dialog_view.h"
+#include "dao/browser/ui/views/dao_suggestion_item_view.h"
 #include "dao/browser/ui/views/dao_system_dialog.h"
 #include "dao/browser/ui/views/dao_tab_commands.h"
 #include "dao/browser/ui/views/dao_tab_identity.h"
@@ -3623,6 +3625,21 @@ IN_PROC_BROWSER_TEST_F(DaoAddressBarBrowserTest,
 
 class DaoCommandBarBrowserTest : public InProcessBrowserTest {
  protected:
+  class DeletionTestProvider : public AutocompleteProvider {
+   public:
+    DeletionTestProvider() : AutocompleteProvider(TYPE_HISTORY_URL) {}
+
+    void Start(const AutocompleteInput& input, bool minimal_changes) override {}
+    void DeleteMatch(const AutocompleteMatch& match) override {
+      deleted_urls.push_back(match.destination_url);
+    }
+
+    std::vector<GURL> deleted_urls;
+
+   protected:
+    ~DeletionTestProvider() override = default;
+  };
+
   bool EnterCommandBarText(DaoCommandBarView* command_bar,
                            const std::u16string& text) {
     auto* textfield = FindDescendantViewOfClass<views::Textfield>(command_bar);
@@ -3718,6 +3735,7 @@ class DaoCommandBarBrowserTest : public InProcessBrowserTest {
         .ExtractBool();
   }
 
+  scoped_refptr<DeletionTestProvider> deletion_provider_;
   raw_ptr<dao::DaoAgentSidebarView> agent_sidebar_ = nullptr;
   raw_ptr<content::WebContents> agent_contents_ = nullptr;
 };
@@ -3737,6 +3755,131 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest, CommandBarShowAndHide) {
 
   command_bar->Hide();
   EXPECT_FALSE(command_bar->GetVisible());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       RemoveSuggestionUsesChromiumDeletion) {
+  auto* command_bar = GetBrowserView(browser())->dao_command_bar();
+  command_bar->ShowForNewTab();
+  ASSERT_TRUE(EnterCommandBarText(command_bar, u"dao"));
+
+  deletion_provider_ = base::MakeRefCounted<DeletionTestProvider>();
+  AutocompleteMatch match(deletion_provider_.get(), 1000, true,
+                          AutocompleteMatchType::HISTORY_URL);
+  match.allowed_to_be_default_match = true;
+  match.inline_autocompletion = u".example";
+  match.fill_into_edit = u"dao.example";
+  match.contents = u"dao.example";
+  match.destination_url = GURL("https://dao.example/");
+  command_bar->SetAutocompleteMatchesForTesting(ACMatches{match}, true);
+  EXPECT_EQ(u".example", command_bar->GetInlineAutocompletionForTesting());
+
+  auto* row = FindDescendantViewOfClass<DaoSuggestionItemView>(command_bar);
+  ASSERT_NE(nullptr, row);
+  auto* remove = FindDescendantViewOfClass<views::ImageButton>(row);
+  ASSERT_NE(nullptr, remove);
+  EXPECT_FALSE(remove->GetVisible());
+  SimulateMouseEnter(row);
+  EXPECT_TRUE(remove->GetVisible());
+  row->OnMouseExited(ui::MouseEvent(
+      ui::EventType::kMouseExited, gfx::Point(), gfx::Point(),
+      ui::EventTimeForNow(), ui::EF_NONE, ui::EF_NONE));
+  EXPECT_FALSE(remove->GetVisible());
+  SimulateMouseEnter(row);
+  EXPECT_EQ(l10n_util::GetStringUTF16(IDS_DAO_SUGGESTION_REMOVE),
+            remove->GetAccessibleName());
+
+  const int tab_count = browser()->tab_strip_model()->count();
+  const GURL current_url = browser()->tab_strip_model()
+                               ->GetActiveWebContents()
+                               ->GetLastCommittedURL();
+  views::test::ButtonTestApi(remove).NotifyClick(ui::MouseEvent(
+      ui::EventType::kMouseReleased, gfx::Point(), gfx::Point(),
+      ui::EventTimeForNow(), ui::EF_LEFT_MOUSE_BUTTON,
+      ui::EF_LEFT_MOUSE_BUTTON));
+
+  EXPECT_TRUE(command_bar->GetVisible());
+  EXPECT_EQ(tab_count, browser()->tab_strip_model()->count());
+  EXPECT_EQ(current_url, browser()->tab_strip_model()
+                             ->GetActiveWebContents()
+                             ->GetLastCommittedURL());
+  EXPECT_EQ(std::vector<GURL>{match.destination_url},
+            deletion_provider_->deleted_urls);
+  EXPECT_TRUE(command_bar->GetInlineAutocompletionForTesting().empty());
+  auto* textfield = FindDescendantViewOfClass<views::Textfield>(command_bar);
+  ASSERT_NE(nullptr, textfield);
+  EXPECT_EQ(u"dao", textfield->GetText());
+  EXPECT_TRUE(textfield->HasFocus());
+
+  for (int i = 0; i < command_bar->GetVisibleSuggestionCountForTesting(); ++i) {
+    EXPECT_NE(match.contents,
+              command_bar->GetVisibleSuggestionTitleForTesting(i));
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       RemoveSuggestionDeletesDuplicateMatches) {
+  auto* command_bar = GetBrowserView(browser())->dao_command_bar();
+  command_bar->ShowForNewTab();
+  ASSERT_TRUE(EnterCommandBarText(command_bar, u"dao"));
+  deletion_provider_ = base::MakeRefCounted<DeletionTestProvider>();
+  AutocompleteMatch match(nullptr, 1000, false,
+                          AutocompleteMatchType::BOOKMARK_TITLE);
+  match.contents = u"Dao bookmark";
+  match.fill_into_edit = u"dao.example";
+  match.destination_url = GURL("https://dao.example/");
+  AutocompleteMatch duplicate(deletion_provider_.get(), 900, true,
+                              AutocompleteMatchType::HISTORY_URL);
+  duplicate.destination_url = match.destination_url;
+  match.duplicate_matches.push_back(duplicate);
+  command_bar->SetAutocompleteMatchesForTesting(ACMatches{match}, true);
+
+  auto* row = FindDescendantViewOfClass<DaoSuggestionItemView>(command_bar);
+  ASSERT_NE(nullptr, row);
+  auto* remove = FindDescendantViewOfClass<views::ImageButton>(row);
+  ASSERT_NE(nullptr, remove);
+  SimulateMouseEnter(row);
+  EXPECT_TRUE(remove->GetVisible());
+  views::test::ButtonTestApi(remove).NotifyClick(ui::MouseEvent(
+      ui::EventType::kMouseReleased, gfx::Point(), gfx::Point(),
+      ui::EventTimeForNow(), ui::EF_LEFT_MOUSE_BUTTON,
+      ui::EF_LEFT_MOUSE_BUTTON));
+  EXPECT_EQ(std::vector<GURL>{match.destination_url},
+            deletion_provider_->deleted_urls);
+
+  // The bookmark may still be returned after its deletable history is gone.
+  match.duplicate_matches.clear();
+  command_bar->SetAutocompleteMatchesForTesting(ACMatches{match}, true);
+  EXPECT_EQ(match.contents,
+            command_bar->GetVisibleSuggestionTitleForTesting(0));
+  SimulateMouseEnter(row);
+  EXPECT_FALSE(remove->GetVisible());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       RemoveSuggestionHidesUnsupportedButtons) {
+  auto* command_bar = GetBrowserView(browser())->dao_command_bar();
+  command_bar->ShowForNewTab();
+  ASSERT_TRUE(EnterCommandBarText(command_bar, u"dao.example"));
+  AutocompleteMatch match(nullptr, 1000, false,
+                          AutocompleteMatchType::URL_WHAT_YOU_TYPED);
+  match.fill_into_edit = u"dao.example";
+  match.contents = u"dao.example";
+  match.destination_url = GURL("https://dao.example/");
+  command_bar->SetAutocompleteMatchesForTesting(ACMatches{match}, true);
+  auto* first_row = FindDescendantViewOfClass<DaoSuggestionItemView>(command_bar);
+  ASSERT_NE(nullptr, first_row);
+  // Non-deletable results and Dao actions must not offer a delete button.
+  for (auto* child : first_row->parent()->children()) {
+    auto* row = views::AsViewClass<DaoSuggestionItemView>(child);
+    if (!row || !row->GetVisible()) {
+      continue;
+    }
+    SimulateMouseEnter(row);
+    auto* remove = FindDescendantViewOfClass<views::ImageButton>(row);
+    ASSERT_NE(nullptr, remove);
+    EXPECT_FALSE(remove->GetVisible());
+  }
 }
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,

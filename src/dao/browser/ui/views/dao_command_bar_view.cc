@@ -351,6 +351,8 @@ DaoCommandBarView::DaoCommandBarView(BrowserWindowInterface* browser)
         std::make_unique<DaoSuggestionItemView>(
             i, base::BindRepeating(&DaoCommandBarView::OnSuggestionClicked,
                                    base::Unretained(this)),
+            base::BindRepeating(&DaoCommandBarView::OnSuggestionRemoved,
+                                base::Unretained(this)),
             browser_->GetProfile()));
     item->SetVisible(false);
     suggestion_views_.push_back(item);
@@ -1254,6 +1256,8 @@ void DaoCommandBarView::UpdateSuggestions() {
             index,
             base::BindRepeating(&DaoCommandBarView::OnSuggestionClicked,
                                 base::Unretained(this)),
+            base::BindRepeating(&DaoCommandBarView::OnSuggestionRemoved,
+                                base::Unretained(this)),
             browser_->GetProfile())));
   }
 
@@ -1268,6 +1272,9 @@ void DaoCommandBarView::UpdateSuggestions() {
       continue;
     }
     const SuggestionRow& row = displayed_rows_[i];
+    suggestion_views_[i]->SetRemovable(
+        row.kind == SuggestionRow::Kind::kAutocomplete &&
+        visible_matches_[row.index].SupportsDeletion());
     if (row.kind == SuggestionRow::Kind::kAskAi) {
       suggestion_views_[i]->SetAskAiPrompt(
           user_input_text_,
@@ -2171,6 +2178,26 @@ void DaoCommandBarView::NavigateToMatch(const AutocompleteMatch& match) {
 void DaoCommandBarView::OnSuggestionClicked(int index) {
   SetSelectedIndex(index, true);
   ApplySelectedSuggestion();
+}
+
+void DaoCommandBarView::OnSuggestionRemoved(int index) {
+  if (!autocomplete_controller_ || index < 0 ||
+      index >= static_cast<int>(displayed_rows_.size())) {
+    return;
+  }
+  const SuggestionRow& row = displayed_rows_[index];
+  if (row.kind != SuggestionRow::Kind::kAutocomplete ||
+      !visible_matches_[row.index].SupportsDeletion()) {
+    return;
+  }
+  // Stopping and deleting can refresh the rows synchronously.
+  const AutocompleteMatch match = visible_matches_[row.index];
+  autocomplete_controller_->Stop(AutocompleteStopReason::kInteraction);
+  ClearSelectionPreview(true);
+  ClearInlineAutocompletion(true);
+  selection_explicitly_changed_ = false;
+  autocomplete_controller_->DeleteMatch(match);
+  textfield_->RequestFocus();
 }
 
 void DaoCommandBarView::Navigate(const std::u16string& text) {

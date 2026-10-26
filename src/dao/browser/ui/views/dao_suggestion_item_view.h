@@ -25,6 +25,7 @@ struct VectorIcon;
 }
 
 namespace views {
+class ImageButton;
 class ImageView;
 class Label;
 }  // namespace views
@@ -38,8 +39,9 @@ class DaoSuggestionItemView : public views::View {
   using ClickCallback = base::RepeatingCallback<void(int index)>;
 
   DaoSuggestionItemView(int index,
-                         ClickCallback click_callback,
-                         Profile* profile);
+                        ClickCallback click_callback,
+                        ClickCallback remove_callback,
+                        Profile* profile);
   DaoSuggestionItemView(const DaoSuggestionItemView&) = delete;
   DaoSuggestionItemView& operator=(const DaoSuggestionItemView&) = delete;
   ~DaoSuggestionItemView() override;
@@ -61,6 +63,7 @@ class DaoSuggestionItemView : public views::View {
                   bool enabled);
 
   void SetSelected(bool selected);
+  void SetRemovable(bool removable);
 
   // Re-apply theme-dependent colors after a NativeTheme change. Refreshes
   // title / description text color and re-rasterizes the vector icon with
@@ -87,12 +90,14 @@ class DaoSuggestionItemView : public views::View {
   ClickCallback click_callback_;
   bool is_selected_ = false;
   bool is_hovered_ = false;
+  bool is_removable_ = false;
 
   raw_ptr<Profile> profile_;
   raw_ptr<views::ImageView> icon_view_ = nullptr;
   raw_ptr<views::Label> title_label_ = nullptr;
   raw_ptr<views::Label> description_label_ = nullptr;
   raw_ptr<views::Label> intent_label_ = nullptr;
+  raw_ptr<views::ImageButton> remove_button_ = nullptr;
 
   // State needed to re-rasterize the leading icon on theme change.
   IconMode icon_mode_ = IconMode::kNone;

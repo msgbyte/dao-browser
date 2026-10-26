@@ -4,6 +4,7 @@
 
 ### [Unreleased] Unreleased
 
+- Hover a command bar recommendation and click × to remove it when deletion is supported, using the browser's built-in behavior.
 - Show AI tasks above the New Tab button in the sidebar.
 - Close a Dao Lite task window after watching it without stopping its background work; reopen it anytime from the task list. Closing all browser windows or all windows of a profile still ends the affected tasks.
 - Find MCP connections and local skills in the new Local agent collaboration section beside Dao Agent.

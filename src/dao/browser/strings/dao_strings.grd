@@ -443,6 +443,9 @@
       </message>
 
       <!-- Suggestion item -->
+      <message name="IDS_DAO_SUGGESTION_REMOVE" desc="Accessible name and tooltip of the command bar button that deletes a suggestion using Chromium's built-in deletion support.">
+        Remove suggestion
+      </message>
       <message name="IDS_DAO_SUGGESTION_ASK_AI" desc="Title of a suggestion row that, when clicked, sends the user's typed text to the AI assistant. The PROMPT placeholder is the user's typed query, e.g. 'Ask AI: how do I bake bread?'.">
         Ask AI: <ph name="PROMPT">$1<ex>how do I bake bread?</ex></ph>
       </message>
