@@ -179,7 +179,7 @@ diff --git a/chrome/browser/resources/settings/settings_main/settings_main.ts b/
          (!!this.lastRoute_ && route.contains(this.lastRoute_));
    }
  
-@@ -277,8 +339,138 @@
+@@ -277,8 +339,142 @@
    }
  
    private shouldShowAll_(): boolean {
@@ -312,6 +312,10 @@ diff --git a/chrome/browser/resources/settings/settings_main/settings_main.ts b/
 +      return;
 +    }
 +    this.activeOverviewSection_ = section;
++    if (section === 'localAgents') {
++      void this.$.switcher.querySelector('settings-dao-local-agent-page')
++          ?.refreshLocalAgents();
++    }
 +    this.dispatchEvent(new CustomEvent('settings-overview-section-changed', {
 +      bubbles: true,
 +      composed: true,

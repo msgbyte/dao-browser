@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_local_agent_page.ts
-@@ -0,0 +1,466 @@
+@@ -0,0 +1,478 @@
 +// Copyright 2026 Dao Browser Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -19,6 +19,9 @@ index 0000000000..0000000001
 +
 +import type {SettingsToggleButtonElement} from '../controls/settings_toggle_button.js';
 +import {loadTimeData} from '../i18n_setup.js';
++import {routes} from '../route.js';
++import {RouteObserverMixin} from '../router.js';
++import type {Route} from '../router.js';
 +import {getSearchManager} from '../search_settings.js';
 +import type {SettingsPlugin} from '../settings_main/settings_plugin.js';
 +
@@ -125,7 +128,8 @@ index 0000000000..0000000001
 +
 +let instance: DaoMcpBrowserProxy|null = null;
 +
-+const SettingsDaoLocalAgentPageElementBase = WebUiListenerMixin(PolymerElement);
++const SettingsDaoLocalAgentPageElementBase =
++    RouteObserverMixin(WebUiListenerMixin(PolymerElement));
 +
 +export class SettingsDaoLocalAgentPageElement extends
 +    SettingsDaoLocalAgentPageElementBase implements SettingsPlugin {
@@ -255,12 +259,20 @@ index 0000000000..0000000001
 +        status => this.updateDaoMcpStatus_(status));
 +  }
 +
++  override currentRouteChanged(newRoute: Route, oldRoute?: Route) {
++    super.currentRouteChanged(newRoute, oldRoute);
++    if (oldRoute && newRoute !== oldRoute &&
++        (newRoute === routes.DAO_LOCAL_AGENTS || newRoute === routes.BASIC)) {
++      void this.refreshLocalAgents();
++    }
++  }
++
 +  async searchContents(query: string) {
 +    const searchRequest = await getSearchManager().search(query, this);
 +    return searchRequest.getSearchResult();
 +  }
 +
-+  private async refreshDaoLocalAgents_() {
++  async refreshLocalAgents() {
 +    if (this.daoLocalAgentsBusy_) {
 +      return;
 +    }
@@ -448,7 +460,7 @@ index 0000000000..0000000001
 +                left.name.localeCompare(right.name));
 +
 +    this.showDaoMcpQuickSetup_ = status.enabled;
-+    void this.refreshDaoLocalAgents_();
++    void this.refreshLocalAgents();
 +    if (status.enabled) {
 +      void this.refreshDaoMcpSetupContent_();
 +    } else {

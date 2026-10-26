@@ -349,7 +349,7 @@ index 0000000000..0000000001
 +        <div class="dao-mcp-section-title">$i18n{daoLocalAgentsTitle}</div>
 +        <cr-button id="daoLocalAgentsRefresh"
 +            disabled="[[daoLocalAgentsBusy_]]"
-+            on-click="refreshDaoLocalAgents_">
++            on-click="refreshLocalAgents">
 +          $i18n{daoLocalAgentsCheckUpdates}
 +        </cr-button>
 +      </div>
