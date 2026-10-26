@@ -1075,9 +1075,9 @@ export class DaoSidebarApp extends CrLitElement {
           </dao-favorites-view>
         ` : ''}
 
-        <dao-new-tab-button ?highlighted=${this.newTabHighlighted_}></dao-new-tab-button>
-
         <dao-agent-spaces></dao-agent-spaces>
+
+        <dao-new-tab-button ?highlighted=${this.newTabHighlighted_}></dao-new-tab-button>
 
         <div class="tab-section-shell"
              @pointerenter=${this.onTabSectionPointerEnter_}
