@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/test/data/webui/settings/dao_page_test.ts
-@@ -0,0 +1,864 @@
+@@ -0,0 +1,877 @@
 +// Copyright 2026 Dao Browser Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -439,10 +439,23 @@ index 0000000000..0000000001
 +        await mcpBrowserProxy.whenCalled('setDaoLocalAgentInstalled'));
 +  });
 +
-+  test('localAgentCollaborationHasDedicatedSection', function() {
++  test('localAgentCollaborationSeparatesMcpAndSkills', function() {
++    sendMcpStatus({enabled: true, state: 'ready', canStop: false});
 +    assertNull(page.shadowRoot!.querySelector('#daoMcpServerEnabled'));
-+    assertEquals('localAgents', localAgentPage.shadowRoot!
-+        .querySelector('settings-section')!.getAttribute('section'));
++    const root = localAgentPage.shadowRoot!;
++    const mcp = root.querySelector('.dao-mcp-settings')!;
++    const skills = root.querySelector('#daoLocalAgentsSection')!;
++    const toggle = root.querySelector('#daoMcpServerEnabled')!;
++    const quickSetup = root.querySelector('#daoMcpQuickSetup')!;
++    assertEquals('localAgents',
++        root.querySelector('settings-section')!.getAttribute('section'));
++    assertEquals(mcp.parentElement, skills.parentElement);
++    assertFalse(mcp.contains(skills));
++    const sections = Array.from(mcp.children).filter(
++        child => child.tagName !== 'TEMPLATE' && child.tagName !== 'DOM-IF');
++    assertEquals(toggle, sections[0]);
++    assertEquals(quickSetup, sections[1]);
++    assertEquals(root.querySelector('#daoMcpConnectionSection'), sections[2]);
 +  });
 +
 +  test('mcpQuickSetupPreviewsAndCopiesSelectedClient', async function() {

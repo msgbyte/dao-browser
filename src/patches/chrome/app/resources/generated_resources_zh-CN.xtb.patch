@@ -778,7 +778,7 @@ diff --git a/chrome/app/resources/generated_resources_zh-CN.xtb b/chrome/app/res
  <translation id="5736092224453113618">{NUM_FILES,plural, =0{这些数据或您的设备不符合贵组织的某些安全政策。请与您的管理员联系，了解需要修正哪些方面。}=1{此文件或您的设备不符合贵组织的某些安全政策。请与您的管理员联系，了解需要修正哪些方面。}other{这些文件不符合贵组织的某些安全政策。请与您的管理员联系，了解需要修正哪些方面。}}</translation>
 +<translation id="5737546580503562498">显示工具调用详情</translation>
 +<translation id="1461126376752058886">允许 Dao Agent 不经询问直接开始后台任务</translation>
-+<translation id="6515131863957847036">本机 Agent</translation>
++<translation id="6896675557803572592">技能与命令</translation>
 +<translation id="960755015307486686">本机智能体协作</translation>
 +<translation id="4779458187500495120">手动安装、更新或卸载技能及命令。Codex 会读取 ~/.agents 中的共享技能。打开此设置或检查更新时，会提示需要更新的副本。</translation>
 +<translation id="4091075518900169188">Claude Code</translation>

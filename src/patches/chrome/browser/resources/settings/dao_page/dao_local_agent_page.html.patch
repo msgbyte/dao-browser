@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_local_agent_page.html
-@@ -0,0 +1,381 @@
+@@ -0,0 +1,385 @@
 +<style include="settings-shared">
 +  .dao-mcp-page {
 +    margin-top: 12px;
@@ -13,7 +13,8 @@ index 0000000000..0000000001
 +    overflow-wrap: anywhere;
 +  }
 +
-+  .dao-mcp-settings {
++  .dao-mcp-settings,
++  .dao-local-agent-settings {
 +    border: 1px solid var(--cr-separator-color);
 +    border-radius: 12px;
 +    margin: 16px 20px 20px;
@@ -206,18 +207,144 @@ index 0000000000..0000000001
 +    }
 +  }
 +
++  .dao-local-agent-settings {
++    padding: 16px;
++  }
 +</style>
 +<settings-section page-title="$i18n{daoLocalAgentCollaborationTitle}"
 +    section="localAgents">
 +  <template is="dom-if" if="[[daoMcpSupported_]]">
-+  <div class="dao-mcp-settings">
-+    <settings-toggle-button id="daoMcpServerEnabled"
-+        pref="{{daoMcpEnabledPref_}}"
-+        label="$i18n{daoMcpServerEnabledLabel}"
-+        sub-label="$i18n{daoMcpServerEnabledSubLabel}"
-+        on-settings-boolean-control-change="onDaoMcpEnabledChange_">
-+    </settings-toggle-button>
-+    <div id="daoLocalAgentsSection" class="dao-mcp-section">
++    <div class="dao-mcp-settings">
++      <settings-toggle-button id="daoMcpServerEnabled"
++          pref="{{daoMcpEnabledPref_}}"
++          label="$i18n{daoMcpServerEnabledLabel}"
++          sub-label="$i18n{daoMcpServerEnabledSubLabel}"
++          on-settings-boolean-control-change="onDaoMcpEnabledChange_">
++      </settings-toggle-button>
++      <template is="dom-if" if="[[showDaoMcpQuickSetup_]]" restamp>
++        <div id="daoMcpQuickSetup"
++            class="dao-mcp-section dao-mcp-quick-setup">
++          <div class="dao-mcp-quick-setup-title">
++            $i18n{daoMcpQuickSetupTitle}
++          </div>
++          <div class="dao-mcp-quick-setup-description">
++            $i18n{daoMcpQuickSetupDescription}
++          </div>
++          <div id="daoMcpSetupControls" class="dao-mcp-setup-controls">
++            <div class="dao-mcp-client-field">
++              <label class="dao-mcp-client-label" for="daoMcpClientSelector">
++                $i18n{daoMcpClientLabel}
++              </label>
++              <select id="daoMcpClientSelector" class="dao-mcp-client-selector"
++                  value="{{daoMcpSetupOption_::change}}"
++                  on-change="onDaoMcpSetupOptionChange_">
++                <option value="codex">$i18n{daoMcpClientCodex}</option>
++                <option value="claude-code">$i18n{daoMcpClientClaudeCode}</option>
++                <option value="generic-mcp">$i18n{daoMcpClientGeneric}</option>
++              </select>
++            </div>
++            <cr-button id="daoMcpCopySetup"
++                class="dao-mcp-copy-install-command"
++                disabled="[[!daoMcpSetupContent_]]"
++                on-click="onDaoMcpCopySetupContent_">
++              <template is="dom-if" if="[[!daoMcpGenericSetup_]]">
++                $i18n{daoMcpCopyInstallCommand}
++              </template>
++              <template is="dom-if" if="[[daoMcpGenericSetup_]]">
++                $i18n{daoMcpCopyConfiguration}
++              </template>
++            </cr-button>
++          </div>
++          <code id="daoMcpSetupPreview"
++              class="dao-mcp-command-preview">[[daoMcpSetupContent_]]</code>
++          <div id="daoMcpSetupFeedback"
++              class="dao-mcp-command-feedback" role="status"
++              aria-live="polite">
++            <template is="dom-if" if="[[daoMcpSetupCopied_]]">
++              <template is="dom-if" if="[[!daoMcpGenericSetup_]]">
++                $i18n{daoMcpInstallCommandCopied}
++              </template>
++              <template is="dom-if" if="[[daoMcpGenericSetup_]]">
++                $i18n{daoMcpConfigurationCopied}
++              </template>
++            </template>
++          </div>
++        </div>
++      </template>
++      <div id="daoMcpConnectionSection"
++          class="dao-mcp-section dao-mcp-status-section">
++        <div class="dao-mcp-status-copy">
++          <div class="dao-mcp-section-title">$i18n{daoMcpStatusLabel}</div>
++        </div>
++        <div class="dao-mcp-status-actions">
++          <span id="daoMcpStatusValue"
++              class$="dao-mcp-status-badge [[daoMcpStatusState_]]">
++            [[daoMcpStatusText_]]
++          </span>
++        </div>
++      </div>
++      <template is="dom-repeat" items="[[daoMcpConnections_]]" as="connection">
++        <div class="dao-mcp-section dao-mcp-connection">
++          <div class="dao-mcp-usage-header">
++            <div>
++              <div class="dao-mcp-client">[[getDaoMcpClientDetails_(connection)]]</div>
++              <div>[[connection.windowLabel]]</div>
++              <div>[[getDaoMcpScope_(connection.canCreateTabs)]]</div>
++              <div>[[connection.pageCountLabel]]</div>
++            </div>
++            <cr-button class="dao-mcp-stop-control"
++                data-connection-id$="[[connection.connectionId]]"
++                on-click="onDaoMcpStopControl_">
++              $i18n{daoMcpStopControl}
++            </cr-button>
++          </div>
++          <template is="dom-repeat" items="[[connection.tabs]]" as="tab">
++            <div class="dao-mcp-usage-header dao-mcp-page">
++              <div class="dao-mcp-status-copy">
++                <div>[[tab.title]]</div>
++                <div class="dao-mcp-page-url">[[tab.url]]</div>
++              </div>
++              <cr-button class="dao-mcp-revoke-tab"
++                  data-connection-id$="[[connection.connectionId]]"
++                  data-tab-id$="[[tab.tabId]]" on-click="onDaoMcpRevokeTab_">
++                $i18n{daoMcpRevokeTab}
++              </cr-button>
++            </div>
++          </template>
++        </div>
++      </template>
++      <div id="daoMcpUsageSection" class="dao-mcp-section">
++        <div class="dao-mcp-usage-header">
++          <div>
++            <div class="dao-mcp-section-title">$i18n{daoMcpUsageTitle}</div>
++            <div id="daoMcpUsageTotal" class="dao-mcp-usage-total">
++              $i18n{daoMcpUsageTotal}: [[daoMcpUsageTotal_]]
++            </div>
++          </div>
++          <cr-button id="daoMcpResetUsage"
++              disabled="[[!daoMcpUsageTotal_]]"
++              on-click="onDaoMcpResetUsage_">
++            $i18n{daoMcpUsageReset}
++          </cr-button>
++        </div>
++        <template is="dom-if" if="[[daoMcpUsageTools_.length]]" restamp>
++          <div id="daoMcpUsageList" class="dao-mcp-usage-list" role="list">
++            <template is="dom-repeat" items="[[daoMcpUsageTools_]]">
++              <div class="dao-mcp-usage-row" role="listitem">
++                <span>[[item.name]]</span>
++                <span class="dao-mcp-usage-count">[[item.count]]</span>
++              </div>
++            </template>
++          </div>
++        </template>
++        <template is="dom-if" if="[[!daoMcpUsageTools_.length]]" restamp>
++          <div id="daoMcpUsageEmpty" class="dao-mcp-usage-empty">
++            $i18n{daoMcpUsageNoCalls}
++          </div>
++        </template>
++      </div>
++    </div>
++    <div id="daoLocalAgentsSection" class="dao-local-agent-settings">
 +      <div class="dao-mcp-usage-header">
 +        <div class="dao-mcp-section-title">$i18n{daoLocalAgentsTitle}</div>
 +        <cr-button id="daoLocalAgentsRefresh"
@@ -260,128 +387,5 @@ index 0000000000..0000000001
 +        [[daoLocalAgentsError_]]
 +      </div>
 +    </div>
-+    <div id="daoMcpConnectionSection"
-+        class="dao-mcp-section dao-mcp-status-section">
-+      <div class="dao-mcp-status-copy">
-+        <div class="dao-mcp-section-title">$i18n{daoMcpStatusLabel}</div>
-+      </div>
-+      <div class="dao-mcp-status-actions">
-+        <span id="daoMcpStatusValue"
-+            class$="dao-mcp-status-badge [[daoMcpStatusState_]]">
-+          [[daoMcpStatusText_]]
-+        </span>
-+      </div>
-+    </div>
-+    <template is="dom-repeat" items="[[daoMcpConnections_]]" as="connection">
-+      <div class="dao-mcp-section dao-mcp-connection">
-+        <div class="dao-mcp-usage-header">
-+          <div>
-+            <div class="dao-mcp-client">[[getDaoMcpClientDetails_(connection)]]</div>
-+            <div>[[connection.windowLabel]]</div>
-+            <div>[[getDaoMcpScope_(connection.canCreateTabs)]]</div>
-+            <div>[[connection.pageCountLabel]]</div>
-+          </div>
-+          <cr-button class="dao-mcp-stop-control"
-+              data-connection-id$="[[connection.connectionId]]"
-+              on-click="onDaoMcpStopControl_">
-+            $i18n{daoMcpStopControl}
-+          </cr-button>
-+        </div>
-+        <template is="dom-repeat" items="[[connection.tabs]]" as="tab">
-+          <div class="dao-mcp-usage-header dao-mcp-page">
-+            <div class="dao-mcp-status-copy">
-+              <div>[[tab.title]]</div>
-+              <div class="dao-mcp-page-url">[[tab.url]]</div>
-+            </div>
-+            <cr-button class="dao-mcp-revoke-tab"
-+                data-connection-id$="[[connection.connectionId]]"
-+                data-tab-id$="[[tab.tabId]]" on-click="onDaoMcpRevokeTab_">
-+              $i18n{daoMcpRevokeTab}
-+            </cr-button>
-+          </div>
-+        </template>
-+      </div>
-+    </template>
-+    <div id="daoMcpUsageSection" class="dao-mcp-section">
-+      <div class="dao-mcp-usage-header">
-+        <div>
-+          <div class="dao-mcp-section-title">$i18n{daoMcpUsageTitle}</div>
-+          <div id="daoMcpUsageTotal" class="dao-mcp-usage-total">
-+            $i18n{daoMcpUsageTotal}: [[daoMcpUsageTotal_]]
-+          </div>
-+        </div>
-+        <cr-button id="daoMcpResetUsage"
-+            disabled="[[!daoMcpUsageTotal_]]"
-+            on-click="onDaoMcpResetUsage_">
-+          $i18n{daoMcpUsageReset}
-+        </cr-button>
-+      </div>
-+      <template is="dom-if" if="[[daoMcpUsageTools_.length]]" restamp>
-+        <div id="daoMcpUsageList" class="dao-mcp-usage-list" role="list">
-+          <template is="dom-repeat" items="[[daoMcpUsageTools_]]">
-+            <div class="dao-mcp-usage-row" role="listitem">
-+              <span>[[item.name]]</span>
-+              <span class="dao-mcp-usage-count">[[item.count]]</span>
-+            </div>
-+          </template>
-+        </div>
-+      </template>
-+      <template is="dom-if" if="[[!daoMcpUsageTools_.length]]" restamp>
-+        <div id="daoMcpUsageEmpty" class="dao-mcp-usage-empty">
-+          $i18n{daoMcpUsageNoCalls}
-+        </div>
-+      </template>
-+    </div>
-+    <template is="dom-if" if="[[showDaoMcpQuickSetup_]]" restamp>
-+      <div id="daoMcpQuickSetup"
-+          class="dao-mcp-section dao-mcp-quick-setup">
-+        <div class="dao-mcp-quick-setup-title">
-+          $i18n{daoMcpQuickSetupTitle}
-+        </div>
-+        <div class="dao-mcp-quick-setup-description">
-+          $i18n{daoMcpQuickSetupDescription}
-+        </div>
-+        <div id="daoMcpSetupControls" class="dao-mcp-setup-controls">
-+          <div class="dao-mcp-client-field">
-+            <label class="dao-mcp-client-label" for="daoMcpClientSelector">
-+              $i18n{daoMcpClientLabel}
-+            </label>
-+            <select id="daoMcpClientSelector" class="dao-mcp-client-selector"
-+                value="{{daoMcpSetupOption_::change}}"
-+                on-change="onDaoMcpSetupOptionChange_">
-+              <option value="codex">$i18n{daoMcpClientCodex}</option>
-+              <option value="claude-code">$i18n{daoMcpClientClaudeCode}</option>
-+              <option value="generic-mcp">$i18n{daoMcpClientGeneric}</option>
-+            </select>
-+          </div>
-+          <cr-button id="daoMcpCopySetup"
-+              class="dao-mcp-copy-install-command"
-+              disabled="[[!daoMcpSetupContent_]]"
-+              on-click="onDaoMcpCopySetupContent_">
-+            <template is="dom-if" if="[[!daoMcpGenericSetup_]]">
-+              $i18n{daoMcpCopyInstallCommand}
-+            </template>
-+            <template is="dom-if" if="[[daoMcpGenericSetup_]]">
-+              $i18n{daoMcpCopyConfiguration}
-+            </template>
-+          </cr-button>
-+        </div>
-+        <code id="daoMcpSetupPreview"
-+            class="dao-mcp-command-preview">[[daoMcpSetupContent_]]</code>
-+        <div id="daoMcpSetupFeedback"
-+            class="dao-mcp-command-feedback" role="status"
-+            aria-live="polite">
-+          <template is="dom-if" if="[[daoMcpSetupCopied_]]">
-+            <template is="dom-if" if="[[!daoMcpGenericSetup_]]">
-+              $i18n{daoMcpInstallCommandCopied}
-+            </template>
-+            <template is="dom-if" if="[[daoMcpGenericSetup_]]">
-+              $i18n{daoMcpConfigurationCopied}
-+            </template>
-+          </template>
-+        </div>
-+      </div>
-+    </template>
-+  </div>
 +  </template>
 +</settings-section>

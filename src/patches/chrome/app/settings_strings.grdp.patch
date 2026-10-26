@@ -561,7 +561,7 @@
 +      Local agent collaboration
 +    </message>
 +    <message name="IDS_SETTINGS_DAO_LOCAL_AGENTS_TITLE" desc="Heading for the list of local AI agents, such as Claude Code and Codex, that Dao set up to use the browser.">
-+      Local agents
++      Skills and command
 +    </message>
 +    <message name="IDS_SETTINGS_DAO_LOCAL_AGENTS_DESCRIPTION" desc="Explains manual installation and update checks for local agent integrations.">
 +      Install, update, or uninstall skills and the command manually. Codex reads the shared skill in ~/.agents. Outdated copies are flagged when you open these settings or check for updates.
