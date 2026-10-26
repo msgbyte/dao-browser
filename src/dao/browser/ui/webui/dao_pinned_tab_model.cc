@@ -121,6 +121,11 @@ DaoPinnedTabItem::~DaoPinnedTabItem() = default;
 
 DaoPinnedTabModel::DaoPinnedTabModel() = default;
 
+DaoPinnedTabModel::DaoPinnedTabModel(const DaoPinnedTabModel&) = default;
+
+DaoPinnedTabModel& DaoPinnedTabModel::operator=(const DaoPinnedTabModel&) =
+    default;
+
 DaoPinnedTabModel::~DaoPinnedTabModel() = default;
 
 bool DaoPinnedTabModel::LoadFromJson(const std::string& json) {

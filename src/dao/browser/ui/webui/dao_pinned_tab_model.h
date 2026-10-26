@@ -40,8 +40,8 @@ struct DaoPinnedTabItem {
 class DaoPinnedTabModel {
  public:
   DaoPinnedTabModel();
-  DaoPinnedTabModel(const DaoPinnedTabModel&) = delete;
-  DaoPinnedTabModel& operator=(const DaoPinnedTabModel&) = delete;
+  DaoPinnedTabModel(const DaoPinnedTabModel&);
+  DaoPinnedTabModel& operator=(const DaoPinnedTabModel&);
   ~DaoPinnedTabModel();
 
   bool LoadFromJson(const std::string& json);
