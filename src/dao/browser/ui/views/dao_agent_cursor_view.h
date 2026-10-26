@@ -27,7 +27,7 @@ class DaoAgentCursorView : public views::View {
   METADATA_HEADER(DaoAgentCursorView, views::View)
 
  public:
-  using AnimationCompleteCallback = base::OnceClosure;
+  using AnimationCompleteCallback = base::OnceCallback<void(bool)>;
 
   DaoAgentCursorView();
   ~DaoAgentCursorView() override;
@@ -42,7 +42,7 @@ class DaoAgentCursorView : public views::View {
   void Hide();
 
   // Smoothly animate cursor from current position to (x, y) in view coords.
-  // Calls |callback| when animation completes.
+  // Calls |callback| with true on arrival, or false if canceled or already moving.
   void AnimateTo(float x, float y, AnimationCompleteCallback callback);
 
   // Play the click ripple effect at the current cursor position.

@@ -13150,13 +13150,35 @@ IN_PROC_BROWSER_TEST_F(DaoAgentCursorViewBrowserTest,
   cursor.ShowAtCenter();
   int callback_count = 0;
   cursor.AnimateTo(
-      700, 500,
-      base::BindOnce([](int* count) { ++*count; }, &callback_count));
+      700, 500, base::BindOnce([&](bool moved) {
+        ++callback_count;
+        EXPECT_EQ(gfx::Animation::PrefersReducedMotion(), moved);
+      }));
 
   cursor.Hide();
   EXPECT_EQ(1, callback_count);
   cursor.Hide();
   EXPECT_EQ(1, callback_count);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentCursorViewBrowserTest,
+                       OverlappingMovesPreserveActiveCallback) {
+  if (gfx::Animation::PrefersReducedMotion()) {
+    GTEST_SKIP() << "Reduced motion completes moves synchronously";
+  }
+  DaoAgentCursorView cursor;
+  cursor.SetSize(gfx::Size(1600, 600));
+  cursor.ShowAtCenter();
+  base::test::TestFuture<bool> first_move;
+  base::test::TestFuture<bool> overlapping_move;
+  cursor.AnimateTo(1500, 300, first_move.GetCallback());
+  cursor.AnimateTo(200, 300, overlapping_move.GetCallback());
+
+  ASSERT_TRUE(overlapping_move.IsReady());
+  EXPECT_FALSE(overlapping_move.Get());
+  EXPECT_FALSE(first_move.IsReady());
+  EXPECT_TRUE(first_move.Get());
+  EXPECT_TRUE(cursor.is_visible());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoAgentCursorViewBrowserTest,

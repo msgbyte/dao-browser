@@ -360,9 +360,10 @@ class DaoMcpPageUiDelegate final : public DaoPageTools::UiDelegate {
     cursor_view->AnimateTo(view_x, view_y,
                            base::BindOnce(
                                [](base::WeakPtr<content::WebContents> target,
-                                  base::OnceCallback<void(bool)> done) {
+                                  base::OnceCallback<void(bool)> done,
+                                  bool moved) {
                                  std::move(done).Run(
-                                     target &&
+                                     moved && target &&
                                      CanAnimateAgentCursorForTarget(
                                          target.get()));
                                },

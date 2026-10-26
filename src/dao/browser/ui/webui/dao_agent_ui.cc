@@ -650,10 +650,11 @@ void DaoAgentUIHandler::MoveCursor(content::WebContents* target,
   cursor_view->AnimateTo(view_x, view_y,
                          base::BindOnce(
                              [](base::WeakPtr<content::WebContents> target,
-                                base::OnceCallback<void(bool)> done) {
+                                base::OnceCallback<void(bool)> done,
+                                bool moved) {
                                std::move(done).Run(
-                                   target && CanAnimateAgentCursorForTarget(
-                                                 target.get()));
+                                   moved && target &&
+                                   CanAnimateAgentCursorForTarget(target.get()));
                              },
                              target->GetWeakPtr(),
                              std::move(callback)));

@@ -912,8 +912,8 @@ void DaoAgentSpace::MoveCursor(content::WebContents* target,
       static_cast<float>(viewport_screen.y() - cursor_bounds.y() + y),
       base::BindOnce(
           [](base::WeakPtr<content::WebContents> target,
-             base::OnceCallback<void(bool)> done) {
-            std::move(done).Run(target &&
+             base::OnceCallback<void(bool)> done, bool moved) {
+            std::move(done).Run(moved && target &&
                                 CanAnimateAgentCursorForTarget(target.get()));
           },
           target->GetWeakPtr(), std::move(callback)));

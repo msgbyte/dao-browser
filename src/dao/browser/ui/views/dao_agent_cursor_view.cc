@@ -100,13 +100,20 @@ void DaoAgentCursorView::Hide() {
   ripple_timer_.Stop();
   SetVisible(false);
   if (callback) {
-    std::move(callback).Run();
+    std::move(callback).Run(false);
   }
 }
 
 void DaoAgentCursorView::AnimateTo(float x,
-                                    float y,
-                                    AnimationCompleteCallback callback) {
+                                   float y,
+                                   AnimationCompleteCallback callback) {
+  if (state_ == State::kMoving) {
+    if (callback) {
+      std::move(callback).Run(false);
+    }
+    return;
+  }
+
   move_start_ = cursor_pos_;
   move_end_ = gfx::PointF(x, y);
   move_complete_callback_ = std::move(callback);
@@ -125,7 +132,7 @@ void DaoAgentCursorView::AnimateTo(float x,
     SetVisible(true);
     SchedulePaint();
     if (move_complete_callback_) {
-      std::move(move_complete_callback_).Run();
+      std::move(move_complete_callback_).Run(true);
     }
     return;
   }
@@ -249,7 +256,7 @@ void DaoAgentCursorView::OnAnimationTick() {
     cursor_rotation_degrees_ = 0.0f;
     cursor_scale_x_ = 1.0f;
     if (move_complete_callback_) {
-      std::move(move_complete_callback_).Run();
+      std::move(move_complete_callback_).Run(true);
     }
   }
 }
