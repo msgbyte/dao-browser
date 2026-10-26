@@ -110,7 +110,13 @@ bool DaoTabTooltipView::UpdatePreview(uint64_t id,
   if (!id || id != preview_generation_ || preview.isNull()) {
     return false;
   }
-  SetTooltip(title, preview_anchor_, preview);
+  if (GetVisible() && title_label_->GetText() == title &&
+      preview_.size() == preview.size()) {
+    preview_ = preview;
+    SchedulePaint();
+  } else {
+    SetTooltip(title, preview_anchor_, preview);
+  }
   return true;
 }
 

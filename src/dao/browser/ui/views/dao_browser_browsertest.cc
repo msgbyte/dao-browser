@@ -259,6 +259,7 @@
 #include "ui/views/test/button_test_api.h"
 #include "ui/views/test/widget_test.h"
 #include "ui/views/view.h"
+#include "ui/views/view_test_api.h"
 #include "ui/views/view_utils.h"
 #include "ui/views/widget/widget.h"
 #include "ui/views/widget/widget_observer.h"
@@ -12665,6 +12666,30 @@ IN_PROC_BROWSER_TEST_F(DaoTabTooltipViewBrowserTest,
   tooltip.HideTooltip();
   tooltip.ShowTooltip(u"Docs", gfx::Point(120, 30));
   EXPECT_EQ(title_only_size, tooltip.GetPreferredSize());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoTabTooltipViewBrowserTest,
+                       LiveFramesDoNotRelayoutUnchangedTooltip) {
+  views::View parent;
+  parent.SetBounds(0, 0, 800, 600);
+  auto* tooltip = parent.AddChildView(std::make_unique<DaoTabTooltipView>());
+  SkBitmap bitmap;
+  bitmap.allocN32Pixels(480, 300);
+  bitmap.eraseColor(SK_ColorBLUE);
+  const auto frame = gfx::ImageSkia::CreateFrom1xBitmap(bitmap);
+  const uint64_t id = tooltip->BeginPreview(gfx::Point(120, 30));
+  ASSERT_TRUE(tooltip->UpdatePreview(id, u"Task", frame));
+  parent.DeprecatedLayoutImmediately();
+  ASSERT_FALSE(views::ViewTestApi(&parent).needs_layout());
+  const gfx::Size size = tooltip->GetPreferredSize();
+
+  EXPECT_TRUE(tooltip->UpdatePreview(id, u"Task", frame));
+  EXPECT_FALSE(views::ViewTestApi(&parent).needs_layout());
+  EXPECT_EQ(size, tooltip->GetPreferredSize());
+
+  EXPECT_TRUE(tooltip->UpdatePreview(id, std::u16string(400, u'W'), frame));
+  EXPECT_TRUE(views::ViewTestApi(&parent).needs_layout());
+  EXPECT_GT(tooltip->GetPreferredSize().height(), size.height());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoTabTooltipViewBrowserTest,

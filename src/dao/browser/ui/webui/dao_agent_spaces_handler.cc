@@ -244,8 +244,6 @@ void DaoAgentSpacesHandler::OnPreviewFrame(const SkBitmap& frame) {
                                                      : space->status_text()),
       gfx::ImageSkia::CreateFrom1xBitmap(copy))) {
     StopPreview();
-  } else {
-    view->InvalidateLayout();
   }
 }
 
