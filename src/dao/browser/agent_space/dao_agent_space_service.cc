@@ -785,8 +785,8 @@ void DaoAgentSpaceService::OnBrowserClosed(BrowserWindowInterface* browser) {
   if (!space) {
     return;
   }
-  // The user closed the task window, or the app is quitting. The window is
-  // already going away, so leave its tabs alone.
+  // The task window is being destroyed (e.g. on shutdown or after its last
+  // tab closes), so leave its tabs alone. Ordinary window close only hides it.
   if (!space->is_closed()) {
     CloseSpace(space, DaoAgentSpaceState::kStopped, std::string(), {},
                /*window_closing=*/true);

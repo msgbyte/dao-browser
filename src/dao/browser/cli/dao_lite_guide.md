@@ -15,7 +15,11 @@ their existing tabs. Sign-ins alone do not require that skill.
 Dao Lite work happens in **Agent Spaces**: hidden browser windows that use the
 user's sign-ins but never touch the user's own tabs. The user sees every
 space in Dao's sidebar, can watch it live, take over at any time and hand it
-back. Treat that as a shared workspace, not a private one.
+back. Opening and closing the task window only changes its visibility; work
+continues in the background. Closing it after a takeover does not hand control
+back. The user can end the task with Stop. Closing all browser windows, closing
+all windows of its profile, or quitting the browser also ends the task. Treat it
+as a shared workspace, not a private one.
 
 ## Commands
 

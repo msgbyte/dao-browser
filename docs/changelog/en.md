@@ -5,6 +5,7 @@
 ### [Unreleased] Unreleased
 
 - Show AI tasks above the New Tab button in the sidebar.
+- Close a Dao Lite task window after watching it without stopping its background work; reopen it anytime from the task list. Closing all browser windows or all windows of a profile still ends the affected tasks.
 - Find MCP connections and local skills in the new Local agent collaboration section beside Dao Agent.
 - Open Quick setup directly below the MCP switch and manage skill installation in a separate Skills and command card.
 - Identify MCP server status more clearly, with a localized Ready indicator.

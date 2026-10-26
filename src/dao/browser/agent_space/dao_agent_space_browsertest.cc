@@ -173,6 +173,38 @@ IN_PROC_BROWSER_TEST_F(DaoAgentSpaceBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoAgentSpaceBrowserTest,
+                       ClosingTaskWindowKeepsSpaceRunning) {
+  const std::string space_id =
+      CreateSpace(embedded_test_server()->GetURL("/title1.html"));
+  ASSERT_TRUE(WaitForLoad(space_id));
+  DaoAgentSpace* space = Space(space_id);
+  BrowserWindowInterface* space_browser = space->browser();
+  Eval(space_id, "window.savedTaskState = 'still running'");
+
+  for (int attempt = 0; attempt < 2; ++attempt) {
+    ASSERT_TRUE(service_->ShowWindow(space_id));
+    EXPECT_TRUE(space_browser->GetWindow()->IsVisible());
+    space_browser->GetWindow()->Close();
+    ASSERT_TRUE(base::test::RunUntil([&] {
+      return !space->browser() || !space->browser()->GetWindow()->IsVisible();
+    }));
+    ASSERT_EQ(space_browser, space->browser());
+    EXPECT_EQ(DaoAgentSpaceState::kRunning, space->state());
+    EXPECT_TRUE(IsDaoHiddenBrowser(space_browser));
+    EXPECT_EQ(base::Value("still running"),
+              Eval(space_id, "window.savedTaskState"));
+    EXPECT_EQ(base::Value("visible"), Eval(space_id, "document.visibilityState"));
+  }
+
+  ASSERT_TRUE(service_->Stop(space_id));
+  EXPECT_EQ(DaoAgentSpaceState::kStopped, space->state());
+  ASSERT_TRUE(base::test::RunUntil([&] { return !space->browser(); }));
+  EXPECT_EQ("SPACE_CLOSED",
+            ErrorCode(Call("get_page_info",
+                           base::DictValue().Set("space_id", space_id))));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentSpaceBrowserTest,
                        ClosingProfileWindowsStopsSpacesWithoutBeforeUnload) {
   auto user_browser = browser()->GetWeakPtr();
   for (bool with_callback : {false, true}) {
@@ -305,6 +337,23 @@ IN_PROC_BROWSER_TEST_F(DaoAgentSpaceBrowserTest,
   EXPECT_TRUE(space_browser);
   EXPECT_EQ(DaoAgentSpaceState::kRunning, space->state());
   EXPECT_EQ(base::Value("visible"), Eval(space_id, "document.visibilityState"));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentSpaceBrowserTest,
+                       ClosingTaskWindowWhileQuittingStopsSpace) {
+  const std::string space_id =
+      CreateSpace(embedded_test_server()->GetURL("/title1.html"));
+  ASSERT_TRUE(WaitForLoad(space_id));
+  DaoAgentSpace* space = Space(space_id);
+  ASSERT_TRUE(service_->ShowWindow(space_id));
+
+  const bool was_quitting = browser_shutdown::IsTryingToQuit();
+  base::ScopedClosureRunner restore_quit_state(
+      base::BindOnce(&browser_shutdown::SetTryingToQuit, was_quitting));
+  browser_shutdown::SetTryingToQuit(true);
+  space->browser()->GetWindow()->Close();
+  ASSERT_TRUE(base::test::RunUntil([&] { return !space->browser(); }));
+  EXPECT_EQ(DaoAgentSpaceState::kStopped, space->state());
 }
 
 // The hidden window must behave like a foreground one: visible to the page,
@@ -547,6 +596,19 @@ IN_PROC_BROWSER_TEST_F(DaoAgentSpaceBrowserTest,
   EXPECT_FALSE(help.IsReady());
   EXPECT_EQ(DaoAgentSpaceState::kUserInControl, Space(space_id)->state());
   EXPECT_EQ("Sign in to continue", Space(space_id)->handoff_message());
+
+  ASSERT_TRUE(service_->ShowWindow(space_id));
+  Space(space_id)->browser()->GetWindow()->Close();
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return !Space(space_id)->browser() ||
+           !Space(space_id)->browser()->GetWindow()->IsVisible();
+  }));
+  ASSERT_TRUE(Space(space_id)->browser());
+  EXPECT_FALSE(help.IsReady());
+  EXPECT_EQ(DaoAgentSpaceState::kUserInControl, Space(space_id)->state());
+  EXPECT_EQ("SPACE_USER_IN_CONTROL",
+            ErrorCode(Call("get_page_info",
+                           base::DictValue().Set("space_id", space_id))));
 
   ASSERT_TRUE(service_->HandBack(space_id));
   DaoBrowserToolResult result = help.Take();
