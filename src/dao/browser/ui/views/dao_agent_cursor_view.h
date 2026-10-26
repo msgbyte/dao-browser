@@ -35,7 +35,7 @@ class DaoAgentCursorView : public views::View {
   DaoAgentCursorView(const DaoAgentCursorView&) = delete;
   DaoAgentCursorView& operator=(const DaoAgentCursorView&) = delete;
 
-  // Show cursor at the center of the content area.
+  // Cancel any active move and show cursor at the center of the content area.
   void ShowAtCenter();
 
   // Hide and reset all state.

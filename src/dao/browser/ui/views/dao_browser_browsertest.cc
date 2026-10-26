@@ -135,6 +135,7 @@
 #include "content/public/test/test_navigation_observer.h"
 #include "content/public/test/test_utils.h"
 #include "content/public/test/test_web_ui.h"
+#include "dao/browser/agent/dao_agent_lock_tab_helper.h"
 #include "dao/browser/agent/dao_agent_memory_service.h"
 #include "dao/browser/agent/dao_agent_memory_service_factory.h"
 #include "dao/browser/agent/dao_agent_memory_store.h"
@@ -13159,6 +13160,59 @@ IN_PROC_BROWSER_TEST_F(DaoAgentCursorViewBrowserTest,
   EXPECT_EQ(1, callback_count);
   cursor.Hide();
   EXPECT_EQ(1, callback_count);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentCursorViewBrowserTest,
+                       ShowAtCenterCancelsMoveBeforeReentrantMove) {
+  if (gfx::Animation::PrefersReducedMotion()) {
+    GTEST_SKIP() << "Reduced motion completes moves synchronously";
+  }
+  DaoAgentCursorView cursor;
+  cursor.SetSize(gfx::Size(1600, 600));
+  cursor.ShowAtCenter();
+  int callback_count = 0;
+  base::test::TestFuture<bool> next_move;
+  cursor.AnimateTo(
+      1500, 300, base::BindOnce([&](bool moved) {
+        ++callback_count;
+        EXPECT_FALSE(moved);
+        cursor.AnimateTo(200, 300, next_move.GetCallback());
+      }));
+
+  cursor.ShowAtCenter();
+
+  ASSERT_EQ(1, callback_count);
+  EXPECT_TRUE(next_move.Get());
+  EXPECT_TRUE(cursor.is_visible());
+  cursor.ShowAtCenter();
+  EXPECT_EQ(1, callback_count);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentCursorViewBrowserTest,
+                       SwitchingToLockedTabCompletesActiveMove) {
+  if (gfx::Animation::PrefersReducedMotion()) {
+    GTEST_SKIP() << "Reduced motion completes moves synchronously";
+  }
+  TabStripModel* model = browser()->tab_strip_model();
+  content::WebContents* original = model->GetActiveWebContents();
+  chrome::AddTabAt(browser(), GURL(url::kAboutBlankURL), -1, false);
+  content::WebContents* next = model->GetWebContentsAt(model->count() - 1);
+  ASSERT_TRUE(content::WaitForLoadStop(next));
+  DaoAgentLockTabHelper::LockContents(original);
+  DaoAgentLockTabHelper::LockContents(next);
+  DaoAgentCursorView* cursor = GetBrowserView(browser())->dao_agent_cursor();
+  ASSERT_NE(nullptr, cursor);
+  cursor->ShowAtCenter();
+  base::test::TestFuture<bool> move;
+  cursor->AnimateTo(100, 100, move.GetCallback());
+
+  model->ActivateTabAt(model->GetIndexOfWebContents(next));
+
+  ASSERT_TRUE(move.IsReady());
+  EXPECT_FALSE(move.Get());
+  EXPECT_TRUE(cursor->is_visible());
+  DaoAgentLockTabHelper::UnlockContents(original);
+  DaoAgentLockTabHelper::UnlockContents(next);
 }
 
 IN_PROC_BROWSER_TEST_F(DaoAgentCursorViewBrowserTest,

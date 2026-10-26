@@ -81,6 +81,9 @@ DaoAgentCursorView::DaoAgentCursorView() {
 DaoAgentCursorView::~DaoAgentCursorView() = default;
 
 void DaoAgentCursorView::ShowAtCenter() {
+  AnimationCompleteCallback callback = std::move(move_complete_callback_);
+  move_timer_.Stop();
+  ripple_timer_.Stop();
   cursor_pos_ = gfx::PointF(width() / 2.0f, height() / 2.0f);
   cursor_rotation_degrees_ = 0.0f;
   cursor_scale_x_ = 1.0f;
@@ -88,6 +91,9 @@ void DaoAgentCursorView::ShowAtCenter() {
   state_ = State::kIdle;
   SetVisible(true);
   SchedulePaint();
+  if (callback) {
+    std::move(callback).Run(false);
+  }
 }
 
 void DaoAgentCursorView::Hide() {
