@@ -8,7 +8,6 @@
 #include <utility>
 
 #include "base/functional/bind.h"
-#include "base/functional/callback_helpers.h"
 #include "base/i18n/rtl.h"
 #include "base/i18n/time_formatting.h"
 #include "base/no_destructor.h"
@@ -294,7 +293,8 @@ std::unique_ptr<views::View> DaoMcpApprovalDialog::BuildContents(
     if (url.SchemeIsHTTPOrHTTPS()) {
       site = url.host();
       if (url.has_port()) {
-        site += ":" + url.port();
+        site += ':';
+        site += url.port();
       }
     }
     target->AddChildView(
@@ -390,7 +390,7 @@ std::unique_ptr<views::View> DaoMcpApprovalDialog::BuildContents(
   details_row->SetLayoutManager(std::make_unique<views::BoxLayout>(
       views::BoxLayout::Orientation::kHorizontal));
   auto* details_button = details_row->AddChildView(CreateDaoDialogButton(
-      base::DoNothing(),
+      views::Button::PressedCallback(),
       l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_SHOW_DETAILS), std::nullopt,
       ui::ButtonStyle::kText));
   auto* details_view = contents->AddChildView(std::move(details));

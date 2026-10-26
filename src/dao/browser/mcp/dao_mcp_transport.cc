@@ -113,9 +113,9 @@ base::expected<uint16_t, int> DaoMcpTransport::StartListening(
     return base::unexpected(result);
   }
 #if BUILDFLAG(IS_WIN)
-  return address.port();
+  return base::ok(address.port());
 #else
-  return uint16_t{0};
+  return base::ok(uint16_t{0});
 #endif
 }
 
