@@ -149,8 +149,10 @@ std::optional<base::ProcessId> GetDaoMcpLoopbackTcpOwner(uint16_t local_port,
   if (result != NO_ERROR) {
     return std::nullopt;
   }
-  const auto* table =
-      reinterpret_cast<const MIB_TCPTABLE_OWNER_PID*>(storage.data());
+  // SAFETY: GetExtendedTcpTable succeeded with a complete table in storage.
+  const auto* table = UNSAFE_BUFFERS(
+      reinterpret_cast<const MIB_TCPTABLE_OWNER_PID*>(storage.data()));
+  // SAFETY: The successful API call guarantees dwNumEntries rows in storage.
   const auto rows =
       UNSAFE_BUFFERS(base::span(table->table, table->dwNumEntries));
   std::optional<base::ProcessId> owner;
