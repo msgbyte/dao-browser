@@ -4,6 +4,8 @@
 
 ### [Unreleased] Unreleased
 
+### [1.0.124] - 2026-10-27
+
 - Prevent native browser notifications from crashing when displayed or when their buttons are used.
 - Restore keyboard access to notification buttons when switching focus between browser panes.
 - Keep native browser notifications inside the active page in Split View.
