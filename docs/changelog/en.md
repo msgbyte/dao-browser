@@ -9,15 +9,16 @@
 - Keep earlier click ripples from hiding or interrupting the virtual pointer during consecutive AI clicks.
 - Prevent AI clicks from timing out when switching to another AI-controlled tab.
 - Hover a command bar recommendation and click ×, or press Shift+Delete on the selected recommendation, to remove it when deletion is supported, using the browser's built-in behavior.
+- Keep AI task hover previews from reappearing after leaving the sidebar or covering a tab preview, and reduce unnecessary window redraws while watching a task.
 - Show AI tasks above the New Tab button in the sidebar.
+- Prevent browser slowdowns from repeated pinned-tab syncing when multiple windows or Dao Lite tasks are open.
 - Close a Dao Lite task window after watching it without stopping its background work; reopen it anytime from the task list. Closing all browser windows or all windows of a profile still ends the affected tasks.
 - Find MCP connections and local skills in the new Local agent collaboration section beside Dao Agent.
 - Open Quick setup directly below the MCP switch and manage skill installation in a separate Skills and command card.
 - Identify MCP server status more clearly, with a localized Ready indicator.
 - Refresh local skill and command status when you return through the sidebar, scroll back to the section, or reopen the settings overview.
 - Simplify local agent settings by removing the redundant Check for updates button.
-- Keep AI task hover previews from reappearing after leaving the sidebar or covering a tab preview, and reduce unnecessary window redraws while watching a task.
-- Prevent browser slowdowns from repeated pinned-tab syncing when multiple windows or Dao Lite tasks are open.
+
 ### [1.0.124] - 2026-10-27
 
 - Prevent native browser notifications from crashing when displayed or when their buttons are used.
