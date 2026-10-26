@@ -8,10 +8,10 @@ const helpers = source.match(/kSnapshotHelpersScript\[\] = R"js\(([\s\S]*?)\)js"
 const withHelpers = (script: string) => `(function(){${helpers}return (${script})})()`;
 const script = withHelpers(source.match(/kAccessibilityTreeScript\[\] = R"js\(([\s\S]*?)\)js";/)![1]);
 const observe = () => JSON.parse((0, eval)(script)('compact', null, 'snapshot-test', false));
-const actionScript = withHelpers(source.match(/WithSnapshotHelpers\(R"js\(\n(\(function\(refId, snapshotId, preconditions, fill, text\)[\s\S]*?)\)js"\)/)![1]);
-const click = (element: {ref_id: string; role: string; name: string; value?: string}) =>
+const actionScript = withHelpers(source.match(/WithSnapshotHelpers\(R"js\(\n(\(function\(refId, snapshotId, preconditions, fill, text(?:, animate)?\)[\s\S]*?)\)js"\)/)![1]);
+const click = (element: {ref_id: string; role: string; name: string; value?: string}, animate = false) =>
   JSON.parse((0, eval)(actionScript)(element.ref_id, 'snapshot-test',
-    {role: element.role, name: element.name, value: element.value}, false, ''));
+    {role: element.role, name: element.name, value: element.value}, false, '', animate));
 
 afterEach(() => { vi.restoreAllMocks(); document.body.innerHTML = ''; });
 
@@ -21,6 +21,35 @@ beforeEach(() => {
     return {top: this.id === 'offscreen' ? 10000 : 10, bottom: 40,
       left: 10, right: 110, width: 100, height: 30, x: 10, y: 10, toJSON() {}};
   });
+});
+
+it('prepares the cursor destination without clicking, then clicks once', () => {
+  document.body.innerHTML = '<button>Continue</button>';
+  const button = document.querySelector('button')!;
+  const clicked = vi.fn();
+  button.addEventListener('click', clicked);
+  const element = observe().elements[0];
+
+  expect(click(element, true)).toEqual({x: 60, y: 25});
+  expect(clicked).not.toHaveBeenCalled();
+  expect(click(element)).toEqual({clicked: true, ref_id: element.ref_id});
+  expect(clicked).toHaveBeenCalledTimes(1);
+});
+
+it.each(['name', 'snapshot', 'removed'])('rejects a %s change during cursor movement', change => {
+  document.body.innerHTML = '<button>Continue</button>';
+  const button = document.querySelector('button')!;
+  const clicked = vi.fn();
+  button.addEventListener('click', clicked);
+  const element = observe().elements[0];
+  expect(click(element, true)).toEqual({x: 60, y: 25});
+
+  if (change === 'name') button.textContent = 'Delete';
+  if (change === 'snapshot') document.documentElement.setAttribute('data-dao-snapshot', 'new');
+  if (change === 'removed') button.remove();
+
+  expect(click(element)).toHaveProperty('error');
+  expect(clicked).not.toHaveBeenCalled();
 });
 
 it('creates one bounded viewport snapshot and excludes sensitive field values', () => {

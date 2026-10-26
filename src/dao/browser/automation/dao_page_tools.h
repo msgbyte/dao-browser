@@ -131,7 +131,7 @@ class DaoPageTools {
   void ExecuteAccessibilitySnapshot(std::string_view request_id, bool query);
   void ExecuteCaptureScreenshot(std::string_view request_id);
   void ExecuteClickElement(std::string_view request_id);
-  void ExecuteRefAction(std::string_view request_id);
+  void ExecuteRefAction(std::string_view request_id, bool animate_cursor = true);
   void ExecuteAnimatedClick(std::string_view request_id, std::string selector);
   void OnAnimatedClickBounds(std::string request_id,
                              DaoDevToolsClient::CommandResult result);

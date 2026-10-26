@@ -13,6 +13,7 @@
 #include <utility>
 
 #include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/run_loop.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
@@ -354,20 +355,89 @@ IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
           .Set("role", "button")
           .Set("ancestor_ref", *data.FindString("scope_ref_id")));
 
+  ui_delegate_.RespectTargetActivation();
   DaoBrowserToolResult clicked =
       Execute(session.get(), "click_by_ref", click_arguments.Clone());
   ASSERT_TRUE(clicked.ok) << clicked.error->message;
+  EXPECT_EQ(1, ui_delegate_.animation_count());
+  EXPECT_EQ(1, ui_delegate_.ripple_count());
   EXPECT_EQ(
       1, content::EvalJs(target, "window.__dao_guarded_clicks").ExtractInt());
 
   ASSERT_TRUE(content::ExecJs(
       target, "document.getElementById('live').textContent = 'Changed';"));
   DaoBrowserToolResult guarded =
-      Execute(session.get(), "click_by_ref", std::move(click_arguments));
+      Execute(session.get(), "click_by_ref", click_arguments.Clone());
   ASSERT_FALSE(guarded.ok);
   EXPECT_EQ(DaoToolErrorCode::kInvalidArgument, guarded.error->code);
+  EXPECT_EQ(1, ui_delegate_.move_count());
+  EXPECT_EQ(1, ui_delegate_.ripple_count());
   EXPECT_EQ(
       1, content::EvalJs(target, "window.__dao_guarded_clicks").ExtractInt());
+
+  ASSERT_TRUE(content::ExecJs(
+      target, "document.getElementById('live').textContent = 'Open door';"));
+  chrome::AddTabAt(browser(), second_url(), 1, true);
+  content::WebContents* foreground =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(content::WaitForLoadStop(foreground));
+  DaoBrowserToolResult background =
+      Execute(session.get(), "click_by_ref", std::move(click_arguments));
+  ASSERT_TRUE(background.ok) << background.error->message;
+  EXPECT_EQ(2, ui_delegate_.move_count());
+  EXPECT_EQ(1, ui_delegate_.animation_count());
+  EXPECT_EQ(1, ui_delegate_.ripple_count());
+  EXPECT_EQ(
+      2, content::EvalJs(target, "window.__dao_guarded_clicks").ExtractInt());
+  EXPECT_EQ(foreground, browser()->tab_strip_model()->GetActiveWebContents());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
+                       GuardedClickRevalidatesAfterCursorMove) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
+  auto session = MakeSessionForActiveTab();
+  content::WebContents* target = session->ResolveTarget().value();
+  ASSERT_TRUE(content::ExecJs(target, R"(
+    window.clicks = 0;
+    document.body.innerHTML = '<button id="live">Continue</button>';
+    document.getElementById('live').onclick = () => ++window.clicks;
+  )"));
+  auto query = Execute(
+      session.get(), "query_elements",
+      base::DictValue().Set("role", "button").Set("require_count", 1));
+  ASSERT_TRUE(query.ok) << query.error->message;
+  const auto& data = query.data.GetDict();
+  DaoBrowserToolCall call;
+  call.request_id = "guarded-animated-click";
+  call.name = "click_by_ref";
+  call.arguments
+      .Set("ref_id",
+           *(*data.FindList("matches"))[0].GetDict().FindString("ref_id"))
+      .Set("document_id", *data.FindString("document_id"))
+      .Set("snapshot_id", *data.FindString("snapshot_id"))
+      .Set("preconditions", base::DictValue().Set("text", "Continue"));
+  call.timeout = base::Seconds(5);
+  ui_delegate_.HoldNextCursorMove(base::DoNothing());
+  base::test::TestFuture<DaoBrowserToolResult> future;
+  executor_->Execute(session.get(), DaoToolClient::kMcp, std::move(call),
+                     future.GetCallback());
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return ui_delegate_.animation_count() == 1 || future.IsReady();
+  }));
+  ASSERT_FALSE(future.IsReady());
+  EXPECT_EQ(0, content::EvalJs(target, "window.clicks").ExtractInt());
+  EXPECT_EQ(0, ui_delegate_.ripple_count());
+  ASSERT_TRUE(content::ExecJs(
+      target, "document.getElementById('live').textContent = 'Delete';"));
+  ui_delegate_.CompletePendingCursorMove(true);
+  DaoBrowserToolResult result = future.Take();
+
+  ASSERT_FALSE(result.ok);
+  ASSERT_TRUE(result.error.has_value());
+  EXPECT_EQ(DaoToolErrorCode::kInvalidArgument, result.error->code);
+  EXPECT_EQ(0, content::EvalJs(target, "window.clicks").ExtractInt());
+  EXPECT_EQ(0, ui_delegate_.ripple_count());
+  EXPECT_EQ(1, ui_delegate_.cancel_cursor_count());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,

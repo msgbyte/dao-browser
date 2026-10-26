@@ -774,6 +774,7 @@ struct DaoPageTools::Operation : public content::WebContentsObserver {
   base::OneShotTimer wait_deadline;
   base::OneShotTimer wait_poll;
   int pending_background_click_commands = 0;
+  bool ref_cursor_moved = false;
   bool owns_lock = false;
   bool temporary_highlight = false;
   bool persistent_highlight_committed = false;
@@ -1558,7 +1559,8 @@ void DaoPageTools::ExecuteAccessibilitySnapshot(std::string_view request_id,
           weak_factory_.GetWeakPtr(), std::string(request_id)));
 }
 
-void DaoPageTools::ExecuteRefAction(std::string_view request_id) {
+void DaoPageTools::ExecuteRefAction(std::string_view request_id,
+                                   bool animate_cursor) {
   Operation* operation = FindOperation(request_id);
   if (!operation) {
     return;
@@ -1580,6 +1582,7 @@ void DaoPageTools::ExecuteRefAction(std::string_view request_id) {
     return;
   }
   const bool fill = operation->name == "fill_by_ref";
+  const bool animate = !fill && animate_cursor && ui_delegate_;
   const std::string* text = operation->arguments.FindString("text");
   if (fill && !text) {
     FinishError(request_id, InvalidArgument("Fill text is required."));
@@ -1592,7 +1595,7 @@ void DaoPageTools::ExecuteRefAction(std::string_view request_id) {
                             &preconditions_json);
   }
   const std::string script = WithSnapshotHelpers(R"js(
-(function(refId, snapshotId, preconditions, fill, text) {
+(function(refId, snapshotId, preconditions, fill, text, animate) {
   function fail(message) { return JSON.stringify({error: message}); }
   function visible(el) {
     if (el.offsetWidth === 0 && el.offsetHeight === 0) return false;
@@ -1739,6 +1742,11 @@ void DaoPageTools::ExecuteRefAction(std::string_view request_id) {
     }
     return JSON.stringify({filled: true, ref_id: refId});
   }
+  if (animate) {
+    var bounds = el.getBoundingClientRect();
+    return JSON.stringify({x: bounds.left + bounds.width / 2,
+                           y: bounds.top + bounds.height / 2});
+  }
   el.click();
   return JSON.stringify({clicked: true, ref_id: refId});
 })
@@ -1746,16 +1754,18 @@ void DaoPageTools::ExecuteRefAction(std::string_view request_id) {
                              "," + QuoteForJavaScript(*snapshot_id) + "," +
                              preconditions_json + "," +
                              (fill ? "true" : "false") + "," +
-                             QuoteForJavaScript(text ? *text : "") + ")";
+                             QuoteForJavaScript(text ? *text : "") + "," +
+                             (animate ? "true" : "false") + ")";
   base::DictValue params;
   params.Set("expression", script);
   params.Set("returnByValue", true);
-  if (ui_delegate_ && ui_delegate_->GrantsUserActivation()) {
+  if (!animate && ui_delegate_ && ui_delegate_->GrantsUserActivation()) {
     params.Set("userGesture", true);
   }
   SendCommand(request_id, "Runtime.evaluate", std::move(params),
               base::BindOnce(
                   [](base::WeakPtr<DaoPageTools> self, std::string request_id,
+                     bool animate,
                      DaoDevToolsClient::CommandResult result) {
                     if (!self) {
                       return;
@@ -1780,9 +1790,46 @@ void DaoPageTools::ExecuteRefAction(std::string_view request_id) {
                       self->FinishError(request_id, InvalidArgument(*error));
                       return;
                     }
+                    Operation* operation = self->FindOperation(request_id);
+                    if (!operation) {
+                      return;
+                    }
+                    if (animate) {
+                      const auto x = parsed->GetDict().FindDouble("x");
+                      const auto y = parsed->GetDict().FindDouble("y");
+                      if (!x || !y) {
+                        self->FinishError(
+                            request_id, InternalError("Invalid click bounds."));
+                        return;
+                      }
+                      self->ui_delegate_->MoveCursor(
+                          operation->target.get(), *x, *y,
+                          base::BindOnce(
+                              [](base::WeakPtr<DaoPageTools> self,
+                                 std::string request_id, bool moved) {
+                                if (!self ||
+                                    !self->ValidateOperationTarget(request_id)) {
+                                  return;
+                                }
+                                Operation* operation =
+                                    self->FindOperation(request_id);
+                                operation->ref_cursor_moved = moved;
+                                if (moved) {
+                                  self->TrackCursor(operation->target.get());
+                                }
+                                // Revalidate after animation before clicking.
+                                self->ExecuteRefAction(request_id, false);
+                              },
+                              self, request_id));
+                      return;
+                    }
+                    if (operation->ref_cursor_moved && self->ui_delegate_) {
+                      self->ui_delegate_->PlayClickRipple(
+                          operation->target.get());
+                    }
                     self->FinishSuccess(request_id, std::move(*parsed));
                   },
-                  weak_factory_.GetWeakPtr(), std::string(request_id)));
+                  weak_factory_.GetWeakPtr(), std::string(request_id), animate));
 }
 
 void DaoPageTools::ExecuteCaptureScreenshot(std::string_view request_id) {
