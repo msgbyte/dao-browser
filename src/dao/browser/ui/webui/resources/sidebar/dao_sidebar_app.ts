@@ -379,6 +379,13 @@ export class DaoSidebarApp extends CrLitElement {
       this.activeTabId_ = activeTabId;
       if (activeTabChanged) {
         this.pendingActiveFolderTabId_ = activeUnpinnedTabId;
+        if (activeTab?.isPinned) {
+          // Pins live outside the list; replace any in-flight tab scroll.
+          this.shadowRoot?.querySelector<HTMLElement>('.tab-section')?.scrollTo({
+            top: 0,
+            behavior: 'smooth',
+          });
+        }
       }
 
       this.pinnedItems_ = state.pinnedItems || [];

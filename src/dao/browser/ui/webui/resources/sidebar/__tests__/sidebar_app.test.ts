@@ -477,6 +477,63 @@ describe('dao-sidebar-app', () => {
     expect(el.autoScrollToken_).toBe(1);
   });
 
+  it.each([true, false])(
+      'returns to the top only when closing selects a pinned tab (pinned: %s)',
+      async selectsPinned => {
+        const {el} = await loadApp();
+        const pinned = tab({tabId: 'pinned', isPinned: true});
+        const remaining = tab({tabId: 'remaining', index: 1});
+        fireSidebarStateChanged(sidebarState({
+          pinnedTabs: [pinned],
+          unpinnedTabs: [remaining, tab({tabId: 'closing', isActive: true})],
+        }));
+        await el.updateComplete;
+        const scroller = el.shadowRoot!.querySelector<HTMLElement>(
+            '.tab-section')!;
+        scroller.scrollTop = 400;
+        scroller.scrollTo = vi.fn();
+
+        fireSidebarStateChanged(sidebarState({
+          pinnedTabs: [{...pinned, isActive: selectsPinned}],
+          unpinnedTabs: [{...remaining, isActive: !selectsPinned}],
+        }));
+        await el.updateComplete;
+
+        if (selectsPinned) {
+          expect(scroller.scrollTo).toHaveBeenCalledExactlyOnceWith({
+            top: 0,
+            behavior: 'smooth',
+          });
+        } else {
+          expect(scroller.scrollTo).not.toHaveBeenCalled();
+          expect(scroller.scrollTop).toBe(400);
+        }
+      });
+
+  it.each([false, true])(
+      'preserves scrolling on initial state and refreshes (pinned: %s)',
+      async isPinned => {
+        const {el} = await loadApp();
+        await el.updateComplete;
+        const active = tab({isActive: true, isPinned});
+        const state = sidebarState({
+          pinnedTabs: isPinned ? [active] : [],
+          unpinnedTabs: isPinned ? [] : [active],
+        });
+
+        for (let i = 0; i < 2; i++) {
+          const scroller = el.shadowRoot!.querySelector<HTMLElement>(
+              '.tab-section')!;
+          scroller.scrollTop = 400;
+          scroller.scrollTo = vi.fn();
+          fireSidebarStateChanged(state);
+          await el.updateComplete;
+
+          expect(scroller.scrollTo).not.toHaveBeenCalled();
+          expect(scroller.scrollTop).toBe(400);
+        }
+      });
+
   it('does not refresh the scroll token when sidebar state has no target',
       async () => {
         const {el} = await loadApp();
