@@ -156,6 +156,30 @@ export class DaoSidebarApp extends CrLitElement {
         position: relative;
       }
 
+      .classification-status {
+        display: flex;
+        flex-shrink: 0;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        color: var(--text-secondary);
+        font-size: 12px;
+      }
+
+      .classification-spinner {
+        width: 12px;
+        height: 12px;
+        flex-shrink: 0;
+        border: 2px solid var(--separator);
+        border-top-color: var(--accent);
+        border-radius: 50%;
+        animation: classificationSpin 800ms linear infinite;
+      }
+
+      @keyframes classificationSpin {
+        to { transform: rotate(360deg); }
+      }
+
       .toolbar-end-actions {
         display: flex;
         align-items: center;
@@ -259,6 +283,7 @@ export class DaoSidebarApp extends CrLitElement {
       tabScrollbarThumbHeight_: {type: Number},
       toastText_: {type: String},
       toastVisible_: {type: Boolean},
+      classificationInFlight_: {type: Boolean},
     };
   }
 
@@ -285,11 +310,11 @@ export class DaoSidebarApp extends CrLitElement {
   declare protected tabScrollbarThumbHeight_: number;
   declare protected toastText_: string;
   declare protected toastVisible_: boolean;
+  declare protected classificationInFlight_: boolean;
 
   // Non-reactive internals — plain fields are fine here because Lit doesn't
   // install accessors for these.
   private folderModel_ = new FolderModel();
-  private classificationInFlight_ = false;
   private classificationGeneration_ = 0;
   private folderEditVersion_ = 0;
   private foldersLoaded_: boolean = false;
@@ -327,6 +352,7 @@ export class DaoSidebarApp extends CrLitElement {
     this.showPlusMenu_ = false;
     this.newTabHighlighted_ = false;
     this.updateState_ = null;
+    this.classificationInFlight_ = false;
     this.autoScrollTabId_ = '';
     this.autoScrollToken_ = 0;
     this.tabScrollbarVisible_ = false;
@@ -552,7 +578,6 @@ export class DaoSidebarApp extends CrLitElement {
           .map(tab => tab.tabId);
       const folders = this.folderModel_.getFolders().map(({id, name}) => ({id, name}));
       const editVersion = this.folderEditVersion_;
-      sendNative('showClassificationToast', 'started');
       const result = await sendNativeAsync<{ok: boolean; groups?: unknown}>(
           'classifyTabs', tabs.map(({tabId, url}) => ({tabId, url})), folders);
       if (!live()) return;
@@ -1109,6 +1134,13 @@ export class DaoSidebarApp extends CrLitElement {
         </div>
 
         <dao-media-control></dao-media-control>
+
+        ${this.classificationInFlight_ ? html`
+          <div class="classification-status" role="status" aria-live="polite">
+            <span class="classification-spinner" aria-hidden="true"></span>
+            ${getLocalizedString('daoClassifyTabsStarted')}
+          </div>
+        ` : nothing}
 
         <dao-download-button>
           <div class="toolbar-end-actions" slot="toolbar-end">

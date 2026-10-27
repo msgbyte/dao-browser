@@ -5,6 +5,7 @@
 ### [Unreleased] Unreleased
 
 - Fix Classify Tabs Below with AI so it only groups tabs below the clicked tab.
+- Keep a loading indicator in the sidebar until AI tab classification finishes.
 - Keep local agent approval dialogs from becoming too wide when tab titles or URLs are long.
 - Search tabs by title or URL when choosing which tab a local agent may control.
 - Keep macOS browser fullscreen active after a short Escape press dismisses the command bar, including when focus moves back to the page or another window.

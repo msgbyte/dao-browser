@@ -307,8 +307,9 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
   expands its folder. The final atomic write compares normalized
   snapshots so unchanged legacy data remains writable, and rejects newer folder
   data rather than overwriting it. Classification does not activate or navigate
-  tabs, and uses Dao native toasts for progress, completion, empty scope, and
-  failure. Requests exceeding
+  tabs. A persistent loading indicator at the bottom of the sidebar stays visible
+  until classification and saving finish; completion, empty scope, and failure
+  use Dao native toasts. Requests exceeding
   1,000 tabs, 500 existing folders, or 512 KiB fail without partial classification.
 - **Configurable stale-tab expiration** — The "You and Dao" Settings page
   stores a profile-scoped integer from 1–720 hours (24 hours by default),

@@ -3014,9 +3014,7 @@ void DaoSidebarUIHandler::HandleShowClassificationToast(
   }
   const auto& state = args[0].GetString();
   int message = IDS_DAO_CLASSIFY_TABS_FAILED;
-  if (state == "started") {
-    message = IDS_DAO_CLASSIFY_TABS_STARTED;
-  } else if (state == "done") {
+  if (state == "done") {
     message = IDS_DAO_CLASSIFY_TABS_DONE;
   } else if (state == "empty") {
     message = IDS_DAO_CLASSIFY_TABS_EMPTY;
@@ -4549,6 +4547,8 @@ DaoSidebarUI::DaoSidebarUI(content::WebUI* web_ui) : WebUIController(web_ui) {
 
   source->AddResourcePaths(kDaoSidebarResources);
   source->SetDefaultResource(IDR_DAO_SIDEBAR_SIDEBAR_HTML);
+  source->AddLocalizedString("daoClassifyTabsStarted",
+                             IDS_DAO_CLASSIFY_TABS_STARTED);
   source->AddLocalizedString("daoSidebarStaleTabsArchivedToast",
                              IDS_DAO_SIDEBAR_STALE_TABS_ARCHIVED_TOAST);
   source->AddLocalizedString(

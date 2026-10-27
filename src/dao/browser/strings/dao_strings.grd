@@ -1043,7 +1043,7 @@
       <message name="IDS_DAO_TAB_CATEGORIES_RENAME_HINT" desc="Hint below the tab category description explaining that clicking a category name starts renaming it.">Click a name to rename it.</message>
       <message name="IDS_DAO_CLASSIFY_TABS" desc="Sidebar menu action that classifies all eligible ordinary tabs using the configured AI model.">Classify Tabs with AI</message>
       <message name="IDS_DAO_CLASSIFY_TABS_BELOW" desc="Tab context menu action that classifies eligible tabs below this tab in visible sidebar order.">Classify Tabs Below with AI</message>
-      <message name="IDS_DAO_CLASSIFY_TABS_STARTED" desc="Toast shown when AI tab classification starts.">Classifying tabs…</message>
+      <message name="IDS_DAO_CLASSIFY_TABS_STARTED" desc="Status shown in the sidebar while AI tab classification is in progress.">Classifying tabs…</message>
       <message name="IDS_DAO_CLASSIFY_TABS_DONE" desc="Toast confirming successful AI classification into sidebar folders.">Tabs classified</message>
       <message name="IDS_DAO_CLASSIFY_TABS_EMPTY" desc="Toast shown when no eligible tabs are available for AI classification.">No tabs to classify</message>
       <message name="IDS_DAO_CLASSIFY_TABS_FAILED" desc="Toast shown when AI tab classification fails without applying a result.">Could not classify tabs. Please try again.</message>
