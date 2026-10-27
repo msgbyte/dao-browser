@@ -4,6 +4,8 @@
 
 ### [Unreleased] Unreleased
 
+### [1.0.125] - 2026-10-27
+
 - Restore the virtual pointer and click ripple when AI clicks referenced page elements.
 - Prevent overlapping AI clicks from being lost or timing out while the virtual pointer is moving.
 - Keep earlier click ripples from hiding or interrupting the virtual pointer during consecutive AI clicks.
