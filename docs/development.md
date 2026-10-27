@@ -609,6 +609,28 @@ directly during routine development. When an explicitly scoped Chromium patch
 debugging task requires engine-first iteration, export only the intentional
 file with `npm run export -- <file>`; never run bare `npm run export`.
 
+## macOS release debug symbols
+
+Dao runs `dsymutil` with `--linker=classic --num-threads 1`. LLVM's classic
+linker processes and releases each object's DWARF before analyzing the next
+when explicitly limited to one thread. This reduces peak memory during large
+framework dSYM generation while retaining full debug symbols. It can take
+longer than overlapping analysis and emission.
+
+If a release build reports that `dsymutil` died with `SIGKILL`, check macOS
+memory-pressure diagnostics. A preceding ThinLTO cache-size warning is separate
+from the dSYM failure. Resume compile verification using the existing release
+cache, without signing or publishing:
+
+```bash
+npm run rebuild -- -- --release --target chrome -j 2
+```
+
+The outer `-j` limits build jobs; the linker-driver patch separately limits
+`dsymutil`. This reuses the release build directory and GN configuration.
+Changing the linker driver can still relink build tools and rebuild their
+generated-file dependents on the first run.
+
 ## macOS fullscreen diagnostics
 
 **Temporary investigation only:** remove these diagnostics after identifying
