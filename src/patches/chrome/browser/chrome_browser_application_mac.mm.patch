@@ -1,0 +1,40 @@
+diff --git a/chrome/browser/chrome_browser_application_mac.mm b/chrome/browser/chrome_browser_application_mac.mm
+--- a/chrome/browser/chrome_browser_application_mac.mm
++++ b/chrome/browser/chrome_browser_application_mac.mm
+@@ -18,6 +18,8 @@
+ #import "chrome/browser/app_controller_mac.h"
+ #import "chrome/browser/mac/exception_processor.h"
+ #include "chrome/browser/ui/cocoa/l10n_util.h"
++#include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
++#include "chrome/browser/ui/views/frame/browser_view.h"
+ #include "chrome/common/chrome_switches.h"
+ #include "components/crash/core/common/crash_key.h"
+ #import "components/crash/core/common/objc_zombie.h"
+@@ -28,6 +30,7 @@
+ #include "content/public/common/content_features.h"
+ #include "ui/accessibility/ax_mode.h"
+ #include "ui/base/cocoa/accessibility_focus_overrider.h"
++#include "ui/events/event_utils.h"
+ 
+ // When enabled, causes sendEvent: to manually forward KeyUp events that have
+ // the command modifier to the application's key window instead of to |super|.
+@@ -354,6 +357,19 @@
+     content::ScopedNotifyNativeEventProcessorObserver scopedObserverNotifier(
+         &self->_observers, event);
+ 
++    // Native UI can transfer focus to a page that drops unmatched key-ups.
++    if (event.type == NSEventTypeKeyUp && event.keyCode == kVK_Escape &&
++        event.window) {
++      if (auto* browser_view = BrowserView::GetBrowserViewForNativeWindow(
++              gfx::NativeWindow(event.window))) {
++        if (auto* manager =
++                ExclusiveAccessManager::From(browser_view->browser())) {
++          manager->CancelPendingEscapeHold(
++              ui::EventTimeStampFromSeconds(event.timestamp));
++        }
++      }
++    }
++
+     BOOL sendEventToKeyWindow = NO;
+     if (event.type == NSEventTypeKeyDown &&
+         (event.keyCode == kVK_JIS_Eisu || event.keyCode == kVK_JIS_Kana)) {

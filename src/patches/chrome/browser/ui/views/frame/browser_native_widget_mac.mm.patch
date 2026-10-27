@@ -1,7 +1,7 @@
 diff --git a/chrome/browser/ui/views/frame/browser_native_widget_mac.mm b/chrome/browser/ui/views/frame/browser_native_widget_mac.mm
 --- a/chrome/browser/ui/views/frame/browser_native_widget_mac.mm
 +++ b/chrome/browser/ui/views/frame/browser_native_widget_mac.mm
-@@ -23,6 +23,7 @@
+@@ -25,11 +25,13 @@
  #include "chrome/browser/ui/browser_actions.h"
  #include "chrome/browser/ui/browser_command_controller.h"
  #include "chrome/browser/ui/browser_commands.h"
@@ -9,7 +9,13 @@ diff --git a/chrome/browser/ui/views/frame/browser_native_widget_mac.mm b/chrome
  #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
  #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
  #import "chrome/browser/ui/cocoa/browser_window_command_handler.h"
-@@ -41,8 +42,18 @@
+ #import "chrome/browser/ui/cocoa/chrome_command_dispatcher_delegate.h"
+ #import "chrome/browser/ui/cocoa/touchbar/browser_window_touch_bar_controller.h"
++#include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
+ #include "chrome/browser/ui/immersive/immersive_mode_controller.h"
+ #include "chrome/browser/ui/layout_constants.h"
+ #include "chrome/browser/ui/lens/lens_overlay_entry_point_controller.h"
+@@ -44,6 +46,16 @@
  #include "chrome/browser/ui/views/frame/browser_widget.h"
  #include "chrome/browser/ui/views/frame/glass_frame_service.h"
  #include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
@@ -26,9 +32,7 @@ diff --git a/chrome/browser/ui/views/frame/browser_native_widget_mac.mm b/chrome
  #include "chrome/browser/ui/views/web_apps/frame_toolbar/web_app_frame_toolbar_utils.h"
  #include "chrome/browser/ui/web_applications/app_browser_controller.h"
  #include "chrome/common/pref_names.h"
- #include "chrome/grit/generated_resources.h"
- #include "components/bookmarks/common/bookmark_pref_names.h"
-@@ -139,6 +150,20 @@
+@@ -140,6 +152,20 @@
    return GetLayoutConstant(LayoutConstant::kToolbarCornerRadius) * 2;
  }
  
@@ -49,7 +53,7 @@ diff --git a/chrome/browser/ui/views/frame/browser_native_widget_mac.mm b/chrome
  }  // namespace
  
  // NSGlassEffectView intercepts hit testing even when added below the
-@@ -262,7 +287,15 @@
+@@ -276,7 +302,15 @@
                   top_element_info.toolbar_minimum_height) +
          browser_view_->browser_widget()->GetFrameView()->GetTopInset(true);
      if (!browser_view_->ShouldDrawTabStrip()) {
@@ -66,7 +70,7 @@ diff --git a/chrome/browser/ui/views/frame/browser_native_widget_mac.mm b/chrome
      }
    } else {
      *override_titlebar_height = false;
-@@ -344,6 +377,12 @@
+@@ -346,6 +380,12 @@
  
  void BrowserNativeWidgetMac::OnWindowFullscreenTransitionStart() {
    if (browser_view_) {
@@ -79,7 +83,7 @@ diff --git a/chrome/browser/ui/views/frame/browser_native_widget_mac.mm b/chrome
      browser_view_->FullscreenStateChanging();
    }
  }
-@@ -351,6 +390,10 @@
+@@ -353,6 +393,10 @@
  void BrowserNativeWidgetMac::OnWindowFullscreenTransitionComplete() {
    if (browser_view_) {
      browser_view_->FullscreenStateChanged();
@@ -90,7 +94,7 @@ diff --git a/chrome/browser/ui/views/frame/browser_native_widget_mac.mm b/chrome
    }
  }
  
-@@ -382,6 +425,38 @@
+@@ -399,6 +443,38 @@
  void BrowserNativeWidgetMac::ValidateUserInterfaceItem(
      int32_t tag,
      remote_cocoa::mojom::ValidateUserInterfaceItemResult* result) {
@@ -129,7 +133,7 @@ diff --git a/chrome/browser/ui/views/frame/browser_native_widget_mac.mm b/chrome
    BrowserWindowInterface* const browser =
        browser_view_ ? browser_view_->browser() : nullptr;
    if (!browser || !chrome::SupportsCommand(browser, tag)) {
-@@ -628,6 +703,36 @@
+@@ -645,6 +721,36 @@
      int32_t command,
      WindowOpenDisposition window_open_disposition,
      bool is_before_first_responder) {
@@ -166,7 +170,7 @@ diff --git a/chrome/browser/ui/views/frame/browser_native_widget_mac.mm b/chrome
    if (!WillExecuteCommand(command, window_open_disposition,
                            is_before_first_responder)) {
      return false;
-@@ -718,6 +823,16 @@
+@@ -735,6 +841,16 @@
      if (browser_view_->GetIsWebAppType()) {
        params->window_title_hidden = true;
      }
@@ -183,7 +187,19 @@ diff --git a/chrome/browser/ui/views/frame/browser_native_widget_mac.mm b/chrome
    } else {
      params->window_class = remote_cocoa::mojom::WindowClass::kDefault;
    }
-@@ -840,6 +955,17 @@
+@@ -813,6 +929,11 @@
+                                                        bool active) {
+   last_theme_color_.reset();
+   UpdateBackgroundColor();
++  if (!active && browser_view_) {
++    if (auto* manager = ExclusiveAccessManager::From(browser_view_->browser())) {
++      manager->CancelPendingEscapeHold(base::TimeTicks::Now());
++    }
++  }
+ }
+ 
+ void BrowserNativeWidgetMac::EnabledStateChangedForCommand(int id,
+@@ -860,6 +981,17 @@
  content::KeyboardEventProcessingResult
  BrowserNativeWidgetMac::PreHandleKeyboardEvent(
      const input::NativeWebKeyboardEvent& event) {

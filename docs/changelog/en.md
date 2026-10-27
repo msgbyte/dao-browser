@@ -4,6 +4,8 @@
 
 ### [Unreleased] Unreleased
 
+- Keep macOS browser fullscreen active after a short Escape press dismisses the command bar, including when focus moves back to the page or another window.
+
 ### [1.0.125] - 2026-10-27
 
 - Restore the virtual pointer and click ripple when AI clicks referenced page elements.

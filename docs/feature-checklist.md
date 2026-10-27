@@ -446,6 +446,18 @@ sidebar, insets + rounds the content area, and re-homes the toolbar off-screen.
 
 ## 2. Command Bar (Spotlight-style)
 
+- [ ] On macOS, run `DaoFullscreenEscapeMac*Test.*`. In real browser
+  fullscreen, dismiss Cmd+T and Cmd+L with a 50–250 ms Escape press ten times
+  each, waiting at least three seconds after every press. Confirm fullscreen,
+  page focus, tab count, and URL are preserved. Check consecutive taps, a held
+  Escape with auto-repeat, release with Command held, delayed page key handling,
+  native/page focus changes,
+  and release after changing windows. The original window must not retain a
+  stale hold or exit hint; another window's release must not cancel its timer.
+  Verify page fullscreen, pointer lock, and keyboard lock retain their existing
+  Escape behavior. Native event tests use simulated macOS fullscreen transitions and window
+  activation; repeat on actual macOS 15 and 26 fullscreen windows.
+
 | ✔ | Feature | Patch(es) / Source | Risk | Verify after upgrade |
 |---|---------|--------------------|------|----------------------|
 | ☐ | Cmd+T in sidebar window shows command bar instead of blank tab | `chrome/browser/ui/browser_commands.cc.patch` (`NewTab()` hook) | 🔴 | Cmd+T shows command bar; programmatic/restore new-tabs still create real tabs |

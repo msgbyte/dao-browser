@@ -1,0 +1,34 @@
+diff --git a/chrome/browser/ui/exclusive_access/exclusive_access_manager.h b/chrome/browser/ui/exclusive_access/exclusive_access_manager.h
+--- a/chrome/browser/ui/exclusive_access/exclusive_access_manager.h
++++ b/chrome/browser/ui/exclusive_access/exclusive_access_manager.h
+@@ -9,6 +9,8 @@
+ 
+ #include "base/memory/raw_ptr.h"
+ #include "base/memory/weak_ptr.h"
++#include "base/time/time.h"
++#include "build/build_config.h"
+ #include "chrome/browser/ui/exclusive_access/exclusive_access_bubble_type.h"
+ #include "chrome/browser/ui/exclusive_access/exclusive_access_permission_manager.h"
+ #include "chrome/browser/ui/exclusive_access/fullscreen_controller.h"
+@@ -92,6 +94,11 @@
+   // Called by Browser::PreHandleKeyboardEvent.
+   bool HandleUserKeyEvent(const input::NativeWebKeyboardEvent& event);
+ 
++  // Cancels both hold timers and notifies controllers once, even if focus moved
++  // before the native release reached the WebContents or accelerator path.
++  // Native callers supply the event time to reject delayed renderer replies.
++  void CancelPendingEscapeHold(base::TimeTicks native_event_time = {});
++
+   // Called by Browser::ContentsMouseEvent.
+   void OnUserInput();
+ 
+@@ -117,6 +124,9 @@
+   // The timer starts on Esc key down event and stops on Esc key up event. It
+   // invokes `HandleUserHeldEscape()` when the timer is fired.
+   base::OneShotTimer esc_key_hold_timer_;
++#if BUILDFLAG(IS_MAC)
++  base::TimeTicks last_escape_event_time_;
++#endif
+ 
+   // The timer starts and stops at the same time as `esc_key_hold_timer_` but is
+   // fired after a shorter delay.

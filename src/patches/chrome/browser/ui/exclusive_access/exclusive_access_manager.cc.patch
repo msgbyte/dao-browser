@@ -34,21 +34,35 @@ diff --git a/chrome/browser/ui/exclusive_access/exclusive_access_manager.cc b/ch
    auto weak_ptr = weak_ptr_factory_.GetWeakPtr();
    // When `features::kPressAndHoldEscToExitBrowserFullscreen` is enabled, the
    // `esc_key_hold_timer_` starts on `kRawKeyDown` events, unless the key press
-@@ -215,6 +234,11 @@
+@@ -213,18 +232,27 @@
+ 
+   if (base::FeatureList::IsEnabled(
            features::kPressAndHoldEscToExitBrowserFullscreen)) {
-     if (event.GetType() == input::NativeWebKeyboardEvent::Type::kKeyUp &&
-         esc_key_hold_timer_.IsRunning()) {
+-    if (event.GetType() == input::NativeWebKeyboardEvent::Type::kKeyUp &&
+-        esc_key_hold_timer_.IsRunning()) {
+-      esc_key_hold_timer_.Stop();
+-      show_exit_bubble_timer_.Stop();
+-      for (auto controller : exclusive_access_controllers_) {
+-        controller->HandleUserReleasedEscapeEarly();
+-        if (!weak_ptr) {
+-          return false;
+-        }
++    bool update_hold = true;
 +#if BUILDFLAG(IS_MAC)
-+      // TODO(dao): temporary fullscreen diagnostics; remove after finding the cause.
-+      dao::LogFullscreenDiagnostic(context(), "escape-hold-stop",
-+                                   "reason=key-up");
++    // Renderer replies can replay an older key event after a native release.
++    update_hold = event.TimeStamp() >= last_escape_event_time_;
++    if (update_hold) {
++      last_escape_event_time_ = event.TimeStamp();
++    }
 +#endif
-       esc_key_hold_timer_.Stop();
-       show_exit_bubble_timer_.Stop();
-       for (auto controller : exclusive_access_controllers_) {
-@@ -225,6 +249,11 @@
++    if (update_hold &&
++        event.GetType() == input::NativeWebKeyboardEvent::Type::kKeyUp) {
++      CancelPendingEscapeHold();
++      if (!weak_ptr) {
++        return false;
        }
-     } else if (IsUnmodifiedEscKeyDownEvent(event) &&
+-    } else if (IsUnmodifiedEscKeyDownEvent(event) &&
++    } else if (update_hold && IsUnmodifiedEscKeyDownEvent(event) &&
                 !esc_key_hold_timer_.IsRunning()) {
 +#if BUILDFLAG(IS_MAC)
 +      // TODO(dao): temporary fullscreen diagnostics; remove after finding the cause.
@@ -58,7 +72,42 @@ diff --git a/chrome/browser/ui/exclusive_access/exclusive_access_manager.cc b/ch
        esc_key_hold_timer_.Start(
            FROM_HERE, kHoldEscapeTime,
            base::BindOnce(&ExclusiveAccessManager::HandleUserHeldEscape,
-@@ -278,6 +307,10 @@
+@@ -263,6 +291,34 @@
+   return handled;
+ }
+ 
++void ExclusiveAccessManager::CancelPendingEscapeHold(
++    base::TimeTicks native_event_time) {
++  if (!esc_key_hold_timer_.IsRunning()) {
++    return;
++  }
++#if BUILDFLAG(IS_MAC)
++  if (!native_event_time.is_null() &&
++      native_event_time < last_escape_event_time_) {
++    return;
++  }
++  if (native_event_time > last_escape_event_time_) {
++    last_escape_event_time_ = native_event_time;
++  }
++  // TODO(dao): temporary fullscreen diagnostics; remove after finding the cause.
++  dao::LogFullscreenDiagnostic(context(), "escape-hold-stop",
++                               "reason=release-or-deactivation");
++#endif
++  esc_key_hold_timer_.Stop();
++  show_exit_bubble_timer_.Stop();
++  auto weak_ptr = weak_ptr_factory_.GetWeakPtr();
++  for (auto controller : exclusive_access_controllers_) {
++    controller->HandleUserReleasedEscapeEarly();
++    if (!weak_ptr) {
++      return;
++    }
++  }
++}
++
+ void ExclusiveAccessManager::OnUserInput() {
+   exclusive_access_context_->OnExclusiveAccessUserInput();
+ }
+@@ -278,6 +334,10 @@
  }
  
  void ExclusiveAccessManager::HandleUserHeldEscape() {

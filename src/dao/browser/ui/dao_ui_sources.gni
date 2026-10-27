@@ -297,6 +297,7 @@ dao_browser_ui_mac_test_sources = [
   "//dao/browser/mcp/dao_mcp_helper_browsertest.cc",
   "//dao/browser/ui/views/dao_tab_drag_mac_browsertest.mm",
   "//dao/browser/ui/views/dao_fullscreen_diagnostics_mac_browsertest.mm",
+  "//dao/browser/ui/views/dao_fullscreen_escape_mac_browsertest.mm",
   "//dao/browser/ui/views/dao_test_init_mac.mm",
 ]
 

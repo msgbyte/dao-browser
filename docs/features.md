@@ -370,6 +370,12 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
   - Cmd+L → `Show()` pre-fills current URL (`SetFocusToLocationBar(is_user_initiated=true)`)
   - Cmd+T → `ShowForNewTab()` opens the Command Bar without creating a tab;
     navigation creates the destination tab only after submission
+  - **Escape in macOS fullscreen** — A short press dismisses the command bar
+    and restores page focus without a delayed fullscreen exit. Window-scoped
+    native release observation cancels both held-Escape timers even when focus
+    moves between native UI and a webpage; deactivation clears the old window's
+    pending hold. Genuine long presses and page/keyboard/pointer-lock escape
+    behavior retain Chromium's existing handling.
   - **Remove recommendations** — Hover a deletable recommendation and click
     its X, or press Shift+Delete on the selected row. Chromium's
     `SupportsDeletion()` controls availability and `AutocompleteController::DeleteMatch()`
