@@ -413,6 +413,7 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   // Context menu state.
   int context_menu_tab_index_ = -1;
   std::string context_menu_tab_id_;
+  base::ListValue context_menu_classification_tab_ids_;
   std::string context_menu_pinned_item_id_;
   std::string context_menu_folder_id_;
   std::set<int> folder_tab_indices_;

@@ -278,9 +278,11 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
 - **AI tab classification** — Once an Agent model is configured, the sidebar
   background and ordinary-tab context menus expose **Classify Tabs with AI**.
   The tab menu also offers **Classify Tabs Below with AI**, using sidebar visual
-  order and excluding the clicked tab. Both actions group only loose HTTP(S)
-  tabs in the current window; pinned tabs, split panes, existing folder members,
-  and Agent/MCP-controlled tabs are preserved. Off-the-record and Guest windows
+  order captured when the menu opens and excluding the clicked tab. An empty
+  or closed selection never falls back to classifying all tabs. Both actions group
+  only loose HTTP(S) tabs in the current window; pinned tabs, split panes,
+  existing folder members, and Agent/MCP-controlled tabs are preserved.
+  Off-the-record and Guest windows
   do not expose classification. Each request sends the chosen tabs' titles and
   URLs plus the profile's existing folder names and IDs to the configured model,
   without page content, chat history, or browser tools. Existing categories are

@@ -230,21 +230,24 @@ describe('dao-sidebar-app', () => {
     expect(pinnedIndex).toBeLessThan(newTabIndex);
   });
 
-  it('classifies only tabs below the anchor and waits for persistence success', async () => {
+  it('keeps the menu selection across reloads and waits for persistence success', async () => {
     const {el, send} = await loadApp();
     const app = el as SidebarAppInternals;
-    const tabs = [tab({tabId: 'anchor'}), tab({tabId: 'below'})];
+    const tabs = ['above', 'anchor', 'below'].map(tabId => tab({tabId}));
     const model = installFolderModel(app);
     model.reconcile(tabs);
     app.unpinnedTabs_ = tabs;
-    let stored = model.toJson();
+    const persisted = new FolderModel();
+    persisted.loadFromJson(model.toJson());
+    persisted.reorder(2, 0);
+    let stored = persisted.toJson();
     const fire = (window as unknown as {
-      cr: {webUIListenerCallback: (event: string, value?: unknown) => void};
+      cr: {webUIListenerCallback: (event: string, ...args: unknown[]) => void};
     }).cr.webUIListenerCallback;
     send.mockImplementation((method: string, args: unknown[]) => {
       if (method === 'loadFolders') queueMicrotask(() => fire(args[0] as string, stored));
     });
-    fire('classifyTabsRequested', 'anchor');
+    fire('classifyTabsRequested', 'below', ['below']);
     await vi.waitFor(() => expect(didSendNative(send, 'classifyTabs')).toBe(true));
     const request = send.mock.calls.find(call => call[0] === 'classifyTabs')![1];
     expect(request.slice(1)).toEqual([[{tabId: 'below', url: 'https://docs.example/'}], []]);
@@ -259,8 +262,26 @@ describe('dao-sidebar-app', () => {
     fire(save[0], true);
     await vi.waitFor(() => expect(send).toHaveBeenCalledWith('showClassificationToast', ['done']));
     expect(app.folderModel_.findTabFolder(tabs[0]!)).toBeNull();
+    expect(app.folderModel_.findTabFolder(tabs[1]!)).toBeNull();
     expect(app.folderModel_.findFolderByName('Reading')!.children.map(t => t.tabId))
         .toEqual(['below']);
+  });
+
+  it.each([{ids: []}, {ids: ['closed']}])('never expands an empty Below selection ($ids)', async ({ids}) => {
+    const {el, send} = await loadApp();
+    const app = el as SidebarAppInternals;
+    app.unpinnedTabs_ = [tab()];
+    const model = installFolderModel(app);
+    model.reconcile(app.unpinnedTabs_);
+    const fire = (window as unknown as {
+      cr: {webUIListenerCallback: (event: string, ...args: unknown[]) => void};
+    }).cr.webUIListenerCallback;
+    send.mockImplementation((method: string, args: unknown[]) => {
+      if (method === 'loadFolders') queueMicrotask(() => fire(args[0] as string, model.toJson()));
+    });
+    fire('classifyTabsRequested', 'below', ids);
+    await vi.waitFor(() => expect(send).toHaveBeenCalledWith('showClassificationToast', ['empty']));
+    expect(didSendNative(send, 'classifyTabs')).toBe(false);
   });
 
   it.each([
@@ -284,7 +305,7 @@ describe('dao-sidebar-app', () => {
     app.initialStateReceived_ = true;
     let stored = model.toJson();
     const fire = (window as unknown as {
-      cr: {webUIListenerCallback: (event: string, value?: unknown) => void};
+      cr: {webUIListenerCallback: (event: string, ...args: unknown[]) => void};
     }).cr.webUIListenerCallback;
     send.mockImplementation((method: string, args: unknown[]) => {
       if (method === 'loadFolders') {
@@ -300,7 +321,7 @@ describe('dao-sidebar-app', () => {
     fireSidebarStateChanged(sidebarState({unpinnedTabs: tabs.map(tab => ({
       ...tab, isActive: tab.tabId === closedId,
     }))}));
-    fire('classifyTabsRequested', 'anchor');
+    fire('classifyTabsRequested', 'below', ['first-below', 'second-below']);
     await vi.waitFor(() => expect(didSendNative(send, 'classifyTabs')).toBe(true));
     const request = send.mock.calls.find(call => call[0] === 'classifyTabs')![1];
     expect(request[1]).toEqual([
@@ -352,7 +373,7 @@ describe('dao-sidebar-app', () => {
       if (method === 'loadFolders') queueMicrotask(() => fire(args[0] as string, stored));
       if (method === 'saveFolders') stored = args[0] as string;
     });
-    fire('classifyTabsRequested', '');
+    fire('classifyTabsRequested', 'all');
     await vi.waitFor(() => expect(didSendNative(send, 'classifyTabs')).toBe(true));
     fireMoveTabToTopRequested('b');
     const request = send.mock.calls.find(call => call[0] === 'classifyTabs')![1];

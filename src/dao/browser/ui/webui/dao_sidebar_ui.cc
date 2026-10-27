@@ -3153,6 +3153,20 @@ void DaoSidebarUIHandler::HandleShowTabContextMenu(
     }
   }
 
+  // Freeze the visible range before menu tracking or folder reloads can change it.
+  context_menu_classification_tab_ids_.clear();
+  bool below = false;
+  for (int index : visual_tab_order_) {
+    if (below && model->ContainsIndex(index) &&
+        !folder_tab_indices_.contains(index)) {
+      context_menu_classification_tab_ids_.Append(
+          GetOrCreateSidebarTabId(model->GetWebContentsAt(index)));
+    }
+    if (index == tab_index) {
+      below = true;
+    }
+  }
+
   // Build the menu model.
   tab_context_menu_model_ = std::make_unique<ui::SimpleMenuModel>(this);
   organize_tabs_menu_model_ = std::make_unique<ui::SimpleMenuModel>(this);
@@ -4169,6 +4183,7 @@ void DaoSidebarUIHandler::OnDuplicateTabsClosed(std::vector<bool> closed) {
 void DaoSidebarUIHandler::ClearContextMenuState() {
   context_menu_tab_index_ = -1;
   context_menu_tab_id_.clear();
+  context_menu_classification_tab_ids_.clear();
   context_menu_pinned_item_id_.clear();
   context_menu_folder_id_.clear();
   folder_tab_indices_.clear();
@@ -4327,8 +4342,10 @@ void DaoSidebarUIHandler::ExecuteCommand(int command_id, int event_flags) {
 
   if (command_id == kClassifyTabs || command_id == kClassifyTabsBelow) {
     if (IsJavascriptAllowed() && IsCommandIdEnabled(command_id)) {
-      FireWebUIListener("classifyTabsRequested", base::Value(
-          command_id == kClassifyTabsBelow ? context_menu_tab_id_ : ""));
+      FireWebUIListener(
+          "classifyTabsRequested",
+          base::Value(command_id == kClassifyTabsBelow ? "below" : "all"),
+          context_menu_classification_tab_ids_);
     }
     ClearContextMenuState();
     return;

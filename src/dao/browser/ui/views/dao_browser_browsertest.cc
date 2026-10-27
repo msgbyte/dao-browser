@@ -141,6 +141,7 @@
 #include "dao/browser/agent/dao_agent_memory_store.h"
 #include "dao/browser/agent/dao_agent_memory_types.h"
 #include "dao/browser/agent/dao_agent_scenario_registry.h"
+#include "dao/browser/agent/dao_agent_settings_handler.h"
 #include "dao/browser/agent/dao_agent_skill_service.h"
 #include "dao/browser/agent/dao_agent_skill_service_factory.h"
 #include "dao/browser/agent/dao_agent_skill_types.h"
@@ -283,14 +284,33 @@ namespace dao {
 
 class DaoSidebarContextMenuTestApi {
  public:
-  static ui::SimpleMenuModel* BuildMenu(DaoSidebarUIHandler& handler) {
+  static ui::SimpleMenuModel* BuildMenu(
+      DaoSidebarUIHandler& handler,
+      int tab_index = 0,
+      const std::vector<int>& visual_order = {0},
+      const std::vector<int>& folder_indices = {}) {
+    base::ListValue order;
+    for (int index : visual_order) {
+      order.Append(index);
+    }
+    base::ListValue folders;
+    for (int index : folder_indices) {
+      folders.Append(index);
+    }
     handler.HandleShowTabContextMenu(base::ListValue()
+                                        .Append(tab_index)
                                         .Append(0)
                                         .Append(0)
-                                        .Append(0)
-                                        .Append(base::ListValue())
-                                        .Append(base::ListValue().Append(0)));
+                                        .Append(std::move(folders))
+                                        .Append(std::move(order)));
     return handler.tab_context_menu_model_.get();
+  }
+
+  static void Classify(DaoSidebarUIHandler& handler, bool below) {
+    handler.ExecuteCommand(
+        below ? DaoSidebarUIHandler::kClassifyTabsBelow
+              : DaoSidebarUIHandler::kClassifyTabs,
+        0);
   }
 };
 
@@ -1741,6 +1761,48 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
   menu->MenuWillClose();
   base::RunLoop().RunUntilIdle();
   EXPECT_FALSE(menu->IsEnabledAt(*mute_index));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
+                      ClassificationPreservesMenuScope) {
+  BrowserWindowInterface* popup = CreateBrowserForPopup(browser()->GetProfile());
+  for (int i = 0; i < 4; ++i) {
+    chrome::AddTabAt(popup, GURL(url::kAboutBlankURL), -1, true);
+  }
+  ASSERT_EQ(nullptr, GetBrowserView(popup)->dao_sidebar());
+  SetDaoAgentSetting(popup->GetProfile()->GetPrefs(), "dao_agent_providers",
+                     base::Value(R"({"openai-compatible":{"apiKey":"test"}})"));
+  content::TestWebUI web_ui;
+  TestDaoSidebarUIHandler handler;
+  handler.set_web_ui(&web_ui);
+  AttachSidebarHandlerForTesting(popup, &handler);
+  handler.AllowJavascriptForTesting();
+  auto expect_request = [&](bool below, const char* scope,
+                            const base::ListValue& expected_ids) {
+    web_ui.ClearTrackedCalls();
+    DaoSidebarContextMenuTestApi::Classify(handler, below);
+    ASSERT_EQ(1u, web_ui.call_data().size());
+    const auto& call = *web_ui.call_data().front();
+    EXPECT_EQ("cr.webUIListenerCallback", call.function_name());
+    ASSERT_NE(nullptr, call.arg1());
+    ASSERT_NE(nullptr, call.arg2());
+    ASSERT_NE(nullptr, call.arg3());
+    EXPECT_EQ("classifyTabsRequested", call.arg1()->GetString());
+    EXPECT_EQ(scope, call.arg2()->GetString());
+    EXPECT_EQ(expected_ids, call.arg3()->GetList());
+  };
+
+  // Visual order differs from model order; folder children remain excluded.
+  DaoSidebarContextMenuTestApi::BuildMenu(handler, 2, {0, 2, 1, 3}, {3});
+  auto* model = popup->tab_strip_model();
+  const std::string selected_id = GetSidebarTabId(model->GetWebContentsAt(1));
+  model->CloseWebContentsAt(0, TabCloseTypes::CLOSE_NONE);
+  expect_request(true, "below", base::ListValue().Append(selected_id));
+
+  DaoSidebarContextMenuTestApi::BuildMenu(handler, 2, {0, 1, 2});
+  expect_request(true, "below", base::ListValue());
+  DaoSidebarContextMenuTestApi::BuildMenu(handler, 2, {0, 1, 2});
+  expect_request(false, "all", base::ListValue());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,

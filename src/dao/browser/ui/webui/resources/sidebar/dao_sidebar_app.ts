@@ -413,7 +413,12 @@ export class DaoSidebarApp extends CrLitElement {
     });
 
     this.addSidebarListener_('classifyTabsRequested', (...args: unknown[]) => {
-      if (typeof args[0] === 'string') void this.classifyTabs_(args[0]);
+      if (args[0] === 'all') {
+        void this.classifyTabs_();
+      } else if (args[0] === 'below' && Array.isArray(args[1]) &&
+          args[1].every(id => typeof id === 'string')) {
+        void this.classifyTabs_(args[1]);
+      }
     });
 
     this.addSidebarListener_('folderDataChanged', () => {
@@ -527,7 +532,7 @@ export class DaoSidebarApp extends CrLitElement {
     this.folderModelVersion_++;
   }
 
-  private async classifyTabs_(belowTabId: string) {
+  private async classifyTabs_(tabIds?: string[]) {
     if (this.classificationInFlight_ || !this.foldersLoaded_) return;
     this.classificationInFlight_ = true;
     const generation = ++this.classificationGeneration_;
@@ -535,8 +540,9 @@ export class DaoSidebarApp extends CrLitElement {
     try {
       if (!await this.reloadFolders_()) throw new Error('Folders changed');
       if (!live()) return;
-      const tabs = getClassificationTabs(
-          this.folderModel_, this.unpinnedTabs_, belowTabId || undefined)
+      const selected = tabIds === undefined ? null : new Set(tabIds);
+      const tabs = getClassificationTabs(this.folderModel_, this.unpinnedTabs_)
+          .filter(tab => selected === null || selected.has(tab.tabId))
           .map(tab => ({...tab}));
       if (!tabs.length) {
         sendNative('showClassificationToast', 'empty');
