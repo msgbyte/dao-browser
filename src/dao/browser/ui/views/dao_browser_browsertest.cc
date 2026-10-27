@@ -3875,7 +3875,7 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
   auto* first_row = FindDescendantViewOfClass<DaoSuggestionItemView>(command_bar);
   ASSERT_NE(nullptr, first_row);
   // Non-deletable results and Dao actions must not offer a delete button.
-  for (auto* child : first_row->parent()->children()) {
+  for (views::View* child : first_row->parent()->children()) {
     auto* row = views::AsViewClass<DaoSuggestionItemView>(child);
     if (!row || !row->GetVisible()) {
       continue;
@@ -13151,7 +13151,7 @@ IN_PROC_BROWSER_TEST_F(DaoAgentCursorViewBrowserTest,
   cursor.ShowAtCenter();
   int callback_count = 0;
   cursor.AnimateTo(
-      700, 500, base::BindOnce([&](bool moved) {
+      700, 500, base::BindLambdaForTesting([&](bool moved) {
         ++callback_count;
         EXPECT_EQ(gfx::Animation::PrefersReducedMotion(), moved);
       }));
@@ -13173,7 +13173,7 @@ IN_PROC_BROWSER_TEST_F(DaoAgentCursorViewBrowserTest,
   int callback_count = 0;
   base::test::TestFuture<bool> next_move;
   cursor.AnimateTo(
-      1500, 300, base::BindOnce([&](bool moved) {
+      1500, 300, base::BindLambdaForTesting([&](bool moved) {
         ++callback_count;
         EXPECT_FALSE(moved);
         cursor.AnimateTo(200, 300, next_move.GetCallback());

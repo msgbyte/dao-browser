@@ -410,7 +410,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
   DaoBrowserToolCall call;
   call.request_id = "guarded-animated-click";
   call.name = "click_by_ref";
-  call.arguments
+  call.arguments = base::DictValue()
       .Set("ref_id",
            *(*data.FindList("matches"))[0].GetDict().FindString("ref_id"))
       .Set("document_id", *data.FindString("document_id"))
