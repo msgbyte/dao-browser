@@ -146,6 +146,7 @@ DaoMcpApprovalDialog::DaoMcpApprovalDialog(
       this, {.show_enter_for_default = false,
              .show_esc_for_cancel = true,
              .center_in_web_contents = true});
+  set_fixed_width(kDialogWidth + margins().width());
   SetContentsView(BuildContents(request, browser));
 }
 
@@ -308,6 +309,8 @@ std::unique_ptr<views::View> DaoMcpApprovalDialog::BuildContents(
   if (!request.tab_choices.empty()) {
     SetButtonEnabled(ui::mojom::DialogButton::kOk, false);
     auto* scroll = contents->AddChildView(std::make_unique<views::ScrollView>());
+    scroll->SetHorizontalScrollBarMode(
+        views::ScrollView::ScrollBarMode::kDisabled);
     scroll->ClipHeightTo(0, 200);
     auto list = std::make_unique<views::View>();
     list->SetLayoutManager(std::make_unique<views::BoxLayout>(
@@ -316,6 +319,8 @@ std::unique_ptr<views::View> DaoMcpApprovalDialog::BuildContents(
     for (const auto& choice : request.tab_choices) {
       auto* radio = list->AddChildView(
           std::make_unique<views::RadioButton>(SanitizeLabel(choice.title), 1));
+      radio->SetMaxSize(gfx::Size(kDialogWidth, 0));
+      radio->SetTooltipText(radio->GetText());
       radio->SetCallback(base::BindRepeating(
           [](DaoMcpApprovalDialog* dialog) {
             dialog->SetButtonEnabled(ui::mojom::DialogButton::kOk, true);

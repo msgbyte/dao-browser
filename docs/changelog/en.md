@@ -4,6 +4,7 @@
 
 ### [Unreleased] Unreleased
 
+- Keep local agent approval dialogs from becoming too wide when tab titles or URLs are long.
 - Keep macOS browser fullscreen active after a short Escape press dismisses the command bar, including when focus moves back to the page or another window.
 
 ### [1.0.125] - 2026-10-27

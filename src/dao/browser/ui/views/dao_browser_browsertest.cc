@@ -14870,6 +14870,41 @@ IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
+                       BoundsLongTabChoicesToDialogWidth) {
+  DaoMcpApprovalRequest request{
+      {.name = "Reported Client", .version = "1.2.3"},
+      "Choose a page to read.",
+      base::Time::Now(),
+  };
+  request.tab_choices.push_back(
+      {{.tab_id = "long-tab",
+        .url = "https://example.com/" + std::string(2000, 'a')},
+       std::u16string(2000, u'W')});
+  auto dialog = std::make_unique<DaoMcpApprovalDialog>(
+      request, browser(), base::BindOnce([](bool) {}));
+  DaoMcpApprovalDialog* raw_dialog = dialog.get();
+  views::Widget* widget = constrained_window::CreateBrowserModalDialogViews(
+      std::move(dialog), browser()->GetWindow()->GetNativeWindow());
+  ASSERT_NE(nullptr, widget);
+  widget->Show();
+  views::View* contents = raw_dialog->GetContentsView();
+  EXPECT_EQ(480, contents->width());
+  EXPECT_LE(widget->GetMinimumSize().width(),
+            widget->GetWindowBoundsInScreen().width());
+  const int width = widget->GetWindowBoundsInScreen().width();
+  auto* details_button = FindLabelButtonWithText(
+      contents, l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_SHOW_DETAILS));
+  ASSERT_NE(nullptr, details_button);
+  ui::MouseEvent click(ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
+                       base::TimeTicks::Now(), ui::EF_NONE,
+                       ui::EF_LEFT_MOUSE_BUTTON);
+  views::test::ButtonTestApi(details_button).NotifyClick(click);
+  EXPECT_EQ(width, widget->GetWindowBoundsInScreen().width());
+  EXPECT_EQ(480, contents->width());
+  raw_dialog->DismissWithoutResult();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
                        KeepsBackgroundConsentScopeVisible) {
   DaoMcpApprovalRequest request{
       {.name = "Reported Client", .version = "1.2.3"},
