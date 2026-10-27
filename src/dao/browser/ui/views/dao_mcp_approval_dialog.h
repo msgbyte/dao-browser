@@ -13,6 +13,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/callback_list.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
@@ -21,6 +22,7 @@
 
 class BrowserWindowInterface;
 namespace views {
+class Label;
 class RadioButton;
 }
 
@@ -59,11 +61,21 @@ class DaoMcpApprovalDialog final : public views::DialogDelegate {
   std::unique_ptr<views::View> BuildContents(
       const DaoMcpApprovalRequest& request,
       BrowserWindowInterface* browser);
+  void FilterTabChoices(const std::u16string& query);
   void Resolve(bool allowed);
+
+  struct TabChoice {
+    raw_ptr<views::RadioButton> radio;
+    raw_ptr<views::Label> url;
+    std::string tab_id;
+    std::u16string search_text;
+  };
 
   base::OnceCallback<void(std::optional<std::string>)> callback_;
   std::optional<std::string> explicit_tab_id_;
-  std::vector<std::pair<raw_ptr<views::RadioButton>, std::string>> choices_;
+  std::vector<TabChoice> choices_;
+  raw_ptr<views::Label> no_matching_tabs_ = nullptr;
+  base::CallbackListSubscription search_subscription_;
   ConsentCallback consent_callback_;
   // Background-space requests can be remembered for the reported client.
   std::string remember_client_name_;

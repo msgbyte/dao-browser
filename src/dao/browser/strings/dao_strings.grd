@@ -587,6 +587,12 @@
       <message name="IDS_DAO_MCP_APPROVAL_TAB_PICKER_TITLE" desc="Title when the user must choose which tab a local agent may control.">
         Choose a tab to control
       </message>
+      <message name="IDS_DAO_MCP_APPROVAL_SEARCH_TABS" desc="Placeholder and accessible name for filtering tabs in the local agent approval dialog.">
+        Search tabs by title or URL
+      </message>
+      <message name="IDS_DAO_MCP_APPROVAL_NO_MATCHING_TABS" desc="Shown when no tab matches the search in the local agent approval dialog.">
+        No matching tabs
+      </message>
       <message name="IDS_DAO_MCP_APPROVAL_SPACE_TITLE" desc="Title when a local agent requests access to Dao Lite background tasks.">
         Allow Dao Lite background tasks?
       </message>

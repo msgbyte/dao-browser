@@ -252,6 +252,7 @@
 #include "ui/views/controls/button/label_button.h"
 #include "ui/views/controls/button/label_button_label.h"
 #include "ui/views/controls/button/md_text_button.h"
+#include "ui/views/controls/button/radio_button.h"
 #include "ui/views/controls/image_view.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/controls/scroll_view.h"
@@ -14902,6 +14903,83 @@ IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
   EXPECT_EQ(width, widget->GetWindowBoundsInScreen().width());
   EXPECT_EQ(480, contents->width());
   raw_dialog->DismissWithoutResult();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
+                       FiltersTabChoicesWithoutGrantingHiddenSelection) {
+  DaoMcpApprovalRequest request{
+      {.name = "Reported Client", .version = "1.2.3"},
+      "Choose a page to read.",
+      base::Time::Now(),
+  };
+  request.tab_choices.push_back(
+      {{.tab_id = "first-tab", .url = "https://example.com/guide"},
+       u"Alpha Übersicht"});
+  request.tab_choices.push_back(
+      {{.tab_id = "second-tab", .url = "https://mail.example.org/inbox"},
+       u"Beta Mail"});
+  int callback_count = 0;
+  std::optional<std::string> granted_tab;
+  auto dialog = std::make_unique<DaoMcpApprovalDialog>(
+      request, browser(),
+      base::BindLambdaForTesting([&](std::optional<std::string> tab_id) {
+        ++callback_count;
+        granted_tab = std::move(tab_id);
+      }));
+  DaoMcpApprovalDialog* raw_dialog = dialog.get();
+  views::Widget* widget = constrained_window::CreateBrowserModalDialogViews(
+      std::move(dialog), browser()->GetWindow()->GetNativeWindow());
+  ASSERT_NE(nullptr, widget);
+  widget->Show();
+  auto* contents = raw_dialog->GetContentsView();
+  auto* search = FindDescendantViewOfClass<views::Textfield>(contents);
+  ASSERT_NE(nullptr, search);
+  auto* first = views::AsViewClass<views::RadioButton>(
+      FindLabelButtonWithText(contents, u"Alpha Übersicht"));
+  auto* second = views::AsViewClass<views::RadioButton>(
+      FindLabelButtonWithText(contents, u"Beta Mail"));
+  ASSERT_NE(nullptr, first);
+  ASSERT_NE(nullptr, second);
+  ui::MouseEvent click(ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
+                       base::TimeTicks::Now(), ui::EF_NONE,
+                       ui::EF_LEFT_MOUSE_BUTTON);
+  views::test::ButtonTestApi(first).NotifyClick(click);
+  search->SetText(u"  ÜBERSICHT  ");
+  EXPECT_TRUE(first->GetVisible());
+  EXPECT_TRUE(first->GetChecked());
+  EXPECT_FALSE(second->GetVisible());
+  EXPECT_FALSE(HasVisibleDescendantLabelText(
+      contents, u"https://mail.example.org/inbox"));
+  EXPECT_TRUE(raw_dialog->IsDialogButtonEnabled(ui::mojom::DialogButton::kOk));
+
+  search->SetText(u"MAIL.EXAMPLE.ORG");
+  EXPECT_FALSE(first->GetVisible());
+  EXPECT_FALSE(first->GetChecked());
+  EXPECT_TRUE(second->GetVisible());
+  EXPECT_FALSE(second->GetChecked());
+  EXPECT_FALSE(raw_dialog->IsDialogButtonEnabled(ui::mojom::DialogButton::kOk));
+  search->SetText(u"no matching page");
+  EXPECT_FALSE(second->GetVisible());
+  EXPECT_TRUE(HasVisibleDescendantLabelText(
+      contents, l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_NO_MATCHING_TABS)));
+  search->SetText(u" \t ");
+  EXPECT_TRUE(first->GetVisible());
+  EXPECT_TRUE(second->GetVisible());
+  EXPECT_FALSE(HasVisibleDescendantLabelText(
+      contents, l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_NO_MATCHING_TABS)));
+  EXPECT_FALSE(raw_dialog->IsDialogButtonEnabled(ui::mojom::DialogButton::kOk));
+
+  views::test::ButtonTestApi(first).NotifyClick(click);
+  views::test::ButtonTestApi(second).NotifyClick(click);
+  EXPECT_FALSE(first->GetChecked());
+  EXPECT_TRUE(second->GetChecked());
+  EXPECT_EQ(0, callback_count);
+  raw_dialog->ResetViewShownTimeStampForTesting();
+  views::test::WidgetDestroyedWaiter destroyed_waiter(widget);
+  views::test::ButtonTestApi(raw_dialog->GetOkButton()).NotifyClick(click);
+  destroyed_waiter.Wait();
+  EXPECT_EQ(1, callback_count);
+  EXPECT_EQ(std::optional<std::string>("second-tab"), granted_tab);
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,

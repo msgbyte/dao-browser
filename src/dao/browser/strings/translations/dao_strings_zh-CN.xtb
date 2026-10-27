@@ -1,6 +1,8 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="zh-CN">
+<translation id="2651482677071114696">按标题或网址搜索标签页</translation>
+<translation id="7193316103691252734">没有匹配的标签页</translation>
 <translation id="2227179592712503583">删除建议</translation>
 <translation id="4706528291577969196">此标签页在后台或窗口最小化时仍会持续运行并更新画面，浏览器不会主动冻结或丢弃页面。</translation>
 <translation id="5830070340575388907">可能增加处理器、内存和电量消耗。</translation>

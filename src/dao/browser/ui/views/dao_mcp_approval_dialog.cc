@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "base/functional/bind.h"
+#include "base/i18n/case_conversion.h"
 #include "base/i18n/rtl.h"
 #include "base/i18n/time_formatting.h"
 #include "base/no_destructor.h"
@@ -39,6 +40,7 @@
 #include "ui/views/controls/button/radio_button.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/controls/scroll_view.h"
+#include "ui/views/controls/textfield/textfield.h"
 #include "ui/views/layout/box_layout.h"
 #include "ui/views/view.h"
 #include "ui/views/widget/widget.h"
@@ -308,6 +310,11 @@ std::unique_ptr<views::View> DaoMcpApprovalDialog::BuildContents(
 
   if (!request.tab_choices.empty()) {
     SetButtonEnabled(ui::mojom::DialogButton::kOk, false);
+    auto* search = contents->AddChildView(std::make_unique<views::Textfield>());
+    const auto search_label =
+        l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_SEARCH_TABS);
+    search->SetPlaceholderText(search_label);
+    search->GetViewAccessibility().SetName(search_label);
     auto* scroll = contents->AddChildView(std::make_unique<views::ScrollView>());
     scroll->SetHorizontalScrollBarMode(
         views::ScrollView::ScrollBarMode::kDisabled);
@@ -326,11 +333,26 @@ std::unique_ptr<views::View> DaoMcpApprovalDialog::BuildContents(
             dialog->SetButtonEnabled(ui::mojom::DialogButton::kOk, true);
           },
           base::Unretained(this)));
-      list->AddChildView(CreateLabel(SanitizeLabel(choice.target.url),
-                                     TextSecondary(), false));
-      choices_.emplace_back(radio, choice.target.tab_id);
+      auto* url = list->AddChildView(CreateLabel(
+          SanitizeLabel(choice.target.url), TextSecondary(), false));
+      choices_.push_back(
+          {radio, url, choice.target.tab_id,
+           base::i18n::ToLower(base::CollapseWhitespace(choice.title, true) +
+                              u"\n" + base::UTF8ToUTF16(choice.target.url))});
     }
+    no_matching_tabs_ = list->AddChildView(CreateLabel(
+        l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_NO_MATCHING_TABS),
+        TextSecondary(), false));
+    no_matching_tabs_->SetVisible(false);
     scroll->SetContents(std::move(list));
+    search_subscription_ = search->AddTextChangedCallback(base::BindRepeating(
+        [](DaoMcpApprovalDialog* dialog, views::Textfield* search,
+           views::ScrollView* scroll) {
+          dialog->FilterTabChoices(search->GetText());
+          scroll->ScrollToPosition(scroll->vertical_scroll_bar(), 0);
+        },
+        base::Unretained(this), base::Unretained(search),
+        base::Unretained(scroll)));
   }
 
   auto* reason_scroll =
@@ -428,6 +450,24 @@ std::unique_ptr<views::View> DaoMcpApprovalDialog::BuildContents(
   return contents;
 }
 
+void DaoMcpApprovalDialog::FilterTabChoices(const std::u16string& query) {
+  const auto filter = base::i18n::ToLower(base::CollapseWhitespace(query, true));
+  bool has_matches = false;
+  bool has_selection = false;
+  for (const auto& choice : choices_) {
+    const bool visible = choice.search_text.find(filter) != std::u16string::npos;
+    choice.radio->SetVisible(visible);
+    choice.url->SetVisible(visible);
+    if (!visible) {
+      choice.radio->SetChecked(false);
+    }
+    has_matches |= visible;
+    has_selection |= choice.radio->GetChecked();
+  }
+  no_matching_tabs_->SetVisible(!has_matches);
+  SetButtonEnabled(ui::mojom::DialogButton::kOk, has_selection);
+}
+
 void DaoMcpApprovalDialog::Resolve(bool allowed) {
   if (consent_callback_) {
     std::move(consent_callback_).Run(allowed, allowed && remember_);
@@ -452,9 +492,9 @@ void DaoMcpApprovalDialog::Resolve(bool allowed) {
     } else if (choices_.empty()) {
       result = std::string();
     } else {
-      for (const auto& [radio, tab_id] : choices_) {
-        if (radio->GetChecked()) {
-          result = tab_id;
+      for (const auto& choice : choices_) {
+        if (choice.radio->GetVisible() && choice.radio->GetChecked()) {
+          result = choice.tab_id;
           break;
         }
       }
