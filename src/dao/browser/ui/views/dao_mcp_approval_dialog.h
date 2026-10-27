@@ -61,7 +61,7 @@ class DaoMcpApprovalDialog final : public views::DialogDelegate {
   std::unique_ptr<views::View> BuildContents(
       const DaoMcpApprovalRequest& request,
       BrowserWindowInterface* browser);
-  void FilterTabChoices(const std::u16string& query);
+  void FilterTabChoices(std::u16string_view query);
   void Resolve(bool allowed);
 
   struct TabChoice {

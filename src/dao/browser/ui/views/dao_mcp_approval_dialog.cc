@@ -327,7 +327,7 @@ std::unique_ptr<views::View> DaoMcpApprovalDialog::BuildContents(
       auto* radio = list->AddChildView(
           std::make_unique<views::RadioButton>(SanitizeLabel(choice.title), 1));
       radio->SetMaxSize(gfx::Size(kDialogWidth, 0));
-      radio->SetTooltipText(radio->GetText());
+      radio->SetTooltipText(std::u16string(radio->GetText()));
       radio->SetCallback(base::BindRepeating(
           [](DaoMcpApprovalDialog* dialog) {
             dialog->SetButtonEnabled(ui::mojom::DialogButton::kOk, true);
@@ -450,7 +450,7 @@ std::unique_ptr<views::View> DaoMcpApprovalDialog::BuildContents(
   return contents;
 }
 
-void DaoMcpApprovalDialog::FilterTabChoices(const std::u16string& query) {
+void DaoMcpApprovalDialog::FilterTabChoices(std::u16string_view query) {
   const auto filter = base::i18n::ToLower(base::CollapseWhitespace(query, true));
   bool has_matches = false;
   bool has_selection = false;
