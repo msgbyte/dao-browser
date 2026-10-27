@@ -236,7 +236,8 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
   available.
 - **Active-tab auto-scroll** — Expands a collapsed folder when one of its tabs
   becomes active, then smoothly keeps the active tab inside the tab-list
-  viewport
+  viewport. Switching to a pinned tab, including after closing the active tab,
+  scrolls the ordinary tab list back to the top and replaces any pending scroll.
 - **dao_favorites_view.ts** — Pinned site icon row
 - **dao_pinned_tabs_grid.ts** + **DaoPinnedTabModel** — Persistent Pin grid
   with stable logical backing identities across navigation, discard/WebContents

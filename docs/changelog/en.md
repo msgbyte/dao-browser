@@ -4,6 +4,7 @@
 
 ### [Unreleased] Unreleased
 
+- Return the sidebar tab list to the top when closing a tab switches to a pinned tab.
 - Fix Classify Tabs Below with AI so it only groups tabs below the clicked tab.
 - Keep a loading indicator in the sidebar until AI tab classification finishes.
 - Keep local agent approval dialogs from becoming too wide when tab titles or URLs are long.
