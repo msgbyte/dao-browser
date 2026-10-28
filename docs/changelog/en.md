@@ -4,6 +4,8 @@
 
 ### [Unreleased] Unreleased
 
+### [1.0.126] - 2026-10-28
+
 - Return the sidebar tab list to the top when closing a tab switches to a pinned tab.
 - Fix Classify Tabs Below with AI so it only groups tabs below the clicked tab.
 - Keep a loading indicator in the sidebar until AI tab classification finishes.
