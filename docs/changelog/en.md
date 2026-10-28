@@ -4,6 +4,8 @@
 
 ### [Unreleased] Unreleased
 
+### [1.0.127] - 2026-10-29
+
 - Show the AI virtual pointer as a blue dot with a short trail, and frame the element it is about to click.
 - Keep the AI virtual pointer at its last position throughout AI control, even after an action fails or is cancelled, dimming it during pauses and hiding it when control ends.
 - Keep the AI virtual pointer lined up with page elements on zoomed pages.

@@ -55,6 +55,22 @@
     </item>
     -->
         <item>
+            <title>1.0.127.0</title>
+            <pubDate>Thu, 29 Oct 2026 03:25:20 +0800</pubDate>
+            <sparkle:version>127.0</sparkle:version>
+            <sparkle:shortVersionString>1.0.127.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://dao-release.msgbyte.com/dao-browser-1.0.127-mac-arm64.dmg" length="175425983" type="application/octet-stream" sparkle:edSignature="KLuEnbh0b8lUZCwAcSUZTYz765URaqUslPSQ350l3418cOTh4Sa2GeD4NHybzQp6o+Uv4GijeoUM0+yGrvFJBg=="/>
+            <sparkle:deltas>
+                <enclosure url="https://dao-release.msgbyte.com/Dao127.0-126.0.delta" sparkle:deltaFrom="126.0" length="6667126" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862416" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="tPk0DFKqxUTvssyFyA6GOm7tq4+wYHFk6+7WsISdg+deWFKyHBUKc7EOU3LLvRt4ecXMlIlcd3Mmd59wZXtjCQ=="/>
+                <enclosure url="https://dao-release.msgbyte.com/Dao127.0-125.0.delta" sparkle:deltaFrom="125.0" length="6874054" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862416" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="z5/Ut67wmKtZ1ibK79xmFdzLTyZNAh4MAwW+EWawoWw4pR/PIDXqugrt7c15O3x6A/CIyUzXWDNTA9KigwHZAA=="/>
+                <enclosure url="https://dao-release.msgbyte.com/Dao127.0-124.0.delta" sparkle:deltaFrom="124.0" length="8012154" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862416" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="WTm/nGJ0tRSlGMcRkzvw9zQU5ggRX55t7FCvbP3LRFAb/GQ9/P28dbFGSqTXO8dyYyyKoGvBO1YENM+P8DnEAg=="/>
+                <enclosure url="https://dao-release.msgbyte.com/Dao127.0-123.0.delta" sparkle:deltaFrom="123.0" length="8717430" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862416" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="9I7LRD/VdXLqSmaD5Ah2275An17loNsFuRVtndb9xydyOM9wNzqZIrFPL3hzPXs625l1BEWkZMl02Vu5QvKEBQ=="/>
+                <enclosure url="https://dao-release.msgbyte.com/Dao127.0-122.0.delta" sparkle:deltaFrom="122.0" length="35598718" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862416" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="JiaE2xllp1NhJcFjCspUnUAj0USPsLb8ekPHIAmIVhgq3xahTkdLLWYAlspZ3Y1z7k700qLNtq4PXMl2p4VbBg=="/>
+            </sparkle:deltas>
+            <dao:gitCommit>8c69be2617591a8c9a3cf0912435b769bbdd3299</dao:gitCommit>
+        </item>
+        <item>
             <title>1.0.126.0</title>
             <pubDate>Wed, 28 Oct 2026 23:03:41 +0800</pubDate>
             <sparkle:version>126.0</sparkle:version>
@@ -254,11 +270,11 @@
             <sparkle:minimumSystemVersion>12.0</sparkle:minimumSystemVersion>
             <enclosure url="https://dao-release.msgbyte.com/dao-browser-1.0.114-mac-arm64.dmg" length="159300455" type="application/octet-stream" sparkle:edSignature="nxF5vBH8Ay3smysRVt3Tro7ge8YORrPP7GBHpVhkvif9Usjg/fJBmmE3jvmYM6CAvqdlmK2y4njMcRBbTbKmCw=="/>
             <sparkle:deltas>
-                <enclosure url="https://dao-release.msgbyte.com/Dao114.0-109.0.delta" sparkle:deltaFrom="109.0" length="7383286" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862416" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="wtWVkDlX40vuKqhQ0Ar47QOgJLnxe7hFFLc2WODA4Zf1ugZPqTLKjeaX3I+ctDcCbcXid4CB1ATrd+/VL1jOCQ=="/>
                 <enclosure url="https://dao-release.msgbyte.com/Dao114.0-113.0.delta" sparkle:deltaFrom="113.0" length="6920530" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862416" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="sNlM/wHJCgKu6bMUXaNg/tzFn4PC6CWn0y7aS9x/cwPR5qXbrdmLH1lB8lWZ7NWlTAcxF4ZCpjZyXa9ospdbDw=="/>
                 <enclosure url="https://dao-release.msgbyte.com/Dao114.0-111.0.delta" sparkle:deltaFrom="111.0" length="7061690" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862416" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="4GAeopfJ7wSyLEDZhTU5y02LeL0DZQLRlXwa0iDA+rJd3z4YjGndMvkASDgB2iUzhtI/u7R6nZkGd7/L0LfAAQ=="/>
-                <enclosure url="https://dao-release.msgbyte.com/Dao114.0-112.0.delta" sparkle:deltaFrom="112.0" length="6932142" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862416" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="8qPGp1r6rGUQyELLjkxNhl35i+43yfjMQY7WdT6o/4hkZYLInQD8fBljdhgBxu1DdiBIF485AqDoa93mGyClBg=="/>
                 <enclosure url="https://dao-release.msgbyte.com/Dao114.0-110.0.delta" sparkle:deltaFrom="110.0" length="7173862" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862416" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="ec8zlCI2fv+naw49iqOiTVYl3JQi9uhl3Xk0bfHrxFImmuxJKhG4Fpo9MyyGKqy+h9RcknIBuSb1M4IFvbiPBA=="/>
+                <enclosure url="https://dao-release.msgbyte.com/Dao114.0-112.0.delta" sparkle:deltaFrom="112.0" length="6932142" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862416" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="8qPGp1r6rGUQyELLjkxNhl35i+43yfjMQY7WdT6o/4hkZYLInQD8fBljdhgBxu1DdiBIF485AqDoa93mGyClBg=="/>
+                <enclosure url="https://dao-release.msgbyte.com/Dao114.0-109.0.delta" sparkle:deltaFrom="109.0" length="7383286" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862416" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="wtWVkDlX40vuKqhQ0Ar47QOgJLnxe7hFFLc2WODA4Zf1ugZPqTLKjeaX3I+ctDcCbcXid4CB1ATrd+/VL1jOCQ=="/>
             </sparkle:deltas>
             <dao:gitCommit>8a5ca980b7c7d416fa251e110188dab6ef418a58</dao:gitCommit>
         </item>
