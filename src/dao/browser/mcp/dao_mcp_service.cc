@@ -42,12 +42,10 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
-#include "chrome/browser/ui/views/frame/multi_contents_view.h"
 #include "chrome/common/chrome_paths.h"
 #include "components/prefs/pref_service.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/browser_thread.h"
-#include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
 #include "crypto/secure_util.h"
 #include "dao/browser/agent/dao_agent_lock_tab_helper.h"
@@ -323,6 +321,7 @@ class DaoMcpPageUiDelegate final : public DaoPageTools::UiDelegate {
   void MoveCursor(content::WebContents* target,
                   double x,
                   double y,
+                  std::optional<gfx::RectF> target_bounds,
                   base::OnceCallback<void(bool)> callback) override {
     BrowserWindowInterface* browser =
         target ? GlobalBrowserCollection::GetInstance()
@@ -342,33 +341,9 @@ class DaoMcpPageUiDelegate final : public DaoPageTools::UiDelegate {
       return;
     }
 
-    gfx::Rect viewport_screen;
-    if (target->GetRenderWidgetHostView()) {
-      viewport_screen = target->GetRenderWidgetHostView()->GetViewBounds();
-    } else {
-      viewport_screen =
-          browser_view->multi_contents_view()->GetBoundsInScreen();
-    }
-    const gfx::Rect cursor_bounds = cursor_view->GetBoundsInScreen();
-    const float view_x =
-        static_cast<float>(viewport_screen.x() - cursor_bounds.x()) + x;
-    const float view_y =
-        static_cast<float>(viewport_screen.y() - cursor_bounds.y()) + y;
-    if (!cursor_view->is_visible()) {
-      cursor_view->ShowAtCenter();
-    }
-    cursor_view->AnimateTo(view_x, view_y,
-                           base::BindOnce(
-                               [](base::WeakPtr<content::WebContents> target,
-                                  base::OnceCallback<void(bool)> done,
-                                  bool moved) {
-                                 std::move(done).Run(
-                                     moved && target &&
-                                     CanAnimateAgentCursorForTarget(
-                                         target.get()));
-                               },
-                               target->GetWeakPtr(),
-                               std::move(callback)));
+    AnimateAgentCursorInViewport(browser_view, target, x, y,
+                                 std::move(target_bounds),
+                                 std::move(callback));
   }
 
   void PlayClickRipple(content::WebContents* target) override {
@@ -403,7 +378,7 @@ class DaoMcpPageUiDelegate final : public DaoPageTools::UiDelegate {
       BrowserView* browser_view =
           BrowserView::GetBrowserViewForBrowser(browser);
       if (browser_view && browser_view->dao_agent_cursor()) {
-        browser_view->dao_agent_cursor()->Hide();
+        browser_view->dao_agent_cursor()->CancelAnimation();
       }
     }
   }

@@ -55,5 +55,6 @@ source_set("browser_automation") {
     "//third_party/re2",
     "//ui/base",
     "//ui/events:events_base",
+    "//ui/gfx/geometry",
   ]
 }

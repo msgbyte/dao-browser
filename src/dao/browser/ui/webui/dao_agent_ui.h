@@ -29,6 +29,7 @@
 #include "dao/browser/automation/dao_devtools_client.h"
 #include "dao/browser/automation/dao_page_tools.h"
 #include "pdf/mojom/pdf.mojom-forward.h"
+#include "ui/gfx/geometry/rect_f.h"
 #include "url/gurl.h"
 
 namespace network {
@@ -121,6 +122,7 @@ class DaoAgentUIHandler : public content::WebUIMessageHandler,
   void MoveCursor(content::WebContents* target,
                   double x,
                   double y,
+                  std::optional<gfx::RectF> target_bounds,
                   base::OnceCallback<void(bool)> callback) override;
   void PlayClickRipple(content::WebContents* target) override;
   void CancelCursor(content::WebContents* target) override;

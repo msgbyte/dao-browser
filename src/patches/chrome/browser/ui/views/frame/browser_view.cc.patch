@@ -212,7 +212,7 @@ diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/v
        multi_contents_view_->GetActiveContentsView()->SetWebContents(
            new_contents);
      }
-@@ -2088,6 +2246,25 @@
+@@ -2088,6 +2246,22 @@
    UpdateTitleBar();
  
    CHECK_DEREF(TranslateBubbleController::From(browser_.get())).CloseBubble();
@@ -229,16 +229,13 @@ diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/v
 +    GetWidget()->LayoutRootViewIfNecessary();
 +  }
 +  if (dao_agent_cursor_) {
-+    if (dao::DaoAgentLockTabHelper::IsLocked(new_contents)) {
-+      dao_agent_cursor_->ShowAtCenter();
-+    } else {
-+      dao_agent_cursor_->Hide();
-+    }
++    dao_agent_cursor_->OnActiveTabChanged(
++        dao::DaoAgentLockTabHelper::IsLocked(new_contents));
 +  }
  }
  
  void BrowserView::OnTabDetached(content::WebContents* contents,
-@@ -2311,6 +2488,18 @@
+@@ -2311,6 +2485,18 @@
    // already. On Chrome OS, changing focus makes a view believe it has a focus
    // even if the widget doens't have a focus. Either cases, we need to ignore
    // this when the browser window isn't active.
@@ -257,7 +254,7 @@ diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/v
  #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
    if (!IsActive()) {
      return;
-@@ -3198,6 +3387,17 @@
+@@ -3198,6 +3384,17 @@
    ui::Accelerator accelerator =
        ui::GetAcceleratorFromNativeWebKeyboardEvent(event);
  
@@ -275,12 +272,12 @@ diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/v
    // What we have to do here is as follows:
    // - If the |browser_| is for an app, do nothing.
    // - On CrOS if |accelerator| is deprecated, we allow web contents to consume
-@@ -3503,6 +3703,21 @@
+@@ -3503,6 +3700,18 @@
      if (auto* container =
              multi_contents_view_->GetContentsContainerViewFor(contents)) {
        container->contents_view()->UpdateIsBlockedByModal();
-+    }
-+  }
+     }
+   }
 +
 +  // Dao: Keep lock banner + cursor in sync with tab lock state on any change.
 +  if (contents == GetActiveWebContents() && dao_agent_lock_banner_) {
@@ -290,14 +287,11 @@ diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/v
 +    GetWidget()->LayoutRootViewIfNecessary();
 +  }
 +  if (contents == GetActiveWebContents() && dao_agent_cursor_) {
-+    if (dao::DaoAgentLockTabHelper::IsLocked(contents)) {
-+      dao_agent_cursor_->ShowAtCenter();
-+    } else {
-+      dao_agent_cursor_->Hide();
-     }
-   }
++    dao_agent_cursor_->OnActiveTabUpdated(
++        dao::DaoAgentLockTabHelper::IsLocked(contents));
++  }
  
-@@ -4480,9 +4695,35 @@
+@@ -4480,9 +4689,35 @@
    }
  }
  
@@ -333,7 +327,7 @@ diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/v
    // Window for PWAs with window-controls-overlay display override should claim
    // mouse events that fall within the draggable region.
    web_app::AppBrowserController* controller =
-@@ -4568,9 +4809,21 @@
+@@ -4568,9 +4803,21 @@
  views::CloseRequestResult BrowserView::OnWindowCloseRequested() {
    // You cannot close a frame for which there is an active originating drag
    // session.
@@ -355,7 +349,7 @@ diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/v
 +
    // Give beforeunload handlers, the user, or policy the chance to cancel the
    // close before we hide the window below.
-@@ -4660,6 +4913,126 @@
+@@ -4660,6 +4907,126 @@
      }
    }
  
@@ -482,7 +476,7 @@ diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/v
    if (vertical_tab_strip_region_view_ &&
        vertical_tab_strip_region_view_->GetVisible()) {
      // See if the mouse pointer is within the bounds of the
-@@ -4817,7 +5190,38 @@
+@@ -4817,7 +5184,38 @@
      did_first_layout_while_top_controls_are_sliding_ = false;
    }
  
@@ -521,7 +515,7 @@ diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/v
  
    // TODO(jamescook): Why was this in the middle of layout code?
    toolbar_->location_bar()->UpdateFocusBehavior(IsToolbarVisible());
-@@ -5143,6 +5547,20 @@
+@@ -5143,6 +5541,20 @@
    }
  
    FrameColorsChanged();
@@ -542,7 +536,7 @@ diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/v
  }
  
  bool BrowserView::GetDropFormats(
-@@ -5185,6 +5603,14 @@
+@@ -5185,6 +5597,14 @@
      return true;
    }
  
@@ -557,7 +551,7 @@ diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/v
    int command_id;
    // Though AcceleratorManager should not send unknown |accelerator| to us, it's
    // still possible the command cannot be executed now.
-@@ -5544,6 +5970,11 @@
+@@ -5544,6 +5964,11 @@
  }
  
  void BrowserView::RequestFullscreen(bool fullscreen, int64_t display_id) {

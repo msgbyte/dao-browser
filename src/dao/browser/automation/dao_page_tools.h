@@ -23,6 +23,7 @@
 #include "base/values.h"
 #include "dao/browser/automation/dao_browser_tool_types.h"
 #include "dao/browser/automation/dao_devtools_client.h"
+#include "ui/gfx/geometry/rect_f.h"
 #include "url/origin.h"
 
 namespace content {
@@ -40,9 +41,11 @@ class DaoPageTools {
     virtual ~UiDelegate() = default;
 
     // The callback is true only when a foreground animation ran.
+    // |target_bounds| is the target element's viewport rect, when known.
     virtual void MoveCursor(content::WebContents* target,
                             double x,
                             double y,
+                            std::optional<gfx::RectF> target_bounds,
                             base::OnceCallback<void(bool)> callback) = 0;
     virtual void PlayClickRipple(content::WebContents* target) = 0;
     virtual void CancelCursor(content::WebContents* target) = 0;

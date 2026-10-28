@@ -126,8 +126,10 @@ std::string CallAgentNativeField(content::WebContents *agent_contents,
 class TestPageUiDelegate : public DaoPageTools::UiDelegate {
 public:
   void MoveCursor(content::WebContents *target, double x, double y,
+                  std::optional<gfx::RectF> target_bounds,
                   base::OnceCallback<void(bool)> callback) override {
     ++move_count_;
+    last_target_bounds_ = target_bounds;
     if (respect_target_activation_ && !CanAnimateTarget(target)) {
       std::move(callback).Run(false);
       return;
@@ -173,6 +175,9 @@ public:
   int animation_count() const { return animation_count_; }
   int ripple_count() const { return ripple_count_; }
   int cancel_cursor_count() const { return cancel_cursor_count_; }
+  const std::optional<gfx::RectF> &last_target_bounds() const {
+    return last_target_bounds_;
+  }
 
   void RespectTargetActivation() { respect_target_activation_ = true; }
 
@@ -202,6 +207,7 @@ private:
   int animation_count_ = 0;
   int ripple_count_ = 0;
   int cancel_cursor_count_ = 0;
+  std::optional<gfx::RectF> last_target_bounds_;
   bool respect_target_activation_ = false;
   bool hold_next_cursor_move_ = false;
   base::OnceClosure cursor_ready_;
@@ -363,6 +369,25 @@ IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
   EXPECT_EQ(1, ui_delegate_.ripple_count());
   EXPECT_EQ(
       1, content::EvalJs(target, "window.__dao_guarded_clicks").ExtractInt());
+  const std::optional<gfx::RectF>& bounds = ui_delegate_.last_target_bounds();
+  ASSERT_TRUE(bounds.has_value());
+  EXPECT_TRUE(
+      content::EvalJs(
+          target,
+          content::JsReplace(
+              "(() => {"
+              "  const r = document.getElementById('live')"
+              "      .getBoundingClientRect();"
+              "  return Math.abs(r.left - $1) < 0.5 &&"
+              "      Math.abs(r.top - $2) < 0.5 &&"
+              "      Math.abs(r.width - $3) < 0.5 &&"
+              "      Math.abs(r.height - $4) < 0.5;"
+              "})()",
+              static_cast<double>(bounds->x()),
+              static_cast<double>(bounds->y()),
+              static_cast<double>(bounds->width()),
+              static_cast<double>(bounds->height())))
+          .ExtractBool());
 
   ASSERT_TRUE(content::ExecJs(
       target, "document.getElementById('live').textContent = 'Changed';"));

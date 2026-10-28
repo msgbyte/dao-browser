@@ -1744,8 +1744,8 @@ void DaoPageTools::ExecuteRefAction(std::string_view request_id,
   }
   if (animate) {
     var bounds = el.getBoundingClientRect();
-    return JSON.stringify({x: bounds.left + bounds.width / 2,
-                           y: bounds.top + bounds.height / 2});
+    return JSON.stringify({left: bounds.left, top: bounds.top,
+                           width: bounds.width, height: bounds.height});
   }
   el.click();
   return JSON.stringify({clicked: true, ref_id: refId});
@@ -1795,15 +1795,21 @@ void DaoPageTools::ExecuteRefAction(std::string_view request_id,
                       return;
                     }
                     if (animate) {
-                      const auto x = parsed->GetDict().FindDouble("x");
-                      const auto y = parsed->GetDict().FindDouble("y");
-                      if (!x || !y) {
+                      const base::DictValue& rect = parsed->GetDict();
+                      const auto left = rect.FindDouble("left");
+                      const auto top = rect.FindDouble("top");
+                      const auto width = rect.FindDouble("width");
+                      const auto height = rect.FindDouble("height");
+                      if (!left || !top || !width || !height) {
                         self->FinishError(
                             request_id, InternalError("Invalid click bounds."));
                         return;
                       }
+                      const gfx::RectF bounds(*left, *top, *width, *height);
+                      const gfx::PointF center = bounds.CenterPoint();
                       self->ui_delegate_->MoveCursor(
-                          operation->target.get(), *x, *y,
+                          operation->target.get(), center.x(), center.y(),
+                          bounds,
                           base::BindOnce(
                               [](base::WeakPtr<DaoPageTools> self,
                                  std::string request_id, bool moved) {
@@ -1983,8 +1989,9 @@ void DaoPageTools::OnAnimatedClickBounds(
     OnAnimatedCursorMoved(request_id, x, y, true);
     return;
   }
+  // The page highlight already frames agent_click targets.
   ui_delegate_->MoveCursor(
-      operation->target.get(), x, y,
+      operation->target.get(), x, y, std::nullopt,
       base::BindOnce(&DaoPageTools::OnAnimatedCursorMoved,
                      weak_factory_.GetWeakPtr(), request_id, x, y));
 }
@@ -2169,7 +2176,7 @@ void DaoPageTools::ExecuteMoveCursor(std::string_view request_id) {
     return;
   }
   ui_delegate_->MoveCursor(
-      operation->target.get(), *x, *y,
+      operation->target.get(), *x, *y, std::nullopt,
       base::BindOnce(
           [](base::WeakPtr<DaoPageTools> self, std::string request_id,
              bool moved) {

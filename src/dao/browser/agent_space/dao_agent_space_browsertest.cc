@@ -31,6 +31,7 @@
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/javascript_dialogs/app_modal_dialog_controller.h"
@@ -41,10 +42,12 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
+#include "dao/browser/agent/dao_agent_lock_tab_helper.h"
 #include "dao/browser/agent_space/dao_agent_space.h"
 #include "dao/browser/agent_space/dao_agent_space_service.h"
 #include "dao/browser/agent_space/dao_hidden_browser.h"
 #include "dao/browser/automation/dao_browser_tool_types.h"
+#include "dao/browser/ui/views/dao_agent_cursor_view.h"
 #include "net/dns/mock_host_resolver.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/base_window.h"
@@ -558,6 +561,49 @@ IN_PROC_BROWSER_TEST_F(DaoAgentSpaceBrowserTest,
     saw_label |= event.label == "Open second page";
   }
   EXPECT_TRUE(saw_label);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentSpaceBrowserTest,
+                       FailedClickKeepsCursorUntilControlEnds) {
+  const std::string space_id =
+      CreateSpace(embedded_test_server()->GetURL("/title1.html"));
+  ASSERT_TRUE(WaitForLoad(space_id));
+  DaoAgentSpace* space = Space(space_id);
+  ASSERT_TRUE(space);
+  ASSERT_TRUE(service_->ShowWindow(space_id));
+  content::WebContents* contents = space->GetCurrentContents();
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return CanAnimateAgentCursorForTarget(contents); }));
+  DaoAgentCursorView* cursor =
+      BrowserView::GetBrowserViewForBrowser(space->browser())->dao_agent_cursor();
+  ASSERT_TRUE(cursor);
+  ASSERT_TRUE(base::test::RunUntil([&] { return cursor->is_visible(); }));
+
+  DaoBrowserToolResult move =
+      Call("move_cursor", base::DictValue()
+                              .Set("space_id", space_id)
+                              .Set("x", 140.0)
+                              .Set("y", 100.0));
+  ASSERT_FALSE(move.error);
+  const gfx::PointF position = cursor->cursor_position_for_testing();
+  cursor->PlayClickRipple();
+
+  DaoBrowserToolResult click =
+      Call("agent_click", base::DictValue()
+                              .Set("space_id", space_id)
+                              .Set("selector", "#missing-target"));
+  EXPECT_EQ("INVALID_ARGUMENT", ErrorCode(click));
+  EXPECT_EQ(DaoAgentSpaceState::kRunning, space->state());
+  EXPECT_TRUE(DaoAgentLockTabHelper::IsLocked(contents));
+  EXPECT_TRUE(cursor->is_visible());
+  EXPECT_EQ(position, cursor->cursor_position_for_testing());
+  EXPECT_FALSE(cursor->is_animating_for_testing());
+  EXPECT_FALSE(cursor->target_frame_for_testing());
+
+  ASSERT_TRUE(service_->TakeOver(space_id));
+  EXPECT_FALSE(DaoAgentLockTabHelper::IsLocked(contents));
+  EXPECT_EQ(DaoAgentSpaceState::kUserInControl, space->state());
+  EXPECT_TRUE(base::test::RunUntil([&] { return !cursor->is_visible(); }));
 }
 
 IN_PROC_BROWSER_TEST_F(DaoAgentSpaceBrowserTest,

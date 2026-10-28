@@ -60,6 +60,7 @@ class TestDevToolsUiDelegate : public DaoPageTools::UiDelegate {
   void MoveCursor(content::WebContents* target,
                   double x,
                   double y,
+                  std::optional<gfx::RectF> target_bounds,
                   base::OnceCallback<void(bool)> callback) override {
     std::move(callback).Run(false);
   }

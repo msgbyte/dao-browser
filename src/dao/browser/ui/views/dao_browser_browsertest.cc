@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cmath>
 #include <map>
 #include <string>
 #include <string_view>
@@ -74,6 +75,7 @@
 #include "chrome/browser/ui/startup/startup_browser_creator_impl.h"
 #include "chrome/browser/ui/startup/startup_types.h"
 #include "chrome/browser/ui/tab_contents/chrome_web_contents_view_delegate.h"
+#include "chrome/browser/ui/tabs/tab_change_type.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/thumbnails/thumbnail_tab_helper.h"
@@ -121,10 +123,12 @@
 #include "components/strings/grit/components_strings.h"
 #include "content/public/browser/document_picture_in_picture_window_controller.h"
 #include "content/public/browser/download_manager.h"
+#include "content/public/browser/host_zoom_map.h"
 #include "content/public/browser/media_player_id.h"
 #include "content/public/browser/page_navigator.h"
 #include "content/public/browser/picture_in_picture_window_controller.h"
 #include "content/public/browser/render_frame_host.h"
+#include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_view_delegate.h"
 #include "content/public/browser/web_ui.h"
@@ -210,6 +214,7 @@
 #include "sql/statement.h"
 #include "sql/test/test_helpers.h"
 #include "third_party/blink/public/common/features.h"
+#include "third_party/blink/public/common/page/page_zoom.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
 #include "third_party/blink/public/mojom/css/preferred_color_scheme.mojom.h"
 #include "third_party/blink/public/mojom/devtools/console_message.mojom-shared.h"
@@ -229,6 +234,7 @@
 #include "ui/color/color_provider.h"
 #include "ui/compositor/layer.h"
 #include "ui/compositor/layer_animator.h"
+#include "ui/compositor/scoped_animation_duration_scale_mode.h"
 #include "ui/display/display.h"
 #include "ui/display/display_list.h"
 #include "ui/display/screen.h"
@@ -242,6 +248,7 @@
 #include "ui/gfx/color_utils.h"
 #include "ui/gfx/test/sk_color_eq.h"
 #include "ui/gfx/geometry/point_f.h"
+#include "ui/gfx/geometry/rect_f.h"
 #include "ui/gfx/image/image.h"
 #include "ui/gfx/image/image_skia_rep.h"
 #include "ui/gfx/range/range.h"
@@ -13122,8 +13129,9 @@ IN_PROC_BROWSER_TEST_F(DaoDownloadHoverDetailsBrowserTest,
 // =============================================================================
 // DaoAgentCursorViewBrowserTest
 //
-// Verifies the click-through agent cursor toggles its visibility flag and that
-// idempotent Hide() does not crash.
+// Verifies the click-through agent cursor toggles its visibility flag, paints
+// the orb and focus brackets, stays put after clicks, idles out, follows only
+// active-tab lock changes, and that idempotent Hide() does not crash.
 // =============================================================================
 
 using DaoAgentCursorViewBrowserTest = InProcessBrowserTest;
@@ -13168,19 +13176,19 @@ IN_PROC_BROWSER_TEST_F(DaoAgentCursorViewBrowserTest,
   cursor.SetSize(gfx::Size(800, 600));
   cursor.ShowAtCenter();
 
-  cursor.AnimateTo(450, 300, base::DoNothing());
+  cursor.AnimateTo(450, 300, std::nullopt, base::DoNothing());
   EXPECT_FALSE(cursor.uses_curved_path_for_testing());
   cursor.Hide();
 
   cursor.ShowAtCenter();
-  cursor.AnimateTo(610, 300, base::DoNothing());
+  cursor.AnimateTo(610, 300, std::nullopt, base::DoNothing());
   EXPECT_EQ(!gfx::Animation::PrefersReducedMotion(),
             cursor.uses_curved_path_for_testing());
   cursor.Hide();
 }
 
 IN_PROC_BROWSER_TEST_F(DaoAgentCursorViewBrowserTest,
-                       PaintsBlackAndWhiteAgentPointer) {
+                       PaintsBlueOrbWithWhiteCore) {
   PaintableDaoAgentCursorView cursor;
   cursor.SetSize(gfx::Size(100, 100));
   cursor.ShowAtCenter();
@@ -13188,23 +13196,267 @@ IN_PROC_BROWSER_TEST_F(DaoAgentCursorViewBrowserTest,
   gfx::Canvas canvas(gfx::Size(100, 100), 1.0f, false);
   cursor.PaintForTesting(&canvas);
   const SkBitmap bitmap = canvas.GetBitmap();
-  bool has_black = false;
-  bool has_white = false;
-  for (int y = 0; y < bitmap.height(); ++y) {
-    for (int x = 0; x < bitmap.width(); ++x) {
-      const SkColor color = bitmap.getColor(x, y);
-      if (SkColorGetA(color) < 200) {
-        continue;
-      }
-      has_black |= SkColorGetR(color) < 40 && SkColorGetG(color) < 40 &&
-                   SkColorGetB(color) < 40;
-      has_white |= SkColorGetR(color) > 215 && SkColorGetG(color) > 215 &&
-                   SkColorGetB(color) > 215;
-    }
-  }
+  const SkColor core = bitmap.getColor(50, 50);
+  const SkColor ring = bitmap.getColor(54, 50);
 
-  EXPECT_TRUE(has_black);
-  EXPECT_TRUE(has_white);
+  EXPECT_GT(SkColorGetR(core), 215u);
+  EXPECT_GT(SkColorGetG(core), 215u);
+  EXPECT_GT(SkColorGetB(core), 215u);
+  EXPECT_GT(SkColorGetA(ring), 200u);
+  EXPECT_GT(SkColorGetB(ring), SkColorGetR(ring) + 60);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentCursorViewBrowserTest,
+                       PaintsFocusBracketsAroundTargetFrame) {
+  PaintableDaoAgentCursorView cursor;
+  cursor.SetSize(gfx::Size(200, 200));
+  cursor.ShowAtCenter();
+  base::test::TestFuture<bool> move;
+  cursor.AnimateTo(100, 55, gfx::RectF(56, 36, 88, 38), move.GetCallback());
+  ASSERT_TRUE(move.Get());
+  ASSERT_TRUE(
+      base::test::RunUntil([&] { return !cursor.is_animating_for_testing(); }));
+  ASSERT_TRUE(cursor.target_frame_for_testing().has_value());
+
+  gfx::Canvas canvas(gfx::Size(200, 200), 1.0f, false);
+  cursor.PaintForTesting(&canvas);
+  // Left edge of the top-left bracket.
+  const SkColor bracket = canvas.GetBitmap().getColor(56, 42);
+
+  EXPECT_GT(SkColorGetA(bracket), 150u);
+  EXPECT_GT(SkColorGetB(bracket), SkColorGetR(bracket) + 60);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentCursorViewBrowserTest,
+                       ComputesFocusFrameInsideViewport) {
+  const gfx::RectF viewport(0, 0, 800, 600);
+  // Tiny targets get a minimum frame centered on them.
+  EXPECT_EQ(gfx::RectF(91, 91, 28, 28),
+            ComputeAgentCursorFrame(gfx::RectF(100, 100, 10, 10), viewport));
+  // Partly scrolled-out targets stay inside the viewport.
+  EXPECT_EQ(gfx::RectF(766, 96, 32, 28),
+            ComputeAgentCursorFrame(gfx::RectF(770, 100, 100, 20), viewport));
+  // A Split View pane clips its own targets.
+  EXPECT_EQ(gfx::RectF(402, 96, 102, 28),
+            ComputeAgentCursorFrame(gfx::RectF(300, 100, 200, 20),
+                                    gfx::RectF(400, 0, 400, 600)));
+  // Page-sized containers and off-screen targets get no frame.
+  EXPECT_FALSE(ComputeAgentCursorFrame(viewport, viewport).has_value());
+  EXPECT_FALSE(
+      ComputeAgentCursorFrame(gfx::RectF(900, 100, 50, 50), viewport)
+          .has_value());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentCursorViewBrowserTest,
+                       StaysVisibleAfterClickRipple) {
+  DaoAgentCursorView cursor;
+  cursor.SetSize(gfx::Size(800, 600));
+  cursor.ShowAtCenter();
+  cursor.PlayClickRipple();
+
+  ASSERT_TRUE(
+      base::test::RunUntil([&] { return !cursor.is_animating_for_testing(); }));
+
+  EXPECT_TRUE(cursor.is_visible());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentCursorViewBrowserTest,
+                       IdleCursorDimsWakesAndHides) {
+  ui::ScopedAnimationDurationScaleMode zero_duration(
+      ui::ScopedAnimationDurationScaleMode::ZERO_DURATION);
+  DaoAgentCursorView cursor;
+  cursor.SetSize(gfx::Size(800, 600));
+  cursor.SetIdleDelaysForTesting(base::Milliseconds(30),
+                                 base::Milliseconds(60));
+  cursor.ShowAtCenter();
+  EXPECT_FLOAT_EQ(1.0f, cursor.layer()->opacity());
+
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return cursor.layer()->opacity() < 1.0f; }));
+  EXPECT_TRUE(cursor.is_visible());
+  EXPECT_FLOAT_EQ(0.55f, cursor.layer()->opacity());
+
+  // A new action restores full opacity instead of popping from the dim state.
+  cursor.PlayClickRipple();
+  EXPECT_FLOAT_EQ(1.0f, cursor.layer()->opacity());
+
+  ASSERT_TRUE(base::test::RunUntil([&] { return !cursor.is_visible(); }));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentCursorViewBrowserTest,
+                       LockedCursorStaysAtLastPositionUntilUnlock) {
+  ui::ScopedAnimationDurationScaleMode zero_duration(
+      ui::ScopedAnimationDurationScaleMode::ZERO_DURATION);
+  TabStripModel* model = browser()->tab_strip_model();
+  content::WebContents* contents = model->GetActiveWebContents();
+  DaoAgentCursorView* cursor = GetBrowserView(browser())->dao_agent_cursor();
+  ASSERT_NE(nullptr, cursor);
+  cursor->SetIdleDelaysForTesting(base::Milliseconds(30),
+                                 base::Milliseconds(60));
+  DaoAgentLockTabHelper::LockContents(contents);
+  model->UpdateWebContentsState(contents, TabChangeType::kAll);
+
+  base::test::TestFuture<bool> first_move;
+  cursor->AnimateTo(140, 100, std::nullopt, first_move.GetCallback());
+  ASSERT_TRUE(first_move.Get());
+  cursor->PlayClickRipple();
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return !cursor->is_animating_for_testing(); }));
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return cursor->layer()->opacity() < 1.0f; }));
+
+  // Wait beyond the unlocked cursor's hide deadline, not just until it dims.
+  base::RunLoop idle;
+  base::OneShotTimer timer;
+  timer.Start(FROM_HERE, base::Milliseconds(100), idle.QuitClosure());
+  idle.Run();
+  EXPECT_TRUE(cursor->is_visible());
+  EXPECT_FLOAT_EQ(0.55f, cursor->layer()->opacity());
+  EXPECT_EQ(gfx::PointF(140, 100), cursor->cursor_position_for_testing());
+  EXPECT_FALSE(cursor->is_animating_for_testing());
+
+  base::test::TestFuture<bool> next_move;
+  cursor->AnimateTo(260, 180, std::nullopt, next_move.GetCallback());
+  EXPECT_FLOAT_EQ(1.0f, cursor->layer()->opacity());
+  if (!gfx::Animation::PrefersReducedMotion()) {
+    EXPECT_EQ(gfx::PointF(140, 100), cursor->cursor_position_for_testing());
+  }
+  ASSERT_TRUE(next_move.Get());
+  EXPECT_EQ(gfx::PointF(260, 180), cursor->cursor_position_for_testing());
+
+  cursor->PlayClickRipple();
+  DaoAgentLockTabHelper::UnlockContents(contents);
+  model->UpdateWebContentsState(contents, TabChangeType::kAll);
+  EXPECT_FALSE(cursor->is_visible());
+  EXPECT_FALSE(cursor->is_animating_for_testing());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentCursorViewBrowserTest,
+                       ActiveTabUpdatesOnlyActOnLockChanges) {
+  TabStripModel* model = browser()->tab_strip_model();
+  content::WebContents* contents = model->GetActiveWebContents();
+  DaoAgentCursorView* cursor = GetBrowserView(browser())->dao_agent_cursor();
+  ASSERT_NE(nullptr, cursor);
+  // Browser coalesces tab UI updates; deliver them synchronously instead.
+  auto notify_update = [&] {
+    model->UpdateWebContentsState(contents, TabChangeType::kAll);
+  };
+  auto move_to = [&](float x, float y) {
+    base::test::TestFuture<bool> move;
+    cursor->AnimateTo(x, y, std::nullopt, move.GetCallback());
+    ASSERT_TRUE(move.Get());
+    EXPECT_EQ(gfx::PointF(x, y), cursor->cursor_position_for_testing());
+  };
+
+  // Updates to an unlocked tab leave a visible cursor alone.
+  move_to(120, 90);
+  notify_update();
+  EXPECT_TRUE(cursor->is_visible());
+  EXPECT_EQ(gfx::PointF(120, 90), cursor->cursor_position_for_testing());
+
+  // Locking shows the cursor at the center; later updates do not recenter it.
+  DaoAgentLockTabHelper::LockContents(contents);
+  notify_update();
+  EXPECT_TRUE(cursor->is_visible());
+  EXPECT_EQ(gfx::PointF(cursor->width() / 2.0f, cursor->height() / 2.0f),
+            cursor->cursor_position_for_testing());
+  move_to(140, 100);
+  notify_update();
+  EXPECT_EQ(gfx::PointF(140, 100), cursor->cursor_position_for_testing());
+
+  // An explicitly hidden cursor stays hidden through page updates.
+  cursor->Hide();
+  notify_update();
+  EXPECT_FALSE(cursor->is_visible());
+
+  // Unlocking hides the cursor.
+  move_to(160, 110);
+  DaoAgentLockTabHelper::UnlockContents(contents);
+  notify_update();
+  EXPECT_FALSE(cursor->is_visible());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentCursorViewBrowserTest,
+                       ScalesPageCoordinatesByZoom) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), embedded_test_server()->GetURL("/title1.html")));
+  content::WebContents* contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  content::HostZoomMap::SetZoomLevel(contents,
+                                     blink::ZoomFactorToZoomLevel(1.5));
+  ASSERT_NEAR(1.5,
+              blink::ZoomLevelToZoomFactor(
+                  content::HostZoomMap::GetZoomLevel(contents)),
+              0.01);
+  BrowserView* browser_view = GetBrowserView(browser());
+  DaoAgentCursorView* cursor = browser_view->dao_agent_cursor();
+  ASSERT_NE(nullptr, cursor);
+
+  base::test::TestFuture<bool> move;
+  AnimateAgentCursorInViewport(browser_view, contents, 100, 40,
+                               gfx::RectF(60, 30, 80, 20), move.GetCallback());
+  ASSERT_TRUE(move.Wait());
+
+  const gfx::Vector2d offset =
+      contents->GetRenderWidgetHostView()->GetViewBounds().origin() -
+      cursor->GetBoundsInScreen().origin();
+  const gfx::PointF position = cursor->cursor_position_for_testing();
+  EXPECT_NEAR(offset.x() + 150, position.x(), 0.01);
+  EXPECT_NEAR(offset.y() + 60, position.y(), 0.01);
+  // The 120x30 DIP target plus 4px of padding on each side.
+  const std::optional<gfx::RectF>& frame = cursor->target_frame_for_testing();
+  ASSERT_TRUE(frame.has_value());
+  EXPECT_NEAR(offset.x() + 86, frame->x(), 0.01);
+  EXPECT_NEAR(offset.y() + 41, frame->y(), 0.01);
+  EXPECT_NEAR(128, frame->width(), 0.01);
+  EXPECT_NEAR(38, frame->height(), 0.01);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentCursorViewBrowserTest,
+                       HiddenCursorReappearsNearTarget) {
+  DaoAgentCursorView cursor;
+  cursor.SetSize(gfx::Size(800, 600));
+  base::test::TestFuture<bool> move;
+  cursor.AnimateTo(600, 450, std::nullopt, move.GetCallback());
+
+  ASSERT_TRUE(cursor.is_visible());
+  const gfx::PointF start = cursor.cursor_position_for_testing();
+  EXPECT_LT(std::hypot(start.x() - 600, start.y() - 450), 50.0f);
+  EXPECT_TRUE(move.Get());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentCursorViewBrowserTest,
+                       CancelAnimationKeepsOnlyLockedCursorVisible) {
+  for (bool locked : {false, true}) {
+    SCOPED_TRACE(locked);
+    DaoAgentCursorView cursor;
+    cursor.SetSize(gfx::Size(800, 600));
+    cursor.OnActiveTabChanged(locked);
+    cursor.ShowAtCenter();
+    int callback_count = 0;
+    cursor.AnimateTo(
+        700, 500, gfx::RectF(660, 470, 80, 60),
+        base::BindLambdaForTesting([&](bool moved) {
+          ++callback_count;
+          EXPECT_EQ(gfx::Animation::PrefersReducedMotion(), moved);
+        }));
+    const gfx::PointF position = cursor.cursor_position_for_testing();
+
+    cursor.CancelAnimation();
+    EXPECT_EQ(1, callback_count);
+    EXPECT_EQ(locked, cursor.is_visible());
+    EXPECT_EQ(position, cursor.cursor_position_for_testing());
+    EXPECT_FALSE(cursor.is_animating_for_testing());
+    EXPECT_FALSE(cursor.target_frame_for_testing());
+    cursor.CancelAnimation();
+    EXPECT_EQ(1, callback_count);
+
+    cursor.Hide();
+    cursor.CancelAnimation();
+    EXPECT_FALSE(cursor.is_visible());
+    EXPECT_EQ(1, callback_count);
+  }
 }
 
 IN_PROC_BROWSER_TEST_F(DaoAgentCursorViewBrowserTest,
@@ -13214,7 +13466,7 @@ IN_PROC_BROWSER_TEST_F(DaoAgentCursorViewBrowserTest,
   cursor.ShowAtCenter();
   int callback_count = 0;
   cursor.AnimateTo(
-      700, 500, base::BindLambdaForTesting([&](bool moved) {
+      700, 500, std::nullopt, base::BindLambdaForTesting([&](bool moved) {
         ++callback_count;
         EXPECT_EQ(gfx::Animation::PrefersReducedMotion(), moved);
       }));
@@ -13236,10 +13488,10 @@ IN_PROC_BROWSER_TEST_F(DaoAgentCursorViewBrowserTest,
   int callback_count = 0;
   base::test::TestFuture<bool> next_move;
   cursor.AnimateTo(
-      1500, 300, base::BindLambdaForTesting([&](bool moved) {
+      1500, 300, std::nullopt, base::BindLambdaForTesting([&](bool moved) {
         ++callback_count;
         EXPECT_FALSE(moved);
-        cursor.AnimateTo(200, 300, next_move.GetCallback());
+        cursor.AnimateTo(200, 300, std::nullopt, next_move.GetCallback());
       }));
 
   cursor.ShowAtCenter();
@@ -13267,7 +13519,7 @@ IN_PROC_BROWSER_TEST_F(DaoAgentCursorViewBrowserTest,
   ASSERT_NE(nullptr, cursor);
   cursor->ShowAtCenter();
   base::test::TestFuture<bool> move;
-  cursor->AnimateTo(100, 100, move.GetCallback());
+  cursor->AnimateTo(100, 100, std::nullopt, move.GetCallback());
 
   model->ActivateTabAt(model->GetIndexOfWebContents(next));
 
@@ -13288,8 +13540,8 @@ IN_PROC_BROWSER_TEST_F(DaoAgentCursorViewBrowserTest,
   cursor.ShowAtCenter();
   base::test::TestFuture<bool> first_move;
   base::test::TestFuture<bool> overlapping_move;
-  cursor.AnimateTo(1500, 300, first_move.GetCallback());
-  cursor.AnimateTo(200, 300, overlapping_move.GetCallback());
+  cursor.AnimateTo(1500, 300, std::nullopt, first_move.GetCallback());
+  cursor.AnimateTo(200, 300, std::nullopt, overlapping_move.GetCallback());
 
   ASSERT_TRUE(overlapping_move.IsReady());
   EXPECT_FALSE(overlapping_move.Get());
@@ -13308,7 +13560,7 @@ IN_PROC_BROWSER_TEST_F(DaoAgentCursorViewBrowserTest,
   cursor.ShowAtCenter();
   cursor.PlayClickRipple();
   base::test::TestFuture<bool> move;
-  cursor.AnimateTo(1500, 300, move.GetCallback());
+  cursor.AnimateTo(1500, 300, std::nullopt, move.GetCallback());
 
   EXPECT_TRUE(move.Get());
   EXPECT_TRUE(cursor.is_visible());
@@ -13323,7 +13575,7 @@ IN_PROC_BROWSER_TEST_F(DaoAgentCursorViewBrowserTest,
   cursor.SetSize(gfx::Size(1600, 600));
   cursor.ShowAtCenter();
   base::test::TestFuture<bool> move;
-  cursor.AnimateTo(1500, 300, move.GetCallback());
+  cursor.AnimateTo(1500, 300, std::nullopt, move.GetCallback());
   cursor.PlayClickRipple();
 
   EXPECT_TRUE(move.Get());
