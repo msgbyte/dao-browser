@@ -30,7 +30,7 @@ it('prepares the cursor destination without clicking, then clicks once', () => {
   button.addEventListener('click', clicked);
   const element = observe().elements[0];
 
-  expect(click(element, true)).toEqual({x: 60, y: 25});
+  expect(click(element, true)).toEqual({left: 10, top: 10, width: 100, height: 30});
   expect(clicked).not.toHaveBeenCalled();
   expect(click(element)).toEqual({clicked: true, ref_id: element.ref_id});
   expect(clicked).toHaveBeenCalledTimes(1);
@@ -42,7 +42,7 @@ it.each(['name', 'snapshot', 'removed'])('rejects a %s change during cursor move
   const clicked = vi.fn();
   button.addEventListener('click', clicked);
   const element = observe().elements[0];
-  expect(click(element, true)).toEqual({x: 60, y: 25});
+  expect(click(element, true)).toEqual({left: 10, top: 10, width: 100, height: 30});
 
   if (change === 'name') button.textContent = 'Delete';
   if (change === 'snapshot') document.documentElement.setAttribute('data-dao-snapshot', 'new');
