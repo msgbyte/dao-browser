@@ -154,7 +154,7 @@ void DaoWindowsUpdater::Start(
 #if defined(COMPONENT_BUILD) || !defined(ARCH_CPU_X86_64)
   SetState(DaoUpdateState::kUnsupported);
   return;
-#endif
+#else
   const auto* command = base::CommandLine::ForCurrentProcess();
   if (command->HasSwitch(switches::kUserDataDir) ||
       command->HasSwitch(switches::kIncognito) ||
@@ -167,6 +167,7 @@ void DaoWindowsUpdater::Start(
       base::BindOnce(&DaoWindowsUpdater::LoadCache),
       base::BindOnce(&DaoWindowsUpdater::OnCacheLoaded,
                      weak_factory_.GetWeakPtr()));
+#endif
 }
 
 void DaoWindowsUpdater::OnCacheLoaded(Cache cache) {
