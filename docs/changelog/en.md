@@ -4,6 +4,8 @@
 
 ### [Unreleased] Unreleased
 
+### [1.0.128] - 2026-10-30
+
 - Open Settings and common browser actions from the new menu button at the top-left of the Windows sidebar, with Settings at the top and Alt+F keyboard access.
 - Let AI find rich-text fields by their current content and replace or clear text and embedded images with fewer steps, preserving spacing and checking the result automatically.
 - Fix a black fullscreen space left behind when closing or hiding a Dao Lite task window on macOS.

@@ -1,17 +1,17 @@
 {
   "$schema": "Update this file to publish a new release. The /download route reads this at runtime and redirects to the platform-specific URL. Static-export-friendly (no server needed).",
-  "version": "1.0.127",
+  "version": "1.0.128",
   "chromiumVersion": "155.0.8059.86",
-  "releasedAt": "2026-10-29",
+  "releasedAt": "2026-10-30",
   "platforms": {
     "macArm64": {
       "label": "macOS (Apple Silicon)",
-      "url": "https://dao-release.msgbyte.com/dao-browser-1.0.127-mac-arm64.dmg"
+      "url": "https://dao-release.msgbyte.com/dao-browser-1.0.128-mac-arm64.dmg"
     },
     "win": {
       "label": "Windows (x64)",
-      "version": "1.0.127",
-      "url": "https://dao-release.msgbyte.com/dao-browser-1.0.127-windows-x64.exe"
+      "version": "1.0.128",
+      "url": "https://dao-release.msgbyte.com/dao-browser-1.0.128-windows-x64.exe"
     }
   },
   "default": "macArm64"
