@@ -146,6 +146,9 @@ describe('browser_tool_catalog', () => {
 
     expect(query?.inputSchema.properties).toHaveProperty('scope');
     expect(query?.inputSchema.properties).toHaveProperty('require_count');
+    for (const tool of [query, elementWait]) {
+      expect(tool?.inputSchema.properties.editable).toMatchObject({type: 'boolean'});
+    }
     expect(query?.inputSchema.properties.scope.properties).toEqual(
         expect.objectContaining({
           ref_id: expect.any(Object),

@@ -8,6 +8,8 @@ const helpers = source.match(/kSnapshotHelpersScript\[\] = R"js\(([\s\S]*?)\)js"
 const withHelpers = (script: string) => `(function(){${helpers}return (${script})})()`;
 const script = withHelpers(source.match(/kAccessibilityTreeScript\[\] = R"js\(([\s\S]*?)\)js";/)![1]);
 const observe = () => JSON.parse((0, eval)(script)('compact', null, 'snapshot-test', false));
+const query = (filters: Record<string, unknown> = {}) =>
+  JSON.parse((0, eval)(script)('interactive', filters, 'snapshot-test', false));
 const actionScript = withHelpers(source.match(/WithSnapshotHelpers\(R"js\(\n(\(function\(refId, snapshotId, preconditions, fill, text(?:, animate)?\)[\s\S]*?)\)js"\)/)![1]);
 const click = (element: {ref_id: string; role: string; name: string; value?: string}, animate = false) =>
   JSON.parse((0, eval)(actionScript)(element.ref_id, 'snapshot-test',
@@ -104,6 +106,29 @@ it('uses the same implicit role when observing and guarding interactive elements
   const page = observe();
   expect(page.elements.map((e: {role: string}) => e.role)).toEqual(['listitem', 'image']);
   for (const element of page.elements) expect(click(element)).toMatchObject({clicked: true});
+});
+
+it('queries writable fields by their current value and associated label', () => {
+  document.body.innerHTML = `<label for="title">Title</label><input id="title" value="old title">
+    <textarea readonly>Locked</textarea><input disabled value="Disabled">`;
+  const result = query({editable: true, text: 'old title', require_count: 1});
+  expect(result.matches).toHaveLength(1);
+  expect(result.matches[0]).toMatchObject({name: 'Title', value: 'old title', editable: true});
+  expect(click(result.matches[0])).toMatchObject({clicked: true});
+  expect(query({role: 'textbox', editable: false}).matches).toHaveLength(2);
+});
+
+it('bounds query values without exposing sensitive field text', () => {
+  document.body.innerHTML = `<textarea aria-label="Notes"></textarea>
+    <input type="password" value="password-secret">
+    <textarea aria-label="Verification code">otp-secret</textarea>`;
+  document.querySelector('textarea')!.value = 'x'.repeat(2100);
+  const result = query({role: 'textbox'});
+  expect(result.matches[0].value).toHaveLength(2000);
+  expect(result.matches[0].value_truncated).toBe(true);
+  expect(result.matches.slice(1).every((field: {value?: string; text: string}) =>
+    field.value === undefined && field.text === '')).toBe(true);
+  expect(JSON.stringify(result)).not.toContain('secret');
 });
 
 it('names native and ARIA buttons and rejects actions after their labels change', () => {

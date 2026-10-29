@@ -165,7 +165,7 @@
     },
     {
       "name": "query_elements",
-      "description": "Query a compact set of page elements by scope and semantic filters. Returns document_id, snapshot_id, and stable ref_ids for guarded click_by_ref and fill_by_ref calls. A scope ref_id must include the document_id and snapshot_id returned with that ref.",
+      "description": "Query a compact set of page elements by scope and semantic filters. Returns document_id, snapshot_id, and stable ref_ids for guarded click_by_ref and fill_by_ref calls. A scope ref_id must include the document_id and snapshot_id returned with that ref. Matches include editable and, for non-sensitive text fields, a plain-text value capped at 2000 characters. value_truncated marks a shortened value; never use it as an equality precondition. Contenteditable hosts have implicit role textbox unless the page sets another role.",
       "group": "page",
       "clients": [
         "dao_agent",
@@ -222,7 +222,8 @@
             "type": "string"
           },
           "text": {
-            "type": "string"
+            "type": "string",
+            "description": "Match normalized element text, or the current plain-text value for text inputs, textareas, and contenteditable hosts. Sensitive field values are excluded."
           },
           "text_match": {
             "type": "string",
@@ -237,6 +238,10 @@
           },
           "enabled": {
             "type": "boolean"
+          },
+          "editable": {
+            "type": "boolean",
+            "description": "Filter for text fields that are enabled and writable, including contenteditable hosts. Visibility is a separate filter."
           },
           "max_results": {
             "type": "integer",
@@ -255,7 +260,7 @@
     },
     {
       "name": "wait_for_element",
-      "description": "Wait for semantic element filters to match, then return a fresh query snapshot. Defaults to at least one match; require_count waits for an exact count (0 waits for absence within an existing scope). Polling preserves current refs until success. Cancellable and bounded to 30 seconds.",
+      "description": "Wait for semantic element filters to match, then return a fresh query snapshot. Defaults to at least one match; require_count waits for an exact count (0 waits for absence within an existing scope). Polling preserves current refs until success. Cancellable and bounded to 30 seconds. Supports the same editable/value matching and bounded field metadata as query_elements.",
       "group": "page",
       "clients": [
         "dao_agent",
@@ -312,7 +317,8 @@
             "type": "string"
           },
           "text": {
-            "type": "string"
+            "type": "string",
+            "description": "Match normalized element text, or the current plain-text value for text inputs, textareas, and contenteditable hosts. Sensitive field values are excluded."
           },
           "text_match": {
             "type": "string",
@@ -327,6 +333,10 @@
           },
           "enabled": {
             "type": "boolean"
+          },
+          "editable": {
+            "type": "boolean",
+            "description": "Filter for text fields that are enabled and writable, including contenteditable hosts. Visibility is a separate filter."
           },
           "max_results": {
             "type": "integer",

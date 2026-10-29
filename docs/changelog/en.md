@@ -4,6 +4,8 @@
 
 ### [Unreleased] Unreleased
 
+- Let AI find editable fields by their current content and associated labels, including rich-text editors.
+
 ### [1.0.127] - 2026-10-29
 
 - Show the AI virtual pointer as a blue dot with a short trail, and frame the element it is about to click.

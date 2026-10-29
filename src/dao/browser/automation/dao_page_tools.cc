@@ -100,9 +100,76 @@ constexpr char kHighlightInjectScript[] = R"js(
 })()
 )js";
 
-// Shared by the snapshot and ref-action scripts so an observed element's name
-// and sensitivity are judged identically when its guarded action runs.
+// Shared by the snapshot and ref-action scripts so an observed element's
+// name, value, and sensitivity are judged identically by guarded actions.
 constexpr char kSnapshotHelpersScript[] = R"js(
+  function isEditingHost(el) {
+    return !!el.isContentEditable && !el.parentElement?.isContentEditable;
+  }
+  function isTextField(el) {
+    return el.tagName === 'TEXTAREA' || isEditingHost(el) ||
+      (el.tagName === 'INPUT' && ['text','search','tel','url','password','email'].includes(el.type));
+  }
+  function isWritableField(el) {
+    return isTextField(el) && !el.matches(':disabled') && !el.readOnly &&
+      el.getAttribute('aria-disabled') !== 'true' && el.getAttribute('aria-readonly') !== 'true';
+  }
+  function normalizeEditorText(text) {
+    return text.replace(/\r\n?/g, '\n').replace(/\u00a0/g, ' ');
+  }
+  function fieldValue(el) {
+    if (!isEditingHost(el)) return el.value;
+    // innerText adds paragraph spacing. Serialize logical lines instead,
+    // ignoring the final BR that Chromium and rich editors use as a caret stop.
+    function read(node, atLineEnd) {
+      if (node.nodeType === Node.TEXT_NODE) {
+        var text = node.textContent.replace(/\r\n?/g, '\n');
+        var whiteSpace = getComputedStyle(node.parentElement).whiteSpace;
+        // Protect preserved spaces until the final normalization, just like
+        // the NBSPs Chromium inserts when typing consecutive spaces.
+        if (['pre','pre-wrap','break-spaces'].includes(whiteSpace)) {
+          return text.replace(/ /g, '\u00a0');
+        }
+        return text.replace(whiteSpace === 'pre-line' ? /[ \t\f]+/g : /[ \t\n\f]+/g, ' ');
+      }
+      var children = Array.from(node.childNodes).filter(function(child) {
+        return child.nodeType === Node.TEXT_NODE ||
+          (child.nodeType === Node.ELEMENT_NODE &&
+           !['SCRIPT','STYLE'].includes(child.tagName) &&
+           getComputedStyle(child).display !== 'none');
+      });
+      var lastContent = children.length - 1;
+      while (lastContent >= 0 && children[lastContent].nodeType === Node.TEXT_NODE &&
+             /^ *$/.test(read(children[lastContent], true))) --lastContent;
+      var result = '', previousBlock = false, hasContent = false;
+      children.forEach(function(child, index) {
+        var block = child.nodeType === Node.ELEMENT_NODE &&
+          /^(block|flow-root|list-item|table|flex|grid)/.test(getComputedStyle(child).display);
+        var last = index === lastContent;
+        var value = child.nodeName === 'BR' ? (atLineEnd && last ? '' : '\n') :
+          read(child, block || (atLineEnd && last));
+        // Source indentation between blocks does not create editable lines.
+        if (!block && /^ *$/.test(value)) {
+          if (!previousBlock) result += value;
+          return;
+        }
+        if (hasContent && (block || previousBlock)) {
+          result = result.replace(/ +$/, '') + '\n';
+        }
+        result += value;
+        previousBlock = block;
+        hasContent = true;
+      });
+      return result;
+    }
+    return normalizeEditorText(read(el, true).replace(/ +/g, ' ')
+        .replace(/ *\n */g, '\n').replace(/^ +| +$/g, ''));
+  }
+  function elementText(el) {
+    if (sensitiveField(el)) return '';
+    return (isTextField(el) ? fieldValue(el) : el.textContent || '')
+        .replace(/[\n\r\t]+/g, ' ').trim();
+  }
   function compactName(el, full) {
     var labelled = (el.getAttribute('aria-labelledby') || '').split(/\s+/)
         .map(function(id) { return document.getElementById(id); })
@@ -114,10 +181,11 @@ constexpr char kSnapshotHelpersScript[] = R"js(
       ((el.tagName === 'A' || el.tagName === 'BUTTON' || el.getAttribute('role') === 'button') ? el.textContent : '') || '')
         .replace(/[\n\r\t]+/g, ' ').trim().slice(0, full ? undefined : 80);
   }
-  // Only form controls carry secret values; a "Forgot password" link does not.
+  // Editable fields can carry secrets; a "Forgot password" link does not.
   // Keep the name pattern in sync with DaoJevTask::Start().
   function sensitiveField(el) {
-    if (el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA' && el.tagName !== 'SELECT') return false;
+    if (el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA' &&
+        el.tagName !== 'SELECT' && !isEditingHost(el)) return false;
     return el.type === 'password' ||
       /password|one-time-code|cc-/.test(el.autocomplete || '') ||
       /password|passcode|\bone[ -]?time|verification|credit[ -]?card|\b(otp|pin|cvv|cvc)\b|密码|验证码|银行卡/i
@@ -190,13 +258,14 @@ constexpr char kAccessibilityTreeScript[] = R"js(
         role === 'switch' || role === 'option' || role === 'combobox' ||
         role === 'textbox' || role === 'searchbox' || role === 'slider') return true;
     if (el.hasAttribute('onclick') || el.hasAttribute('tabindex')) return true;
-    if (el.contentEditable === 'true') return true;
+    if (isEditingHost(el)) return true;
     return false;
   }
 
   function getRole(el) {
     var role = el.getAttribute('role');
     if (role) return role;
+    if (isEditingHost(el)) return 'textbox';
     var tag = el.tagName.toLowerCase();
     var map = {
       a:'link', button:'button', input:'textbox', select:'combobox',
@@ -220,10 +289,7 @@ constexpr char kAccessibilityTreeScript[] = R"js(
   }
 
   function getName(el) {
-    var name = el.getAttribute('aria-label') ||
-               el.getAttribute('alt') ||
-               el.getAttribute('title') ||
-               el.getAttribute('placeholder') || '';
+    var name = compactName(el);
     if (!name && (el.tagName === 'A' || el.tagName === 'BUTTON' ||
                   el.tagName === 'LABEL')) {
       name = (el.textContent || '').trim();
@@ -321,9 +387,10 @@ constexpr char kAccessibilityTreeScript[] = R"js(
     var candidates = [root].concat(Array.from(root.querySelectorAll('*')));
     var textMode = query.text_match || 'exact';
     var matches = candidates.filter(function(el) {
-      var text = (el.textContent || '').replace(/[\n\r\t]+/g, ' ').trim();
       if (query.role && getRole(el) !== query.role) return false;
       if (query.name && getName(el) !== query.name) return false;
+      if (query.editable !== undefined && isWritableField(el) !== query.editable) return false;
+      var text = query.text !== undefined ? elementText(el) : '';
       if (query.text !== undefined &&
           (textMode === 'contains' ? !text.includes(query.text) : text !== query.text)) {
         return false;
@@ -349,14 +416,21 @@ constexpr char kAccessibilityTreeScript[] = R"js(
     var result = matches.slice(0, maxResults).map(function(el) {
       var refId = el.getAttribute('data-dao-ref') || 'ref_' + (++refCounter);
       el.setAttribute('data-dao-ref', refId);
-      return {
+      var item = {
         ref_id: refId,
         role: getRole(el),
         name: getName(el),
-        text: (el.textContent || '').replace(/[\n\r\t]+/g, ' ').trim().substring(0, 500),
+        text: elementText(el).substring(0, 500),
         visible: isVisible(el),
-        enabled: isEnabled(el)
+        enabled: isEnabled(el),
+        editable: isWritableField(el)
       };
+      if (isTextField(el) && !sensitiveField(el)) {
+        var value = fieldValue(el);
+        item.value = value.slice(0, 2000);
+        if (value.length > 2000) item.value_truncated = true;
+      }
+      return item;
     });
     return JSON.stringify({
       matches: result,
@@ -1605,6 +1679,7 @@ void DaoPageTools::ExecuteRefAction(std::string_view request_id,
   function role(el) {
     var role = el.getAttribute('role');
     if (role) return role;
+    if (isEditingHost(el)) return 'textbox';
     var tag = el.tagName.toLowerCase();
     var map = {
       a:'link', button:'button', input:'textbox', select:'combobox',
@@ -1648,7 +1723,7 @@ void DaoPageTools::ExecuteRefAction(std::string_view request_id,
     if (preconditions.name !== undefined && compactName(el) !== preconditions.name) {
       return fail('The name precondition failed.');
     }
-    if (preconditions.value !== undefined && el.value !== preconditions.value) {
+    if (preconditions.value !== undefined && fieldValue(el) !== preconditions.value) {
       return fail('The value precondition failed.');
     }
     if (preconditions.href !== undefined && el.href !== preconditions.href) {
@@ -1668,7 +1743,7 @@ void DaoPageTools::ExecuteRefAction(std::string_view request_id,
       return fail('The enabled precondition failed.');
     }
     if (preconditions.text !== undefined &&
-        (el.textContent || '').trim() !== preconditions.text) {
+        elementText(el) !== preconditions.text) {
       return fail('The text precondition failed.');
     }
     if (preconditions.role !== undefined && role(el) !== preconditions.role) {
