@@ -241,7 +241,7 @@
           },
           "editable": {
             "type": "boolean",
-            "description": "Filter for text fields that are enabled and writable, including contenteditable hosts. Visibility is a separate filter."
+            "description": "Filter for fields supported by fill_by_ref that are enabled and writable, including contenteditable hosts. Visibility is a separate filter."
           },
           "max_results": {
             "type": "integer",
@@ -336,7 +336,7 @@
           },
           "editable": {
             "type": "boolean",
-            "description": "Filter for text fields that are enabled and writable, including contenteditable hosts. Visibility is a separate filter."
+            "description": "Filter for fields supported by fill_by_ref that are enabled and writable, including contenteditable hosts. Visibility is a separate filter."
           },
           "max_results": {
             "type": "integer",
@@ -535,7 +535,7 @@
     },
     {
       "name": "fill_by_ref",
-      "description": "Replace the entire value of a visible, enabled, writable text input or textarea identified by current document/snapshot/ref tokens. Checks focus and semantic preconditions before native editing; empty text clears the field. Returns filled only if the field contains the requested value, not proof of form submission.",
+      "description": "Replace the entire plain-text value of a visible, enabled, writable text input, textarea, or contenteditable host identified by current document/snapshot/ref tokens. Focuses, selects all content, checks semantic preconditions and cancellation, then uses native editing and verifies the result in one call. Empty text clears the field. Rich-text replacement can remove existing formatting; logical lines use LF and nonbreaking spaces normalize to spaces. Returns filled only if the local field retains the requested text; saving or submitting is a separate action.",
       "group": "page",
       "clients": [
         "dao_agent",
@@ -587,7 +587,8 @@
                 "type": "string"
               },
               "value": {
-                "type": "string"
+                "type": "string",
+                "description": "Exact current value from query_elements; omit when value_truncated is true."
               },
               "href": {
                 "type": "string"
@@ -607,7 +608,7 @@
           },
           "text": {
             "type": "string",
-            "description": "Complete replacement value; an empty string clears the field."
+            "description": "Complete replacement plain text; an empty string clears the field. Replaces rich-text content, including its existing formatting."
           }
         },
         "required": [

@@ -653,6 +653,235 @@ IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
+                       FillByRefReplacesRichTextAndVerifiesLogicalLines) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
+  auto session = MakeSessionForActiveTab();
+  content::WebContents* target = session->ResolveTarget().value();
+  for (const char* mode : {"true", "", "plaintext-only"}) {
+    SCOPED_TRACE(mode);
+    ASSERT_TRUE(content::ExecJs(target, content::JsReplace(R"(
+      document.body.innerHTML = '<div id="field" aria-label="Description">' +
+          '<p>old <strong>description<br></strong>second line</p>' +
+          '<p>last line</p></div>';
+      window.field = document.getElementById('field');
+      field.contentEditable = $1;
+      window.inputs = [];
+      field.oninput = e => inputs.push(e.isTrusted);
+    )",
+                                                         mode)));
+    std::string previous = "old description\nsecond line\nlast line";
+    for (const char* text : {"one\ntwo\n\nthree\n", "\none\n", "\n\n",
+                            "  one  two  ", "", "replacement"}) {
+      SCOPED_TRACE(text);
+      auto query = Execute(session.get(), "query_elements",
+                           base::DictValue()
+                               .Set("role", "textbox")
+                               .Set("editable", true)
+                               .Set("require_count", 1));
+      ASSERT_TRUE(query.ok) << query.error->message;
+      const auto& data = query.data.GetDict();
+      const auto& match = (*data.FindList("matches"))[0].GetDict();
+      ASSERT_EQ(previous, *match.FindString("value"));
+      EXPECT_EQ("Description", *match.FindString("name"));
+      base::DictValue args;
+      args.Set("ref_id", *match.FindString("ref_id"));
+      args.Set("document_id", *data.FindString("document_id"));
+      args.Set("snapshot_id", *data.FindString("snapshot_id"));
+      args.Set("text", text);
+      args.Set("preconditions", base::DictValue()
+                                    .Set("role", "textbox")
+                                    .Set("name", "Description")
+                                    .Set("value", previous));
+      auto filled = Execute(session.get(), "fill_by_ref", args.Clone());
+      ASSERT_TRUE(filled.ok) << filled.error->message;
+      const int input_count =
+          content::EvalJs(target, "inputs.length").ExtractInt();
+      EXPECT_GT(input_count, 0);
+      EXPECT_TRUE(content::EvalJs(target, "inputs.every(Boolean)").ExtractBool());
+      // Repeating the same replacement must not emit another input event.
+      args.Set("preconditions", base::DictValue().Set("value", text));
+      EXPECT_TRUE(Execute(session.get(), "fill_by_ref", args.Clone()).ok);
+      EXPECT_EQ(input_count, content::EvalJs(target, "inputs.length"));
+      previous = text;
+    }
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
+                       FillByRefClearsEmbeddedRichContent) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
+  auto session = MakeSessionForActiveTab();
+  content::WebContents* target = session->ResolveTarget().value();
+  for (const char* html : {"<img width='80' height='40' alt='Diagram'>", "<hr>"}) {
+    SCOPED_TRACE(html);
+    for (const char* behavior : {"clear", "restore", "cancel"}) {
+      SCOPED_TRACE(behavior);
+      ASSERT_TRUE(content::ExecJs(target, content::JsReplace(R"(
+        document.body.innerHTML = '<div id="field" contenteditable="true" ' +
+            'style="min-height:40px"></div>';
+        window.field = document.getElementById('field');
+        field.innerHTML = $1;
+        window.inputs = [];
+        field.oninput = e => {
+          inputs.push(e.isTrusted);
+          if ($2 === 'restore') field.innerHTML = $1;
+        };
+        field.onbeforeinput = e => {
+          if ($2 === 'cancel') e.preventDefault();
+        };
+      )",
+                                                           html, behavior)));
+      auto query = Execute(session.get(), "query_elements",
+                           base::DictValue().Set("editable", true).Set(
+                               "require_count", 1));
+      ASSERT_TRUE(query.ok) << query.error->message;
+      const auto& data = query.data.GetDict();
+      base::DictValue args;
+      args.Set("ref_id",
+               *(*data.FindList("matches"))[0].GetDict().FindString("ref_id"));
+      args.Set("document_id", *data.FindString("document_id"));
+      args.Set("snapshot_id", *data.FindString("snapshot_id"));
+      args.Set("text", "");
+      auto cleared = Execute(session.get(), "fill_by_ref", args.Clone());
+      const bool clear = std::string(behavior) == "clear";
+      EXPECT_EQ(clear, cleared.ok);
+      const int count = content::EvalJs(target, "inputs.length").ExtractInt();
+      if (std::string(behavior) == "cancel") {
+        EXPECT_EQ(0, count);
+      } else {
+        EXPECT_GT(count, 0);
+      }
+      EXPECT_TRUE(content::EvalJs(target, "inputs.every(Boolean)").ExtractBool());
+      EXPECT_EQ(!clear, content::EvalJs(target, "!!field.querySelector('img,hr')")
+                            .ExtractBool());
+      if (clear) {
+        EXPECT_TRUE(Execute(session.get(), "fill_by_ref", args.Clone()).ok);
+        EXPECT_EQ(count, content::EvalJs(target, "inputs.length"));
+      }
+    }
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
+                       FillByRefRespectsRichTextWhitespace) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
+  auto session = MakeSessionForActiveTab();
+  content::WebContents* target = session->ResolveTarget().value();
+  const struct {
+    const char* html;
+    const char* white_space;
+    const char* value;
+  } cases[] = {
+      {"\n  <p>one</p>\n  <p>two</p>\n", "normal", "one\ntwo"},
+      {"\n  <p>one</p>\n  <p><br></p>\n  <p>two<br>\n  </p>\n", "normal",
+       "one\n\ntwo"},
+      {"<p>one <strong>line<br></strong>\n </p>\n<p>two</p>", "normal",
+       "one line\ntwo"},
+      {"  one <b>  two </b> <i> three  </i> ", "normal", "one two three"},
+      {"  one  \n\n two  ", "nowrap", "one two"},
+      {"  one  \n\n two  ", "pre", "  one  \n\n two  "},
+      {"  one  \n\n two  ", "pre-wrap", "  one  \n\n two  "},
+      {"  one  \n\n two  ", "break-spaces", "  one  \n\n two  "},
+      {"  one  \n\n two  ", "pre-line", "one\n\ntwo"},
+      {"<span style='white-space:pre-wrap'>  one  </span>  two", "normal",
+       "  one   two"},
+  };
+  for (const auto& test : cases) {
+    SCOPED_TRACE(test.white_space);
+    SCOPED_TRACE(test.html);
+    ASSERT_TRUE(content::ExecJs(target, content::JsReplace(R"(
+      document.body.innerHTML = '<div id="field" contenteditable="true"></div>';
+      window.field = document.getElementById('field');
+      field.innerHTML = $1;
+      field.style.whiteSpace = $2;
+      window.inputs = [];
+      field.oninput = e => inputs.push(e.isTrusted);
+    )",
+                                                         test.html,
+                                                         test.white_space)));
+    auto query = Execute(session.get(), "query_elements",
+                         base::DictValue().Set("editable", true).Set(
+                             "require_count", 1));
+    ASSERT_TRUE(query.ok) << query.error->message;
+    const auto& data = query.data.GetDict();
+    const auto& match = (*data.FindList("matches"))[0].GetDict();
+    EXPECT_EQ(test.value, *match.FindString("value"));
+    base::DictValue args;
+    args.Set("ref_id", *match.FindString("ref_id"));
+    args.Set("document_id", *data.FindString("document_id"));
+    args.Set("snapshot_id", *data.FindString("snapshot_id"));
+    args.Set("text", "  replacement  \n  second  line  ");
+    args.Set("preconditions", base::DictValue().Set("value", test.value));
+    auto filled = Execute(session.get(), "fill_by_ref", args.Clone());
+    ASSERT_TRUE(filled.ok) << filled.error->message;
+    const int count = content::EvalJs(target, "inputs.length").ExtractInt();
+    EXPECT_GT(count, 0);
+    EXPECT_TRUE(content::EvalJs(target, "inputs.every(Boolean)").ExtractBool());
+    args.Set("preconditions",
+             base::DictValue().Set("value", "  replacement  \n  second  line  "));
+    EXPECT_TRUE(Execute(session.get(), "fill_by_ref", args.Clone()).ok);
+    EXPECT_EQ(count, content::EvalJs(target, "inputs.length"));
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
+                       FillByRefRejectsRichTextCancellationAndTargetChanges) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
+  auto session = MakeSessionForActiveTab();
+  content::WebContents* target = session->ResolveTarget().value();
+  for (const char* change : {"cancel", "focus", "readonly", "disabled",
+                            "editable", "role", "detach", "value"}) {
+    SCOPED_TRACE(change);
+    for (const char* text : {"replacement", ""}) {
+      SCOPED_TRACE(text);
+      ASSERT_TRUE(content::ExecJs(target, content::JsReplace(R"(
+        document.body.innerHTML = '<div id="field" contenteditable="true">old</div>' +
+            '<input id="other" value="untouched">';
+        window.field = document.getElementById('field');
+        window.inputCount = 0;
+        field.oninput = () => ++window.inputCount;
+        field.onbeforeinput = e => {
+          switch ($1) {
+            case 'cancel': e.preventDefault(); break;
+            case 'focus': document.getElementById('other').focus(); break;
+            case 'readonly': field.setAttribute('aria-readonly', 'true'); break;
+            case 'disabled': field.setAttribute('aria-disabled', 'true'); break;
+            case 'editable': field.contentEditable = 'false'; break;
+            case 'role': field.setAttribute('role', 'button'); break;
+            case 'detach': field.remove(); break;
+            case 'value': field.textContent = 'changed'; break;
+          }
+        };
+      )",
+                                                           change)));
+      auto query =
+          Execute(session.get(), "query_elements",
+                  base::DictValue()
+                      .Set("scope", base::DictValue().Set("selector", "#field"))
+                      .Set("editable", true)
+                      .Set("require_count", 1));
+      ASSERT_TRUE(query.ok) << query.error->message;
+      const auto& data = query.data.GetDict();
+      base::DictValue args;
+      args.Set("ref_id",
+               *(*data.FindList("matches"))[0].GetDict().FindString("ref_id"));
+      args.Set("document_id", *data.FindString("document_id"));
+      args.Set("snapshot_id", *data.FindString("snapshot_id"));
+      args.Set("text", text);
+      args.Set("preconditions", base::DictValue()
+                                    .Set("role", "textbox")
+                                    .Set("value", "old"));
+      EXPECT_FALSE(Execute(session.get(), "fill_by_ref", std::move(args)).ok);
+      EXPECT_EQ(0, content::EvalJs(target, "inputCount"));
+      EXPECT_EQ(std::string(change) == "value" ? "changed" : "old",
+                content::EvalJs(target, "field.textContent"));
+      EXPECT_EQ("untouched",
+                content::EvalJs(target, "document.getElementById('other').value"));
+    }
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
                        WaitForElementPreservesRefsUntilMatched) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
   auto session = MakeSessionForActiveTab();

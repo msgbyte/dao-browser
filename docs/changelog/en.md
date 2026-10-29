@@ -4,7 +4,7 @@
 
 ### [Unreleased] Unreleased
 
-- Let AI find editable fields by their current content and associated labels, including rich-text editors.
+- Let AI find rich-text fields by their current content and replace or clear text and embedded images with fewer steps, preserving spacing and checking the result automatically.
 
 ### [1.0.127] - 2026-10-29
 

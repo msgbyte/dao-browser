@@ -1761,41 +1761,47 @@ void DaoPageTools::ExecuteRefAction(std::string_view request_id,
   var failed = checkPreconditions();
   if (failed) return failed;
   if (fill) {
-    // ponytail: text inputs and textarea only; add rich-editor support when
-    // a concrete editor requires its own selection and value semantics.
-    function isTextField() {
-      return el instanceof HTMLTextAreaElement ||
-          (el instanceof HTMLInputElement &&
-           ['text', 'search', 'tel', 'url', 'password', 'email'].includes(el.type));
+    if (!isTextField(el)) {
+      return fail('Fill requires a text input, textarea, or contenteditable host.');
     }
-    if (!isTextField()) {
-      return fail('Fill requires a text input or textarea.');
-    }
-    if (!visible(el) || el.disabled || el.readOnly ||
-        el.getAttribute('aria-disabled') === 'true') {
+    if (!visible(el) || !isWritableField(el)) {
       return fail('The field must be visible, enabled, and writable.');
     }
-    el.focus();
-    if (document.activeElement !== el) {
-      return fail('The field lost focus before filling.');
+    var richText = isEditingHost(el);
+    if (richText) text = normalizeEditorText(text);
+    function hasRequestedValue() {
+      // A matching text value alone does not prove embedded content was removed.
+      return fieldValue(el) === text && (!richText || !el.querySelector(
+        'img,hr,svg,canvas,video,audio,iframe,object,embed,input,textarea,select,button,[contenteditable="false" i]'));
     }
-    el.select();
+    el.focus();
+    function selectContents() {
+      if (!richText) { el.select(); return; }
+      var range = document.createRange();
+      range.selectNodeContents(el);
+      var selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
     function checkField() {
-      if (!el.isConnected || document.activeElement !== el || !isTextField() ||
+      if (!el.isConnected || document.activeElement !== el ||
+          isEditingHost(el) !== richText ||
           el.getAttribute('data-dao-ref') !== refId ||
           document.documentElement.getAttribute('data-dao-snapshot') !== snapshotId ||
-          !visible(el) || el.disabled || el.readOnly ||
-          el.getAttribute('aria-disabled') === 'true') {
+          !visible(el) || !isWritableField(el)) {
         return fail('The field changed or lost focus before filling.');
       }
       return checkPreconditions();
     }
     failed = checkField();
     if (failed) return failed;
+    selectContents();
+    failed = checkField();
+    if (failed) return failed;
     // Use Chromium's editor so input events and controlled form state update.
     // Keep validation and editing in one task: a second CDP call could type
     // into a different field after a focus handler or timer redirects focus.
-    if (el.value !== text) {
+    if (!hasRequestedValue()) {
       // execCommand emits trusted input, but no beforeinput. Give the page a
       // cancelable notification before editing; this notification is synthetic.
       if (!el.dispatchEvent(new InputEvent('beforeinput', {
@@ -1807,12 +1813,17 @@ void DaoPageTools::ExecuteRefAction(std::string_view request_id,
       }
       failed = checkField();
       if (failed) return failed;
-      el.select();
+      selectContents();
       failed = checkField();
       if (failed) return failed;
-      document.execCommand(text ? 'insertText' : 'delete', false, text);
+      // insertText can leave adjacent ordinary spaces that normal CSS collapses.
+      // Preserve those runs as Chromium does when typing spaces individually.
+      var insertedText = richText &&
+          !['pre','pre-wrap','break-spaces'].includes(getComputedStyle(el).whiteSpace) ?
+          text.replace(/ (?= )/g, '\u00a0') : text;
+      document.execCommand(text ? 'insertText' : 'delete', false, insertedText);
     }
-    if (!el.isConnected || el.value !== text) {
+    if (!el.isConnected || !hasRequestedValue()) {
       return fail('The field did not retain the requested value.');
     }
     return JSON.stringify({filled: true, ref_id: refId});
