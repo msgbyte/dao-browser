@@ -9,7 +9,9 @@
 #include "base/auto_reset.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
+#include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
+#include "base/scoped_observation.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
@@ -17,6 +19,7 @@
 #include "base/test/run_until.h"
 #include "base/test/test_future.h"
 #include "base/values.h"
+#include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/lifetime/application_lifetime_desktop.h"
 #include "chrome/browser/lifetime/browser_shutdown.h"
@@ -51,6 +54,12 @@
 #include "net/dns/mock_host_resolver.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/base_window.h"
+
+#if BUILDFLAG(IS_MAC)
+#include "ui/base/test/scoped_fake_nswindow_fullscreen.h"
+#include "ui/views/widget/widget.h"
+#include "ui/views/widget/widget_observer.h"
+#endif
 
 namespace dao {
 namespace {
@@ -206,6 +215,97 @@ IN_PROC_BROWSER_TEST_F(DaoAgentSpaceBrowserTest,
             ErrorCode(Call("get_page_info",
                            base::DictValue().Set("space_id", space_id))));
 }
+
+#if BUILDFLAG(IS_MAC)
+class ReopenTaskWindowOnFullscreenExit : public views::WidgetObserver {
+ public:
+  explicit ReopenTaskWindowOnFullscreenExit(DaoAgentSpace* space)
+      : space_(space) {
+    observation_.Observe(
+        BrowserView::GetBrowserViewForBrowser(space->browser())->GetWidget());
+  }
+
+  bool reopened() const { return reopened_; }
+
+  void OnWidgetShowStateChanged(views::Widget* widget) override {
+    if (widget->IsFullscreen()) {
+      return;
+    }
+    observation_.Reset();
+    EXPECT_TRUE(widget->IsVisible());
+    space_->ShowWindow();
+    reopened_ = true;
+  }
+
+  void OnWidgetDestroying(views::Widget* widget) override {
+    observation_.Reset();
+  }
+
+ private:
+  const raw_ptr<DaoAgentSpace> space_;
+  bool reopened_ = false;
+  base::ScopedObservation<views::Widget, views::WidgetObserver> observation_{this};
+};
+
+IN_PROC_BROWSER_TEST_F(DaoAgentSpaceBrowserTest,
+                       HidingFullscreenTaskWindowExitsFullscreen) {
+  ui::test::ScopedFakeNSWindowFullscreen fake_fullscreen_window;
+  const std::string space_id =
+      CreateSpace(embedded_test_server()->GetURL("/title1.html"));
+  ASSERT_TRUE(WaitForLoad(space_id));
+  DaoAgentSpace* space = Space(space_id);
+  BrowserWindowInterface* space_browser = space->browser();
+  Eval(space_id, "window.savedTaskState = 'still running'");
+
+  for (bool use_close_button : {true, false}) {
+    SCOPED_TRACE(use_close_button);
+    ASSERT_TRUE(service_->ShowWindow(space_id));
+    ui_test_utils::ToggleFullscreenModeAndWait(space_browser);
+    ASSERT_TRUE(space_browser->GetWindow()->IsFullscreen());
+
+    if (use_close_button) {
+      space_browser->GetWindow()->Close();
+    } else {
+      ASSERT_TRUE(service_->HideWindow(space_id));
+    }
+    ASSERT_TRUE(base::test::RunUntil([&] {
+      return !space->browser() || !space->IsWindowVisible();
+    }));
+    ASSERT_EQ(space_browser, space->browser());
+    EXPECT_FALSE(space_browser->GetWindow()->IsFullscreen());
+    EXPECT_EQ(DaoAgentSpaceState::kRunning, space->state());
+    EXPECT_EQ(base::Value("still running"),
+              Eval(space_id, "window.savedTaskState"));
+    EXPECT_EQ(base::Value("visible"), Eval(space_id, "document.visibilityState"));
+
+    ASSERT_TRUE(service_->ShowWindow(space_id));
+    EXPECT_TRUE(space->IsWindowVisible());
+    EXPECT_FALSE(space_browser->GetWindow()->IsFullscreen());
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentSpaceBrowserTest,
+                       ReopeningDuringFullscreenExitCancelsHide) {
+  ui::test::ScopedFakeNSWindowFullscreen fake_fullscreen_window;
+  const std::string space_id =
+      CreateSpace(embedded_test_server()->GetURL("/title1.html"));
+  ASSERT_TRUE(WaitForLoad(space_id));
+  DaoAgentSpace* space = Space(space_id);
+  BrowserWindowInterface* space_browser = space->browser();
+  ASSERT_TRUE(service_->ShowWindow(space_id));
+  ui_test_utils::ToggleFullscreenModeAndWait(space_browser);
+  ASSERT_TRUE(space_browser->GetWindow()->IsFullscreen());
+
+  // The fake native transition completes inside HideWindow(), before it returns.
+  ReopenTaskWindowOnFullscreenExit reopen_on_exit(space);
+  ASSERT_TRUE(service_->HideWindow(space_id));
+  ASSERT_TRUE(base::test::RunUntil([&] { return reopen_on_exit.reopened(); }));
+  EXPECT_EQ(space_browser, space->browser());
+  EXPECT_FALSE(space_browser->GetWindow()->IsFullscreen());
+  EXPECT_TRUE(space->IsWindowVisible());
+  EXPECT_EQ(DaoAgentSpaceState::kRunning, space->state());
+}
+#endif  // BUILDFLAG(IS_MAC)
 
 IN_PROC_BROWSER_TEST_F(DaoAgentSpaceBrowserTest,
                        ClosingProfileWindowsStopsSpacesWithoutBeforeUnload) {

@@ -17,6 +17,8 @@
 #include "chrome/browser/tab_list/tab_removed_reason.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
+#include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
+#include "chrome/browser/ui/exclusive_access/fullscreen_controller.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "components/download/public/common/download_item.h"
 #include "components/javascript_dialogs/tab_modal_dialog_manager.h"
@@ -718,6 +720,7 @@ void DaoAgentSpace::MarkClosed(DaoAgentSpaceState state, std::string summary) {
 }
 
 void DaoAgentSpace::DetachWindow() {
+  hide_window_callback_.Cancel();
   if (executor_) {
     std::unique_ptr<DaoBrowserToolExecutor> executor = std::move(executor_);
     executor->CancelAll(MakeDaoToolError(DaoToolErrorCode::kSpaceClosed,
@@ -821,6 +824,7 @@ base::ListValue DaoAgentSpace::TakeDialogReports() {
 }
 
 void DaoAgentSpace::ShowWindow() {
+  hide_window_callback_.Cancel();
   if (!browser_ || !browser_->GetWindow()) {
     return;
   }
@@ -842,7 +846,31 @@ void DaoAgentSpace::ShowWindow() {
 }
 
 void DaoAgentSpace::HideWindow() {
+  if (!browser_ || !browser_->GetWindow() || is_closed()) {
+    return;
+  }
+  hide_window_callback_.Reset(
+      base::BindOnce(&DaoAgentSpace::HideWindowAfterFullscreenExit,
+                     weak_factory_.GetWeakPtr()));
+  auto hide_window = hide_window_callback_.callback();
+  auto weak_this = weak_factory_.GetWeakPtr();
+  auto* fullscreen_controller =
+      ExclusiveAccessManager::From(browser_.get())->fullscreen_controller();
+  if (browser_->GetWindow()->IsFullscreen()) {
+    // Hiding a fullscreen macOS window leaves an empty fullscreen Space.
+    fullscreen_controller->ToggleBrowserFullscreenMode(/*user_initiated=*/false);
+  }
+  if (weak_this && browser_ && !is_closed()) {
+    fullscreen_controller->RunOrDeferUntilTransitionIsComplete(
+        std::move(hide_window));
+  }
+}
+
+void DaoAgentSpace::HideWindowAfterFullscreenExit() {
   if (!browser_ || !browser_->GetWindow()) {
+    return;
+  }
+  if (browser_->GetWindow()->IsFullscreen()) {
     return;
   }
   browser_->GetWindow()->Hide();

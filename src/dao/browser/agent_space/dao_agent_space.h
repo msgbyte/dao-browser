@@ -14,6 +14,7 @@
 #include <string_view>
 #include <vector>
 
+#include "base/cancelable_callback.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
@@ -247,6 +248,7 @@ class DaoAgentSpace : public DaoPageTools::UiDelegate,
   void TrackTab(tabs::TabInterface* tab, std::string opened_by);
   void UpdateTabControl();
   void ApplyTabControl(content::WebContents* contents);
+  void HideWindowAfterFullscreenExit();
   void NotifyChanged();
   std::map<std::string, std::string> SnapshotTabUrls() const;
 
@@ -273,6 +275,7 @@ class DaoAgentSpace : public DaoPageTools::UiDelegate,
   std::optional<gfx::PointF> cursor_;
   std::optional<DaoAgentSpaceDialog> pending_dialog_;
   base::ListValue dialog_reports_;
+  base::CancelableOnceClosure hide_window_callback_;
   bool has_been_shown_ = false;
   bool stopped_for_inactivity_ = false;
   bool uses_logins_ = true;

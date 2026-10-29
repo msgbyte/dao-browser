@@ -5,6 +5,7 @@
 ### [Unreleased] Unreleased
 
 - Let AI find rich-text fields by their current content and replace or clear text and embedded images with fewer steps, preserving spacing and checking the result automatically.
+- Fix a black fullscreen space left behind when closing or hiding a Dao Lite task window on macOS.
 
 ### [1.0.127] - 2026-10-29
 
