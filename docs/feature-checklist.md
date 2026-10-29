@@ -98,6 +98,18 @@ These are acceptance checks, not a claim that the port has passed them.
   the compact layout back. Popup/app windows retain their separate frame layout.
 - [ ] Open and close tab search with Ctrl+Shift+A after the welcome page and in
   a regular tab; its WebUI must resolve under the Dao scheme without crashing.
+- [ ] The Windows sidebar's top-left menu button opens a left-aligned native
+  menu with Settings first. Open Settings, History, Downloads, Bookmarks,
+  Extensions, Print, and Developer tools; confirm their existing behavior and
+  policy restrictions. Check light/dark/incognito themes, English/Simplified
+  Chinese, minimum sidebar width, maximized/fullscreen windows, and display
+  scaling. Clicking the button must not drag the window; adjacent empty header
+  space must still drag it. Alt+F opens the same menu with the sidebar expanded,
+  collapsed, or mid-animation. Arrow keys, Enter, Escape, outside click, and a
+  second button click work normally. A hover-expanded sidebar stays open while
+  entering submenus and may collapse after dismissal. Closing the window from
+  the menu is safe. Save page, Bookmark this tab, and Inspect do not advertise
+  shortcuts reassigned to Dao. macOS keeps its existing menu bar and header.
 - [ ] Check Dao shortcuts with focus in a page, sidebar, Agent, and command bar:
   Ctrl+S / Ctrl+Backslash toggle the sidebar, Ctrl+D duplicates, Ctrl+E toggles
   Agent, and Ctrl+Shift+C copies the active page URL with Dao toast feedback.

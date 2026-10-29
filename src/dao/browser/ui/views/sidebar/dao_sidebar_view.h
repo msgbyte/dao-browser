@@ -13,6 +13,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "base/timer/timer.h"
+#include "build/build_config.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/web_contents_delegate.h"
 #include "content/public/common/drop_data.h"
@@ -39,6 +40,8 @@ class WebView;
 }
 
 namespace dao {
+
+class DaoAppMenuButton;
 
 // Reverse-lookup helper: given the sidebar WebUI's WebContents, return the
 // Browser that owns the DaoSidebarView hosting it, or nullptr. Used by the
@@ -78,15 +81,21 @@ class DaoSidebarView : public views::View,
     return command_s_toggle_confirmation_pending_;
   }
 
-  // Returns the header row and toggle button bounds in the sidebar's own
+  // Returns the header row and control bounds in the sidebar's own
   // coordinate space (caller adds sidebar->bounds().origin() for BrowserView).
   gfx::Rect header_bounds_in_sidebar() const;
   gfx::Rect toggle_button_bounds_in_sidebar() const;
+  gfx::Rect app_menu_button_bounds_in_sidebar() const;
   gfx::Rect incognito_indicator_bounds_in_sidebar() const;
   views::View* incognito_indicator_for_testing() const {
     return incognito_indicator_;
   }
   views::Button* toggle_button_for_testing() const { return toggle_button_; }
+
+#if BUILDFLAG(IS_WIN)
+  // Reveals a collapsed sidebar before opening the menu from the keyboard.
+  void ShowAppMenu();
+#endif
 
   void ShowOmniboxPopup();
   void HideOmniboxPopup();
@@ -173,6 +182,10 @@ class DaoSidebarView : public views::View,
   raw_ptr<views::View> header_row_ = nullptr;
   raw_ptr<views::View> incognito_indicator_ = nullptr;
   raw_ptr<views::Button> toggle_button_ = nullptr;
+#if BUILDFLAG(IS_WIN)
+  raw_ptr<DaoAppMenuButton> app_menu_button_ = nullptr;
+  bool app_menu_requested_ = false;
+#endif
   raw_ptr<views::ResizeArea> resize_area_ = nullptr;
   raw_ptr<views::View> drop_overlay_ = nullptr;
   raw_ptr<views::WebView> sidebar_web_view_ = nullptr;
@@ -186,6 +199,10 @@ class DaoSidebarView : public views::View,
   void ShowCommandSShortcutInterceptedToast();
   void ClearCommandSShortcutConfirmation();
   static void SchedulePaintRecursive(views::View* view);
+#if BUILDFLAG(IS_WIN)
+  void OnAppMenuClosed();
+  void MaybeAutoCollapseAfterAppMenu();
+#endif
 
   bool webui_loaded_ = false;
   bool collapsed_ = false;

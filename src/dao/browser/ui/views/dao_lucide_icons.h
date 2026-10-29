@@ -27,6 +27,7 @@ enum class LucideIcon {
   kShieldCheck,
   kShieldOff,
   kEllipsis,
+  kMenu,
   kSlidersHorizontal,
   kVolume2,
   kVolumeX,

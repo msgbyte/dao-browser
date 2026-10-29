@@ -1,11 +1,10 @@
 diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/views/frame/browser_view.cc
 --- a/chrome/browser/ui/views/frame/browser_view.cc
 +++ b/chrome/browser/ui/views/frame/browser_view.cc
-@@ -3,6 +3,32 @@
- // found in the LICENSE file.
+@@ -4,6 +4,32 @@
  
  #include "chrome/browser/ui/views/frame/browser_view.h"
-+
+ 
 +#include "chrome/browser/lifetime/browser_shutdown.h"
 +#include "dao/browser/agent/dao_agent_lock_tab_helper.h"
 +#include "dao/browser/agent_space/dao_agent_space.h"
@@ -31,10 +30,11 @@ diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/v
 +#include "dao/browser/ui/views/sidebar/dao_tab_tooltip_view.h"
 +#include "dao/browser/ui/views/split/dao_split_pane_view.h"
 +#include "dao/browser/ui/views/split/dao_split_view.h"
- 
++
  #include <stdint.h>
  
-@@ -768,6 +794,14 @@
+ #include <algorithm>
+@@ -779,6 +805,14 @@ class BrowserView::ExclusiveAccessContextImpl
        // ...TYPE_NONE indicates deleting the bubble, except when used with
        // download.
        should_close_bubble |= params.type == EXCLUSIVE_ACCESS_BUBBLE_TYPE_NONE;
@@ -49,7 +49,7 @@ diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/v
  #if BUILDFLAG(IS_CHROMEOS)
        // Immersive mode allows the toolbar to be shown, so do not show the
        // bubble. However, do show the bubble in a managed guest session (see
-@@ -938,6 +972,113 @@
+@@ -957,6 +991,113 @@ BrowserView::BrowserView(BrowserWindowInterface* browser)
  
    set_contents_view(multi_contents_view_);
  
@@ -163,7 +163,7 @@ diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/v
    // InfoBarContainer needs to be added as a child here for drop-shadow, but
    // needs to come after toolbar in focus order (see EnsureFocusOrder()).
    infobar_container_ =
-@@ -1382,6 +1523,11 @@
+@@ -1412,6 +1553,11 @@ bool BrowserView::ShouldDrawTabStrokes() const {
  }
  
  bool BrowserView::ShouldDrawTabStrip() const {
@@ -175,7 +175,7 @@ diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/v
    // Return false if this window does not normally display a tabstrip or if the
    // tabstrip is currently hidden, e.g. because we're in fullscreen.
    if (!WindowFeatureController::From(browser_)->SupportsWindowFeature(
-@@ -1965,6 +2111,10 @@
+@@ -1971,6 +2117,10 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
                                       int reason) {
    DCHECK(new_contents);
    TRACE_EVENT0("ui", "BrowserView::OnActiveTabChanged");
@@ -186,7 +186,7 @@ diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/v
    views::WebView* active_contents_view = GetActiveContentsWebView();
    bool tab_change_in_split_view =
        IsTabChangeInSplitView(old_contents, new_contents);
-@@ -1998,8 +2148,13 @@
+@@ -2021,8 +2171,13 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
        GetWidget()->GetFocusManager()->ClearFocus();
      }
  
@@ -202,7 +202,7 @@ diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/v
    }
  
    // Do this before updating InfoBarContainer as the InfoBarContainer may
-@@ -2051,6 +2206,9 @@
+@@ -2074,6 +2229,9 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
        if (multi_contents_view_->IsInSplitView()) {
          HideSplitView();
        }
@@ -212,7 +212,7 @@ diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/v
        multi_contents_view_->GetActiveContentsView()->SetWebContents(
            new_contents);
      }
-@@ -2088,6 +2246,22 @@
+@@ -2113,6 +2271,22 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
    UpdateTitleBar();
  
    CHECK_DEREF(TranslateBubbleController::From(browser_.get())).CloseBubble();
@@ -235,7 +235,7 @@ diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/v
  }
  
  void BrowserView::OnTabDetached(content::WebContents* contents,
-@@ -2311,6 +2485,18 @@
+@@ -2339,6 +2513,18 @@ void BrowserView::SetFocusToLocationBar(bool is_user_initiated) {
    // already. On Chrome OS, changing focus makes a view believe it has a focus
    // even if the widget doens't have a focus. Either cases, we need to ignore
    // this when the browser window isn't active.
@@ -254,7 +254,21 @@ diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/v
  #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
    if (!IsActive()) {
      return;
-@@ -3198,6 +3384,17 @@
+@@ -3191,6 +3377,13 @@ void BrowserView::UserChangedTheme(BrowserThemeChangeType theme_change_type) {
+ }
+ 
+ void BrowserView::ShowAppMenu() {
++#if BUILDFLAG(IS_WIN)
++  // Dao: Keyboard menu commands use the visible sidebar entry point.
++  if (dao_sidebar_ && dao_sidebar_->GetVisible()) {
++    dao_sidebar_->ShowAppMenu();
++    return;
++  }
++#endif
+   auto* control = ToolbarButtonProvider::From(browser_)->GetAppMenuControl();
+   if (!control) {
+     return;
+@@ -3221,6 +3414,17 @@ content::KeyboardEventProcessingResult BrowserView::PreHandleKeyboardEvent(
    ui::Accelerator accelerator =
        ui::GetAcceleratorFromNativeWebKeyboardEvent(event);
  
@@ -272,13 +286,10 @@ diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/v
    // What we have to do here is as follows:
    // - If the |browser_| is for an app, do nothing.
    // - On CrOS if |accelerator| is deprecated, we allow web contents to consume
-@@ -3503,6 +3700,18 @@
-     if (auto* container =
-             multi_contents_view_->GetContentsContainerViewFor(contents)) {
-       container->contents_view()->UpdateIsBlockedByModal();
+@@ -3528,6 +3732,18 @@ void BrowserView::OnTabChangedAt(tabs::TabInterface* tab,
      }
    }
-+
+ 
 +  // Dao: Keep lock banner + cursor in sync with tab lock state on any change.
 +  if (contents == GetActiveWebContents() && dao_agent_lock_banner_) {
 +    dao_agent_lock_banner_->SetLocked(
@@ -290,8 +301,11 @@ diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/v
 +    dao_agent_cursor_->OnActiveTabUpdated(
 +        dao::DaoAgentLockTabHelper::IsLocked(contents));
 +  }
- 
-@@ -4480,9 +4689,35 @@
++
+   if (change_type != TabChangeType::kLoadingOnly || contents->IsLoading()) {
+     return;
+   }
+@@ -4510,9 +4726,35 @@ void BrowserView::GetAccessiblePanes(std::vector<views::View*>* panes) {
    }
  }
  
@@ -327,11 +341,7 @@ diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/v
    // Window for PWAs with window-controls-overlay display override should claim
    // mouse events that fall within the draggable region.
    web_app::AppBrowserController* controller =
-@@ -4568,9 +4803,21 @@
- views::CloseRequestResult BrowserView::OnWindowCloseRequested() {
-   // You cannot close a frame for which there is an active originating drag
-   // session.
-   if (tab_strip_view() && !tab_strip_view()->IsTabStripCloseable()) {
+@@ -4572,6 +4814,18 @@ views::CloseRequestResult BrowserView::OnWindowCloseRequested() {
      return views::CloseRequestResult::kCannotClose;
    }
  
@@ -349,7 +359,8 @@ diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/v
 +
    // Give beforeunload handlers, the user, or policy the chance to cancel the
    // close before we hide the window below.
-@@ -4660,6 +4907,126 @@
+   if (!UnloadController::From(browser_)->HandleBeforeClose()) {
+@@ -4691,6 +4945,131 @@ int BrowserView::NonClientHitTest(const gfx::Point& point) {
      }
    }
  
@@ -376,7 +387,7 @@ diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/v
 +
 +  // Dao: When sidebar is active, turn the area above content into a drag
 +  // region. Agent sidebar is client (clickable); sidebar header is draggable
-+  // except for the privacy indicator and toggle button.
++  // except for its menu, privacy indicator, and toggle button.
 +  if (dao_sidebar_ && dao_sidebar_->GetVisible()) {
 +    if (dao_agent_sidebar_ && dao_agent_sidebar_->GetVisible() &&
 +        dao_agent_sidebar_->bounds().Contains(point_in_browser_view_coords)) {
@@ -398,6 +409,11 @@ diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/v
 +      indicator_bounds.Offset(
 +          dao_sidebar_->bounds().origin().OffsetFromOrigin());
 +      if (indicator_bounds.Contains(point_in_browser_view_coords)) {
++        return HTCLIENT;
++      }
++      gfx::Rect menu_bounds = dao_sidebar_->app_menu_button_bounds_in_sidebar();
++      menu_bounds.Offset(dao_sidebar_->bounds().origin().OffsetFromOrigin());
++      if (menu_bounds.Contains(point_in_browser_view_coords)) {
 +        return HTCLIENT;
 +      }
 +      gfx::Rect btn_bounds = dao_sidebar_->toggle_button_bounds_in_sidebar();
@@ -476,7 +492,7 @@ diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/v
    if (vertical_tab_strip_region_view_ &&
        vertical_tab_strip_region_view_->GetVisible()) {
      // See if the mouse pointer is within the bounds of the
-@@ -4817,7 +5184,38 @@
+@@ -4862,8 +5241,39 @@ void BrowserView::Layout(PassKey) {
      did_first_layout_while_top_controls_are_sliding_ = false;
    }
  
@@ -502,7 +518,7 @@ diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/v
 +  }
 +
    LayoutSuperclass<views::View>(this);
-+
+ 
 +#if BUILDFLAG(IS_WIN)
 +  // The separate caption layer must repaint when Agent or split surfaces move.
 +  if (dao_sidebar_ && GetWidget()) {
@@ -512,10 +528,11 @@ diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/v
 +    }
 +  }
 +#endif
- 
++
    // TODO(jamescook): Why was this in the middle of layout code?
    toolbar_->location_bar()->UpdateFocusBehavior(IsToolbarVisible());
-@@ -5143,6 +5541,20 @@
+   GetFrameView()->UpdateMinimumSize();
+@@ -5189,6 +5599,20 @@ void BrowserView::OnThemeChanged() {
    }
  
    FrameColorsChanged();
@@ -536,7 +553,7 @@ diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/v
  }
  
  bool BrowserView::GetDropFormats(
-@@ -5185,6 +5597,14 @@
+@@ -5231,6 +5655,14 @@ bool BrowserView::AcceleratorPressed(const ui::Accelerator& accelerator) {
      return true;
    }
  
@@ -551,7 +568,7 @@ diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/v
    int command_id;
    // Though AcceleratorManager should not send unknown |accelerator| to us, it's
    // still possible the command cannot be executed now.
-@@ -5544,6 +5964,11 @@
+@@ -5548,6 +5980,11 @@ void BrowserView::ProcessFullscreen(bool fullscreen, const int64_t display_id) {
  }
  
  void BrowserView::RequestFullscreen(bool fullscreen, int64_t display_id) {

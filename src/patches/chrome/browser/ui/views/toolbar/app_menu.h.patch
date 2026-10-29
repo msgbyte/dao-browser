@@ -1,0 +1,22 @@
+diff --git a/chrome/browser/ui/views/toolbar/app_menu.h b/chrome/browser/ui/views/toolbar/app_menu.h
+--- a/chrome/browser/ui/views/toolbar/app_menu.h
++++ b/chrome/browser/ui/views/toolbar/app_menu.h
+@@ -22,6 +22,7 @@
+ #include "ui/base/models/menu_model.h"
+ #include "ui/base/mojom/menu_source_type.mojom.h"
+ #include "ui/views/controls/menu/menu_delegate.h"
++#include "ui/views/controls/menu/menu_types.h"
+ 
+ class BookmarkMenuDelegate;
+ class BrowserWindowInterface;
+@@ -52,7 +53,9 @@ class AppMenu final : public views::MenuDelegate,
+   // defaulting to kNone.
+   void RunMenu(
+       views::MenuButtonController* host,
+-      ui::mojom::MenuSourceType source_type = ui::mojom::MenuSourceType::kNone);
++      ui::mojom::MenuSourceType source_type = ui::mojom::MenuSourceType::kNone,
++      views::MenuAnchorPosition anchor_position =
++          views::MenuAnchorPosition::kTopRight);
+ 
+   // Shows the menu with an anchor in the parent widget given its bounds.
+   void RunMenu(

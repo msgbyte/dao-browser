@@ -1,0 +1,21 @@
+diff --git a/chrome/browser/ui/views/toolbar/app_menu.cc b/chrome/browser/ui/views/toolbar/app_menu.cc
+--- a/chrome/browser/ui/views/toolbar/app_menu.cc
++++ b/chrome/browser/ui/views/toolbar/app_menu.cc
+@@ -1130,14 +1130,15 @@ AppMenu::~AppMenu() {
+ }
+ 
+ void AppMenu::RunMenu(views::MenuButtonController* host,
+-                      ui::mojom::MenuSourceType source_type) {
++                      ui::mojom::MenuSourceType source_type,
++                      views::MenuAnchorPosition anchor_position) {
+   base::RecordAction(UserMetricsAction("ShowAppMenu"));
+   UMA_HISTOGRAM_ENUMERATION("WrenchMenu.MenuAction", MENU_ACTION_MENU_OPENED,
+                             LIMIT_MENU_ACTION);
+ 
+   menu_runner_->RunMenuAt(host->button()->GetWidget(), host,
+                           host->button()->GetAnchorBoundsInScreen(),
+-                          views::MenuAnchorPosition::kTopRight, source_type,
++                          anchor_position, source_type,
+                           /*native_view_for_gestures=*/gfx::NativeView(),
+                           /*corners=*/std::nullopt,
+                           "Chrome.AppMenu.MenuHostInitToNextFramePresented");

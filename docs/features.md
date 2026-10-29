@@ -181,6 +181,19 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
 - **Drag-to-resize** — Mouse drag, 150–400px range, ignored while collapsed; width preserved across collapse/expand cycles
 - **Edge hover auto-expand** — Hovering the collapsed sidebar's left-edge strip temporarily expands it; leaving collapses it again. A window-wide mouse monitor keeps the edge active in fullscreen (where the collapsed sidebar has zero width) and collapses even when the cursor leaves before entering the expanded sidebar. Webpage fullscreen never reveals it. Manual collapse state is unchanged
 - **DaoSidebarUIHandler** — Mojo bridge between sidebar C++ and the WebUI (media state, folder persistence, tab commands)
+- **Windows browser menu** — A Lucide menu button occupies the top-left of the
+  native sidebar header, opposite the collapse button. It opens a left-aligned
+  native browser menu with Settings first, followed by Chromium's existing
+  window, history, downloads, bookmarks, extensions, editing, zoom, print, and
+  developer-tool actions. The button uses the sidebar's theme and hover colors;
+  its bounds remain clickable while empty header space still drags the window.
+  `sidebar/dao_app_menu_button.{h,cc}` reuses `AppMenuModel` and `AppMenu` for
+  localization, policy checks, dynamic submenus, and keyboard navigation.
+  Alt+F uses the same entry point and temporarily reveals a collapsed sidebar,
+  waiting for its animation before opening the menu. Hover-expanded sidebars
+  stay open while the menu is active. Shortcut labels omit Chromium defaults
+  that Dao reserves for sidebar, duplicate-tab, Agent, and copy-URL actions.
+  macOS retains its system menu bar.
 - **Incognito indicator** — Native shield-check status icon beside the sidebar collapse button in Incognito windows, with a localized privacy tooltip
 - **Sidebar context menu** — Native right-click menu support with registered
   shortcut labels for Duplicate Tab, Copy Link, and Close Tab. When the local

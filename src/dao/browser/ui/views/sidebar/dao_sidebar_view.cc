@@ -63,6 +63,11 @@
 #include "ui/views/layout/flex_layout_types.h"
 #include "ui/views/widget/widget.h"
 
+#if BUILDFLAG(IS_WIN)
+#include "dao/browser/ui/views/sidebar/dao_app_menu_button.h"
+#include "ui/base/mojom/menu_source_type.mojom.h"
+#endif
+
 namespace dao {
 
 namespace {
@@ -271,7 +276,7 @@ DaoSidebarView::DaoSidebarView(BrowserWindowInterface* browser)
           views::BoxLayout::Orientation::kVertical,
           gfx::Insets::TLBR(0, 4, 0, 4), 2));
 
-  // Header row: traffic-light spacer + toggle sidebar button
+  // Header row: platform controls, flexible drag space, and sidebar toggle.
   auto header_row = std::make_unique<views::View>();
   auto* header_layout = header_row->SetLayoutManager(
       std::make_unique<views::FlexLayout>());
@@ -280,6 +285,13 @@ DaoSidebarView::DaoSidebarView(BrowserWindowInterface* browser)
   // Left inset clears macOS traffic lights (~70px)
   header_layout->SetInteriorMargin(gfx::Insets::TLBR(0, 70, 0, 0));
   header_row->SetPreferredSize(gfx::Size(0, 36));
+
+#if BUILDFLAG(IS_WIN)
+  app_menu_button_ = header_row->AddChildView(
+      std::make_unique<DaoAppMenuButton>(
+          browser_, base::BindRepeating(&DaoSidebarView::OnAppMenuClosed,
+                                        weak_factory_.GetWeakPtr())));
+#endif
 
   // Flexible spacer pushes toggle button to the right
   auto spacer = std::make_unique<views::View>();
@@ -597,6 +609,56 @@ gfx::Rect DaoSidebarView::incognito_indicator_bounds_in_sidebar() const {
   return r;
 }
 
+gfx::Rect DaoSidebarView::app_menu_button_bounds_in_sidebar() const {
+#if BUILDFLAG(IS_WIN)
+  if (app_menu_button_ && app_menu_button_->GetVisible() && !collapsed_) {
+    gfx::Rect bounds = app_menu_button_->GetLocalBounds();
+    bounds = views::View::ConvertRectToTarget(app_menu_button_, this, bounds);
+    return bounds;
+  }
+#endif
+  return gfx::Rect();
+}
+
+#if BUILDFLAG(IS_WIN)
+void DaoSidebarView::ShowAppMenu() {
+  if (!app_menu_button_ || !GetWidget()) {
+    return;
+  }
+  app_menu_requested_ = true;
+  AutoExpand();
+  if (layer()->GetAnimator()->is_animating()) {
+    // Anchor to the settled button instead of its moving compositor layer.
+    return;
+  }
+  // A pending collapse may have finished before this request was handled.
+  if (collapsed_) {
+    AutoExpand();
+    return;
+  }
+  app_menu_requested_ = false;
+  if (auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser_)) {
+    browser_view->DeprecatedLayoutImmediately();
+  }
+  app_menu_button_->ShowMenu(ui::mojom::MenuSourceType::kKeyboard);
+}
+
+void DaoSidebarView::OnAppMenuClosed() {
+  // Native menu teardown and command dispatch must finish before moving the
+  // anchor or the active contents. The command may also close this window.
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE,
+      base::BindOnce(&DaoSidebarView::MaybeAutoCollapseAfterAppMenu,
+                     weak_factory_.GetWeakPtr()));
+}
+
+void DaoSidebarView::MaybeAutoCollapseAfterAppMenu() {
+  if (event_monitor_) {
+    UpdateAutoExpandForScreenPoint(event_monitor_->GetLastMouseLocation());
+  }
+}
+#endif
+
 gfx::Size DaoSidebarView::CalculatePreferredSize(
     const views::SizeBounds& available_size) const {
   if (collapsed_ && GetWidget() && GetWidget()->IsFullscreen()) {
@@ -631,6 +693,11 @@ void DaoSidebarView::Layout(PassKey) {
   if (toggle_button_) {
     toggle_button_->SetVisible(!collapsed_);
   }
+#if BUILDFLAG(IS_WIN)
+  if (app_menu_button_) {
+    app_menu_button_->SetVisible(!collapsed_);
+  }
+#endif
   if (inner_container_) {
     // During collapse/expand animation, keep inner at user_width_ so content
     // is clipped smoothly. During resize, use current_width_ so background
@@ -806,6 +873,14 @@ void DaoSidebarView::OnImplicitAnimationsCompleted() {
     sidebar_web_view_->InvalidateLayout();
     sidebar_web_view_->DeprecatedLayoutImmediately();
   }
+#if BUILDFLAG(IS_WIN)
+  if (app_menu_requested_) {
+    // The menu runs a nested loop. Open it after animation cleanup returns.
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(&DaoSidebarView::ShowAppMenu,
+                                 weak_factory_.GetWeakPtr()));
+  }
+#endif
 }
 
 void DaoSidebarView::AnimationProgressed(const gfx::Animation* animation) {
@@ -980,6 +1055,12 @@ void DaoSidebarView::AutoExpand() {
 }
 
 void DaoSidebarView::AutoCollapse() {
+#if BUILDFLAG(IS_WIN)
+  if (app_menu_requested_ ||
+      (app_menu_button_ && app_menu_button_->IsMenuShowing())) {
+    return;
+  }
+#endif
   if (!auto_expanded_) {
     return;
   }

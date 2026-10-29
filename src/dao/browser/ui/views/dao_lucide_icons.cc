@@ -432,6 +432,15 @@ void DrawLucideIcon(gfx::Canvas* canvas,
     case LucideIcon::kEllipsis:
       DrawEllipsis(canvas, s, ox, oy, flags);
       break;
+    case LucideIcon::kMenu:
+      // https://github.com/lucide-icons/lucide/blob/main/icons/menu.svg
+      // <path d="M4 5h16" />
+      // <path d="M4 12h16" />
+      // <path d="M4 19h16" />
+      DrawSvgPath(canvas, "M4 5h16", s, ox, oy, flags);
+      DrawSvgPath(canvas, "M4 12h16", s, ox, oy, flags);
+      DrawSvgPath(canvas, "M4 19h16", s, ox, oy, flags);
+      break;
     case LucideIcon::kSlidersHorizontal:
       DrawSlidersHorizontal(canvas, s, ox, oy, flags);
       break;

@@ -207,6 +207,7 @@
       </message>
 
       <!-- Sidebar / address bar -->
+      <message name="IDS_DAO_APP_MENU" desc="Tooltip and accessible name for the Windows sidebar button that opens the browser menu.">Dao menu</message>
       <message name="IDS_DAO_SIDEBAR_TOGGLE_TOOLTIP" desc="Tooltip on the sidebar toggle button. SHORTCUT is the localized platform shortcut, such as Ctrl+S or Command+S.">
         Toggle Sidebar (<ph name="SHORTCUT">$1<ex>Ctrl+S</ex></ph>)
       </message>
