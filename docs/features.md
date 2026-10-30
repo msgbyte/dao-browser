@@ -169,6 +169,12 @@ an unload/download prompt cancels the handoff, including a later unrelated quit.
 The helper rechecks registration and other processes, silently installs into the
 existing directory, and relaunches with session restoration. It never force-kills
 browsers. Installer errors show localized retry guidance and log locations.
+The browser launches the update wrapper from its cache directory, and the NSIS
+wrapper switches to its temporary directory before starting helpers, including
+when launched by an older Dao version. Waiting updater processes therefore do
+not lock the installed version directory during same-Chromium-version upgrades.
+The silent backend writes to the displayed `%TEMP%\dao_installer.log` path;
+the handoff log preserves its installation exit code.
 Existing Windows versions without this updater need one manual upgrade first.
 
 

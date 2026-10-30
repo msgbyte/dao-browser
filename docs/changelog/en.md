@@ -4,6 +4,8 @@
 
 ### [Unreleased] Unreleased
 
+- Fix Windows automatic updates failing because the updater kept the old version folder in use, and correct the installation log location and recorded error code.
+
 ### [1.0.128] - 2026-10-30
 
 - Open Settings and common browser actions from the new menu button at the top-left of the Windows sidebar, with Settings at the top and Alt+F keyboard access.
