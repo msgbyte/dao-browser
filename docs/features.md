@@ -1184,6 +1184,7 @@ macOS-style floating control center panel bundling extensions and utilities.
   limits, crashes, and websites' own focus-based behavior remain unchanged.
 - **DaoControlCenterButton** — Trigger button
 - **DaoControlCenterPopup** — Floating popup with transparent overlay click-to-close.
+  Keyboard input in the page keeps the popup open, except Escape, which closes it.
   The main panel is a 16px-radius frosted card with a hairline border holding
   rounded tiles in a macOS Control Center layout; the QR and More sub-panels
   replace the tiles inside the same card

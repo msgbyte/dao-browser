@@ -749,6 +749,10 @@ persistent background pages, and blocking WebRequest path on every rebase.
 
 ## 12. Control Center, Welcome, Webstore Branding
 
+- [ ] Open the QR panel and press letter, modifier, and navigation keys: it
+  stays open; clicking outside or switching tabs still closes it. Escape closes
+  the main, QR, and More panels.
+
 - [ ] Run `DaoHighPerformance*BrowserTest.*`: More > High Performance Mode toggles
   its trailing checkmark and the lightning indicator left of the MCP icon;
   switching tabs shows each tab's own state. On macOS, verify the toggle sits

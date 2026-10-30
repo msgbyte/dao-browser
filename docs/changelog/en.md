@@ -5,6 +5,7 @@
 ### [Unreleased] Unreleased
 
 - Fix Windows automatic updates failing because the updater kept the old version folder in use, and correct the installation log location and recorded error code.
+- Keep the Control Center QR code open when pressing other keys, while Escape still closes it.
 
 ### [1.0.128] - 2026-10-30
 

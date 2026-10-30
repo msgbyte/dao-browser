@@ -16,6 +16,7 @@
 #include "dao/browser/ui/views/dao_control_center_utility_section.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/compositor/layer.h"
+#include "ui/events/keycodes/keyboard_codes.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/geometry/vector2d.h"
 #include "ui/gfx/shadow_value.h"
@@ -33,6 +34,7 @@
 #endif
 
 #include "third_party/blink/public/common/input/web_input_event.h"
+#include "third_party/blink/public/common/input/web_keyboard_event.h"
 
 namespace dao {
 
@@ -328,7 +330,11 @@ void DaoControlCenterPopup::OnTabStripModelChanged(
 
 void DaoControlCenterPopup::DidGetUserInteraction(
     const blink::WebInputEvent& event) {
-  // User clicked/touched/scrolled the web content — close the popup.
+  if (blink::WebInputEvent::IsKeyboardEventType(event.GetType()) &&
+      static_cast<const blink::WebKeyboardEvent&>(event).windows_key_code !=
+          ui::VKEY_ESCAPE) {
+    return;
+  }
   Hide();
 }
 

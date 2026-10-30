@@ -214,6 +214,8 @@
 #include "sql/statement.h"
 #include "sql/test/test_helpers.h"
 #include "third_party/blink/public/common/features.h"
+#include "third_party/blink/public/common/input/web_keyboard_event.h"
+#include "third_party/blink/public/common/input/web_mouse_event.h"
 #include "third_party/blink/public/common/page/page_zoom.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
 #include "third_party/blink/public/mojom/css/preferred_color_scheme.mojom.h"
@@ -10266,6 +10268,53 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest, SwitchSubPanels) {
   EXPECT_TRUE(popup->GetVisible());
 
   popup->Hide();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
+                       QrStaysOpenOnKeyboardInteraction) {
+  auto* popup = GetBrowserView(browser())->dao_control_center_popup();
+  ASSERT_NE(nullptr, popup);
+  popup->ShowAt(gfx::Point(100, 100));
+  popup->ShowQrView();
+
+  for (auto type : {blink::WebInputEvent::Type::kRawKeyDown,
+                   blink::WebInputEvent::Type::kKeyDown,
+                   blink::WebInputEvent::Type::kChar,
+                   blink::WebInputEvent::Type::kKeyUp}) {
+    blink::WebKeyboardEvent event(type, blink::WebInputEvent::kNoModifiers,
+                                 base::TimeTicks::Now());
+    event.windows_key_code = ui::VKEY_A;
+    popup->DidGetUserInteraction(event);
+    EXPECT_TRUE(popup->GetVisible());
+  }
+
+  popup->DidGetUserInteraction(blink::WebMouseEvent(
+      blink::WebInputEvent::Type::kMouseDown,
+      blink::WebInputEvent::kLeftButtonDown, base::TimeTicks::Now()));
+  EXPECT_FALSE(popup->GetVisible());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
+                       EscapeClosesAllPanels) {
+  auto* popup = GetBrowserView(browser())->dao_control_center_popup();
+  ASSERT_NE(nullptr, popup);
+
+  for (auto show_panel : {&DaoControlCenterPopup::ShowMainPanel,
+                          &DaoControlCenterPopup::ShowQrView,
+                          &DaoControlCenterPopup::ShowMoreMenu}) {
+    for (auto type : {blink::WebInputEvent::Type::kRawKeyDown,
+                     blink::WebInputEvent::Type::kKeyDown}) {
+      popup->ShowAt(gfx::Point(100, 100));
+      (popup->*show_panel)();
+      ASSERT_TRUE(popup->GetVisible());
+
+      blink::WebKeyboardEvent event(type, blink::WebInputEvent::kNoModifiers,
+                                   base::TimeTicks::Now());
+      event.windows_key_code = ui::VKEY_ESCAPE;
+      popup->DidGetUserInteraction(event);
+      EXPECT_FALSE(popup->GetVisible());
+    }
+  }
 }
 
 IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
