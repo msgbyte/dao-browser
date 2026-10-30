@@ -236,7 +236,6 @@
 #include "ui/color/color_provider.h"
 #include "ui/compositor/layer.h"
 #include "ui/compositor/layer_animator.h"
-#include "ui/compositor/scoped_animation_duration_scale_mode.h"
 #include "ui/display/display.h"
 #include "ui/display/display_list.h"
 #include "ui/display/screen.h"
@@ -256,6 +255,7 @@
 #include "ui/gfx/image/image.h"
 #include "ui/gfx/image/image_skia_rep.h"
 #include "ui/gfx/range/range.h"
+#include "ui/gfx/scoped_animation_duration_scale_mode.h"
 #include "ui/gfx/text_utils.h"
 #include "ui/native_theme/native_theme.h"
 #include "ui/views/animation/ink_drop.h"
@@ -13390,8 +13390,8 @@ IN_PROC_BROWSER_TEST_F(DaoAgentCursorViewBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoAgentCursorViewBrowserTest,
                        IdleCursorDimsWakesAndHides) {
-  ui::ScopedAnimationDurationScaleMode zero_duration(
-      ui::ScopedAnimationDurationScaleMode::ZERO_DURATION);
+  gfx::ScopedAnimationDurationScaleMode zero_duration(
+      gfx::ScopedAnimationDurationScaleMode::ZERO_DURATION);
   DaoAgentCursorView cursor;
   cursor.SetSize(gfx::Size(800, 600));
   cursor.SetIdleDelaysForTesting(base::Milliseconds(30),
@@ -13413,8 +13413,8 @@ IN_PROC_BROWSER_TEST_F(DaoAgentCursorViewBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoAgentCursorViewBrowserTest,
                        LockedCursorStaysAtLastPositionUntilUnlock) {
-  ui::ScopedAnimationDurationScaleMode zero_duration(
-      ui::ScopedAnimationDurationScaleMode::ZERO_DURATION);
+  gfx::ScopedAnimationDurationScaleMode zero_duration(
+      gfx::ScopedAnimationDurationScaleMode::ZERO_DURATION);
   TabStripModel* model = browser()->tab_strip_model();
   content::WebContents* contents = model->GetActiveWebContents();
   DaoAgentCursorView* cursor = GetBrowserView(browser())->dao_agent_cursor();
