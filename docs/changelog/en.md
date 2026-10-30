@@ -718,6 +718,8 @@
 
 ### [Unreleased] Unreleased
 
+### [0.1.13] - 2026-10-31
+
 - Fixed website upload buttons not opening the file picker.
 - Switch between regular and private tabs from the tab overview, where private browsing now has its own dark blue-gray space, and close all private tabs at once while keeping your regular tabs.
 
