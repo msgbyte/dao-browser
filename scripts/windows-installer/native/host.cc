@@ -596,7 +596,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
     LocalFree(argv);
     const int result = dao::RunUpdate(token, ReadIni(config, L"Executable"));
     if (result != 0) {
-      Log("Update handoff or installation failed", HRESULT_FROM_WIN32(GetLastError()));
+      Log(("Update handoff or installation failed; exit code " +
+           std::to_string(result)).c_str(), E_FAIL);
       MessageBoxW(nullptr, dao::NativeString(L"updateFailed", ReadIni(config, L"Language") == L"2052"),
                   dao::NativeString(L"windowTitle", false), MB_OK | MB_ICONERROR);
     }

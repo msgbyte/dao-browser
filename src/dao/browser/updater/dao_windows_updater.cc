@@ -377,9 +377,12 @@ std::unique_ptr<DaoWindowsUpdater::Handoff> DaoWindowsUpdater::PrepareHandoff(
   STARTUPINFOW startup{};
   startup.cb = sizeof(startup);
   PROCESS_INFORMATION process{};
+  // Chromium's working directory is the installed version directory. Keep the
+  // waiting installer outside that directory so it can be replaced on update.
   const bool launched = CreateProcessW(
       installer.value().c_str(), command.data(), nullptr, nullptr, FALSE,
-      CREATE_NO_WINDOW, nullptr, nullptr, &startup, &process);
+      CREATE_NO_WINDOW, nullptr, installer.DirName().value().c_str(), &startup,
+      &process);
   if (launched) {
     handoff->wrapper = Handle(process.hProcess);
     CloseHandle(process.hThread);

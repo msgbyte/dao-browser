@@ -69,7 +69,7 @@ inline int RunUpdate(const std::wstring& token, const std::wstring& installer) {
   startup.cb = sizeof(startup);
   PROCESS_INFORMATION process{};
   if (!CreateProcessW(installer.c_str(), command.data(), nullptr, nullptr,
-                      FALSE, CREATE_NO_WINDOW, nullptr, nullptr, &startup,
+                      FALSE, CREATE_NO_WINDOW, nullptr, root.c_str(), &startup,
                       &process))
     return 10;
   Handle child(process.hProcess);
@@ -78,8 +78,11 @@ inline int RunUpdate(const std::wstring& token, const std::wstring& installer) {
   WaitForSingleObject(child.get(), INFINITE);
   const std::wstring updated_browser = application + L"\\dao.exe";
   DWORD code = 10;
-  if (!GetExitCodeProcess(child.get(), &code) || code != 0 ||
-      RegisteredBrowser() != updated_browser ||
+  if (!GetExitCodeProcess(child.get(), &code))
+    return 10;
+  if (code != 0)
+    return static_cast<int>(code);
+  if (RegisteredBrowser() != updated_browser ||
       AnotherBrowserRunning(updated_browser) || AnotherBrowserRunning(browser))
     return 10;
   command = L"\"" + updated_browser + L"\" --restore-last-session";

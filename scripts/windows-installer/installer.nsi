@@ -145,6 +145,11 @@ Function .onInit
     SetErrorLevel 1
     Quit
   ${EndIf}
+  ; A browser can launch us from its version directory. Release that directory
+  ; before waiting for any helper so same-version upgrades can replace it.
+  ; This also protects updates started by older Dao versions.
+  InitPluginsDir
+  SetOutPath "$PLUGINSDIR"
   ; Chromium writes installer registration into the 32-bit registry view.
   SetRegView 32
   SetShellVarContext current
@@ -252,7 +257,7 @@ Section
   SetDetailsPrint listonly
   File /oname=mini_installer.exe "${PAYLOAD}"
   ClearErrors
-  ExecWait '"$PLUGINSDIR\mini_installer.exe" --do-not-launch-chrome --verbose-logging --dao-install-dir="$INSTDIR"' $ExitCode
+  ExecWait '"$PLUGINSDIR\mini_installer.exe" --do-not-launch-chrome --verbose-logging --log-file="$TEMP\dao_installer.log" --dao-install-dir="$INSTDIR"' $ExitCode
   ${If} ${Errors}
     StrCpy $ExitCode 10
   ${EndIf}
