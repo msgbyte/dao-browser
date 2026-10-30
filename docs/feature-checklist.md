@@ -131,7 +131,13 @@ These are acceptance checks, not a claim that the port has passed them.
 - [ ] Open the command bar on A, switch to B, and close it. A must accept input
   again when reactivated, without depending on site-control cleanup.
 - [ ] Check Windows file icons and filenames with non-ASCII characters. Missing
-  image thumbnails must fall back to a file icon.
+  image thumbnails must fall back to a file icon. At 100%, 125%, 150%, and 200%
+  display scaling, verify the 40 DIP recent-download icons remain sharp when
+  the file association supplies a high-resolution asset, including after moving
+  the window between monitors. Check PDF, ZIP, image, executable, and unknown
+  file types; associations with only small icons must keep a full-size fallback
+  rather than a tiny icon inside a mostly empty square. Dragging a recent file
+  must retain its icon size and cursor alignment.
 - [ ] Check UTF-8 workspace paths and directory junctions: reject existing and
   new files reached through a junction outside the workspace; allow junctions
   that resolve inside it. Reject paths rooted at the current drive.

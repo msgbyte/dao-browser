@@ -27,6 +27,7 @@
 #include "base/supports_user_data.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
 #include "chrome/app/chrome_command_ids.h"
@@ -531,6 +532,18 @@ struct PinnedTabsLoadResult {
   bool success = false;
   std::string contents;
 };
+
+scoped_refptr<base::SequencedTaskRunner> GetRecentFilesTaskRunner() {
+  static const base::NoDestructor<scoped_refptr<base::SequencedTaskRunner>>
+      task_runner(
+#if BUILDFLAG(IS_WIN)
+          base::ThreadPool::CreateCOMSTATaskRunner(
+#else
+          base::ThreadPool::CreateSequencedTaskRunner(
+#endif
+              {base::MayBlock(), base::TaskPriority::USER_VISIBLE}));
+  return *task_runner;
+}
 
 ScanResult ScanRecentFiles(base::FilePath download_dir) {
   struct FileEntry {
@@ -2569,8 +2582,8 @@ void DaoSidebarUIHandler::PushDownloadState() {
   DownloadPrefs* prefs = DownloadPrefs::FromBrowserContext(browser_->GetProfile());
   base::FilePath download_dir = prefs->DownloadPath();
 
-  base::ThreadPool::PostTaskAndReplyWithResult(
-      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+  GetRecentFilesTaskRunner()->PostTaskAndReplyWithResult(
+      FROM_HERE,
       base::BindOnce(&ScanRecentFiles, download_dir),
       base::BindOnce(
           [](base::WeakPtr<DaoSidebarUIHandler> self, ScanResult result) {

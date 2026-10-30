@@ -4,6 +4,8 @@
 
 ### [Unreleased] Unreleased
 
+- Improve the clarity of file icons in the Windows download list, including on high-DPI displays.
+
 ### [1.0.129] - 2026-10-31
 
 - Fix Windows automatic updates failing because the updater kept the old version folder in use, and correct the installation log location and recorded error code.

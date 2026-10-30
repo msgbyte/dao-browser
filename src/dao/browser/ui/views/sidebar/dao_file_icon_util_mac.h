@@ -12,6 +12,8 @@ namespace dao {
 
 // Returns the system file type icon for the given file path, resized to
 // |icon_size| DIP. Must be called on a thread that allows blocking I/O.
+// On Windows, the calling thread must also have COM initialized. The result
+// includes 1x and 2x representations sourced from the largest available icon.
 gfx::ImageSkia GetFileIcon(const base::FilePath& file_path, int icon_size);
 
 // Returns true if the file extension indicates an image format supported by

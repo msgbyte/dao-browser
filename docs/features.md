@@ -65,6 +65,9 @@ Windows event interception uses Aura
 with restoration on overlay close and drag cancellation. Closing site controls
 or the command bar after switching tabs restores the originally blocked page.
 Download cards use Windows file type icons when an image thumbnail is unavailable.
+Windows file icons retain separate 1x/2x images from the highest-resolution
+Shell icon available, with smaller-icon fallback for file types without a large
+asset. Recent-file scans run on a COM-initialized background sequence.
 Agent workspace paths accept UTF-8 input. On Windows, existing path components
 are resolved through directory junctions before checking workspace containment,
 including ancestors of files that do not yet exist.
@@ -483,7 +486,7 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
   uses the shared localized Dao toast. Restored and transient downloads do not
   trigger the animation.
 - **DaoDownloadFlyoutView** (`sidebar/dao_download_flyout_view.{h,cc}`) — Anchored flyout panel
-- **DaoFileIconUtilMac** (`sidebar/dao_file_icon_util_mac.{h,mm}`) — Native macOS file icon retrieval
+- **File icons** (`sidebar/dao_file_icon_util_mac.{h,mm}`, `sidebar/dao_file_icon_util_win.cc`) — Native macOS and Windows file type icons; Windows supplies a high-resolution 2x image for the 40 DIP download cards and retains a 1x image for native dragging.
 - **Active-download hover details** — After a settled 400ms hover, an active
   download row reuses the native sidebar tooltip to show the full filename,
   transferred/total size, percentage, current speed, and reliable remaining
