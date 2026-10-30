@@ -14,11 +14,14 @@
 #include "dao/browser/ui/views/dao_colors.h"
 #include "dao/browser/ui/views/dao_control_center_popup.h"
 #include "dao/browser/ui/views/dao_qr_code_image.h"
+#include "dao/browser/ui/views/dao_system_dialog.h"
+#include "ui/base/clipboard/scoped_clipboard_writer.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/models/image_model.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/image/image.h"
+#include "ui/gfx/image/image_skia_rep.h"
 #include "ui/gfx/text_constants.h"
 #include "ui/views/background.h"
 #include "ui/views/border.h"
@@ -165,11 +168,24 @@ DaoControlCenterQrView::DaoControlCenterQrView(
   url_label_->SetElideBehavior(gfx::ELIDE_TAIL);
   url_label_->SetBorder(views::CreateEmptyBorder(
       gfx::Insets::VH(0, kQrCardInsetH)));
+
+  copy_button_ = AddChildView(CreateDaoDialogButton(
+      base::BindRepeating(&DaoControlCenterQrView::OnCopyImageClicked,
+                         base::Unretained(this)),
+      l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_QR_COPY_IMAGE),
+      std::nullopt, ui::ButtonStyle::kTonal));
+  copy_button_->SetEnabled(false);
 }
 
 DaoControlCenterQrView::~DaoControlCenterQrView() = default;
 
 void DaoControlCenterQrView::GenerateQrCode() {
+  qr_image_->SetImage(ui::ImageModel());
+  url_label_->SetText(std::u16string());
+  copy_button_->SetText(
+      l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_QR_COPY_IMAGE));
+  copy_button_->SetEnabled(false);
+
   if (!popup_ || !popup_->browser()) {
     return;
   }
@@ -188,7 +204,21 @@ void DaoControlCenterQrView::GenerateQrCode() {
     gfx::ImageSkia qr_image = RenderDaoQrCode(
         result.value(), kQrSize, GetFaviconForWebContents(web_contents));
     qr_image_->SetImage(ui::ImageModel::FromImageSkia(qr_image));
+    copy_button_->SetEnabled(!qr_image.isNull());
   }
+}
+
+void DaoControlCenterQrView::OnCopyImageClicked() {
+  const gfx::ImageSkia image = qr_image_->GetImage();
+  if (image.isNull()) {
+    return;
+  }
+  {
+    ui::ScopedClipboardWriter writer(ui::ClipboardBuffer::kCopyPaste);
+    writer.WriteImage(image.GetRepresentation(1.0f).GetBitmap());
+  }
+  copy_button_->SetText(
+      l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_QR_IMAGE_COPIED));
 }
 
 void DaoControlCenterQrView::OnBackClicked() {

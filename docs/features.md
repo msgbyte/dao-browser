@@ -1199,7 +1199,10 @@ macOS-style floating control center panel bundling extensions and utilities.
   shield-off icon when not secure). Dark Mode fills its badge with the Dao
   accent while websites are being darkened and exposes toggle state to
   accessibility. Compact QR Code, Mini Dao, and More tiles sit below
-- **DaoControlCenterQrView** — QR code generation
+- **DaoControlCenterQrView** — Generates the current page's QR code with its
+  favicon. Copy Image copies the displayed QR image to the clipboard without
+  closing the panel and confirms completion in the button label. Failed
+  generation clears the previous image and disables copying.
 - **DaoControlCenterMoreMenu** — High Performance Mode appears directly below Share on macOS. A divider separates cache and cookie cleanup from the other actions; cleanup stays scoped to the active page's current site with completion toast feedback.
 - **DaoPinnedExtensionsContainer** — Pinned extension icon container
 - **Extension action badges** — Pinned and Control Center extension icons render

@@ -753,6 +753,11 @@ persistent background pages, and blocking WebRequest path on every rebase.
   stays open; clicking outside or switching tabs still closes it. Escape closes
   the main, QR, and More panels.
 
+- [ ] Copy Image pastes the displayed QR image, including its favicon, into an
+  image-capable app, keeps the panel open, and shows localized confirmation.
+  Reopening resets the button label. A URL too long for a QR code clears the
+  old image and disables copying. Verify English/Chinese and light/dark appearance.
+
 - [ ] Run `DaoHighPerformance*BrowserTest.*`: More > High Performance Mode toggles
   its trailing checkmark and the lightning indicator left of the MCP icon;
   switching tabs shows each tab's own state. On macOS, verify the toggle sits

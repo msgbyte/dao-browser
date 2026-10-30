@@ -482,6 +482,12 @@
       <message name="IDS_DAO_CONTROL_CENTER_QR_CODE" desc="Label and accessible name for the Control Center utility button that shows a QR code for the current page.">
         QR Code
       </message>
+      <message name="IDS_DAO_CONTROL_CENTER_QR_COPY_IMAGE" desc="Button that copies the displayed page QR code image to the clipboard.">
+        Copy Image
+      </message>
+      <message name="IDS_DAO_CONTROL_CENTER_QR_IMAGE_COPIED" desc="Confirmation label on the QR code copy button after the image is copied to the clipboard.">
+        Image copied
+      </message>
       <message name="IDS_DAO_CONTROL_CENTER_SECURITY" desc="Label and accessible name for the Control Center utility button that opens security and site information for the current page.">
         Security
       </message>

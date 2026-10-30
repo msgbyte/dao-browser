@@ -6,6 +6,7 @@
 
 - Fix Windows automatic updates failing because the updater kept the old version folder in use, and correct the installation log location and recorded error code.
 - Keep the Control Center QR code open when pressing other keys, while Escape still closes it.
+- Copy the current page's QR code image to the clipboard with the new Copy Image button.
 
 ### [1.0.128] - 2026-10-30
 

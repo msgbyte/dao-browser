@@ -11,6 +11,7 @@
 namespace views {
 class ImageView;
 class Label;
+class MdTextButton;
 }
 
 namespace dao {
@@ -33,10 +34,12 @@ class DaoControlCenterQrView : public views::View {
 
  private:
   void OnBackClicked();
+  void OnCopyImageClicked();
 
   raw_ptr<DaoControlCenterPopup> popup_;
   raw_ptr<views::ImageView> qr_image_ = nullptr;
   raw_ptr<views::Label> url_label_ = nullptr;
+  raw_ptr<views::MdTextButton> copy_button_ = nullptr;
 };
 
 }  // namespace dao
