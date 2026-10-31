@@ -133,7 +133,18 @@ fun TabGridScreen(
                     IconButton(onClick = onBack) {
                         Icon(Lucide.ChevronLeft, stringResource(R.string.navigate_back))
                     }
-                    Spacer(Modifier.weight(1f))
+                    Text(
+                        stringResource(
+                            if (privateBrowsing) R.string.browsing_mode_private else R.string.browsing_mode_regular,
+                        ),
+                        modifier = Modifier.weight(1f),
+                        color = colors.foreground,
+                        fontSize = 22.sp,
+                        lineHeight = 28.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                     if (privateBrowsing) {
                         val closeAllDescription = stringResource(R.string.close_all_private_tabs)
                         TextButton(
@@ -150,24 +161,14 @@ fun TabGridScreen(
                         }
                     }
                 }
-                Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
-                    Text(
-                        stringResource(
-                            if (privateBrowsing) R.string.browsing_mode_private else R.string.browsing_mode_regular,
-                        ),
-                        color = colors.foreground,
-                        fontSize = 30.sp,
-                        lineHeight = 38.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Text(
-                        stringResource(
-                            if (privateBrowsing) R.string.private_tabs_subtitle else R.string.regular_tabs_subtitle,
-                        ),
-                        color = colors.muted,
-                        fontSize = 13.sp,
-                    )
-                }
+                Text(
+                    stringResource(
+                        if (privateBrowsing) R.string.private_tabs_subtitle else R.string.regular_tabs_subtitle,
+                    ),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+                    color = colors.muted,
+                    fontSize = 13.sp,
+                )
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(2),
                     modifier = Modifier.weight(1f),

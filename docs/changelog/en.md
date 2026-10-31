@@ -722,6 +722,8 @@
 
 ### [Unreleased] Unreleased
 
+- Regular and private tab overview titles now sit beside the back button, leaving more room for tabs.
+
 ### [0.1.13] - 2026-10-31
 
 - Fixed website upload buttons not opening the file picker.
