@@ -4,6 +4,8 @@
 
 ### [Unreleased] Unreleased
 
+- Hide profile switching from the menu at the top-left of the Windows sidebar.
+
 ### [1.0.130] - 2026-10-31
 
 - Improve the clarity of file icons in the Windows download list, including on high-DPI displays.

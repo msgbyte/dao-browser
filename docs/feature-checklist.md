@@ -99,7 +99,9 @@ These are acceptance checks, not a claim that the port has passed them.
 - [ ] Open and close tab search with Ctrl+Shift+A after the welcome page and in
   a regular tab; its WebUI must resolve under the Dao scheme without crashing.
 - [ ] The Windows sidebar's top-left menu button opens a left-aligned native
-  menu with Settings first. Open Settings, History, Downloads, Bookmarks,
+  menu with Settings first. The profile submenu (including profile switching,
+  creation, and management) stays hidden in regular and Incognito windows,
+  without an empty row or extra gap. Open Settings, History, Downloads, Bookmarks,
   Extensions, Print, and Developer tools; confirm their existing behavior and
   policy restrictions. Check light/dark/incognito themes, English/Simplified
   Chinese, minimum sidebar width, maximized/fullscreen windows, and display

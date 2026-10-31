@@ -57,6 +57,18 @@ class DaoAppMenuModel : public AppMenuModel {
  protected:
   void Build() override {
     AppMenuModel::Build();
+    // Profile switching is not exposed in Dao's sidebar menu. Remove the
+    // profile row and its trailing spacer, keeping the window group separator.
+    const auto profile_index = GetIndexOfCommandId(kProfileMenuPlaceholder);
+    if (profile_index) {
+      RemoveItemAt(*profile_index);
+      if (*profile_index < GetItemCount() &&
+          GetTypeAt(*profile_index) == ui::MenuModel::TYPE_SEPARATOR &&
+          GetSeparatorTypeAt(*profile_index) == ui::SPACING_SEPARATOR) {
+        RemoveItemAt(*profile_index);
+      }
+    }
+
     // Keep the native menu's policy checks, dynamic submenus, and localized
     // labels while making Settings the first, directly accessible action.
     const auto settings_index = GetIndexOfCommandId(IDC_OPTIONS);

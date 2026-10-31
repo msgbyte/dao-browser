@@ -198,6 +198,7 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
   its bounds remain clickable while empty header space still drags the window.
   `sidebar/dao_app_menu_button.{h,cc}` reuses `AppMenuModel` and `AppMenu` for
   localization, policy checks, dynamic submenus, and keyboard navigation.
+  The profile submenu and its extra spacing are omitted.
   Alt+F uses the same entry point and temporarily reveals a collapsed sidebar,
   waiting for its animation before opening the menu. Hover-expanded sidebars
   stay open while the menu is active. Shortcut labels omit Chromium defaults
