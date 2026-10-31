@@ -150,7 +150,10 @@ struct TabsView: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-                        ForEach(model.tabs) { tab in card(tab).id(tab.id) }
+                        ForEach(model.tabs) { tab in
+                            card(tab).id(tab.id)
+                                .transition(.scale(scale: 0.92).combined(with: .opacity))
+                        }
                     }.padding(12)
                 }
                 .onAppear { proxy.scrollTo(model.selectedID) }
@@ -170,13 +173,17 @@ struct TabsView: View {
         withAnimation(reduceMotion ? nil : Nova.animation) { proxy.scrollTo(model.selectedID) }
     }
 
+    private func close(_ tab: BrowserTab) {
+        withAnimation(reduceMotion ? nil : Nova.animation) { model.close(tab) }
+    }
+
     private func card(_ tab: BrowserTab) -> some View {
         VStack(spacing: 0) {
             HStack(spacing: 4) {
                 if tab.record.isPrivate { DaoIcon(name: "venetian-mask", size: 16) }
                 Text(tab.title).font(.caption.weight(.medium)).lineLimit(1)
                 Spacer(minLength: 0)
-                IconButton(icon: "x", label: "close_tab") { model.close(tab) }
+                IconButton(icon: "x", label: "close_tab") { close(tab) }
             }.padding(.leading, 10)
             Button { model.select(tab) } label: {
                 ZStack {
@@ -190,8 +197,8 @@ struct TabsView: View {
         }.background(Nova.surface).clipShape(.rect(cornerRadius: 16))
             .overlay(RoundedRectangle(cornerRadius: 16).stroke(tab.id == model.selectedID ? Nova.foreground : Nova.border, lineWidth: tab.id == model.selectedID ? 2 : 1))
             .simultaneousGesture(DragGesture(minimumDistance: 30).onEnded { value in
-                if value.translation.width > 85 && abs(value.translation.height) < 60 { model.close(tab) }
+                if value.translation.width > 85 && abs(value.translation.height) < 60 { close(tab) }
             })
-            .accessibilityAction(named: L("close_tab")) { model.close(tab) }
+            .accessibilityAction(named: L("close_tab")) { close(tab) }
     }
 }

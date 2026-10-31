@@ -811,6 +811,7 @@
 
 ### [Unreleased] Unreleased
 
+- Closing a tab now gently shrinks and fades its card while the remaining cards smoothly move into place, respecting Reduce Motion.
 - Long-press an image, including one inside a link, to download, copy, or preview it with pinch-to-zoom; web images can also open in a background tab.
 - Webpage downloads now show the file name, size when known, and a clear Download button before saving; cancelling, dismissing, or closing the tab leaves nothing in Downloads.
 - See how much of a running download has transferred and its current speed.

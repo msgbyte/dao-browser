@@ -342,7 +342,11 @@ iPhone Simulator/device. These boxes are acceptance steps, not completed results
   process or relaunching the app on that tab shows the failure view instead of
   sending the form again.
 - [ ] Open the tab grid with the selected tab far down the list: it is visible on
-  open and stays visible after closing other tabs.
+  open and stays visible after closing other tabs. Close cards with the close button,
+  a right swipe and the VoiceOver action: each shrinks and fades while remaining
+  cards smoothly fill the gap. Repeat with Reduce Motion, rapid consecutive closes
+  and the final regular/private tab; closure stays immediate with Reduce Motion
+  and the final tab still gets its replacement.
 - [ ] Scan a QR code on supported hardware; share and rescan a generated page QR.
   The scanner shows a centered square guide that scales down on narrow screens.
 - [ ] Verify theme and search-engine labels remain visible beside their selected
