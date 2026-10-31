@@ -9,15 +9,16 @@ diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view
  #include "chrome/browser/ui/views/chrome_typography.h"
  #include "chrome/browser/ui/views/frame/browser_view.h"
  #include "chrome/browser/ui/views/frame/top_container_view.h"
-@@ -37,6 +38,7 @@
+@@ -37,6 +38,8 @@
  #include "content/public/browser/document_picture_in_picture_window_controller.h"
  #include "content/public/browser/web_contents.h"
  #include "content/public/common/content_constants.h"
 +#include "dao/browser/pip/dao_pip_resize_utils.h"
++#include "dao/browser/pip/dao_pip_window_event_monitor.h"
  #include "extensions/buildflags/buildflags.h"
  #include "media/base/media_switches.h"
  #include "ui/base/hit_test.h"
-@@ -46,9 +48,11 @@
+@@ -46,9 +49,11 @@
  #include "ui/base/ui_base_features.h"
  #include "ui/compositor/layer.h"
  #include "ui/display/screen.h"
@@ -29,7 +30,7 @@ diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view
  #include "ui/gfx/text_constants.h"
  #include "ui/views/accessibility/view_accessibility.h"
  #include "ui/views/event_monitor.h"
-@@ -57,6 +61,7 @@
+@@ -57,6 +62,7 @@
  #include "ui/views/metadata/view_factory.h"
  #include "ui/views/style/typography.h"
  #include "ui/views/style/typography_provider.h"
@@ -37,24 +38,29 @@ diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view
  #include "ui/views/widget/widget_delegate.h"
  #include "ui/views/window/frame_background.h"
  #include "ui/views/window/window_shape.h"
-@@ -123,6 +128,16 @@
-         this, pip_browser_frame_view_->GetWidget()->GetNativeWindow(),
-         {ui::EventType::kMouseMoved, ui::EventType::kMouseExited,
-          ui::EventType::kKeyPressed, ui::EventType::kKeyReleased});
+@@ -119,10 +125,17 @@
+   explicit WindowEventObserver(
+       PictureInPictureBrowserFrameView* pip_browser_frame_view)
+       : pip_browser_frame_view_(pip_browser_frame_view) {
+-    event_monitor_ = views::EventMonitor::CreateWindowMonitor(
+-        this, pip_browser_frame_view_->GetWidget()->GetNativeWindow(),
+-        {ui::EventType::kMouseMoved, ui::EventType::kMouseExited,
+-         ui::EventType::kKeyPressed, ui::EventType::kKeyReleased});
++    event_monitor_ = std::make_unique<dao::DaoPipWindowEventMonitor>(
++        *this, pip_browser_frame_view_->GetWidget()->GetNativeWindow());
 +
 +    // Dao: Also observe the overlay widget's native window so that moving the
 +    // mouse onto the top bar counts as "inside" the PiP window for hover
 +    // detection.
 +    if (auto* overlay = pip_browser_frame_view_->dao_top_bar_overlay_widget()) {
-+      overlay_event_monitor_ = views::EventMonitor::CreateWindowMonitor(
-+          this, overlay->GetNativeWindow(),
-+          {ui::EventType::kMouseMoved, ui::EventType::kMouseExited,
-+           ui::EventType::kKeyPressed, ui::EventType::kKeyReleased});
++      overlay_event_monitor_ =
++          std::make_unique<dao::DaoPipWindowEventMonitor>(
++              *this, overlay->GetNativeWindow());
 +    }
    }
  
    WindowEventObserver(const WindowEventObserver&) = delete;
-@@ -149,6 +164,13 @@
+@@ -149,6 +162,13 @@
   private:
    bool IsMouseInBounds() {
      gfx::Point point = event_monitor_->GetLastMouseLocation();
@@ -68,17 +74,19 @@ diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view
      views::View::ConvertPointFromScreen(pip_browser_frame_view_, &point);
  
      gfx::Rect hit_region = pip_browser_frame_view_->GetHitRegion();
-@@ -157,6 +179,9 @@
+@@ -156,7 +176,10 @@
+   }
  
    raw_ptr<PictureInPictureBrowserFrameView> pip_browser_frame_view_;
-   std::unique_ptr<views::EventMonitor> event_monitor_;
+-  std::unique_ptr<views::EventMonitor> event_monitor_;
++  std::unique_ptr<dao::DaoPipWindowEventMonitor> event_monitor_;
 +  // Dao: Secondary monitor attached to the top-bar overlay widget's native
 +  // window, so mouse movement on the floating top bar is also observed.
-+  std::unique_ptr<views::EventMonitor> overlay_event_monitor_;
++  std::unique_ptr<dao::DaoPipWindowEventMonitor> overlay_event_monitor_;
  };
  
  void DefinitelyExitPictureInPicture(
-@@ -183,6 +208,140 @@
+@@ -183,6 +206,140 @@
    }
  }
  
@@ -219,7 +227,7 @@ diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view
  }  // namespace
  
  PictureInPictureBrowserFrameView::PictureInPictureBrowserFrameView(
-@@ -199,12 +358,40 @@
+@@ -199,12 +356,40 @@
    location_bar_model_ = std::make_unique<LocationBarModelImpl>(
        this, content::kMaxURLDisplayChars);
  
@@ -266,7 +274,7 @@ diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view
  
    top_bar_container_view_->SetBackground(
        views::CreateSolidBackground(kColorPipWindowTopBarBackground));
-@@ -325,9 +512,10 @@
+@@ -325,9 +510,10 @@
    // Creates the controller that owns and drives the top-bar hover animations,
    // now that the buttons and content-setting views it references exist. It
    // paints the window-control buttons to layers so their opacity can be
@@ -279,7 +287,7 @@ diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view
  
    // If the window manager wants us to display an overlay, get it.  In practice,
    // this is the auto-pip Allow / Block content setting UI.
-@@ -528,7 +716,10 @@
+@@ -528,7 +714,10 @@
    content_area.Inset(FrameBorderInsets());
    gfx::Rect top_bar = content_area;
    top_bar.set_height(kTopControlsHeight);
@@ -291,7 +299,7 @@ diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view
  #if !BUILDFLAG(IS_ANDROID)
    if (auto_pip_setting_overlay_) {
      auto_pip_setting_overlay_->SetBoundsRect(
-@@ -541,6 +732,9 @@
+@@ -541,6 +730,9 @@
  
  void PictureInPictureBrowserFrameView::AddedToWidget() {
    widget_observation_.Observe(GetWidget());
@@ -301,7 +309,7 @@ diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view
    window_event_observer_ = std::make_unique<WindowEventObserver>(this);
    child_dialog_observer_helper_ =
        std::make_unique<PipChildDialogObserverHelper>(this);
-@@ -596,6 +790,23 @@
+@@ -596,6 +788,23 @@
    window_event_observer_.reset();
    child_dialog_observer_helper_.reset();
  
@@ -325,7 +333,7 @@ diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view
    // Clear the AutoPiP setting overlay view.
    if (auto_pip_setting_overlay_) {
      auto_pip_setting_overlay_ = nullptr;
-@@ -823,6 +1034,11 @@
+@@ -823,6 +1032,11 @@
  void PictureInPictureBrowserFrameView::OnWidgetActivationChanged(
      views::Widget* widget,
      bool active) {
@@ -337,7 +345,7 @@ diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view
    // The window may become inactive when a popup modal shows, so we need to
    // check if the mouse is still inside the window.
    UpdateTopBarView(active || mouse_inside_window_ || IsOverlayViewVisible());
-@@ -916,6 +1132,14 @@
+@@ -916,6 +1130,14 @@
    location_icon_view_->Update(/*suppress_animations=*/false);
  }
  
@@ -352,7 +360,7 @@ diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view
  const ui::ColorProvider*
  PictureInPictureBrowserFrameView::GetTopBarColorProvider() const {
    return GetColorProvider();
-@@ -931,6 +1155,21 @@
+@@ -931,6 +1153,21 @@
  gfx::Rect PictureInPictureBrowserFrameView::ConvertTopBarControlViewBounds(
      views::View* control_view,
      views::View* source_view) const {
@@ -374,7 +382,7 @@ diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view
    gfx::RectF bounds(control_view->GetMirroredBounds());
    views::View::ConvertRectToTarget(source_view, this, &bounds);
    return gfx::ToEnclosingRect(bounds);
-@@ -1003,7 +1242,10 @@
+@@ -1003,7 +1240,10 @@
  }
  
  int PictureInPictureBrowserFrameView::GetTopAreaHeight() const {
@@ -386,7 +394,7 @@ diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view
  }
  
  gfx::Size PictureInPictureBrowserFrameView::GetNonClientViewAreaSize() const {
-@@ -1094,6 +1336,82 @@
+@@ -1094,6 +1334,82 @@
    return auto_pip_setting_overlay_ && auto_pip_setting_overlay_->GetVisible();
  }
  

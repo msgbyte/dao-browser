@@ -251,6 +251,7 @@ dao_browser_ui_deps = [
   "//dao/browser/updater:dao_updater",
   "//dao/browser/extensions/legacy_mv2:dao_legacy_mv2",
   "//dao/browser/mcp:browser_mcp",
+  "//dao/browser/pip:window_event_monitor",
   "//dao/browser/qrcode:qr_decoder",
   "//dao/browser/strings:dao_strings",
   "//dao/browser/ui/webui/resources/agent:resources",

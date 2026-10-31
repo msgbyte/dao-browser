@@ -4,6 +4,8 @@
 
 ### [Unreleased] Unreleased
 
+- Fix a Windows browser crash when a picture-in-picture window closes, including when returning to a video tab or closing its source tab.
+
 ### [1.0.131] - 2026-10-31
 
 - Hide profile switching from the menu at the top-left of the Windows sidebar.
