@@ -287,6 +287,12 @@ iPhone Simulator/device. These boxes are acceptance steps, not completed results
   find form exactly three columns and two rows with matching tile styling and
   readable localized labels. Verify sharing opens the native sheet; library and
   settings remain list rows below the grid.
+- [ ] Edit a page address on Android: Scan QR code, Copy URL and Share link
+  appear in one row below the input. Change or clear the input and confirm
+  copying and sharing still use the current page URL; copying gives feedback
+  and sharing opens the native sheet. Open and dismiss the scanner without
+  losing the edited input. Check both themes, private tabs, English/Chinese,
+  narrow screens and larger text; expanded blank new tabs omit this action row.
 - [ ] Open and dismiss the iOS drawer by tapping outside and by choosing menu
   actions: the drawer stays above the page while sliding out and the backdrop
   fades. Verify repeated open/close, light/dark mode and Reduce Motion; no

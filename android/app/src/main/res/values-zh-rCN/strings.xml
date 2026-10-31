@@ -58,6 +58,9 @@
     <string name="forward">前进</string>
     <string name="reload">刷新</string>
     <string name="share">分享</string>
+    <string name="copy_url">复制 URL</string>
+    <string name="share_link">分享链接</string>
+    <string name="url_copied">已复制网址</string>
     <string name="add_bookmark">加书签</string>
     <string name="remove_bookmark">移除书签</string>
     <string name="bookmark_options">书签选项</string>

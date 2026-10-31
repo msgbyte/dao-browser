@@ -1,5 +1,7 @@
 package com.msgbyte.dao
 
+import android.app.Activity
+import android.app.Instrumentation
 import android.content.ClipboardManager
 import android.content.Intent
 import android.net.Uri
@@ -59,6 +61,7 @@ import com.msgbyte.dao.browser.BrowserSessionViewModel
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.max
 import kotlin.math.roundToInt
 import kotlinx.coroutines.runBlocking
@@ -1090,6 +1093,64 @@ class MainActivityTest {
         }
 
         reloadButton.performTouchInput { up() }
+    }
+
+    @Test
+    fun addressEditorActionsKeepThePageUrlAfterTheInputChanges() {
+        val activity = composeRule.activity
+        val url = "about:blank#address-actions-${System.nanoTime()}"
+        val copy = activity.getString(R.string.copy_url)
+        val share = activity.getString(R.string.share_link)
+        val scan = activity.getString(R.string.scan_qr)
+        composeRule.onNodeWithText(activity.getString(R.string.address_hint)).performClick()
+        composeRule.onNodeWithText(copy).assertDoesNotExist()
+        composeRule.onNodeWithText(share).assertDoesNotExist()
+        composeRule.onNode(hasSetTextAction()).performTextInput(url)
+        composeRule.onNode(hasSetTextAction()).performImeAction()
+        composeRule.onNodeWithText(url).performClick()
+
+        val buttons = listOf(scan, copy, share).map { label ->
+            composeRule.onNodeWithText(label).assertIsDisplayed().fetchSemanticsNode().boundsInRoot
+        }
+        val inputBounds = composeRule.onNode(hasSetTextAction()).fetchSemanticsNode().boundsInRoot
+        assertTrue(buttons.all { it.top > inputBounds.bottom })
+        assertEquals(buttons[0].top, buttons[1].top, 1f)
+        assertEquals(buttons[1].top, buttons[2].top, 1f)
+        assertTrue(buttons[0].right < buttons[1].left && buttons[1].right < buttons[2].left)
+
+        composeRule.onNode(hasSetTextAction()).performTextReplacement("unsubmitted search")
+        composeRule.onNodeWithText(copy).performClick()
+        composeRule.runOnIdle {
+            val clipboard = activity.getSystemService(ClipboardManager::class.java)
+            assertEquals(url, clipboard.primaryClip?.getItemAt(0)?.text?.toString())
+        }
+        composeRule.onNode(hasSetTextAction()).performTextReplacement("")
+        val shared = AtomicReference<Intent>()
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val monitor = object : Instrumentation.ActivityMonitor() {
+            override fun onStartActivity(intent: Intent): Instrumentation.ActivityResult? {
+                if (intent.action != Intent.ACTION_CHOOSER) return null
+                shared.set(intent.getParcelableExtra(Intent.EXTRA_INTENT))
+                return Instrumentation.ActivityResult(Activity.RESULT_OK, null)
+            }
+        }
+        instrumentation.addMonitor(monitor)
+        try {
+            composeRule.onNodeWithText(share).performClick()
+            composeRule.runOnIdle {
+                assertEquals(Intent.ACTION_SEND, shared.get()?.action)
+                assertEquals("text/plain", shared.get()?.type)
+                assertEquals(url, shared.get()?.getStringExtra(Intent.EXTRA_TEXT))
+            }
+        } finally {
+            instrumentation.removeMonitor(monitor)
+        }
+        composeRule.onNodeWithText(scan).performClick()
+        composeRule.onNodeWithContentDescription(activity.getString(R.string.close_scanner))
+            .assertIsDisplayed().performClick()
+        assertEquals("", composeRule.onNode(hasSetTextAction()).fetchSemanticsNode()
+            .config[SemanticsProperties.EditableText].text)
+        composeRule.onNodeWithText(copy).assertIsDisplayed()
     }
 
     @Test

@@ -58,6 +58,9 @@
     <string name="forward">Forward</string>
     <string name="reload">Reload</string>
     <string name="share">Share</string>
+    <string name="copy_url" tools:ignore="MissingTranslation">Copy URL</string>
+    <string name="share_link" tools:ignore="MissingTranslation">Share link</string>
+    <string name="url_copied" tools:ignore="MissingTranslation">URL copied</string>
     <string name="add_bookmark">Add bookmark</string>
     <string name="remove_bookmark">Remove bookmark</string>
     <string name="bookmark_options">Bookmark options</string>

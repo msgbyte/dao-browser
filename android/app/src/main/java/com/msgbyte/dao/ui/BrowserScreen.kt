@@ -1,10 +1,14 @@
 package com.msgbyte.dao.ui
 
-import android.content.Intent
 import android.Manifest
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -53,6 +57,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -140,6 +145,7 @@ import com.composables.icons.lucide.ChevronLeft
 import com.composables.icons.lucide.ChevronRight
 import com.composables.icons.lucide.ChevronDown
 import com.composables.icons.lucide.ChevronUp
+import com.composables.icons.lucide.Copy
 import com.composables.icons.lucide.Download
 import com.composables.icons.lucide.Ellipsis
 import com.composables.icons.lucide.History
@@ -801,6 +807,7 @@ private fun NewTabScreen(
     onNavigate: (String) -> Unit,
 ) {
     val colors = LocalNovaColors.current
+    val context = LocalContext.current
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
     val hostView = LocalView.current
@@ -980,15 +987,45 @@ private fun NewTabScreen(
             enter = fadeIn(tween(260, delayMillis = 40)) + slideInVertically { 8 },
             exit = fadeOut(tween(160)),
         ) {
-            SuggestionList(
-                browserIcons = browserIcons,
-                privateBrowsing = privateBrowsing,
-                query = query,
-                results = results,
-                onNavigate = { suggestion ->
-                    onNavigate(if (suggestion.type == SuggestionType.Search) suggestion.title else suggestion.target)
-                },
-            )
+            Column {
+                if (initialQuery.isNotBlank()) {
+                    val copyLabel = stringResource(R.string.copy_url)
+                    Row(
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        AddressActionButton(Lucide.ScanLine, R.string.scan_qr, Modifier.weight(1f)) {
+                            keyboardController?.hide()
+                            scannerOpen = true
+                        }
+                        AddressActionButton(Lucide.Copy, R.string.copy_url, Modifier.weight(1f)) {
+                            context.getSystemService(ClipboardManager::class.java).setPrimaryClip(
+                                ClipData.newPlainText(copyLabel, initialQuery),
+                            )
+                            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                                Toast.makeText(context, R.string.url_copied, Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                        AddressActionButton(Lucide.Share, R.string.share_link, Modifier.weight(1f)) {
+                            keyboardController?.hide()
+                            val intent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_TEXT, initialQuery)
+                            }
+                            context.startActivity(Intent.createChooser(intent, null))
+                        }
+                    }
+                }
+                SuggestionList(
+                    browserIcons = browserIcons,
+                    privateBrowsing = privateBrowsing,
+                    query = query,
+                    results = results,
+                    onNavigate = { suggestion ->
+                        onNavigate(if (suggestion.type == SuggestionType.Search) suggestion.title else suggestion.target)
+                    },
+                )
+            }
         }
 
         if (scannerOpen) {
@@ -999,6 +1036,33 @@ private fun NewTabScreen(
                     onNavigate(content)
                 },
             )
+        }
+    }
+}
+
+@Composable
+private fun AddressActionButton(
+    icon: ImageVector,
+    labelRes: Int,
+    modifier: Modifier,
+    onClick: () -> Unit,
+) {
+    val colors = LocalNovaColors.current
+    Surface(
+        onClick = onClick,
+        modifier = modifier.heightIn(min = 80.dp),
+        color = colors.surfaceSecondary,
+        contentColor = colors.foreground,
+        shape = RoundedCornerShape(13.dp),
+        border = BorderStroke(1.dp, colors.border),
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
+        ) {
+            Icon(icon, null, Modifier.size(22.dp))
+            Text(stringResource(labelRes), fontSize = 13.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center)
         }
     }
 }
