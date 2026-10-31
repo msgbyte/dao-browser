@@ -182,6 +182,7 @@ import java.time.LocalDateTime
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.launch
 import mozilla.components.concept.engine.Engine
+import mozilla.components.browser.icons.BrowserIcons
 import mozilla.components.concept.engine.EngineSession
 import mozilla.components.browser.state.state.TabSessionState
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -296,6 +297,7 @@ fun BrowserScreen(
     controller: BrowserTabsController,
     thumbnailRepository: TabThumbnailRepository,
     library: BrowserLibraryRepository,
+    browserIcons: BrowserIcons,
     downloads: SystemDownloadRepository,
     pageImages: PageImageActions,
     updates: com.msgbyte.dao.browser.AppUpdateManager,
@@ -547,6 +549,7 @@ fun BrowserScreen(
                 ) {
                     when (targetState.destination) {
                         BrowserDestination.NewTab -> NewTabScreen(
+                            browserIcons = browserIcons,
                             bookmarks = bookmarks,
                             history = history,
                             privateBrowsing = privateBrowsing,
@@ -556,6 +559,7 @@ fun BrowserScreen(
                             onNavigate = navigate,
                         )
                         BrowserDestination.AddressEdit -> NewTabScreen(
+                            browserIcons = browserIcons,
                             bookmarks = bookmarks,
                             history = history,
                             privateBrowsing = privateBrowsing,
@@ -784,6 +788,7 @@ private fun ExtensionPopupScreen(
 
 @Composable
 private fun NewTabScreen(
+    browserIcons: BrowserIcons,
     bookmarks: List<BookmarkEntry>,
     history: List<HistoryVisit>,
     privateBrowsing: Boolean,
@@ -976,6 +981,8 @@ private fun NewTabScreen(
             exit = fadeOut(tween(160)),
         ) {
             SuggestionList(
+                browserIcons = browserIcons,
+                privateBrowsing = privateBrowsing,
                 query = query,
                 results = results,
                 onNavigate = { suggestion ->
@@ -1101,6 +1108,8 @@ private fun SearchField(
 
 @Composable
 private fun SuggestionList(
+    browserIcons: BrowserIcons,
+    privateBrowsing: Boolean,
     query: String,
     results: List<SearchSuggestion>,
     onNavigate: (SearchSuggestion) -> Unit,
@@ -1146,8 +1155,17 @@ private fun SuggestionList(
                 SuggestionRow(
                     title = highlightedText(suggestion.title, query, colors.accent),
                     subtitle = if (suggestion.type == SuggestionType.Search) "" else suggestion.subtitle,
-                    letter = suggestion.letter.takeIf { suggestion.type == SuggestionType.Site },
-                    avatarColor = Color(suggestion.avatarColor),
+                    leadingContent = if (suggestion.type == SuggestionType.Site) {
+                        {
+                            SuggestionFavicon(
+                                icons = browserIcons,
+                                url = suggestion.target,
+                                isPrivate = privateBrowsing,
+                                letter = suggestion.letter,
+                                color = Color(suggestion.avatarColor),
+                            )
+                        }
+                    } else null,
                     icon = Lucide.Search.takeIf { suggestion.type == SuggestionType.Search },
                     onClick = { onNavigate(suggestion) },
                 )
@@ -1171,8 +1189,7 @@ private fun SuggestionRow(
     title: AnnotatedString,
     subtitle: String,
     onClick: () -> Unit,
-    letter: String? = null,
-    avatarColor: Color = LocalNovaColors.current.accent,
+    leadingContent: (@Composable () -> Unit)? = null,
     icon: ImageVector? = null,
 ) {
     val colors = LocalNovaColors.current
@@ -1185,7 +1202,7 @@ private fun SuggestionRow(
             .height(44.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (letter != null) LetterAvatar(letter, avatarColor, Modifier.size(34.dp))
+        if (leadingContent != null) leadingContent()
         else Box(
             Modifier.size(34.dp).background(colors.surfaceSecondary, RoundedCornerShape(9.dp)),
             contentAlignment = Alignment.Center,

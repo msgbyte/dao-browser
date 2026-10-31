@@ -176,6 +176,7 @@ class MainActivity : FragmentActivity() {
                     controller = browserSessionViewModel.controller,
                     thumbnailRepository = browserSessionViewModel.thumbnailRepository,
                     library = application.browserLibrary,
+                    browserIcons = application.browserIcons,
                     downloads = application.downloadRepository,
                     pageImages = application.pageImages,
                     updates = application.appUpdates,
