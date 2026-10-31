@@ -4,6 +4,8 @@
 
 ### [Unreleased] Unreleased
 
+### [1.0.131] - 2026-10-31
+
 - Hide profile switching from the menu at the top-left of the Windows sidebar.
 - Toggle High Performance Mode directly from its Control Center tile, which replaces Security and lights up when enabled; the duplicate switch in More has been removed.
 
