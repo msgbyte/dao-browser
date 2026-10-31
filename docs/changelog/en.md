@@ -4,6 +4,8 @@
 
 ### [Unreleased] Unreleased
 
+### [1.0.130] - 2026-10-31
+
 - Improve the clarity of file icons in the Windows download list, including on high-DPI displays.
 
 ### [1.0.129] - 2026-10-31
