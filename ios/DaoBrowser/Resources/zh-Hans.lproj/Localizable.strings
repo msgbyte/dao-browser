@@ -35,6 +35,9 @@
 "qr_code" = "页面二维码";
 "find_in_page" = "页面内查找";
 "share" = "分享";
+"copy_url" = "复制 URL";
+"share_link" = "分享链接";
+"url_copied" = "已复制网址";
 "ok" = "确定";
 "response" = "回复";
 "save" = "保存";

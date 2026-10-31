@@ -35,6 +35,9 @@
 "qr_code" = "Page QR code";
 "find_in_page" = "Find in page";
 "share" = "Share";
+"copy_url" = "Copy URL";
+"share_link" = "Share link";
+"url_copied" = "URL copied";
 "ok" = "OK";
 "response" = "Response";
 "save" = "Save";
