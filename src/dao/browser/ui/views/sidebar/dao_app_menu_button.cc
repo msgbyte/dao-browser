@@ -10,11 +10,13 @@
 #include "cc/paint/paint_flags.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/ui/accelerator_utils.h"
+#include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/toolbar/app_menu_model.h"
 #include "chrome/browser/ui/views/toolbar/app_menu.h"
 #include "dao/browser/strings/grit/dao_strings.h"
 #include "dao/browser/ui/views/dao_colors.h"
 #include "dao/browser/ui/views/dao_lucide_icons.h"
+#include "dao/browser/updater/dao_updater_service.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/menu_source_utils.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
@@ -35,6 +37,24 @@ class DaoAppMenuModel : public AppMenuModel {
  public:
   explicit DaoAppMenuModel(BrowserWindowInterface* browser)
       : AppMenuModel(AcceleratorProviderForBrowser(browser), browser) {}
+
+  bool IsCommandIdEnabled(int command_id) const override {
+    // Keep the status page reachable during a check and on unsupported installs.
+    if (command_id == IDC_DAO_CHECK_FOR_UPDATES) {
+      return true;
+    }
+    return AppMenuModel::IsCommandIdEnabled(command_id);
+  }
+
+  void ExecuteCommand(int command_id, int event_flags) override {
+    if (command_id == IDC_DAO_CHECK_FOR_UPDATES) {
+      DaoUpdaterService::GetInstance()->CheckForUpdatesUserInitiated();
+      // Windows reports progress and results in Settings instead of a dialog.
+      chrome::ShowAboutChrome(browser());
+      return;
+    }
+    AppMenuModel::ExecuteCommand(command_id, event_flags);
+  }
 
   bool GetAcceleratorForCommandId(
       int command_id,
@@ -78,8 +98,11 @@ class DaoAppMenuModel : public AppMenuModel {
       RemoveItemAt(*settings_index);
       InsertItemAt(0, IDC_OPTIONS, label);
       SetIcon(0, icon);
-      InsertSeparatorAt(1, ui::NORMAL_SEPARATOR);
     }
+    const size_t update_index = settings_index ? 1 : 0;
+    InsertItemAt(update_index, IDC_DAO_CHECK_FOR_UPDATES,
+                 l10n_util::GetStringUTF16(IDS_DAO_CHECK_FOR_UPDATES_MENU));
+    InsertSeparatorAt(update_index + 1, ui::NORMAL_SEPARATOR);
   }
 };
 

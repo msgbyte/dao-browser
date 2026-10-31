@@ -164,6 +164,9 @@ caching in the user-restricted `Dao/Updates` directory and again before launch.
 A signed ready update survives browser restarts. Settings About exposes localized
 checking, downloading, current, ready, unsupported-installation, and error states;
 the sidebar only shows its existing update control for ready/applying states.
+The Windows sidebar menu's Check for Updates command starts a manual check and
+opens Settings About to display progress and results. It remains available during
+an update and on unsupported installations so users can see the current status.
 
 Applying an update starts an authenticated, current-user-only named-pipe handoff
 to the existing NSIS installer host without WebView2. The helper waits for an
@@ -192,8 +195,9 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
 - **DaoSidebarUIHandler** — Mojo bridge between sidebar C++ and the WebUI (media state, folder persistence, tab commands)
 - **Windows browser menu** — A Lucide menu button occupies the top-left of the
   native sidebar header, opposite the collapse button. It opens a left-aligned
-  native browser menu with Settings first, followed by Chromium's existing
-  window, history, downloads, bookmarks, extensions, editing, zoom, print, and
+  native browser menu with Settings first and Check for Updates second, followed
+  by Chromium's existing window, history, downloads, bookmarks, extensions,
+  editing, zoom, print, and
   developer-tool actions. The button uses the sidebar's theme and hover colors;
   its bounds remain clickable while empty header space still drags the window.
   `sidebar/dao_app_menu_button.{h,cc}` reuses `AppMenuModel` and `AppMenu` for

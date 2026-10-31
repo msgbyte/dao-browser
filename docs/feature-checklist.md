@@ -99,7 +99,12 @@ These are acceptance checks, not a claim that the port has passed them.
 - [ ] Open and close tab search with Ctrl+Shift+A after the welcome page and in
   a regular tab; its WebUI must resolve under the Dao scheme without crashing.
 - [ ] The Windows sidebar's top-left menu button opens a left-aligned native
-  menu with Settings first. The profile submenu (including profile switching,
+  menu with Settings first and Check for Updates second. Check for Updates starts
+  a manual update check and opens Settings About with localized progress/results;
+  repeated clicks reuse the page without duplicating an in-flight check or
+  applying a ready update. Unsupported installations show their status. Verify
+  mouse and keyboard activation, including when About is already open.
+  The profile submenu (including profile switching,
   creation, and management) stays hidden in regular and Incognito windows,
   without an empty row or extra gap. Open Settings, History, Downloads, Bookmarks,
   Extensions, Print, and Developer tools; confirm their existing behavior and
