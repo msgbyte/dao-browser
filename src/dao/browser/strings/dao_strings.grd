@@ -269,7 +269,7 @@
       <message name="IDS_DAO_DOWNLOAD_STARTED" desc="Toast confirming that a download started when the sidebar download button is hidden.">
         Download started
       </message>
-      <message name="IDS_DAO_CHECK_FOR_UPDATES_MENU" desc="Menu item in the macOS application menu that opens Dao Browser's Sparkle update checker. Uses title case to match neighboring macOS app menu commands.">
+      <message name="IDS_DAO_CHECK_FOR_UPDATES_MENU" desc="Menu item in the macOS application menu and Windows sidebar menu that checks for Dao Browser updates. Opens Sparkle on macOS and the About page on Windows. Uses title case to match macOS app menu commands.">
         Check for Updates...
       </message>
       <message name="IDS_DAO_CHECK_FOR_UPDATES_BUTTON" desc="Button on the settings About page that checks for Dao Browser updates. Uses sentence case to match settings page button style.">
