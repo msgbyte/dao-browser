@@ -48,7 +48,7 @@
 #include "ui/events/event.h"
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
-#include "ui/views/controls/button/label_button.h"
+#include "ui/views/controls/button/button.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/test/button_test_api.h"
 #include "ui/views/view_utils.h"
@@ -58,11 +58,12 @@ namespace dao {
 
 namespace {
 
-views::LabelButton* FindModeButton(
+views::Button* FindModeButton(
     views::View* view,
     int message_id = IDS_DAO_HIGH_PERFORMANCE_MODE) {
-  if (auto* button = views::AsViewClass<views::LabelButton>(view);
-      button && button->GetText() == l10n_util::GetStringUTF16(message_id)) {
+  if (auto* button = views::AsViewClass<views::Button>(view);
+      button &&
+      button->GetAccessibleName() == l10n_util::GetStringUTF16(message_id)) {
     return button;
   }
   for (views::View* child : view->children()) {
@@ -332,7 +333,7 @@ IN_PROC_BROWSER_TEST_F(DaoHighPerformanceBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoHighPerformanceBrowserTest,
-                       MenuToggleUpdatesCheckedStateAndAddressIndicator) {
+                       TileToggleUpdatesCheckedStateAndAddressIndicator) {
   auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
   auto* popup = browser_view->dao_control_center_popup();
   auto* address_bar = browser_view->dao_address_bar();
@@ -349,26 +350,31 @@ IN_PROC_BROWSER_TEST_F(DaoHighPerformanceBrowserTest,
   ASSERT_TRUE(indicator);
   EXPECT_FALSE(indicator->GetVisible());
   popup->ShowAt(gfx::Point(100, 100));
-  popup->ShowMoreMenu();
   auto* button = FindModeButton(popup);
   ASSERT_TRUE(button);
-  ui::MouseEvent click(ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
-                       ui::EventTimeForNow(), ui::EF_LEFT_MOUSE_BUTTON,
-                       ui::EF_LEFT_MOUSE_BUTTON);
-  views::test::ButtonTestApi(button).NotifyClick(click);
+  EXPECT_TRUE(button->IsDrawn());
+  EXPECT_TRUE(HasLabelText(
+      button, l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_STATUS_OFF)));
+  ClickButton(button);
   EXPECT_TRUE(DaoHighPerformanceMode::IsEnabled(
       browser()->tab_strip_model()->GetActiveWebContents()));
   EXPECT_TRUE(indicator->GetVisible());
   ui::AXNodeData data;
   button->GetViewAccessibility().GetAccessibleNodeData(&data);
+  EXPECT_EQ(ax::mojom::Role::kToggleButton, data.role);
   EXPECT_EQ(ax::mojom::CheckedState::kTrue, data.GetCheckedState());
+  EXPECT_TRUE(button->IsDrawn());
+  EXPECT_TRUE(HasLabelText(
+      button, l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_STATUS_ON)));
 
-  views::test::ButtonTestApi(button).NotifyClick(click);
+  ClickButton(button);
   EXPECT_FALSE(DaoHighPerformanceMode::IsEnabled(
       browser()->tab_strip_model()->GetActiveWebContents()));
   EXPECT_FALSE(indicator->GetVisible());
   button->GetViewAccessibility().GetAccessibleNodeData(&data);
   EXPECT_EQ(ax::mojom::CheckedState::kFalse, data.GetCheckedState());
+  EXPECT_TRUE(HasLabelText(
+      button, l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_STATUS_OFF)));
 
   auto* contents = browser()->tab_strip_model()->GetActiveWebContents();
   DaoHighPerformanceMode::SetEnabled(contents, true);
@@ -377,11 +383,25 @@ IN_PROC_BROWSER_TEST_F(DaoHighPerformanceBrowserTest,
   EXPECT_EQ(ax::mojom::CheckedState::kTrue, data.GetCheckedState());
   chrome::NewTab(browser(), NewTabTypes::kNoUserAction);
   EXPECT_FALSE(indicator->GetVisible());
+  popup->ShowAt(gfx::Point(100, 100));
+  button->GetViewAccessibility().GetAccessibleNodeData(&data);
+  EXPECT_EQ(ax::mojom::CheckedState::kFalse, data.GetCheckedState());
+  EXPECT_TRUE(HasLabelText(
+      button, l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_STATUS_OFF)));
   browser()->tab_strip_model()->ActivateTabAt(
       browser()->tab_strip_model()->GetIndexOfWebContents(contents));
   EXPECT_TRUE(indicator->GetVisible());
+  popup->ShowAt(gfx::Point(100, 100));
+  button->GetViewAccessibility().GetAccessibleNodeData(&data);
+  EXPECT_EQ(ax::mojom::CheckedState::kTrue, data.GetCheckedState());
+  EXPECT_TRUE(HasLabelText(
+      button, l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_STATUS_ON)));
   DaoHighPerformanceMode::SetEnabled(contents, false);
   EXPECT_FALSE(indicator->GetVisible());
+  button->GetViewAccessibility().GetAccessibleNodeData(&data);
+  EXPECT_EQ(ax::mojom::CheckedState::kFalse, data.GetCheckedState());
+  EXPECT_TRUE(HasLabelText(
+      button, l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_STATUS_OFF)));
   popup->Hide();
 }
 
@@ -452,11 +472,11 @@ IN_PROC_BROWSER_TEST_F(DaoHighPerformanceBrowserTest,
 
   auto* control_center = browser_view->dao_control_center_popup();
   control_center->ShowAt(gfx::Point(100, 100));
-  control_center->ShowMoreMenu();
-  auto* menu_button = FindModeButton(control_center);
-  ASSERT_TRUE(menu_button);
+  auto* tile = FindModeButton(control_center);
+  ASSERT_TRUE(tile);
+  EXPECT_TRUE(tile->IsDrawn());
   ui::AXNodeData data;
-  menu_button->GetViewAccessibility().GetAccessibleNodeData(&data);
+  tile->GetViewAccessibility().GetAccessibleNodeData(&data);
   EXPECT_EQ(ax::mojom::CheckedState::kFalse, data.GetCheckedState());
   control_center->Hide();
 }

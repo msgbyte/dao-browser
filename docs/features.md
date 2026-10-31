@@ -1164,8 +1164,9 @@ Built on Chromium's native PiP, adds a Document-PiP interception layer plus seve
 
 macOS-style floating control center panel bundling extensions and utilities.
 
-- **Per-tab High Performance Mode** — Control Center > More has a checked
-  toggle for the current tab. A localized lightning indicator appears immediately
+- **Per-tab High Performance Mode** — The Control Center main panel has a
+  lightning tile for the current tab that lights up while enabled. A localized
+  lightning indicator appears immediately
   to the left of the address bar's MCP control indicator while enabled. Clicking
   it opens a native popup matching the MCP control popup, with an explanation of
   background protection, a resource-usage note, and a button to turn the mode
@@ -1198,16 +1199,15 @@ macOS-style floating control center panel bundling extensions and utilities.
   view. Mini Dao's site center reuses the section in its single-row layout
   with inline Add and Manage buttons
 - **DaoControlCenterUtilitySection** — Utility tiles: wide Dark Mode and
-  Security tiles show a localized status line (On / Off; Secure / Not secure /
-  Site info, from the active tab's connection security level, with a
-  shield-off icon when not secure). Dark Mode fills its badge with the Dao
-  accent while websites are being darkened and exposes toggle state to
-  accessibility. Compact QR Code, Mini Dao, and More tiles sit below
+  High Performance Mode tiles show a localized On / Off status line, fill their
+  icon badges with the Dao accent while active, and expose toggle state to
+  accessibility. High Performance Mode replaces the Security tile and stays in
+  sync with the active tab. Compact QR Code, Mini Dao, and More tiles sit below
 - **DaoControlCenterQrView** — Generates the current page's QR code with its
   favicon. Copy Image copies the displayed QR image to the clipboard without
   closing the panel and confirms completion in the button label. Failed
   generation clears the previous image and disables copying.
-- **DaoControlCenterMoreMenu** — High Performance Mode appears directly below Share on macOS. A divider separates cache and cookie cleanup from the other actions; cleanup stays scoped to the active page's current site with completion toast feedback.
+- **DaoControlCenterMoreMenu** — Share on macOS and site data cleanup actions. High Performance Mode is available only on the main panel. A divider separates cache and cookie cleanup from the other actions; cleanup stays scoped to the active page's current site with completion toast feedback.
 - **DaoPinnedExtensionsContainer** — Pinned extension icon container
 - **Extension action badges** — Pinned and Control Center extension icons render
   the active tab's badge text and extension-defined badge colors using Chromium's

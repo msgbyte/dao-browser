@@ -9808,7 +9808,7 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
   ASSERT_EQ(2u, utility_section->children().size());
   EXPECT_EQ((std::vector<std::u16string>{
                 label,
-                l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_SECURITY),
+                l10n_util::GetStringUTF16(IDS_DAO_HIGH_PERFORMANCE_MODE),
             }),
             GetDirectButtonAccessibleNames(utility_section->children()[0]));
   EXPECT_EQ((std::vector<std::u16string>{
@@ -10094,22 +10094,24 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
-                       SecurityTileShowsNotSecureStatusForHttpPage) {
-  ASSERT_TRUE(embedded_test_server()->Start());
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(
-      browser(), embedded_test_server()->GetURL("example.com", "/title1.html")));
-
+                       HighPerformanceTileReplacesSecurityAndMoreToggle) {
   auto* popup = GetBrowserView(browser())->dao_control_center_popup();
   ASSERT_NE(nullptr, popup);
   popup->ShowAt(gfx::Point(100, 100));
 
-  views::Button* security_button = FindButtonWithAccessibleName(
-      popup, l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_SECURITY));
-  ASSERT_NE(nullptr, security_button);
-  EXPECT_NE(nullptr, FindDescendantLabelWithText(
-                         security_button,
-                         l10n_util::GetStringUTF16(
-                             IDS_DAO_CONTROL_CENTER_SECURITY_NOT_SECURE)));
+  EXPECT_EQ(nullptr, FindButtonWithAccessibleName(
+                         popup, l10n_util::GetStringUTF16(
+                                    IDS_DAO_CONTROL_CENTER_SECURITY)));
+  const std::u16string label =
+      l10n_util::GetStringUTF16(IDS_DAO_HIGH_PERFORMANCE_MODE);
+  auto* tile = FindButtonWithAccessibleName(popup, label);
+  ASSERT_NE(nullptr, tile);
+  EXPECT_TRUE(tile->IsDrawn());
+
+  popup->ShowMoreMenu();
+  auto* more_menu = FindDescendantViewOfClass<DaoControlCenterMoreMenu>(popup);
+  ASSERT_NE(nullptr, more_menu);
+  EXPECT_EQ(nullptr, FindButtonWithAccessibleName(more_menu, label));
 
   popup->Hide();
 }

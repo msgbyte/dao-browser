@@ -777,17 +777,17 @@ persistent background pages, and blocking WebRequest path on every rebase.
   Reopening resets the button label. A URL too long for a QR code clears the
   old image and disables copying. Verify English/Chinese and light/dark appearance.
 
-- [ ] Run `DaoHighPerformance*BrowserTest.*`: More > High Performance Mode toggles
-  its trailing checkmark and the lightning indicator left of the MCP icon;
-  switching tabs shows each tab's own state. On macOS, verify the toggle sits
-  directly below Share and a divider separates it from Clear Cache and Clear
-  Cookies. Verify English/Chinese, light/dark,
-  narrow address bars, and keyboard/accessibility checked state. Toggle via the
-  menu and the mode API: indicators must update immediately without waiting for
+- [ ] Run `DaoHighPerformance*BrowserTest.*`: the main panel's High Performance
+  Mode tile replaces Security, toggles its highlighted lightning badge and On /
+  Off status without closing the panel, and updates the lightning indicator left
+  of the MCP icon. Switching tabs shows each tab's own state. More has no duplicate
+  toggle. Verify English/Chinese, light/dark, narrow address bars, and
+  keyboard/accessibility checked state. Toggle via the tile and the mode API:
+  indicators must update immediately without waiting for
   navigation or loading notifications.
 - [ ] Click the lightning indicator: a native popup explains background
   execution, freeze/discard protection, and resource usage. Its Turn off button
-  disables the mode, hides the indicator, and clears the More menu checkmark.
+  disables the mode, hides the indicator, and turns off the main panel tile.
   Clicking the icon again, pressing Escape, or clicking outside dismisses the
   popup without disabling the mode. Switching or closing tabs and disabling the
   mode elsewhere closes the popup without affecting another tab's setting.
@@ -814,7 +814,7 @@ persistent background pages, and blocking WebRequest path on every rebase.
 
 | ✔ | Feature | Patch(es) / Source | Risk | Verify |
 |---|---------|--------------------|------|--------|
-| ☐ | Control Center shell + utility actions | `src/dao/browser/ui/views/dao_control_center_*`, `dao_native_share_mac.*`, `widget_delegate.h.patch` (QR dialog friend) | 🟢 | Popup opens anchored to sidebar/control button, outside click closes it, and the tiled main panel renders correctly in light and dark; Dark Mode and Security tiles show localized status lines that match the preference and the active page's connection (Secure on HTTPS, Not secure on HTTP), and Dark Mode/Security/QR/Mini Dao/More actions execute; More menu clears only the current site's cache/cookies, then closes with toast feedback; while the system appearance is light, Dark stays visually unavailable but clicking it leaves the preference unchanged and shows the localized system-dark requirement through `DaoToastView` |
+| ☐ | Control Center shell + utility actions | `src/dao/browser/ui/views/dao_control_center_*`, `dao_native_share_mac.*`, `widget_delegate.h.patch` (QR dialog friend) | 🟢 | Popup opens anchored to sidebar/control button, outside click closes it, and the tiled main panel renders correctly in light and dark; Dark Mode and High Performance Mode tiles show localized On / Off status lines and highlighted badges that match their state, and Dark Mode/High Performance Mode/QR/Mini Dao/More actions execute; More has no duplicate performance toggle and clears only the current site's cache/cookies, then closes with toast feedback; while the system appearance is light, Dark stays visually unavailable but clicking it leaves the preference unchanged and shows the localized system-dark requirement through `DaoToastView` |
 | ☐ | Control Center extension grid + pinned extension strip | `dao_control_center_extensions_section.*`, `dao_pinned_extensions_container.*`, `dao_extension_action_icon.*`, `ui/extensions/icon_with_badge_image_source.*.patch` | 🟢 | Installed extensions appear with correct enabled/pinned state; in Control Center, the Extensions header keeps Add/Manage visible and more than eight icons wrap onto extra rows, while Mini Dao's site center keeps its single row with inline Add/Manage; pinned icons stay visible in browser chrome and open extension popups; active-tab badge text and colors update in both surfaces with compact glyphs and a background no taller than 10px, without shrinking the 16px base icon or changing the 24px pinned hover target |
 | ☐ | Welcome page (`dao://welcome`) | `dao_welcome_ui.cc`, `resources/welcome/`, `dao_strings.grd` + first-run pref | — | Auto-opens first launch; reopenable via menu; in Simplified Chinese, verify the document title, hero, all seven shortcut descriptions, demo labels, copy toast, and GitHub link are localized; missing translations fall back to English |
 | ☐ | Welcome browser migration entry | `dao_welcome_ui.cc`, `resources/welcome/`, `dao_strings.grd` | 🟡 | Compact import link sits in the page's top trailing corner without shifting the centered tutorial or its navigation; verify narrow windows and long localized labels fit without overlap; opens `dao://import/` in the current tab without starting migration; verify Tab/Enter navigation with visible focus |
