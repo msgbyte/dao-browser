@@ -723,6 +723,8 @@
 
 ### [Unreleased] Unreleased
 
+### [1.0.0] - 2026-10-31
+
 - Closing a tab now fades its card out and smoothly moves the remaining cards into place; swiping right finishes the slide before closing.
 - When editing a page address, scan a QR code, copy the current URL, or share the link from three buttons below the search field.
 - Website suggestions in the address bar and new-tab search now show site icons, falling back to initials when an icon is unavailable.
