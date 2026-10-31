@@ -41,6 +41,7 @@ robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectr
 androidx-test-core-ktx = { module = "androidx.test:core-ktx", version.ref = "androidx-test" }
 mozilla-concept-engine = { module = "org.mozilla.components:concept-engine", version.ref = "mozilla-components" }
 mozilla-browser-engine-gecko = { module = "org.mozilla.components:browser-engine-gecko", version.ref = "mozilla-components" }
+mozilla-browser-icons = { module = "org.mozilla.components:browser-icons", version.ref = "mozilla-components" }
 mozilla-browser-state = { module = "org.mozilla.components:browser-state", version.ref = "mozilla-components" }
 mozilla-browser-session-storage = { module = "org.mozilla.components:browser-session-storage", version.ref = "mozilla-components" }
 mozilla-feature-app-links = { module = "org.mozilla.components:feature-app-links", version.ref = "mozilla-components" }

@@ -52,6 +52,7 @@ class BrowserSessionViewModel(application: Application) : AndroidViewModel(appli
 
     init {
         daoApplication.engineSettings.requestInterceptor = appLinks
+        daoApplication.browserIcons.install(engine, controller.store)
         snapshotStorage.startAutoSave(controller.store, viewModelScope)
         viewModelScope.launch { controller.initialize() }
     }

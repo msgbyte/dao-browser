@@ -270,10 +270,12 @@ class ExtensionRepository(
     }
 
     private fun replaceExtensions(values: List<WebExtension>) {
+        // The page-icon collector is an internal browser service, not a user extension.
+        val userExtensions = values.filterNot { it.id == "icons@mozac.org" }
         engineExtensions.clear()
-        values.forEach { engineExtensions[it.id] = it }
+        userExtensions.forEach { engineExtensions[it.id] = it }
         browserActions.keys.retainAll(engineExtensions.keys)
-        mutableExtensions.value = values.map(::mapExtension)
+        mutableExtensions.value = userExtensions.map(::mapExtension)
     }
 
     private fun updateActionAvailability(id: String) {

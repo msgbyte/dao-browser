@@ -45,6 +45,24 @@ class ExtensionRepositoryTest {
     }
 
     @Test
+    fun hidesTheInternalFaviconExtensionAndPreventsDisablingIt() {
+        every { engine.registerWebExtensionDelegate(any()) } returns Unit
+        stubExtension(extension, enabled = true, builtIn = true)
+        val icons = mockk<WebExtension>()
+        every { icons.id } returns "icons@mozac.org"
+        every { engine.listInstalledWebExtensions(any(), any()) } answers {
+            firstArg<(List<WebExtension>) -> Unit>().invoke(listOf(icons, extension))
+        }
+
+        val repository = ExtensionRepository(engine)
+        repository.refresh()
+        repository.setEnabled("icons@mozac.org", false)
+
+        assertEquals(listOf(BuiltInAdBlocker.EXTENSION_ID), repository.extensions.value.map { it.id })
+        verify(exactly = 0) { engine.disableWebExtension(any(), any(), any(), any()) }
+    }
+
+    @Test
     fun togglesTheActualEngineExtensionAndRefreshesItsState() {
         every { engine.registerWebExtensionDelegate(any()) } returns Unit
         val disabled = mockk<WebExtension>()

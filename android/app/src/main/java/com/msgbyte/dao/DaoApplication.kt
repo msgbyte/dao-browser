@@ -21,6 +21,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import mozilla.components.browser.engine.gecko.fetch.GeckoViewFetchClient
+import mozilla.components.browser.icons.BrowserIcons
 import mozilla.components.concept.fetch.Request
 import mozilla.components.browser.engine.gecko.GeckoEngine
 import mozilla.components.concept.engine.DefaultSettings
@@ -67,6 +68,10 @@ class DaoApplication : Application() {
 
     val pageImages by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
         PageImageActions(applicationContext, fetchClient::fetch, downloadRepository)
+    }
+
+    val browserIcons by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+        BrowserIcons(applicationContext, fetchClient)
     }
 
     private val fetchClient by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
