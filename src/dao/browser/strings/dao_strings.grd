@@ -554,10 +554,10 @@
       <message name="IDS_DAO_FORCE_DARK_MODE_TITLE" desc="Title of the Control Center tile for the force dark mode toggle, which darkens websites.">
         Dark Mode
       </message>
-      <message name="IDS_DAO_FORCE_DARK_MODE_STATUS_ON" desc="Status line under the Control Center Dark Mode tile when websites are being darkened.">
+      <message name="IDS_DAO_CONTROL_CENTER_STATUS_ON" desc="Status line under a Control Center toggle tile when its mode is enabled.">
         On
       </message>
-      <message name="IDS_DAO_FORCE_DARK_MODE_STATUS_OFF" desc="Status line under the Control Center Dark Mode tile when websites are not being darkened.">
+      <message name="IDS_DAO_CONTROL_CENTER_STATUS_OFF" desc="Status line under a Control Center toggle tile when its mode is disabled.">
         Off
       </message>
       <message name="IDS_DAO_FORCE_DARK_MODE_TOOLTIP" desc="Tooltip for the Force dark mode toggle when it can be changed because the system appearance is dark.">

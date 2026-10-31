@@ -9830,7 +9830,7 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
   EXPECT_NE(nullptr,
             FindDescendantLabelWithText(
                 button, l10n_util::GetStringUTF16(
-                            IDS_DAO_FORCE_DARK_MODE_STATUS_OFF)));
+                            IDS_DAO_CONTROL_CENTER_STATUS_OFF)));
   EXPECT_EQ(nullptr, FindDescendantViewOfClass<views::Checkbox>(popup));
 
   views::test::ButtonTestApi(button).NotifyClick(
@@ -10082,7 +10082,7 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
   EXPECT_NE(nullptr,
             FindDescendantLabelWithText(
                 button,
-                l10n_util::GetStringUTF16(IDS_DAO_FORCE_DARK_MODE_STATUS_ON)));
+                l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_STATUS_ON)));
 
   views::test::ButtonTestApi(button).NotifyClick(
       ui::MouseEvent(ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),

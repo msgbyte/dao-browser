@@ -439,8 +439,8 @@ void DaoControlCenterUtilitySection::RefreshForceDarkModeState() {
   tile->SetActive(enabled);
   tile->SetVisualEnabled(available);
   tile->SetStatus(l10n_util::GetStringUTF16(
-      on ? IDS_DAO_FORCE_DARK_MODE_STATUS_ON
-         : IDS_DAO_FORCE_DARK_MODE_STATUS_OFF));
+      on ? IDS_DAO_CONTROL_CENTER_STATUS_ON
+         : IDS_DAO_CONTROL_CENTER_STATUS_OFF));
   tile->GetViewAccessibility().SetCheckedState(
       on ? ax::mojom::CheckedState::kTrue : ax::mojom::CheckedState::kFalse);
   tile->SetTooltipText(l10n_util::GetStringUTF16(
