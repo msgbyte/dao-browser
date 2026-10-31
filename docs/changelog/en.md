@@ -722,6 +722,7 @@
 
 ### [Unreleased] Unreleased
 
+- Closing a tab now fades its card out and smoothly moves the remaining cards into place; swiping right finishes the slide before closing.
 - Regular and private tab overview titles now sit beside the back button, leaving more room for tabs.
 
 ### [0.1.13] - 2026-10-31

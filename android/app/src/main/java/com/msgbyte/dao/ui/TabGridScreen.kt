@@ -3,6 +3,7 @@ package com.msgbyte.dao.ui
 import android.graphics.Bitmap
 import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -186,6 +187,11 @@ fun TabGridScreen(
                             thumbnail = thumbnails[tab.id],
                             onSelect = { onSelect(tab.id) },
                             onClose = { onClose(tab.id) },
+                            modifier = Modifier.animateItem(
+                                fadeInSpec = tween(180),
+                                placementSpec = tween(240),
+                                fadeOutSpec = tween(180),
+                            ),
                         )
                     }
                 }
@@ -289,6 +295,7 @@ private fun TabGridCard(
     thumbnail: Bitmap?,
     onSelect: () -> Unit,
     onClose: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val colors = LocalNovaColors.current
     val host = remember(tab.content.url) {
@@ -297,20 +304,14 @@ private fun TabGridCard(
     val cardShape = RoundedCornerShape(18.dp)
     val previewShape = RoundedCornerShape(14.dp)
     val dismissState = rememberSwipeToDismissBoxState(
-        confirmValueChange = { value ->
-            if (value == SwipeToDismissBoxValue.StartToEnd) {
-                onClose()
-                true
-            } else {
-                false
-            }
-        },
         positionalThreshold = { distance -> distance * 0.35f },
     )
     SwipeToDismissBox(
         state = dismissState,
+        modifier = modifier,
         enableDismissFromStartToEnd = true,
         enableDismissFromEndToStart = false,
+        onDismiss = { onClose() },
         backgroundContent = {
             // Only drawn mid-swipe, so its antialiased corners never outline the card at rest.
             if (dismissState.dismissDirection == SwipeToDismissBoxValue.StartToEnd) {
