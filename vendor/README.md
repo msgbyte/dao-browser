@@ -62,3 +62,12 @@ require running `npm run vendor`.
 
 Every generated file has a header identifying its source npm package + version.
 Editing the artifact directly will be overwritten on the next vendor run.
+
+## Security overrides
+
+`package.json` pins patched KaTeX and Zod versions while upstream packages retain
+older dependency ranges. The bundled Mistral SDKs use `zod/v4`. The legacy
+`@lmstudio/sdk` consumer expects Zod 3, but `vendor.config.ts` excludes that SDK
+from the browser bundle; do not enable it without updating its Zod integration.
+After changing these overrides, regenerate `pi-runtime` and `pi-web-ui-css`, then
+run the Agent WebUI tests, including the bundled math-rendering regression test.

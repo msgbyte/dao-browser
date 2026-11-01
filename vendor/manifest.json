@@ -22,18 +22,19 @@
         "@sinclair/typebox": "^0.34.49",
         "lit": "^3.3.2"
       },
-      "sha256": "99068503b24658b2c52c32d210f4c34294720c01ae8caecb0e45dd715d3714e3",
-      "generatedAt": "2026-07-22T11:42:40.418Z"
+      "sha256": "1ad429e9641076e8ab7d24f39a8fbfacf028529ceb10f31c4d7f36d322b831ea",
+      "generatedAt": "2026-11-01T17:17:40.791Z"
     },
     {
       "name": "pi-web-ui-css",
       "format": "customBuild",
       "outFile": "src/dao/browser/ui/webui/resources/agent/vendor/pi_web_ui.css",
       "pkgVersions": {
-        "@earendil-works/pi-web-ui": "^0.75.3"
+        "@earendil-works/pi-web-ui": "^0.75.3",
+        "katex": "0.18.2"
       },
-      "sha256": "1f83c98e5a9f9daf4d694b6c63088d2819f87364d3f692532662d5b412fdd126",
-      "generatedAt": "2026-07-22T10:03:58.615Z"
+      "sha256": "1f8ea837de8903a7f10213af40271554a43093cf6eb1760d2a5edf9ec91fdedf",
+      "generatedAt": "2026-11-01T17:20:35.164Z"
     },
     {
       "name": "turndown",

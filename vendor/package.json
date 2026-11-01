@@ -14,10 +14,15 @@
     "@earendil-works/pi-web-ui": "^0.75.3",
     "@mozilla/readability": "0.6.0",
     "@sinclair/typebox": "^0.34.49",
+    "katex": "0.18.2",
     "lit": "^3.3.2",
     "turndown": "^7.2.0"
   },
   "devDependencies": {
     "esbuild": "0.28.2"
+  },
+  "overrides": {
+    "katex": "$katex",
+    "zod": "4.6.7"
   }
 }

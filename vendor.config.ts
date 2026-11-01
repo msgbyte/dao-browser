@@ -123,11 +123,10 @@ const config: VendorConfig = {
       ],
     },
     {
-      // Copies pi-web-ui's pre-compiled Tailwind v4 CSS verbatim into the
-      // agent resource tree. No Tailwind JIT pass — the upstream package
-      // already publishes the final stylesheet.
+      // Copies pi-web-ui's pre-compiled Tailwind v4 CSS and appends the
+      // stylesheet matching our patched KaTeX renderer. No Tailwind JIT pass.
       name: "pi-web-ui-css",
-      npm: ["@earendil-works/pi-web-ui"],
+      npm: ["@earendil-works/pi-web-ui", "katex"],
       format: "customBuild",
       customBuild: "vendor/entries/pi-web-ui-css.build.mjs",
       outDir: "src/dao/browser/ui/webui/resources/agent/vendor",

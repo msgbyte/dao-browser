@@ -4,6 +4,7 @@
 
 ### [Unreleased] Unreleased
 
+- Harden AI chat data validation and math rendering against malicious input.
 - Fix the picture-in-picture title bar staying behind when moving a Document PiP window on Windows.
 - Match the top-right site controls button's size and hover highlight to neighboring buttons, keeping the highlight visible when the page and system themes differ.
 - Fix a Windows browser crash when a picture-in-picture window closes, including when returning to a video tab or closing its source tab.
