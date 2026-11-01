@@ -1,9 +1,10 @@
 # Agent plugins
 
 Dao settings provide manual installation, updates, and removal of the entry
-skills and command link independently of the MCP server switch. Codex and other
-compatible agents share `~/.agents/skills/{dao-lite,dao-browser}`; Claude Code
-has a separate manual entry that also installs both skills. Opening settings or checking for updates flags stale installed
+skills and command link independently of the MCP server switch. Codex, Cursor,
+and other compatible agents share `~/.agents/skills/{dao-lite,dao-browser}`;
+Claude Code has a separate manual entry for
+`~/.claude/skills/{dao-lite,dao-browser}`. Opening settings or checking for updates flags stale installed
 copies. Updating the shared skill also removes Dao-managed legacy copies from
 `~/.codex/skills/{dao-lite,dao-browser}`, while preserving user-owned files.
 
@@ -19,9 +20,20 @@ connections.
 - `claude-code/` — Claude Code plugin with both entry skills and commands. Add it with
   `/plugin marketplace add <path or repo>/agent-plugins`, then
   `/plugin install dao-browser@dao-browser`.
-- `codex/` — Codex plugin (`.codex-plugin/plugin.json`) with both entry skills.
-- `cursor/` — Cursor plugin (`.cursor-plugin/plugin.json`) with both entry
-  skills.
+- `agents/` — Shared [Agent Plugins](https://agent-plugins.org/) package with a
+  root `plugin.json` and both entry skills in `skills/`. Use this same package
+  for [Codex](https://developers.openai.com/plugins/build/plugins),
+  [Cursor](https://cursor.com/docs/reference/plugins), and other compatible
+  agents. OpenAI-specific presentation metadata lives in
+  `extensions.com.openai`; the skill files are shared.
+
+Plugin sources previously pointing to `agent-plugins/codex/` or
+`agent-plugins/cursor/` must now point to `agent-plugins/agents/`. The shared
+package requires a client that supports the portable Agent Plugins format.
+For clients that only support older plugin formats, use Dao settings to install
+the local skills into `~/.agents/skills/`, if the client supports that location,
+or update the client. Local skill installation paths and the Claude marketplace
+entry are unchanged.
 
 Every `*/skills/dao-browser/SKILL.md` and `*/skills/dao-lite/SKILL.md` must stay
 identical to their respective `src/dao/browser/cli/dao_*_entry_skill.md`;

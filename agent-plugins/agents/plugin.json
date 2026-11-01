@@ -1,0 +1,27 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "dao-browser",
+  "version": "1.0.0",
+  "description": "Honor an explicit dao-browser or dao-lite choice; otherwise use Dao Browser for existing tabs and Dao Lite for background web tasks.",
+  "author": {
+    "name": "Dao Browser"
+  },
+  "homepage": "https://github.com/msgbyte/dao-browser",
+  "repository": "https://github.com/msgbyte/dao-browser",
+  "keywords": ["browser", "automation", "dao"],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Dao Browser",
+        "shortDescription": "Work in the user's Dao browser",
+        "longDescription": "Honor an explicit dao-browser or dao-lite choice. Otherwise, use dao-browser for existing Dao tabs or windows and dao-lite for searches and background web tasks with your sign-ins. You can watch, take over, or stop background tasks from the sidebar.",
+        "developerName": "Dao Browser",
+        "category": "Developer Tools",
+        "capabilities": ["Interactive", "Read", "Write"],
+        "defaultPrompt": [
+          "Use dao-lite to open https://example.com in a background task and report its title."
+        ]
+      }
+    }
+  }
+}
