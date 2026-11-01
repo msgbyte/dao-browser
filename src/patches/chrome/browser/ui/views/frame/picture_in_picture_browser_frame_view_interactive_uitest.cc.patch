@@ -1,7 +1,7 @@
 diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view_interactive_uitest.cc b/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view_interactive_uitest.cc
 --- a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view_interactive_uitest.cc
 +++ b/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view_interactive_uitest.cc
-@@ -614,6 +614,40 @@
+@@ -614,6 +614,75 @@
              pip_frame_view()->GetWindowTitleForTesting()->GetEnabledColor());
  }
  
@@ -37,6 +37,41 @@ diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view
 +  hide_waiter.WaitForAnimationInterval(kAnimationDuration);
 +  EXPECT_FLOAT_EQ(0.0f, layer->opacity());
 +  EXPECT_EQ(client_bounds, pip_frame_view()->GetBoundsForClientView());
++}
++
++IN_PROC_BROWSER_TEST_F(PictureInPictureBrowserFrameViewTest,
++                       DaoOverlayFollowsWindowMovesWithoutResize) {
++  if (!PlatformSupportsScreenCoordinates()) {
++    GTEST_SKIP() << "Global screen coordinates unavailable";
++  }
++  ASSERT_NO_FATAL_FAILURE(SetUpDocumentPIP());
++
++  auto* widget = GetPipWidget();
++  auto* overlay = pip_frame_view()->dao_top_bar_overlay_widget();
++  ASSERT_TRUE(overlay);
++  ASSERT_TRUE(base::test::RunUntil([&] {
++    return overlay->IsVisible() &&
++           !overlay->GetWindowBoundsInScreen().IsEmpty();
++  }));
++  const gfx::Rect initial_bounds = widget->GetWindowBoundsInScreen();
++  const gfx::Rect initial_overlay_bounds = overlay->GetWindowBoundsInScreen();
++  const gfx::Rect client_bounds = pip_frame_view()->GetBoundsForClientView();
++
++  // Keep the size fixed: a resize would trigger Layout() and hide the bug.
++  // Move twice to catch a bar that only resynchronizes on its first update.
++  for (const gfx::Vector2d delta :
++       {gfx::Vector2d(-80, -60), gfx::Vector2d(-40, -30)}) {
++    gfx::Rect moved_bounds = initial_bounds;
++    moved_bounds.Offset(delta);
++    gfx::Rect expected_overlay_bounds = initial_overlay_bounds;
++    expected_overlay_bounds.Offset(delta);
++    widget->SetBounds(moved_bounds);
++    ASSERT_TRUE(base::test::RunUntil([&] {
++      return widget->GetWindowBoundsInScreen() == moved_bounds &&
++             overlay->GetWindowBoundsInScreen() == expected_overlay_bounds;
++    }));
++    EXPECT_EQ(client_bounds, pip_frame_view()->GetBoundsForClientView());
++  }
 +}
 +
  IN_PROC_BROWSER_TEST_P(PictureInPictureChildDialogResizeTest,
