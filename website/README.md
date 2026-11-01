@@ -23,6 +23,23 @@ npm run lint
 
 From the repo root, `npm run website` is a shortcut for `cd website && npm run dev`.
 
+## Dependency audit
+
+The scoped minimatch override upgrades modern consumers to the patched 11.x API.
+ESLint and several plugins still require minimatch 3's callable CommonJS export;
+a global override to 11.x breaks those consumers.
+
+`npm audit` also flags minimatch 3.1.5 under
+[GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249).
+The installed 3.1.5 source lacks the `firstPhasePreProcess`,
+`secondPhasePreProcess`, and `optimizationLevel` implementation described by the
+[maintainer's advisory](https://github.com/isaacs/minimatch/security/advisories/GHSA-g3hv-75wg-m249).
+The affected range is being questioned in
+[advisory-database#10811](https://github.com/github/advisory-database/issues/10811).
+Keep this development-only finding visible pending upstream clarification or a
+compatible plugin upgrade; it is not an audit exemption or a general claim that
+minimatch 3 is safe. `npm audit --omit=dev` checks the deployed dependency tree.
+
 ## Source of Truth
 
 - Product version, Chromium version, and latest download URL → `public/info.json`
