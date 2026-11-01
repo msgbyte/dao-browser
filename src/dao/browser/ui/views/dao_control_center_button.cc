@@ -32,7 +32,8 @@ DaoControlCenterButton::DaoControlCenterButton(BrowserWindowInterface* browser)
     : Button(base::BindRepeating(&DaoControlCenterButton::OnClicked,
                                  base::Unretained(this))),
       browser_(browser),
-      icon_color_(ControlCenterIconDefault()) {
+      icon_color_(ControlCenterIconDefault()),
+      hover_bg_color_(ControlCenterHoverBg(browser)) {
   SetInstallFocusRingOnFocus(false);
   SetAccessibleName(l10n_util::GetStringUTF16(
       IDS_DAO_CONTROL_CENTER_BUTTON_ACCESSIBLE_NAME));
@@ -48,6 +49,16 @@ gfx::Size DaoControlCenterButton::CalculatePreferredSize(
 void DaoControlCenterButton::SetIconColor(SkColor color) {
   icon_color_ = color;
   SchedulePaint();
+}
+
+void DaoControlCenterButton::SetHoverBackgroundColor(SkColor color) {
+  if (hover_bg_color_ == color) {
+    return;
+  }
+  hover_bg_color_ = color;
+  if (hovered_) {
+    UpdateBackground();
+  }
 }
 
 void DaoControlCenterButton::PaintButtonContents(gfx::Canvas* canvas) {
@@ -73,7 +84,7 @@ void DaoControlCenterButton::OnMouseExited(const ui::MouseEvent& event) {
 void DaoControlCenterButton::UpdateBackground() {
   if (hovered_) {
     SetBackground(views::CreateRoundedRectBackground(
-        ControlCenterHoverBg(), kCornerRadius));
+        hover_bg_color_, kCornerRadius));
   } else {
     SetBackground(nullptr);
   }

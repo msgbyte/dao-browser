@@ -26,6 +26,7 @@ class DaoControlCenterButton : public views::Button {
 
   // Update icon color to match address bar adaptive theme.
   void SetIconColor(SkColor color);
+  void SetHoverBackgroundColor(SkColor color);
 
   // views::Button:
   gfx::Size CalculatePreferredSize(
@@ -40,6 +41,7 @@ class DaoControlCenterButton : public views::Button {
 
   raw_ptr<BrowserWindowInterface> browser_;
   SkColor icon_color_;
+  SkColor hover_bg_color_;
   bool hovered_ = false;
 };
 

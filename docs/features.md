@@ -1195,7 +1195,9 @@ macOS-style floating control center panel bundling extensions and utilities.
   invalidation. Shared renderer processes may also benefit from the priority
   boost. Normal garbage collection, OS memory management, system sleep, hardware
   limits, crashes, and websites' own focus-based behavior remain unchanged.
-- **DaoControlCenterButton** — Trigger button
+- **DaoControlCenterButton** — Trigger button with a rounded hover highlight that
+  follows the address bar's page background, matching neighboring action buttons
+  even when the page and system themes differ
 - **DaoControlCenterPopup** — Floating popup with transparent overlay click-to-close.
   Keyboard input in the page keeps the popup open, except Escape, which closes it.
   The main panel is a 16px-radius frosted card with a hairline border holding
