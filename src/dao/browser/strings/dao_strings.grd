@@ -600,6 +600,15 @@
       <message name="IDS_DAO_MCP_APPROVAL_NO_MATCHING_TABS" desc="Shown when no tab matches the search in the local agent approval dialog.">
         No matching tabs
       </message>
+      <message name="IDS_DAO_MCP_APPROVAL_PAGE_PREVIEW" desc="Accessible name for the target page thumbnail in the local agent approval dialog.">
+        Page preview
+      </message>
+      <message name="IDS_DAO_MCP_APPROVAL_PREVIEW_UNAVAILABLE" desc="Shown when a thumbnail of the requested page is unavailable.">
+        Page preview unavailable
+      </message>
+      <message name="IDS_DAO_MCP_APPROVAL_PREVIEW_SELECT_TAB" desc="Shown before a page is selected in the local agent approval dialog.">
+        Select a tab to preview
+      </message>
       <message name="IDS_DAO_MCP_APPROVAL_SPACE_TITLE" desc="Title when a local agent requests access to Dao Lite background tasks.">
         Allow Dao Lite background tasks?
       </message>

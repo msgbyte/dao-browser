@@ -28,6 +28,8 @@ class RadioButton;
 
 namespace dao {
 
+class DaoMcpTabPreviewView;
+
 class DaoMcpApprovalDialog final : public views::DialogDelegate {
  public:
   using ConsentCallback = base::OnceCallback<void(bool allowed, bool remember)>;
@@ -69,11 +71,13 @@ class DaoMcpApprovalDialog final : public views::DialogDelegate {
     raw_ptr<views::Label> url;
     std::string tab_id;
     std::u16string search_text;
+    base::CallbackListSubscription selection_subscription;
   };
 
   base::OnceCallback<void(std::optional<std::string>)> callback_;
   std::optional<std::string> explicit_tab_id_;
   std::vector<TabChoice> choices_;
+  raw_ptr<DaoMcpTabPreviewView> tab_preview_ = nullptr;
   raw_ptr<views::Label> no_matching_tabs_ = nullptr;
   base::CallbackListSubscription search_subscription_;
   ConsentCallback consent_callback_;

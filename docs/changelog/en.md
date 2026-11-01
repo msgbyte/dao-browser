@@ -8,6 +8,7 @@
 - Match the top-right site controls button's size and hover highlight to neighboring buttons, keeping the highlight visible when the page and system themes differ.
 - Fix a Windows browser crash when a picture-in-picture window closes, including when returning to a video tab or closing its source tab.
 - Check for updates from the menu at the top-left of the Windows sidebar and see progress and results on the About page.
+- Preview the target page when approving MCP or external control access, including when choosing a tab to share.
 - Update website dependencies to address security vulnerabilities in page serving, image processing, and data validation.
 
 ### [1.0.131] - 2026-10-31

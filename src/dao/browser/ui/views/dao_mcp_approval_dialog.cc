@@ -4,6 +4,7 @@
 
 #include "dao/browser/ui/views/dao_mcp_approval_dialog.h"
 
+#include <algorithm>
 #include <memory>
 #include <utility>
 
@@ -14,6 +15,8 @@
 #include "base/no_destructor.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/task/bind_post_task.h"
+#include "base/task/thread_pool.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_attributes_entry.h"
@@ -22,26 +25,42 @@
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/profiles/profile_view_utils.h"
+#include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/thumbnails/thumbnail_tab_helper.h"
 #include "chrome/browser/ui/window_metadata/window_metadata_controller.h"
 #include "components/constrained_window/constrained_window_views.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/scoped_user_pref_update.h"
+#include "components/tabs/public/tab_interface.h"
+#include "components/viz/common/frame_sinks/copy_output_result.h"
+#include "content/public/browser/navigation_handle.h"
+#include "content/public/browser/render_widget_host_view.h"
+#include "content/public/browser/web_contents.h"
+#include "content/public/browser/web_contents_observer.h"
+#include "dao/browser/automation/dao_browser_target_policy.h"
 #include "dao/browser/dao_pref_names.h"
 #include "dao/browser/strings/grit/dao_strings.h"
 #include "dao/browser/ui/views/dao_colors.h"
 #include "dao/browser/ui/views/dao_system_dialog.h"
+#include "dao/browser/ui/views/dao_tab_identity.h"
 #include "ui/base/base_window.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/base/mojom/ui_base_types.mojom-shared.h"
+#include "ui/gfx/codec/jpeg_codec.h"
+#include "ui/gfx/geometry/size_conversions.h"
 #include "ui/gfx/text_constants.h"
 #include "ui/views/accessibility/view_accessibility.h"
+#include "ui/views/background.h"
 #include "ui/views/controls/button/checkbox.h"
 #include "ui/views/controls/button/radio_button.h"
+#include "ui/views/controls/image_view.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/controls/scroll_view.h"
 #include "ui/views/controls/textfield/textfield.h"
 #include "ui/views/layout/box_layout.h"
+#include "ui/views/layout/fill_layout.h"
 #include "ui/views/view.h"
 #include "ui/views/widget/widget.h"
 #include "ui/views/window/non_client_view.h"
@@ -53,6 +72,16 @@ namespace {
 constexpr int kDialogWidth = 480;
 constexpr int kContentSpacing = 12;
 constexpr int kDetailSpacing = 6;
+constexpr int kPreviewHeight = 160;
+
+gfx::Size FitPreviewSize(const gfx::Size& size) {
+  if (size.IsEmpty()) {
+    return {};
+  }
+  return gfx::ScaleToRoundedSize(
+      size, std::min(static_cast<float>(kDialogWidth) / size.width(),
+                     static_cast<float>(kPreviewHeight) / size.height()));
+}
 
 std::u16string SanitizeLabel(std::u16string text) {
   text = base::CollapseWhitespace(text, true);
@@ -91,6 +120,146 @@ bool IsEligibleApprovalBrowser(BrowserWindowInterface* browser) {
 }
 
 }  // namespace
+
+// Preview pixels stay in the native approval UI and never reach the client.
+class DaoMcpTabPreviewView : public views::View,
+                             public content::WebContentsObserver {
+  METADATA_HEADER(DaoMcpTabPreviewView, views::View)
+
+ public:
+  explicit DaoMcpTabPreviewView(BrowserWindowInterface* browser)
+      : browser_(browser ? browser->GetWeakPtr() : nullptr) {
+    SetLayoutManager(std::make_unique<views::FillLayout>());
+    SetPreferredSize(gfx::Size(kDialogWidth, kPreviewHeight));
+    SetBackground(views::CreateRoundedRectBackground(AddressBarBackground(),
+                                                     kContentCornerRadius));
+    placeholder_ = AddChildView(CreateLabel({}, TextSecondary(), true));
+    placeholder_->SetHorizontalAlignment(gfx::ALIGN_CENTER);
+    image_ = AddChildView(std::make_unique<views::ImageView>());
+    image_->SetCornerRadius(kContentCornerRadius);
+    image_->GetViewAccessibility().SetName(
+        l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_PAGE_PREVIEW));
+    SetTarget(std::nullopt);
+  }
+
+  void SetTarget(std::optional<DaoToolTarget> target) {
+    Observe(nullptr);
+    ClearPreview(target ? IDS_DAO_MCP_APPROVAL_PREVIEW_UNAVAILABLE
+                        : IDS_DAO_MCP_APPROVAL_PREVIEW_SELECT_TAB);
+    target_ = std::move(target);
+    if (!browser_ || !target_) {
+      return;
+    }
+    auto* model = browser_->GetTabStripModel();
+    tabs::TabInterface* match = nullptr;
+    for (int i = 0; model && i < model->count(); ++i) {
+      auto* tab = model->GetTabAtIndex(i);
+      if (GetSidebarTabId(tab->GetContents()) == target_->tab_id) {
+        if (match) {
+          return;
+        }
+        match = tab;
+      }
+    }
+    if (!match) {
+      return;
+    }
+    Observe(match->GetContents());
+    if (!IsCurrentTarget()) {
+      Observe(nullptr);
+      return;
+    }
+
+    if (web_contents()->GetVisibility() != content::Visibility::VISIBLE) {
+      // Read the cached snapshot without subscribing and waking a hidden tab.
+      auto* helper = ThumbnailTabHelper::From(match);
+      auto data = helper ? helper->thumbnail()->data() : nullptr;
+      if (data) {
+        base::ThreadPool::PostTaskAndReplyWithResult(
+            FROM_HERE, {base::TaskPriority::USER_VISIBLE},
+            base::BindOnce(
+                [](ThumbnailImage::CompressedThumbnailData data) {
+                  return gfx::JPEGCodec::Decode(data->data);
+                },
+                std::move(data)),
+            base::BindOnce(&DaoMcpTabPreviewView::ShowBitmap,
+                           weak_factory_.GetWeakPtr()));
+      }
+      return;
+    }
+
+    auto* view = web_contents()->GetRenderWidgetHostView();
+    if (!view || !view->IsSurfaceAvailableForCopy()) {
+      return;
+    }
+    const gfx::Size size = FitPreviewSize(view->GetViewBounds().size());
+    if (size.IsEmpty()) {
+      return;
+    }
+    view->CopyFromSurface(gfx::Rect(), gfx::ScaleToRoundedSize(size, 2.f),
+                          base::Seconds(2),
+                          base::BindPostTaskToCurrentDefault(base::BindOnce(
+                              [](base::WeakPtr<DaoMcpTabPreviewView> preview,
+                                 const content::CopyFromSurfaceResult& result) {
+                                if (preview && result.has_value()) {
+                                  preview->ShowBitmap(result->bitmap);
+                                }
+                              },
+                              weak_factory_.GetWeakPtr())));
+  }
+
+ private:
+  bool IsCurrentTarget() const {
+    return browser_ && target_ && web_contents() &&
+           GetSidebarTabId(web_contents()) == target_->tab_id &&
+           web_contents()->GetLastCommittedURL().spec() == target_->url &&
+           ValidateExternalTarget(browser_.get(), browser_->GetProfile(),
+                                  web_contents())
+               .has_value();
+  }
+
+  void ShowBitmap(const SkBitmap& bitmap) {
+    if (!IsCurrentTarget() || bitmap.drawsNothing()) {
+      return;
+    }
+    const auto image = gfx::ImageSkia::CreateFrom1xBitmap(bitmap);
+    image_->SetImageSize(FitPreviewSize(image.size()));
+    image_->SetImage(ui::ImageModel::FromImageSkia(image));
+    image_->SetVisible(true);
+    placeholder_->SetVisible(false);
+  }
+
+  void ClearPreview(int message_id) {
+    weak_factory_.InvalidateWeakPtrs();
+    image_->SetImage(ui::ImageModel());
+    image_->SetVisible(false);
+    placeholder_->SetText(l10n_util::GetStringUTF16(message_id));
+    placeholder_->SetVisible(true);
+  }
+
+  void DidStartNavigation(content::NavigationHandle* navigation) override {
+    if (navigation->IsInPrimaryMainFrame() && !navigation->IsSameDocument()) {
+      ClearPreview(IDS_DAO_MCP_APPROVAL_PREVIEW_UNAVAILABLE);
+    }
+  }
+
+  void WebContentsDestroyed() override {
+    ClearPreview(IDS_DAO_MCP_APPROVAL_PREVIEW_UNAVAILABLE);
+  }
+
+  void PrimaryPageChanged(content::Page& page) override {
+    ClearPreview(IDS_DAO_MCP_APPROVAL_PREVIEW_UNAVAILABLE);
+  }
+
+  base::WeakPtr<BrowserWindowInterface> browser_;
+  std::optional<DaoToolTarget> target_;
+  raw_ptr<views::ImageView> image_ = nullptr;
+  raw_ptr<views::Label> placeholder_ = nullptr;
+  base::WeakPtrFactory<DaoMcpTabPreviewView> weak_factory_{this};
+};
+
+BEGIN_METADATA(DaoMcpTabPreviewView)
+END_METADATA
 
 DaoMcpApprovalDialog::DaoMcpApprovalDialog(
     const DaoMcpApprovalRequest& request,
@@ -302,6 +471,9 @@ std::unique_ptr<views::View> DaoMcpApprovalDialog::BuildContents(
     }
     target->AddChildView(
         CreateLabel(SanitizeLabel(site), TextSecondary(), false));
+    tab_preview_ =
+        target->AddChildView(std::make_unique<DaoMcpTabPreviewView>(browser));
+    tab_preview_->SetTarget(request.tab_target);
     details->AddChildView(CreateLabel(
         l10n_util::GetStringFUTF16(IDS_DAO_MCP_APPROVAL_TAB_URL,
                                  SanitizeLabel(request.tab_target->url)),
@@ -328,23 +500,32 @@ std::unique_ptr<views::View> DaoMcpApprovalDialog::BuildContents(
           std::make_unique<views::RadioButton>(SanitizeLabel(choice.title), 1));
       radio->SetMaxSize(gfx::Size(kDialogWidth, 0));
       radio->SetTooltipText(std::u16string(radio->GetText()));
-      radio->SetCallback(base::BindRepeating(
-          [](DaoMcpApprovalDialog* dialog) {
-            dialog->SetButtonEnabled(ui::mojom::DialogButton::kOk, true);
-          },
-          base::Unretained(this)));
+      auto selection_subscription =
+          radio->AddCheckedChangedCallback(base::BindRepeating(
+              [](DaoMcpApprovalDialog* dialog, views::RadioButton* radio,
+                 DaoToolTarget target) {
+                if (!radio->GetChecked()) {
+                  return;
+                }
+                dialog->SetButtonEnabled(ui::mojom::DialogButton::kOk, true);
+                dialog->tab_preview_->SetTarget(std::move(target));
+              },
+              base::Unretained(this), base::Unretained(radio), choice.target));
       auto* url = list->AddChildView(CreateLabel(
           SanitizeLabel(choice.target.url), TextSecondary(), false));
       choices_.push_back(
           {radio, url, choice.target.tab_id,
            base::i18n::ToLower(base::CollapseWhitespace(choice.title, true) +
-                              u"\n" + base::UTF8ToUTF16(choice.target.url))});
+                               u"\n" + base::UTF8ToUTF16(choice.target.url)),
+           std::move(selection_subscription)});
     }
     no_matching_tabs_ = list->AddChildView(CreateLabel(
         l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_NO_MATCHING_TABS),
         TextSecondary(), false));
     no_matching_tabs_->SetVisible(false);
     scroll->SetContents(std::move(list));
+    tab_preview_ =
+        contents->AddChildView(std::make_unique<DaoMcpTabPreviewView>(browser));
     search_subscription_ = search->AddTextChangedCallback(base::BindRepeating(
         [](DaoMcpApprovalDialog* dialog, views::Textfield* search,
            views::ScrollView* scroll) {
@@ -466,6 +647,9 @@ void DaoMcpApprovalDialog::FilterTabChoices(std::u16string_view query) {
   }
   no_matching_tabs_->SetVisible(!has_matches);
   SetButtonEnabled(ui::mojom::DialogButton::kOk, has_selection);
+  if (!has_selection && tab_preview_) {
+    tab_preview_->SetTarget(std::nullopt);
+  }
 }
 
 void DaoMcpApprovalDialog::Resolve(bool allowed) {

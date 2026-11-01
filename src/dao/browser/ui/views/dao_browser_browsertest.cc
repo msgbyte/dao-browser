@@ -15153,7 +15153,160 @@ IN_PROC_BROWSER_TEST_F(DaoSystemDialogBrowserTest,
   EXPECT_EQ(1, pressed_count);
 }
 
-class DaoMcpApprovalDialogTest : public InProcessBrowserTest {};
+class DaoMcpApprovalDialogTest : public InProcessBrowserTest {
+ protected:
+  views::ImageView* FindPreviewImage(views::View* root) {
+    if (auto* image = views::AsViewClass<views::ImageView>(root);
+        image &&
+        image->GetViewAccessibility().GetCachedName() ==
+            l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_PAGE_PREVIEW)) {
+      return image;
+    }
+    for (views::View* child : root->children()) {
+      if (auto* image = FindPreviewImage(child)) {
+        return image;
+      }
+    }
+    return nullptr;
+  }
+
+  void AddTabWithPreview(SkColor color, DaoToolTarget* target) {
+    auto* model = browser()->tab_strip_model();
+    const int index = model->count();
+    chrome::AddTabAt(browser(), GURL(url::kAboutBlankURL), index, false);
+    auto* tab = model->GetTabAtIndex(index);
+    ASSERT_TRUE(content::WaitForLoadStop(tab->GetContents()));
+    auto* helper = ThumbnailTabHelper::From(tab);
+    ASSERT_TRUE(helper);
+    SkBitmap bitmap;
+    bitmap.allocN32Pixels(320, 200);
+    bitmap.eraseColor(color);
+    base::test::TestFuture<void> ready;
+    helper->thumbnail()->set_async_operation_finished_callback_for_testing(
+        ready.GetRepeatingCallback());
+    helper->thumbnail()->AssignSkBitmap(bitmap);
+    ASSERT_TRUE(ready.Wait());
+    helper->thumbnail()->set_async_operation_finished_callback_for_testing({});
+    ASSERT_TRUE(helper->thumbnail()->has_data());
+    *target = {.tab_id = GetOrCreateSidebarTabId(tab->GetContents()),
+               .url = tab->GetContents()->GetLastCommittedURL().spec()};
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
+                       PreviewsExactBackgroundTabWithoutActivatingIt) {
+  DaoToolTarget target;
+  ASSERT_NO_FATAL_FAILURE(AddTabWithPreview(SK_ColorRED, &target));
+  auto* model = browser()->tab_strip_model();
+  auto* active = model->GetActiveWebContents();
+  auto* requested = model->GetWebContentsAt(1);
+  DaoMcpApprovalRequest request;
+  request.tab_target = target;
+  DaoMcpApprovalDialog dialog(request, browser(), base::BindOnce([](bool) {}));
+  auto* image = FindPreviewImage(dialog.GetContentsView());
+  ASSERT_TRUE(image);
+  ASSERT_TRUE(
+      base::test::RunUntil([&] { return !image->GetImage().isNull(); }));
+  EXPECT_GT(SkColorGetR(GetCenterPixelColor(image->GetImage())), 240u);
+  EXPECT_EQ(active, model->GetActiveWebContents());
+  EXPECT_EQ(content::Visibility::HIDDEN, requested->GetVisibility());
+  EXPECT_FALSE(requested->IsBeingCaptured());
+
+  model->CloseWebContentsAt(1, TabCloseTypes::CLOSE_NONE);
+  EXPECT_TRUE(image->GetImage().isNull());
+  EXPECT_TRUE(HasVisibleDescendantLabelText(
+      dialog.GetContentsView(),
+      l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_PREVIEW_UNAVAILABLE)));
+  dialog.DismissWithoutResult();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
+                       PreviewsVisiblePageAndClearsAfterNavigation) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), embedded_test_server()->GetURL("/title1.html")));
+  auto* contents = browser()->tab_strip_model()->GetActiveWebContents();
+  content::WaitForCopyableViewInWebContents(contents);
+  DaoMcpApprovalRequest request;
+  request.tab_target =
+      DaoToolTarget{.tab_id = GetOrCreateSidebarTabId(contents),
+                    .url = contents->GetLastCommittedURL().spec()};
+  DaoMcpApprovalDialog dialog(request, browser(), base::BindOnce([](bool) {}));
+  auto* image = FindPreviewImage(dialog.GetContentsView());
+  ASSERT_TRUE(image);
+  ASSERT_TRUE(
+      base::test::RunUntil([&] { return !image->GetImage().isNull(); }));
+  EXPECT_LE(image->GetImage().width(), 960);
+  EXPECT_LE(image->GetImage().height(), 320);
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), embedded_test_server()->GetURL("/title2.html")));
+  EXPECT_TRUE(image->GetImage().isNull());
+  dialog.DismissWithoutResult();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
+                       PickerDiscardsStalePreviewsAndClearsFilteredSelection) {
+  DaoToolTarget first;
+  DaoToolTarget second;
+  ASSERT_NO_FATAL_FAILURE(AddTabWithPreview(SK_ColorRED, &first));
+  ASSERT_NO_FATAL_FAILURE(AddTabWithPreview(SK_ColorBLUE, &second));
+  DaoMcpApprovalRequest request;
+  request.tab_choices = {{first, u"First page"}, {second, u"Second page"}};
+  DaoMcpApprovalDialog dialog(request, browser(), base::BindOnce([](bool) {}));
+  auto* contents = dialog.GetContentsView();
+  auto* image = FindPreviewImage(contents);
+  ASSERT_TRUE(image);
+  EXPECT_TRUE(image->GetImage().isNull());
+  ui::MouseEvent click(ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
+                       base::TimeTicks::Now(), ui::EF_NONE,
+                       ui::EF_LEFT_MOUSE_BUTTON);
+  views::test::ButtonTestApi(FindLabelButtonWithText(contents, u"First page"))
+      .NotifyClick(click);
+  // Keyboard focus changes selection without invoking the click callback.
+  auto* second_radio = views::AsViewClass<views::RadioButton>(
+      FindLabelButtonWithText(contents, u"Second page"));
+  ASSERT_TRUE(second_radio);
+  second_radio->SetChecked(true);
+  ASSERT_TRUE(
+      base::test::RunUntil([&] { return !image->GetImage().isNull(); }));
+  EXPECT_GT(SkColorGetB(GetCenterPixelColor(image->GetImage())), 240u);
+  auto* search = FindDescendantViewOfClass<views::Textfield>(contents);
+  ASSERT_TRUE(search);
+  search->SetText(u"First");
+  EXPECT_TRUE(image->GetImage().isNull());
+  EXPECT_FALSE(dialog.IsDialogButtonEnabled(ui::mojom::DialogButton::kOk));
+  EXPECT_TRUE(HasVisibleDescendantLabelText(
+      contents,
+      l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_PREVIEW_SELECT_TAB)));
+  dialog.DismissWithoutResult();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
+                       MissingOrChangedTargetsNeverPreviewAnotherPage) {
+  DaoToolTarget target;
+  ASSERT_NO_FATAL_FAILURE(AddTabWithPreview(SK_ColorRED, &target));
+  DaoMcpApprovalRequest request;
+  request.tab_target = target;
+  request.tab_target->url = "https://example.com/previous-page";
+  {
+    DaoMcpApprovalDialog dialog(request, browser(),
+                                base::BindOnce([](bool) {}));
+    auto* image = FindPreviewImage(dialog.GetContentsView());
+    ASSERT_TRUE(image);
+    EXPECT_TRUE(image->GetImage().isNull());
+    EXPECT_TRUE(HasVisibleDescendantLabelText(
+        dialog.GetContentsView(),
+        l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_PREVIEW_UNAVAILABLE)));
+    dialog.DismissWithoutResult();
+  }
+  request.tab_target = target;
+  request.tab_target->tab_id = "missing-tab";
+  DaoMcpApprovalDialog dialog(request, browser(), base::BindOnce([](bool) {}));
+  auto* image = FindPreviewImage(dialog.GetContentsView());
+  ASSERT_TRUE(image);
+  EXPECT_TRUE(image->GetImage().isNull());
+  dialog.DismissWithoutResult();
+}
 
 IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
                        UsesLocalizedDaoStyleWithoutDefaultAllow) {
@@ -15174,6 +15327,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
                               }));
 
   EXPECT_TRUE(dialog.use_dao_system_dialog_style());
+  EXPECT_FALSE(FindPreviewImage(dialog.GetContentsView()));
   EXPECT_TRUE(dialog.center_in_web_contents());
   EXPECT_FALSE(dialog.GetIsDefault(ui::mojom::DialogButton::kOk));
   EXPECT_EQ(l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_ALLOW),
@@ -15441,6 +15595,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
   };
   request.background_space = true;
   DaoMcpApprovalDialog dialog(request, browser(), base::BindOnce([](bool) {}));
+  EXPECT_FALSE(FindPreviewImage(dialog.GetContentsView()));
   EXPECT_EQ(l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_SPACE_TITLE),
             dialog.GetWindowTitle());
   EXPECT_EQ(l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_SPACE_ALLOW_ONE_HOUR),
