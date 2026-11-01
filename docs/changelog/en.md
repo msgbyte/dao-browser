@@ -4,6 +4,8 @@
 
 ### [Unreleased] Unreleased
 
+### [1.0.132] - 2026-11-02
+
 - Harden AI chat data validation and math rendering against malicious input.
 - Fix the picture-in-picture title bar staying behind when moving a Document PiP window on Windows.
 - Match the top-right site controls button's size and hover highlight to neighboring buttons, keeping the highlight visible when the page and system themes differ.
