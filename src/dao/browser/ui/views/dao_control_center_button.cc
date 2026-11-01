@@ -19,9 +19,9 @@
 namespace dao {
 
 namespace {
-constexpr int kButtonSize = 28;
+constexpr int kButtonSize = 24;
 constexpr int kIconSize = 14;
-constexpr int kCornerRadius = 8;
+constexpr int kCornerRadius = 6;
 
 }  // namespace
 

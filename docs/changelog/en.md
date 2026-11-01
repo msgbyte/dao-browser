@@ -4,7 +4,7 @@
 
 ### [Unreleased] Unreleased
 
-- Fix the top-right site controls button's hover highlight disappearing when the page and system themes differ.
+- Match the top-right site controls button's size and hover highlight to neighboring buttons, keeping the highlight visible when the page and system themes differ.
 - Fix a Windows browser crash when a picture-in-picture window closes, including when returning to a video tab or closing its source tab.
 - Check for updates from the menu at the top-left of the Windows sidebar and see progress and results on the About page.
 

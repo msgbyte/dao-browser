@@ -774,9 +774,9 @@ persistent background pages, and blocking WebRequest path on every rebase.
 ## 12. Control Center, Welcome, Webstore Branding
 
 - [ ] Hover the Control Center trigger on light and dark pages, including pages
-  opposite to the system theme: its rounded gray highlight matches neighboring
-  address-bar actions, updates when the page background changes, and clears when
-  the pointer leaves.
+  opposite to the system theme: its 24px size, 6px corners, and gray highlight
+  match neighboring address-bar actions. The highlight updates when the page
+  background changes and clears when the pointer leaves.
 
 - [ ] Open the QR panel and press letter, modifier, and navigation keys: it
   stays open; clicking outside or switching tabs still closes it. Escape closes
