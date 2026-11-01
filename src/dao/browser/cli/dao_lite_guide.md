@@ -5,12 +5,12 @@ matches the installed version. Read it again after Dao updates.
 
 ## When to use Dao Lite
 
-Use Dao whenever a task needs a real browser: sites that need the user's
-sign-ins, pages that only work with JavaScript, multi-step web tasks, or
-anything you would otherwise do with a headless browser or a fetch tool.
+When the user explicitly requests `dao-browser` or `dao-lite`, use that skill.
+Only when neither is specified, choose `dao-browser` for the user's existing
+Dao tabs or windows and `dao-lite` for searches, research, and background web
+tasks.
 
-Use the `dao-browser` skill only when the user explicitly asks to work with
-their existing tabs. Sign-ins alone do not require that skill.
+Both modes can use the user's sign-ins; sign-ins alone do not determine the mode.
 
 Dao Lite work happens in **Agent Spaces**: hidden browser windows that use the
 user's sign-ins but never touch the user's own tabs. The user sees every

@@ -1,8 +1,10 @@
 # Dao Browser: existing pages
 
-Use this skill only when the user explicitly asks to read or interact with
-an existing Dao tab or window. For ordinary searches, research, and background
-web tasks, read `dao-browser skill --lite` and use the `dao-lite` skill instead.
+When the user explicitly requests `dao-browser` or `dao-lite`, use that skill.
+Only when neither is specified, choose `dao-browser` for the user's existing
+Dao tabs or windows and `dao-lite` for searches, research, and background web
+tasks.
+
 Both modes can use the user's sign-ins; that is not a reason to choose this mode.
 
 ## Connect and request a page
