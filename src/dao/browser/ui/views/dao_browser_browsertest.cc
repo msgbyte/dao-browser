@@ -18,8 +18,8 @@
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
-#include "base/i18n/message_formatter.h"
 #include "base/functional/callback_helpers.h"
+#include "base/i18n/message_formatter.h"
 #include "base/i18n/rtl.h"
 #include "base/i18n/time_formatting.h"
 #include "base/json/json_reader.h"
@@ -86,8 +86,8 @@
 #include "chrome/browser/ui/toolbar/toolbar_actions_model.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
-#include "chrome/browser/ui/views/frame/multi_contents_view.h"
 #include "chrome/browser/ui/views/frame/contents_web_view.h"
+#include "chrome/browser/ui/views/frame/multi_contents_view.h"
 #include "chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.h"
 #include "chrome/browser/ui/views/javascript_tab_modal_dialog_view_views.h"
 #include "chrome/browser/ui/views/page_info/page_info_bubble_view_base.h"
@@ -248,14 +248,14 @@
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/codec/png_codec.h"
 #include "ui/gfx/color_utils.h"
-#include "ui/gfx/skia_util.h"
-#include "ui/gfx/test/sk_color_eq.h"
 #include "ui/gfx/geometry/point_f.h"
 #include "ui/gfx/geometry/rect_f.h"
 #include "ui/gfx/image/image.h"
 #include "ui/gfx/image/image_skia_rep.h"
 #include "ui/gfx/range/range.h"
 #include "ui/gfx/scoped_animation_duration_scale_mode.h"
+#include "ui/gfx/skia_util.h"
+#include "ui/gfx/test/sk_color_eq.h"
 #include "ui/gfx/text_utils.h"
 #include "ui/native_theme/native_theme.h"
 #include "ui/views/animation/ink_drop.h"
@@ -268,10 +268,11 @@
 #include "ui/views/controls/image_view.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/controls/scroll_view.h"
-#include "ui/views/controls/throbber.h"
 #include "ui/views/controls/textfield/textfield.h"
+#include "ui/views/controls/throbber.h"
 #include "ui/views/controls/webview/webview.h"
 #include "ui/views/focus/focus_manager.h"
+#include "ui/views/layout/layout_provider.h"
 #include "ui/views/test/button_test_api.h"
 #include "ui/views/test/widget_test.h"
 #include "ui/views/view.h"
@@ -15333,7 +15334,12 @@ IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
   ASSERT_NE(nullptr, widget);
   widget->Show();
   views::View* contents = raw_dialog->GetContentsView();
-  EXPECT_EQ(480, contents->width());
+  // Chromium snaps the outer width before applying the content margins.
+  const int expected_content_width =
+      views::LayoutProvider::Get()->GetSnappedDialogWidth(
+          raw_dialog->fixed_width()) -
+      raw_dialog->margins().width();
+  EXPECT_EQ(expected_content_width, contents->width());
   EXPECT_LE(widget->GetMinimumSize().width(),
             widget->GetWindowBoundsInScreen().width());
   const int width = widget->GetWindowBoundsInScreen().width();
@@ -15345,7 +15351,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
                        ui::EF_LEFT_MOUSE_BUTTON);
   views::test::ButtonTestApi(details_button).NotifyClick(click);
   EXPECT_EQ(width, widget->GetWindowBoundsInScreen().width());
-  EXPECT_EQ(480, contents->width());
+  EXPECT_EQ(expected_content_width, contents->width());
   raw_dialog->DismissWithoutResult();
 }
 
