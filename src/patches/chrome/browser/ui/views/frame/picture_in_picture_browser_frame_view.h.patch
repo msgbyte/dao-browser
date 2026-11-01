@@ -12,7 +12,16 @@ diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view
  namespace views {
  class Label;
  class View;
-@@ -129,6 +133,7 @@
+@@ -119,6 +123,8 @@
+   // views::WidgetObserver:
+   void OnWidgetActivationChanged(views::Widget* widget, bool active) override;
++  void OnWidgetBoundsChanged(views::Widget* widget,
++                            const gfx::Rect& new_bounds) override;
+   void OnWidgetDestroying(views::Widget* widget) override;
+   void OnWidgetVisibilityChanged(views::Widget* eidget, bool visible) override;
+ 
+   // PictureInPictureWindow:
+@@ -129,6 +135,7 @@
  
    // PipTopBarAnimationController::Delegate:
    void ApplyTopBarForegroundColor(SkColor color) override;
@@ -20,15 +29,15 @@ diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view
    const ui::ColorProvider* GetTopBarColorProvider() const override;
  
    // PictureInPictureBrowserFrameView:
-@@ -225,6 +230,15 @@
+@@ -225,6 +232,15 @@
      return child_dialog_observer_helper_->IsChildResizePendingForTesting();
    }
  
-+  // Dao: The overlay widget hosting the top bar as a separate NSWindow so
++  // Dao: The overlay widget hosting the top bar as a separate native window so
 +  // the bar can visually float above WebContents while still receiving mouse
 +  // clicks on buttons. Returns null before AddedToWidget() or after
-+  // RemovedFromWidget(). Only non-null on platforms where the overlay is
-+  // used (currently macOS).
++  // RemovedFromWidget(). Used on desktop platforms, including Windows and
++  // macOS.
 +  views::Widget* dao_top_bar_overlay_widget() {
 +    return dao_top_bar_overlay_widget_.get();
 +  }
@@ -36,7 +45,7 @@ diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view
   protected:
    views::View* top_bar_container_view() { return top_bar_container_view_; }
  
-@@ -299,6 +313,43 @@
+@@ -299,6 +315,43 @@
    std::unique_ptr<PictureInPictureTucker> tucker_;
    bool is_tucking_forced_ = false;
  

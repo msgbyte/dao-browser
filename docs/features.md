@@ -1137,6 +1137,9 @@ Built on Chromium's native PiP, adds a Document-PiP interception layer plus seve
   The frame starts the controller inactive and fades the entire overlay
   through its opacity delegate. Initial hiding, first-activation suppression,
   hover fading, drag movement, and corner resizing remain in the frame
+- **Document PiP top-bar positioning** — The floating title bar follows main-window
+  bounds changes as well as layout updates, so Windows moves without resizing
+  keep the title bar attached to the video, including title-bar drags.
 - **PiP event-monitor lifetime** — The frame and floating top bar use separate
   forwarding observers (`browser/pip/dao_pip_window_event_monitor.h`) so Windows
   detaches each listener from the correct native window during PiP or opener

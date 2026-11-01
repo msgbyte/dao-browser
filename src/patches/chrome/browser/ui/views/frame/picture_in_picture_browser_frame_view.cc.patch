@@ -345,7 +345,25 @@ diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view
    // The window may become inactive when a popup modal shows, so we need to
    // check if the mouse is still inside the window.
    UpdateTopBarView(active || mouse_inside_window_ || IsOverlayViewVisible());
-@@ -916,6 +1130,14 @@
+@@ -829,6 +1043,17 @@
+ }
+ 
++void PictureInPictureBrowserFrameView::OnWidgetBoundsChanged(
++    views::Widget* widget,
++    const gfx::Rect& new_bounds) {
++  // Dao: Moving a window without resizing it does not trigger Layout().
++  // Windows owned popups do not follow their owner automatically, so keep
++  // the floating top bar attached for both native and overlay-driven moves.
++  if (widget == GetWidget()) {
++    DaoUpdateTopBarOverlayBounds();
++  }
++}
++
+ void PictureInPictureBrowserFrameView::OnWidgetDestroying(
+     views::Widget* widget) {
+   window_event_observer_.reset();
+   widget_observation_.Reset();
+@@ -916,6 +1141,14 @@
    location_icon_view_->Update(/*suppress_animations=*/false);
  }
  
@@ -360,7 +378,7 @@ diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view
  const ui::ColorProvider*
  PictureInPictureBrowserFrameView::GetTopBarColorProvider() const {
    return GetColorProvider();
-@@ -931,6 +1153,21 @@
+@@ -931,6 +1164,21 @@
  gfx::Rect PictureInPictureBrowserFrameView::ConvertTopBarControlViewBounds(
      views::View* control_view,
      views::View* source_view) const {
@@ -382,7 +400,7 @@ diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view
    gfx::RectF bounds(control_view->GetMirroredBounds());
    views::View::ConvertRectToTarget(source_view, this, &bounds);
    return gfx::ToEnclosingRect(bounds);
-@@ -1003,7 +1240,10 @@
+@@ -1003,7 +1251,10 @@
  }
  
  int PictureInPictureBrowserFrameView::GetTopAreaHeight() const {
@@ -394,7 +412,7 @@ diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view
  }
  
  gfx::Size PictureInPictureBrowserFrameView::GetNonClientViewAreaSize() const {
-@@ -1094,6 +1334,82 @@
+@@ -1094,6 +1345,82 @@
    return auto_pip_setting_overlay_ && auto_pip_setting_overlay_->GetVisible();
  }
  
