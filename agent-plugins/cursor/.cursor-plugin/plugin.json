@@ -2,7 +2,7 @@
   "name": "dao-browser",
   "displayName": "Dao Browser",
   "version": "1.0.0",
-  "description": "Use Dao Lite for background web tasks, or Dao Browser for explicitly requested existing tabs.",
+  "description": "Honor an explicit dao-browser or dao-lite choice; otherwise use Dao Browser for existing tabs and Dao Lite for background web tasks.",
   "author": {
     "name": "Dao Browser"
   },

@@ -1,7 +1,7 @@
 {
   "name": "dao-browser",
   "version": "1.0.0",
-  "description": "Use Dao Lite for background web tasks, or Dao Browser for explicitly requested existing tabs.",
+  "description": "Honor an explicit dao-browser or dao-lite choice; otherwise use Dao Browser for existing tabs and Dao Lite for background web tasks.",
   "author": {
     "name": "Dao Browser"
   },
@@ -12,7 +12,7 @@
   "interface": {
     "displayName": "Dao Browser",
     "shortDescription": "Work in the user's Dao browser",
-    "longDescription": "Use dao-lite for searches and multi-step web tasks in background windows with your sign-ins. Use dao-browser only for existing tabs you explicitly choose to share. You can watch, take over, or stop background tasks from the sidebar.",
+    "longDescription": "Honor an explicit dao-browser or dao-lite choice. Otherwise, use dao-browser for existing Dao tabs or windows and dao-lite for searches and background web tasks with your sign-ins. You can watch, take over, or stop background tasks from the sidebar.",
     "developerName": "Dao Browser",
     "category": "Developer Tools",
     "capabilities": ["Interactive", "Read", "Write"],
