@@ -1268,7 +1268,7 @@ private fun SuggestionRow(
             .clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = 6.dp, vertical = 6.dp)
-            .height(44.dp),
+            .heightIn(min = 44.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (leadingContent != null) leadingContent()
@@ -1279,7 +1279,7 @@ private fun SuggestionRow(
         Spacer(Modifier.width(13.dp))
         Column(Modifier.weight(1f)) {
             Text(title, color = colors.foreground, fontSize = 15.sp, fontWeight = FontWeight.Medium, maxLines = 1)
-            if (subtitle.isNotEmpty()) Text(subtitle, color = colors.faint, fontSize = 12.5.sp, maxLines = 1)
+            if (subtitle.isNotEmpty()) Text(subtitle, color = colors.faint, fontSize = 12.5.sp)
         }
         Icon(Lucide.ChevronRight, null, tint = colors.faint, modifier = Modifier.size(16.dp))
     }

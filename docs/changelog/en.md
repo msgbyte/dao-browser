@@ -736,6 +736,7 @@
 ### [Unreleased] Unreleased
 
 - Fix dragging the address-bar cursor to edit text beyond either end of a long URL.
+- Show complete URLs in address and new-tab search suggestions, wrapping long addresses onto multiple lines.
 - The scan, copy and share buttons below the address field are more compact, with each icon and label on one line.
 
 ### [1.0.0] - 2026-10-31
