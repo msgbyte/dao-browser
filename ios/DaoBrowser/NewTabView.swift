@@ -81,7 +81,7 @@ struct NewTabView: View {
                     .overlay(RoundedRectangle(cornerRadius: 28).stroke(Nova.border, lineWidth: 1))
                     .padding(.horizontal, 20).padding(.top, expanded ? 16 : 32)
                 if model.addressEditing, let pageURL = URL(string: model.selected.record.url) {
-                    HStack(alignment: .top, spacing: 10) {
+                    HStack(spacing: 8) {
                         Button {
                             focused = false
                             scan()
@@ -93,7 +93,7 @@ struct NewTabView: View {
                         ShareLink(item: pageURL) {
                             addressAction("share-2", "share_link")
                         }
-                    }.buttonStyle(.plain).padding(.horizontal, 20).padding(.top, 16)
+                    }.buttonStyle(.plain).padding(.horizontal, 20).padding(.top, 12)
                 }
                 ScrollView {
                     VStack(spacing: 0) {
@@ -132,16 +132,15 @@ struct NewTabView: View {
     }
 
     private func addressAction(_ icon: String, _ label: String) -> some View {
-        VStack(spacing: 8) {
-            DaoIcon(name: icon, size: 22)
-            Text(L(label)).font(.caption.weight(.medium)).multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
+        HStack(spacing: 6) {
+            DaoIcon(name: icon, size: 16)
+            Text(L(label)).font(.caption.weight(.medium)).lineLimit(1)
         }
-        .padding(.horizontal, 6).padding(.vertical, 12).frame(maxWidth: .infinity, minHeight: 80)
+        .padding(.horizontal, 6).padding(.vertical, 8).frame(maxWidth: .infinity, minHeight: 44)
         .foregroundStyle(Nova.foreground)
-        .background(Nova.secondary, in: .rect(cornerRadius: 13))
-        .overlay(RoundedRectangle(cornerRadius: 13).stroke(Nova.border, lineWidth: 1))
-        .contentShape(.rect(cornerRadius: 13))
+        .background(Nova.secondary, in: .rect(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Nova.border, lineWidth: 1))
+        .contentShape(.rect(cornerRadius: 10))
     }
 
     private var greeting: String {
