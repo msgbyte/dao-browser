@@ -735,6 +735,8 @@
 
 ### [Unreleased] Unreleased
 
+- The scan, copy and share buttons below the address field are more compact, with each icon and label on one line.
+
 ### [1.0.0] - 2026-10-31
 
 - Closing a tab now fades its card out and smoothly moves the remaining cards into place; swiping right finishes the slide before closing.

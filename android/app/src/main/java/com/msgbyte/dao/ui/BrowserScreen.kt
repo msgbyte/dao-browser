@@ -992,7 +992,7 @@ private fun NewTabScreen(
                     val copyLabel = stringResource(R.string.copy_url)
                     Row(
                         modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         AddressActionButton(Lucide.ScanLine, R.string.scan_qr, Modifier.weight(1f)) {
                             keyboardController?.hide()
@@ -1050,19 +1050,25 @@ private fun AddressActionButton(
     val colors = LocalNovaColors.current
     Surface(
         onClick = onClick,
-        modifier = modifier.heightIn(min = 80.dp),
+        modifier = modifier.heightIn(min = 48.dp),
         color = colors.surfaceSecondary,
         contentColor = colors.foreground,
-        shape = RoundedCornerShape(13.dp),
+        shape = RoundedCornerShape(10.dp),
         border = BorderStroke(1.dp, colors.border),
     ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
+        Row(
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(icon, null, Modifier.size(22.dp))
-            Text(stringResource(labelRes), fontSize = 13.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center)
+            Icon(icon, null, Modifier.size(16.dp))
+            Text(
+                stringResource(labelRes),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }

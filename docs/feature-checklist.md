@@ -293,7 +293,9 @@ iPhone Simulator/device. These boxes are acceptance steps, not completed results
   readable localized labels. Verify sharing opens the native sheet; library and
   settings remain list rows below the grid.
 - [ ] Edit a page address on Android and iOS: Scan QR code, Copy URL and Share
-  link appear in one row below the input. Change or clear the input and confirm
+  link appear in one row below the input. On Android, each icon sits beside its
+  single-line label in a compact flat button with a minimum 48 dp touch target.
+  Change or clear the input and confirm
   copying and sharing still use the current page URL; copying gives feedback
   and sharing opens the native sheet. On iOS, the copy toast disappears without
   requiring confirmation or blocking editing. Open and dismiss the scanner without
