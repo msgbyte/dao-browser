@@ -1,10 +1,12 @@
-import {describe, expect, it} from 'vitest';
+import {PassThrough} from 'node:stream';
+import {describe, expect, it, vi} from 'vitest';
+import * as utils from '../../utils.js';
 
 import {
   formatCleanupConfirmation,
   formatCleanupSelectionStatus,
   formatCleanupSpaceEstimate,
-  getAssociatedDeltaIndexes,
+  getAssociatedCleanupIndexes,
   getCleanupCandidates,
   getCleanupSpaceEstimate,
   getSelectableCleanupIndexes,
@@ -148,6 +150,156 @@ describe('upload cleanup helpers', () => {
     ]);
   });
 
+  it('protects the latest Windows versions and their metadata independently of Mac releases', () => {
+    const candidates = getCleanupCandidates([
+      {key: 'dao-browser-1.0.44-mac-arm64.dmg'},
+      {key: 'dao-browser-1.0.45-mac-arm64.dmg'},
+      {key: 'dao-browser-1.0.46-mac-arm64.dmg'},
+      {key: 'Dao13.0-12.0.delta'},
+      {key: 'Dao14.0-13.0.delta'},
+      {key: 'Dao15.0-14.0.delta'},
+      ...['1.0.9', '1.0.10', '1.0.11'].flatMap((version) => [
+        {key: `dao-browser-${version}-windows-x64.exe`},
+        {key: `dao-browser-${version}-windows-x64.exe.sha256`},
+        {key: `dao-browser-${version}-windows-x64.update.json`},
+      ]),
+    ], 2);
+
+    expect(candidates.map((item) => item.key)).toEqual([
+      'dao-browser-1.0.44-mac-arm64.dmg',
+      'Dao13.0-12.0.delta',
+      'dao-browser-1.0.9-windows-x64.exe',
+      'dao-browser-1.0.9-windows-x64.exe.sha256',
+      'dao-browser-1.0.9-windows-x64.update.json',
+    ]);
+  });
+
+  it('recognizes only supported Windows release artifacts, including prefixed keys', () => {
+    const candidates = getCleanupCandidates([
+      {key: 'releases/dao-browser-1.0.1-windows-x64.exe'},
+      {key: 'releases/dao-browser-1.0.1-windows-x64.exe.sha256'},
+      {key: 'releases/dao-browser-1.0.1-windows-x64.update.json'},
+      {key: 'windows-update.json'},
+      {key: 'appcast.xml'},
+      {key: 'other-1.0.1-windows-x64.exe'},
+      {key: 'dao-browser-1.0.1-windows-arm64.exe'},
+      {key: 'dao-browser-1.0.1-windows-x64-debug.exe'},
+      {key: 'dao-browser-1.0.1-windows-x64-debug.exe.sha256'},
+      {key: 'dao-browser-1.0.1-windows-x64.exe.backup'},
+      {key: 'dao-browser-1.0.1-windows-x64.update.json.backup'},
+    ], 0);
+
+    expect(candidates.map((item) => item.key)).toEqual([
+      'releases/dao-browser-1.0.1-windows-x64.exe',
+      'releases/dao-browser-1.0.1-windows-x64.exe.sha256',
+      'releases/dao-browser-1.0.1-windows-x64.update.json',
+    ]);
+    expect(candidates.map((item) => item.version)).toEqual([
+      '1.0.1', '1.0.1', '1.0.1',
+    ]);
+  });
+
+  it('groups Windows metadata with its installer without hiding orphaned metadata', () => {
+    const candidates = getCleanupCandidates([
+      {key: 'dao-browser-1.0.1-mac-arm64.dmg'},
+      {key: 'Dao2.0-1.0.delta'},
+      {key: 'releases/dao-browser-1.0.1-windows-x64.exe'},
+      {key: 'releases/dao-browser-1.0.1-windows-x64.exe.sha256'},
+      {key: 'releases/dao-browser-1.0.1-windows-x64.update.json'},
+      {key: 'other/dao-browser-1.0.1-windows-x64.exe.sha256'},
+      {key: 'releases/dao-browser-1.0.0-windows-x64.update.json'},
+    ], 0);
+    const associations = getAssociatedCleanupIndexes(candidates);
+    const installerIndex = candidates.findIndex((item) => item.key.endsWith('.exe'));
+
+    expect((associations.get(installerIndex) || []).map((i) => candidates[i].key))
+        .toEqual([
+          'releases/dao-browser-1.0.1-windows-x64.exe.sha256',
+          'releases/dao-browser-1.0.1-windows-x64.update.json',
+        ]);
+    expect(getSelectableCleanupIndexes(candidates).map((i) => candidates[i].key))
+        .toEqual([
+          'dao-browser-1.0.1-mac-arm64.dmg',
+          'other/dao-browser-1.0.1-windows-x64.exe.sha256',
+          'releases/dao-browser-1.0.1-windows-x64.exe',
+          'releases/dao-browser-1.0.0-windows-x64.update.json',
+        ]);
+    expect((associations.get(0) || []).map((i) => candidates[i].key))
+        .toEqual(['Dao2.0-1.0.delta']);
+  });
+
+  it('counts a selected Windows installer and its metadata in the space estimate', () => {
+    const candidates = getCleanupCandidates([
+      {key: 'dao-browser-1.0.1-windows-x64.exe', size: 1024},
+      {key: 'dao-browser-1.0.1-windows-x64.exe.sha256', size: 512},
+      {key: 'dao-browser-1.0.1-windows-x64.update.json'},
+    ], 0);
+    const installerIndex = candidates.findIndex((item) => item.key.endsWith('.exe'));
+    expect(installerIndex).toBeGreaterThanOrEqual(0);
+    const selected = [installerIndex,
+      ...(getAssociatedCleanupIndexes(candidates).get(installerIndex) || []),
+    ].map((i) => candidates[i]);
+
+    expect(getCleanupSpaceEstimate(selected)).toEqual({
+      knownBytes: 1536,
+      unknownSizeCount: 1,
+    });
+    expect(formatCleanupSelectionStatus(selected, candidates.length)).toBe(
+        'Selected 3/3 objects · Estimated space to free: at least 1.5 KB (1 object size unknown)');
+    expect(formatCleanupConfirmation(selected)).toBe(
+        'Delete 3 object(s) permanently? ' +
+        'Estimated space to free: at least 1.5 KB (1 object size unknown) [Y/n] ');
+  });
+
+  it('updates Windows companion selection and space totals when selecting and inverting', async () => {
+    const input = Object.assign(new PassThrough(), {
+      isTTY: true, isRaw: false,
+      setRawMode(mode: boolean) {this.isRaw = mode; return this;},
+    });
+    vi.spyOn(process, 'stdin', 'get').mockReturnValue(input as unknown as typeof process.stdin);
+    vi.spyOn(process, 'stdout', 'get').mockReturnValue(
+        Object.assign(new PassThrough(), {isTTY: true}) as unknown as typeof process.stdout);
+    const output = vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(utils, 'which').mockReturnValue('wrangler');
+    vi.stubEnv('R2_BUCKET', 'test-bucket');
+    vi.stubEnv('CLOUDFLARE_ACCOUNT_ID', 'test-account');
+    vi.stubEnv('CLOUDFLARE_API_TOKEN', 'test-token');
+    vi.stubGlobal('fetch', async () => new Response(JSON.stringify({
+      success: true,
+      result: [
+        {key: 'dao-browser-1.0.1-windows-x64.exe', size: 1024},
+        {key: 'dao-browser-1.0.1-windows-x64.exe.sha256', size: 512},
+        {key: 'dao-browser-1.0.1-windows-x64.update.json', size: 512},
+      ],
+    })));
+    const cleanup = uploadCommand.commands.find((command) => command.name() === 'cleanup')!;
+    const running = cleanup.parseAsync(['--keep', '0', '--dry-run'], {from: 'user'});
+
+    try {
+      await vi.waitFor(() => expect(input.listenerCount('keypress')).toBe(1));
+      input.write('a');
+      expect(output.mock.lastCall?.join('')).toContain(
+          'Selected 3/3 objects · Estimated space to free: 2.0 KB');
+      input.write('i');
+      expect(output.mock.lastCall?.join('')).toContain(
+          'Selected 0/3 objects · Estimated space to free: 0 B');
+      input.write(' ');
+      expect(output.mock.lastCall?.join('')).toContain(
+          'Selected 3/3 objects · Estimated space to free: 2.0 KB');
+      input.write(' ');
+      expect(output.mock.lastCall?.join('')).toContain(
+          'Selected 0/3 objects · Estimated space to free: 0 B');
+    } finally {
+      input.write('q');
+      await running;
+      vi.unstubAllEnvs();
+      vi.unstubAllGlobals();
+      vi.restoreAllMocks();
+    }
+    expect(input.isRaw).toBe(false);
+    expect(input.listenerCount('keypress')).toBe(0);
+  });
+
   it('associates deleted DMGs with deltas by release order', () => {
     const candidates = getCleanupCandidates([
       {key: 'dao-browser-1.0.44-mac-arm64.dmg', size: 100},
@@ -165,7 +317,7 @@ describe('upload cleanup helpers', () => {
       'Dao13.0-12.0.delta',
     ]);
 
-    const associations = getAssociatedDeltaIndexes(candidates);
+    const associations = getAssociatedCleanupIndexes(candidates);
     expect((associations.get(0) || []).map((i) => candidates[i].key)).toEqual([
       'Dao14.0-13.0.delta',
     ]);

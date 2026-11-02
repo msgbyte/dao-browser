@@ -122,6 +122,29 @@ platform, then run its executable with
 These unit tests do not modify an installed browser; the complete registered
 installation and restart flow still needs disposable-Windows acceptance.
 
+### Clean up old R2 release artifacts
+
+```bash
+npm run upload:cleanup -- --dry-run  # Preview selected deletions
+npm run upload:cleanup              # Select and confirm deletions
+```
+
+Set `R2_BUCKET`, `CLOUDFLARE_ACCOUNT_ID`, and `CLOUDFLARE_API_TOKEN`, and install
+Wrangler before running either command. Both require an interactive terminal
+and read the real bucket. Use `--prefix` to restrict the scanned object keys.
+By default, `--keep 2` protects the latest two versions independently for Mac
+DMGs, Sparkle delta target builds, and Windows x64 releases. Windows installers,
+their `.exe.sha256` checksums, and versioned `.update.json` manifests share the
+same protected version set. Debug installers and unversioned update feeds are
+not cleanup candidates.
+
+Selecting a Windows installer also selects its matching checksum and manifest
+in the same key directory when present. Metadata without a matching installer
+remains individually selectable. Selected object counts and estimated space
+include these companion files; unknown sizes are reported explicitly. This is
+an estimate of space freed by the selection, not total bucket usage. Review the
+full file list before confirming; `--dry-run` does not delete objects.
+
 ## Prerequisites
 
 - macOS arm64 with Xcode and Command Line Tools, or Windows x64 with the

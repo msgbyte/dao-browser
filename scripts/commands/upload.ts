@@ -571,11 +571,14 @@ export function getCleanupCandidates(
     return version ? [{ ...obj, version }] : [];
   });
 
-  // DMG and delta files use different version number schemes (display version
-  // vs CFBundleVersion), so compute the protected set independently for each
-  // kind. Mixing them into one pool causes incorrect keep decisions.
+  // Platforms can release independently, and deltas use CFBundleVersion
+  // rather than the display version. Keep each version pool separate.
   const dmgs = releaseObjects.filter((o) => o.key.endsWith(".dmg"));
   const deltas = releaseObjects.filter((o) => o.key.endsWith(".delta"));
+  const windows = releaseObjects.filter((o) =>
+    o.key.endsWith(".exe") || o.key.endsWith(".exe.sha256") ||
+    o.key.endsWith(".update.json")
+  );
 
   function protectedSet(items: CleanupCandidate[]): Set<string> {
     const sorted = Array.from(new Set(items.map((o) => o.version))).sort(
@@ -586,11 +589,12 @@ export function getCleanupCandidates(
 
   const protectedDmg = protectedSet(dmgs);
   const protectedDelta = protectedSet(deltas);
+  const protectedWindows = protectedSet(windows);
 
   const candidates = releaseObjects.filter((obj) => {
     if (obj.key.endsWith(".dmg")) return !protectedDmg.has(obj.version);
     if (obj.key.endsWith(".delta")) return !protectedDelta.has(obj.version);
-    return true;
+    return !protectedWindows.has(obj.version);
   });
 
   return candidates.sort((a, b) => {
@@ -605,6 +609,11 @@ function parseDaoReleaseVersion(key: string): string | null {
   const base = path.posix.basename(key);
   const dmg = base.match(/^dao-browser-(\d+\.\d+\.\d+)-mac-[\w-]+\.dmg$/);
   if (dmg) return dmg[1];
+
+  const windows = base.match(
+    /^dao-browser-(\d+\.\d+\.\d+)-windows-x64\.(?:exe(?:\.sha256)?|update\.json)$/
+  );
+  if (windows) return windows[1];
 
   // Sparkle names delta files using CFBundleVersion (build number), e.g.
   // "Dao17.0-13.0.delta" where 17.0 is the target build and 13.0 the source.
@@ -640,7 +649,7 @@ function isDeltaCandidate(candidate: CleanupCandidate): boolean {
   return candidate.key.endsWith(".delta");
 }
 
-export function getAssociatedDeltaIndexes(
+export function getAssociatedCleanupIndexes(
   candidates: CleanupCandidate[]
 ): Map<number, number[]> {
   const dmgVersions = Array.from(
@@ -676,28 +685,44 @@ export function getAssociatedDeltaIndexes(
       associations.set(index, deltaIndexes);
     }
   });
+
+  const indexByKey = new Map(candidates.map((item, index) => [item.key, index]));
+  candidates.forEach((item, index) => {
+    if (!item.key.endsWith(".exe")) return;
+    const companionIndexes = [
+      item.key + ".sha256",
+      item.key.replace(/\.exe$/, ".update.json"),
+    ].flatMap((key) => {
+      const companionIndex = indexByKey.get(key);
+      return companionIndex === undefined ? [] : [companionIndex];
+    });
+    if (companionIndexes.length > 0) associations.set(index, companionIndexes);
+  });
   return associations;
 }
 
-function addAssociatedDeltas(
+function syncAssociatedObjects(
   selected: Set<number>,
   associations: Map<number, number[]>
 ): void {
-  for (const [dmgIndex, deltaIndexes] of associations) {
-    if (!selected.has(dmgIndex)) continue;
-    for (const deltaIndex of deltaIndexes) selected.add(deltaIndex);
+  for (const companionIndexes of associations.values()) {
+    for (const companionIndex of companionIndexes) selected.delete(companionIndex);
+  }
+  for (const [artifactIndex, companionIndexes] of associations) {
+    if (!selected.has(artifactIndex)) continue;
+    for (const companionIndex of companionIndexes) selected.add(companionIndex);
   }
 }
 
 export function getSelectableCleanupIndexes(
   candidates: CleanupCandidate[]
 ): number[] {
-  const associatedDeltaIndexes = getAssociatedDeltaIndexes(candidates);
-  const autoDeltaIndexes = new Set(
-    Array.from(associatedDeltaIndexes.values()).flat()
+  const associatedIndexes = getAssociatedCleanupIndexes(candidates);
+  const autoIndexes = new Set(
+    Array.from(associatedIndexes.values()).flat()
   );
   return candidates.flatMap((_item, index) =>
-    autoDeltaIndexes.has(index) ? [] : [index]
+    autoIndexes.has(index) ? [] : [index]
   );
 }
 
@@ -790,7 +815,7 @@ async function selectCleanupCandidates(
   let cursor = 0;
   let scrollOffset = 0;
   const selected = new Set<number>();
-  const associatedDeltaIndexes = getAssociatedDeltaIndexes(candidates);
+  const associatedIndexes = getAssociatedCleanupIndexes(candidates);
   const selectableIndexes = getSelectableCleanupIndexes(candidates);
   const terminalRows = () => process.stdout.rows || 24;
   const visibleRows = () => Math.max(5, terminalRows() - 7);
@@ -806,17 +831,12 @@ async function selectCleanupCandidates(
     const candidateIndex = selectableIndexes[index];
     if (selected.has(candidateIndex)) {
       selected.delete(candidateIndex);
-      const deltaIndexes = associatedDeltaIndexes.get(candidateIndex) || [];
-      for (const deltaIndex of deltaIndexes) selected.delete(deltaIndex);
     } else {
       selected.add(candidateIndex);
-      const deltaIndexes = associatedDeltaIndexes.get(candidateIndex) || [];
-      for (const deltaIndex of deltaIndexes) selected.add(deltaIndex);
     }
-    addAssociatedDeltas(selected, associatedDeltaIndexes);
   };
   const render = () => {
-    addAssociatedDeltas(selected, associatedDeltaIndexes);
+    syncAssociatedObjects(selected, associatedIndexes);
     updateScrollOffset();
     process.stdout.write("\x1B[2J\x1B[H");
     console.log(chalk.blue("dao") + " R2 cleanup");
@@ -880,7 +900,6 @@ async function selectCleanupCandidates(
         render();
       } else if (key.name === "a") {
         selectableIndexes.forEach((index) => selected.add(index));
-        addAssociatedDeltas(selected, associatedDeltaIndexes);
         render();
       } else if (key.name === "i") {
         selectableIndexes.forEach((index) => {
@@ -890,10 +909,9 @@ async function selectCleanupCandidates(
             selected.add(index);
           }
         });
-        addAssociatedDeltas(selected, associatedDeltaIndexes);
         render();
       } else if (key.name === "return" || key.name === "enter") {
-        addAssociatedDeltas(selected, associatedDeltaIndexes);
+        syncAssociatedObjects(selected, associatedIndexes);
         cleanup();
         resolve(
           Array.from(selected)
