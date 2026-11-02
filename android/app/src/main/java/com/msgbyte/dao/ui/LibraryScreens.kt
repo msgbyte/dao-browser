@@ -11,6 +11,7 @@ import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import android.text.format.Formatter
+import android.webkit.MimeTypeMap
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -77,6 +78,12 @@ import com.composables.icons.lucide.BookOpen
 import com.composables.icons.lucide.ChevronRight
 import com.composables.icons.lucide.Ellipsis
 import com.composables.icons.lucide.Eye
+import com.composables.icons.lucide.File
+import com.composables.icons.lucide.FileArchive
+import com.composables.icons.lucide.FileAudio
+import com.composables.icons.lucide.FileImage
+import com.composables.icons.lucide.FileText
+import com.composables.icons.lucide.FileVideo
 import com.composables.icons.lucide.Folder
 import com.composables.icons.lucide.FolderPlus
 import com.composables.icons.lucide.Globe
@@ -84,6 +91,7 @@ import com.composables.icons.lucide.Info
 import com.composables.icons.lucide.Lock
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Moon
+import com.composables.icons.lucide.Package
 import com.composables.icons.lucide.Pause
 import com.composables.icons.lucide.Play
 import com.composables.icons.lucide.Plus
@@ -970,7 +978,7 @@ private fun RealDownloadRow(
         else -> DownloadAction(Lucide.X, stringResource(R.string.cancel_download), onCancel)
     }
     DownloadRow(
-        type = download.request.fileName.substringAfterLast('.', stringResource(R.string.file_type)).uppercase().take(4),
+        fileIcon = downloadFileIcon(download.request.fileName, download.request.contentType),
         name = download.request.fileName,
         meta = downloadMeta(download),
         speed = download.bytesPerSecond?.takeIf { download.status == DownloadStatus.RUNNING }?.let {
@@ -984,6 +992,39 @@ private fun RealDownloadRow(
 }
 
 private data class DownloadAction(val icon: ImageVector, val description: String, val onClick: () -> Unit)
+
+internal fun downloadFileIcon(fileName: String, contentType: String?): ImageVector {
+    val extension = fileName.substringAfterLast('.', "").lowercase()
+    val mimeTypes = listOfNotNull(
+        MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension),
+        contentType?.substringBefore(';')?.trim()?.lowercase(),
+    )
+    for (mimeType in mimeTypes) {
+        when {
+            mimeType.startsWith("image/") -> return Lucide.FileImage
+            mimeType.startsWith("audio/") -> return Lucide.FileAudio
+            mimeType.startsWith("video/") -> return Lucide.FileVideo
+            mimeType == "application/vnd.android.package-archive" -> return Lucide.Package
+            mimeType in setOf(
+                "application/zip", "application/x-7z-compressed", "application/vnd.rar",
+                "application/x-rar-compressed", "application/gzip", "application/x-gzip",
+                "application/x-tar", "application/x-bzip2", "application/x-xz",
+                "application/x-gtar", "application/x-gtar-compressed", "application/vnd.ms-cab-compressed",
+            ) -> return Lucide.FileArchive
+            mimeType.startsWith("text/") || mimeType in setOf(
+                "application/pdf", "application/rtf", "application/msword",
+                "application/vnd.ms-excel", "application/vnd.ms-powerpoint",
+                "application/vnd.ms-works", "application/vnd.ms-xpsdocument",
+                "application/vnd.ms-project",
+            ) || mimeType.startsWith("application/vnd.ms-word.") ||
+                mimeType.startsWith("application/vnd.ms-excel.") ||
+                mimeType.startsWith("application/vnd.ms-powerpoint.") ||
+                mimeType.startsWith("application/vnd.openxmlformats-officedocument.") ||
+                mimeType.startsWith("application/vnd.oasis.opendocument.") -> return Lucide.FileText
+        }
+    }
+    return Lucide.File
+}
 
 @Composable
 private fun downloadMeta(download: BrowserDownload): String {
@@ -1006,7 +1047,7 @@ private fun downloadMeta(download: BrowserDownload): String {
 
 @Composable
 private fun DownloadRow(
-    type: String,
+    fileIcon: ImageVector,
     name: String,
     meta: String,
     speed: String?,
@@ -1020,7 +1061,9 @@ private fun DownloadRow(
         Box(
             Modifier.size(44.dp).background(colors.surfaceSecondary, RoundedCornerShape(11.dp)).border(1.dp, colors.border, RoundedCornerShape(11.dp)),
             contentAlignment = Alignment.Center,
-        ) { Text(type, color = colors.muted, fontSize = 11.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.SemiBold) }
+        ) {
+            Icon(fileIcon, contentDescription = null, modifier = Modifier.size(24.dp), tint = colors.muted)
+        }
         Spacer(Modifier.width(13.dp))
         Column(Modifier.weight(1f)) {
             Text(name, color = colors.foreground, fontSize = 14.5.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
