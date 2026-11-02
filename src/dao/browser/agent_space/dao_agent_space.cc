@@ -17,6 +17,7 @@
 #include "chrome/browser/tab_list/tab_removed_reason.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
+#include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
 #include "chrome/browser/ui/exclusive_access/fullscreen_controller.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
@@ -389,7 +390,11 @@ base::DictValue DaoAgentSpace::ToDict(bool include_events) const {
   dict.Set("owner", owner_label_);
   dict.Set("status", status_text_);
   dict.Set("created_at", ToJsTime(created_at_));
-  dict.Set("tab_count", GetTabCount());
+  dict.Set("tab_count",
+           is_closed() ? static_cast<int>(final_tabs_.size()) : GetTabCount());
+  if (is_closed()) {
+    dict.Set("tabs", final_tabs_.Clone());
+  }
   dict.Set("logins", uses_logins_);
   dict.Set("window_visible", IsWindowVisible());
   if (state_ == DaoAgentSpaceState::kUserInControl) {
@@ -460,6 +465,11 @@ base::DictValue DaoAgentSpace::ToRecord() const {
   record.Set("created_at", ToJsTime(created_at_));
   record.Set("inactive", stopped_for_inactivity_);
   record.Set("downloads", SerializeDownloads());
+  record.Set("logins", uses_logins_);
+  // Clean spaces must not leave their private page history on disk.
+  if (uses_logins_) {
+    record.Set("tabs", final_tabs_.Clone());
+  }
   return record;
 }
 
@@ -477,12 +487,31 @@ void DaoAgentSpace::RestoreRecord(const base::DictValue& record) {
     created_at_ = base::Time::FromMillisecondsSinceUnixEpoch(*created);
   }
   stopped_for_inactivity_ = record.FindBool("inactive").value_or(false);
+  uses_logins_ = record.FindBool("logins").value_or(true);
+  final_tabs_.clear();
+  if (uses_logins_) {
+    if (const base::ListValue* tabs = record.FindList("tabs")) {
+      for (const base::Value& value : *tabs) {
+        const base::DictValue* tab = value.GetIfDict();
+        if (tab && tab->FindString("tab_id") && tab->FindString("title") &&
+            tab->FindString("url")) {
+          final_tabs_.Append(tab->Clone());
+          if (final_tabs_.size() == DaoAgentSpaceService::kMaxTabsPerSpace) {
+            break;
+          }
+        }
+      }
+    }
+  }
   if (const base::ListValue* downloads = record.FindList("downloads")) {
     restored_downloads_ = downloads->Clone();
   }
 }
 
 base::ListValue DaoAgentSpace::SerializeTabs() const {
+  if (is_closed()) {
+    return final_tabs_.Clone();
+  }
   base::ListValue list;
   TabListInterface* tab_list =
       browser_ ? TabListInterface::From(browser_.get()) : nullptr;
@@ -501,6 +530,61 @@ base::ListValue DaoAgentSpace::SerializeTabs() const {
                                           : opened_by->second));
   }
   return list;
+}
+
+bool DaoAgentSpace::OpenResultTab(BrowserWindowInterface* target,
+                                  std::string_view tab_id) {
+  if (!is_closed() || !target) {
+    return false;
+  }
+  const base::DictValue* result = nullptr;
+  for (const base::Value& value : final_tabs_) {
+    if (*value.GetDict().FindString("tab_id") == tab_id) {
+      result = &value.GetDict();
+      break;
+    }
+  }
+  if (!result) {
+    return false;
+  }
+  const GURL url(*result->FindString("url"));
+  if (!url.is_valid() || !IsAutomationUrlEligible(url)) {
+    return false;
+  }
+  const auto reopened = reopened_tabs_.find(tab_id);
+  bool activated = false;
+  ProfileBrowserCollection::GetForProfile(target->GetProfile())
+      ->ForEach([&](BrowserWindowInterface* candidate) {
+        TabListInterface* tabs = TabListInterface::From(candidate);
+        if (!tabs || DaoAgentSpaceService::IsAgentSpaceBrowser(candidate)) {
+          return true;
+        }
+        for (tabs::TabInterface* tab : tabs->GetAllTabs()) {
+          if ((GetSidebarTabId(tab->GetContents()) == tab_id ||
+               (reopened != reopened_tabs_.end() &&
+                reopened->second == tab->GetHandle())) &&
+              tab->GetContents()->GetVisibleURL() == url) {
+            tabs->ActivateTab(tab->GetHandle());
+            candidate->GetWindow()->Show();
+            candidate->GetWindow()->Activate();
+            activated = true;
+            return false;
+          }
+        }
+        return true;
+      });
+  if (activated) {
+    return true;
+  }
+  TabListInterface* tabs = TabListInterface::From(target);
+  tabs::TabInterface* opened =
+      tabs ? tabs->OpenTab(url, tab_list::kNoTabIndex, /*foreground=*/true)
+           : nullptr;
+  if (!opened) {
+    return false;
+  }
+  reopened_tabs_.insert_or_assign(std::string(tab_id), opened->GetHandle());
+  return true;
 }
 
 void DaoAgentSpace::AnnotateTabs(base::Value& list_tabs_data) const {
@@ -707,6 +791,7 @@ void DaoAgentSpace::MarkClosed(DaoAgentSpaceState state, std::string summary) {
   if (is_closed()) {
     return;
   }
+  final_tabs_ = SerializeTabs();
   state_ = state;
   summary_ = std::move(summary);
   handoff_reason_ = DaoAgentSpaceHandoffReason::kNone;

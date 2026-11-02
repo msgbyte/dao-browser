@@ -700,6 +700,17 @@ bool DaoAgentSpaceService::Dismiss(std::string_view space_id) {
   return true;
 }
 
+bool DaoAgentSpaceService::OpenResultTab(std::string_view space_id,
+                                         std::string_view tab_id,
+                                         BrowserWindowInterface* target) {
+  DaoAgentSpace* space = FindSpace(space_id);
+  if (!space || !target || target->GetProfile() != profile_ ||
+      IsAgentSpaceBrowser(target)) {
+    return false;
+  }
+  return space->OpenResultTab(target, tab_id);
+}
+
 void DaoAgentSpaceService::SaveHistory() {
   base::ListValue history;
   for (DaoAgentSpace* space : GetSpaces()) {

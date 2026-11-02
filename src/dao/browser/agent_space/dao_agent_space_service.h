@@ -115,6 +115,9 @@ class DaoAgentSpaceService : public base::SupportsUserData::Data,
   bool ShowWindow(std::string_view space_id, std::string_view tab_id = {});
   bool HideWindow(std::string_view space_id);
   bool Dismiss(std::string_view space_id);
+  bool OpenResultTab(std::string_view space_id,
+                     std::string_view tab_id,
+                     BrowserWindowInterface* target);
 
   DaoAgentSpace* FindSpace(std::string_view space_id);
   std::vector<DaoAgentSpace*> GetSpaces();

@@ -781,10 +781,102 @@ IN_PROC_BROWSER_TEST_F(DaoAgentSpaceBrowserTest, FinishKeepsChosenTabs) {
   EXPECT_EQ(DaoAgentSpaceState::kFinished, space->state());
   EXPECT_EQ(user_tabs + 1, TabListInterface::From(browser())->GetTabCount());
   ASSERT_TRUE(base::test::RunUntil([&] { return !space->browser(); }));
+  const base::ListValue final_tabs = space->SerializeTabs();
+  ASSERT_EQ(1u, final_tabs.size());
+  EXPECT_EQ(url.spec(), *final_tabs[0].GetDict().FindString("url"));
+  EXPECT_TRUE(service_->OpenResultTab(space_id, tab_id, browser()));
+  EXPECT_EQ(user_tabs + 1, TabListInterface::From(browser())->GetTabCount());
+  EXPECT_EQ(
+      url,
+      browser()->tab_strip_model()->GetActiveWebContents()->GetVisibleURL());
 
   DaoBrowserToolResult after =
       Call("get_page_info", base::DictValue().Set("space_id", space_id));
   EXPECT_EQ("SPACE_CLOSED", ErrorCode(after));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentSpaceBrowserTest,
+                       ClosedTaskPagesCanBeReviewedAndReopened) {
+  const GURL first = embedded_test_server()->GetURL("/title1.html");
+  const GURL second = embedded_test_server()->GetURL("/title2.html");
+  for (bool finish : {true, false}) {
+    const std::string id = CreateSpace(first);
+    ASSERT_TRUE(WaitForLoad(id));
+    DaoAgentSpace* space = Space(id);
+    const base::ListValue initial_tabs = space->SerializeTabs();
+    const std::string first_tab_id =
+        *initial_tabs[0].GetDict().FindString("tab_id");
+    TabListInterface* task_tabs = TabListInterface::From(space->browser());
+    auto* second_tab = task_tabs->OpenTab(second, -1, /*foreground=*/true);
+    ASSERT_TRUE(second_tab);
+    ASSERT_TRUE(content::WaitForLoadStop(second_tab->GetContents()));
+    if (finish) {
+      ASSERT_FALSE(Call("finish_space", base::DictValue()
+                                            .Set("space_id", id)
+                                            .Set("summary", "Found both pages"))
+                       .error);
+    } else {
+      ASSERT_TRUE(service_->Stop(id));
+    }
+    ASSERT_TRUE(base::test::RunUntil([&] { return !space->browser(); }));
+    const base::DictValue data = space->ToDict(true);
+    EXPECT_EQ(2, data.FindInt("tab_count"));
+    const base::ListValue* final_tabs = data.FindList("tabs");
+    ASSERT_TRUE(final_tabs);
+    ASSERT_EQ(2u, final_tabs->size());
+    EXPECT_EQ(first.spec(), *(*final_tabs)[0].GetDict().FindString("url"));
+    EXPECT_EQ(second.spec(), *(*final_tabs)[1].GetDict().FindString("url"));
+    EXPECT_TRUE((*final_tabs)[1].GetDict().FindBool("active").value_or(false));
+
+    DaoAgentSpace restored(service_, "restored", "Task",
+                           DaoToolClient::kDaoAgent, "Test", nullptr);
+    restored.RestoreRecord(space->ToRecord());
+    EXPECT_EQ(*final_tabs, restored.SerializeTabs());
+    EXPECT_EQ(space->summary(), restored.summary());
+
+    TabListInterface* user_tabs = TabListInterface::From(browser());
+    const int before = user_tabs->GetTabCount();
+    EXPECT_FALSE(service_->OpenResultTab(id, "unknown-tab", browser()));
+    ASSERT_TRUE(service_->OpenResultTab(id, first_tab_id, browser()));
+    EXPECT_EQ(before + 1, user_tabs->GetTabCount());
+    content::WebContents* reopened = user_tabs->GetActiveTab()->GetContents();
+    ASSERT_TRUE(content::WaitForLoadStop(reopened));
+    EXPECT_EQ(first, reopened->GetLastCommittedURL());
+    ASSERT_TRUE(service_->OpenResultTab(id, first_tab_id, browser()));
+    EXPECT_EQ(before + 1, user_tabs->GetTabCount());
+    EXPECT_EQ(reopened, user_tabs->GetActiveTab()->GetContents());
+
+    ASSERT_TRUE(service_->Dismiss(id));
+    EXPECT_FALSE(service_->OpenResultTab(id, first_tab_id, browser()));
+    EXPECT_EQ(before + 1, user_tabs->GetTabCount());
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(DaoAgentSpaceBrowserTest,
+                       RestoredTaskPagesValidateUrlsAndRespectCleanSpaces) {
+  DaoAgentSpace restored(service_, "restored", "Task", DaoToolClient::kDaoAgent,
+                         "Test", nullptr);
+  base::DictValue record;
+  restored.RestoreRecord(record);
+  EXPECT_TRUE(restored.SerializeTabs().empty());
+  record.Set("tabs", base::ListValue()
+                         .Append("invalid")
+                         .Append(base::DictValue().Set("tab_id", "incomplete"))
+                         .Append(base::DictValue()
+                                     .Set("tab_id", "unsafe")
+                                     .Set("title", "Unsafe")
+                                     .Set("url", "javascript:alert(1)")));
+  restored.RestoreRecord(record);
+  ASSERT_EQ(1u, restored.SerializeTabs().size());
+  const int before = TabListInterface::From(browser())->GetTabCount();
+  EXPECT_FALSE(restored.OpenResultTab(browser(), "unsafe"));
+  EXPECT_EQ(before, TabListInterface::From(browser())->GetTabCount());
+
+  restored.set_uses_logins(false);
+  EXPECT_FALSE(restored.ToRecord().FindList("tabs"));
+  record.Set("logins", false);
+  restored.RestoreRecord(record);
+  EXPECT_TRUE(restored.SerializeTabs().empty());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoAgentSpaceBrowserTest, SpacesAreScopedToClient) {

@@ -159,6 +159,7 @@ class DaoAgentSpace : public DaoPageTools::UiDelegate,
   base::DictValue ToRecord() const;
   void RestoreRecord(const base::DictValue& record);
   base::ListValue SerializeTabs() const;
+  bool OpenResultTab(BrowserWindowInterface* target, std::string_view tab_id);
   // Adds `opened_by` to list_tabs results for this space's tabs.
   void AnnotateTabs(base::Value& list_tabs_data) const;
   // Tabs the user opened while in control stay theirs until the agent
@@ -296,6 +297,8 @@ class DaoAgentSpace : public DaoPageTools::UiDelegate,
   std::vector<std::unique_ptr<DownloadWatcher>> downloads_;
   // Downloads of a space restored from an earlier session.
   base::ListValue restored_downloads_;
+  base::ListValue final_tabs_;
+  std::map<std::string, tabs::TabHandle, std::less<>> reopened_tabs_;
 
   base::ScopedObservation<TabListInterface, TabListInterfaceObserver>
       tab_list_observation_{this};
