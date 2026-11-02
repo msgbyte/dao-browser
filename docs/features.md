@@ -1509,6 +1509,9 @@ file count.
 - `components/performance_manager/user_tuning/prefs.cc.patch`
 
 ### 13.10 String Localization and Rebranding
+- **Default browser settings in Simplified Chinese** — Dao-branded status,
+  setup guidance, taskbar-pinning guidance, and error messages use matching
+  GRIT translation IDs in `chrome/app/resources/chromium_strings_zh-CN.xtb.patch`.
 - `ash/ash_strings.grd` + `ash/login/resources/ash_login_strings.grd` — Import-time scheme rewriting preserves Dao links as ChromeOS messages move into Ash and login resources
 - `chrome/app/*_strings.grd[p]` and `chromium_strings.grd` / `google_chrome_strings.grd` — Branded strings
 - `components/*_strings.grdp` — Component strings (autofill, crash, error, history clusters, management, omnibox, policy, privacy sandbox, security interstitials, site settings, version, etc.)
