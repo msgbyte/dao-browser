@@ -5,6 +5,7 @@
 ### [Unreleased] Unreleased
 
 - Open finished or stopped AI tasks to read their full summary, view the pages open at task end, and reopen those pages.
+- Fix default browser status and setup messages appearing in English when using Simplified Chinese.
 
 ### [1.0.132] - 2026-11-02
 

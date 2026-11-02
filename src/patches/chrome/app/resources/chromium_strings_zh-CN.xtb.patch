@@ -1,0 +1,67 @@
+diff --git a/chrome/app/resources/chromium_strings_zh-CN.xtb b/chrome/app/resources/chromium_strings_zh-CN.xtb
+--- a/chrome/app/resources/chromium_strings_zh-CN.xtb
++++ b/chrome/app/resources/chromium_strings_zh-CN.xtb
+@@ -45,6 +45,7 @@
+ <translation id="1497802159252041924">安装时出错：<ph name="INSTALL_ERROR" /></translation>
+ <translation id="1518627427551567882">此页面受保护</translation>
+ <translation id="1524282610922162960">共享 Chromium 标签页</translation>
++<translation id="1528271817732687457">感谢你选择 Dao 作为默认浏览器！</translation>
+ <translation id="154404805518949443">登录 Chromium</translation>
+ <translation id="1547469039832541117">结束突出显示的任务。</translation>
+ <translation id="1562320819937089394">固定 Chromium</translation>
+@@ -112,6 +113,7 @@
+ <translation id="2190166659037789668">更新检查错误：<ph name="UPDATE_CHECK_ERROR" />。</translation>
+ <translation id="2199210295479376551">从 Chromium 中移除账号</translation>
+ <translation id="2201788217099588893">顶级购物工具随身带，尽在 Chromium 应用</translation>
++<translation id="2204059271405213724">Dao 是你的默认浏览器</translation>
+ <translation id="2210502920229141283">在 iOS 版 Chromium 上启用增强型安全浏览功能，随时随地更安全地浏览网页</translation>
+ <translation id="2210682093923538346">危险网站。Chromium 移除了通知权限。</translation>
+ <translation id="2236949375853147973">我的活动记录</translation>
+@@ -189,6 +191,7 @@
+ <translation id="3013473503895162900">在 Chromium 的新标签页中打开 <ph name="URL" />。</translation>
+ <translation id="302551344979399011">技能等 AI 创新功能会保存到您的 Google 账号，并与 Chromium 同步功能分开管理</translation>
+ <translation id="3032787606318309379">正在添加到 Chromium...</translation>
++<translation id="3036599189595871275">点击消息、文档和其他应用中的链接时，均可使用 Dao 打开</translation>
+ <translation id="3038232873781883849">正在等待安装…</translation>
+ <translation id="3045032126857188731">译文语言：<ph name="LANGUAGE" /></translation>
+ <translation id="3047590466164881923">关闭反馈对话框</translation>
+@@ -222,6 +225,7 @@
+ <translation id="3286538390144397061">立即重新启动</translation>
+ <translation id="328888136576916638">缺少 Google API 密钥，因此 Chromium 的部分功能将无法使用。</translation>
+ <translation id="3296368748942286671">关闭 Chromium 后继续运行后台应用</translation>
++<translation id="330736647144175284">将 Dao 设为默认浏览器</translation>
+ <translation id="3313189106987092621">Chromium 会在使用不安全的连接加载网站前向您发出警告</translation>
+ <translation id="3316771292331273802">关闭所有 Chromium 窗口后，您将会从大多数网站退出账号；但如果您已登录 Chromium，则您的 Google 账号不会退出。若要让网站记住您，请<ph name="SETTINGS_LINK" />。</translation>
+ <translation id="3352986031709923790">搜索区域的右上角：右侧 <ph name="RIGHT" />%，顶部 <ph name="TOP" />%</translation>
+@@ -362,6 +366,7 @@
+ <translation id="4943838377383847465">Chromium处于后台运行模式。</translation>
+ <translation id="494490797786467921">点击即可关闭 Chromium 登录对话框</translation>
+ <translation id="4950660488495335294">借助 Chromium 个人资料，您可将所有 Chromium 内容分门别类。您可为朋友和家人创建专属资料，或者将工作和娱乐用资料分开。</translation>
++<translation id="4974177503650144313">Dao 无法确定或设置默认浏览器</translation>
+ <translation id="4987820182225656817">访客使用Chromium不会留下任何痕迹。</translation>
+ <translation id="4992938037305302429">设置 Chromium 账号</translation>
+ <translation id="4994636714258228724">将您自己添加到Chromium</translation>
+@@ -384,6 +389,7 @@
+ <translation id="5296581118566748922">使用 Chromium 搜索</translation>
+ <translation id="5313228254328109263">Chromium Updater Internal Service</translation>
+ <translation id="5324450571874973775">在 Chromium 中与其他 Gemini 功能搭配使用</translation>
++<translation id="5332257024382839243">将 Dao 设为默认浏览器并固定到任务栏</translation>
+ <translation id="5346389065299425353">添加多个标签页、文件和工具，让搜索更深入、更精准</translation>
+ <translation id="5348677704241861105">使用 Chromium 中的 Gemini 快速了解此文档的概要信息并提出问题</translation>
+ <translation id="5352264705793813212">Chromium 找到了一些供您审查的安全建议</translation>
+@@ -523,6 +529,7 @@
+ <translation id="6570579332384693436">为了修正拼写错误，Chromium 会将您在文本字段中输入的文字发送给 Google</translation>
+ <translation id="6598877126913850652">转到 Chromium 通知设置部分</translation>
+ <translation id="6600016381025017075">搜索此页面上的任何内容</translation>
++<translation id="6604739625349758980">点击消息、文档和其他应用中的链接时，均可使用 Dao 打开。Dao 还会固定到任务栏。</translation>
+ <translation id="6613594504749178791">您所做的更改会在下次重新启动 Chromium 时生效。</translation>
+ <translation id="6637908313088374648">现在，Chromium 会在 Windows 启动时启动，让您可以即刻开启浏览之旅。您可在“设置”中关闭此功能。</translation>
+ <translation id="6648212540664651655">从上次停下的地方继续：Chromium 已恢复您上次会话中的标签页。如需关闭此功能，请前往</translation>
+@@ -549,6 +556,7 @@
+ <translation id="6857782730669500492">Chromium - <ph name="PAGE_TITLE" /></translation>
+ <translation id="6859580922007887573">按 Tab 键即可继续</translation>
+ <translation id="6862030660799253820">使用图片搜索功能搜索此图片</translation>
++<translation id="6868209401717851120">这是 Dao 的并行安装，无法设为默认浏览器。</translation>
+ <translation id="6869568587896659271">在地址栏下方轻松访问网站</translation>
+ <translation id="6873893289264747459">Chromium 发现“<ph name="EXTENSION_NAME" />”包含恶意软件</translation>
+ <translation id="6877155553248388166">搜索区域的右下角：右侧 <ph name="RIGHT" />%，底部 <ph name="BOTTOM" />%</translation>
