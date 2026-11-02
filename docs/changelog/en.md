@@ -738,6 +738,8 @@
 
 ### [Unreleased] Unreleased
 
+### [1.1.0] - 2026-11-03
+
 - Fix dragging the address-bar cursor to edit text beyond either end of a long URL.
 - Downloads now show file-type icons instead of extension labels such as PDF or APK.
 - Show complete URLs in address and new-tab search suggestions, wrapping long addresses onto multiple lines.
