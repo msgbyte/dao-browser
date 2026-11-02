@@ -73,6 +73,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.clearText
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -133,7 +136,6 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -814,10 +816,10 @@ private fun NewTabScreen(
     var searchExpanded by remember(startExpanded) { mutableStateOf(startExpanded) }
     var scannerOpen by remember { mutableStateOf(false) }
     // Start with the whole address selected so typing replaces it.
-    var queryValue by remember(initialQuery) {
-        mutableStateOf(TextFieldValue(initialQuery, TextRange(0, initialQuery.length)))
+    val queryState = remember(initialQuery) {
+        TextFieldState(initialQuery, TextRange(0, initialQuery.length))
     }
-    val query = queryValue.text
+    val query = queryState.text.toString()
     val now = remember { LocalDateTime.now() }
     val datePattern = stringResource(R.string.new_tab_date_format)
     val topOffset by animateDpAsState(
@@ -851,7 +853,7 @@ private fun NewTabScreen(
             onExitExpanded()
         } else {
             searchExpanded = false
-            queryValue = TextFieldValue()
+            queryState.clearText()
         }
     }
 
@@ -926,9 +928,8 @@ private fun NewTabScreen(
         }
 
         SearchField(
-            value = queryValue,
+            state = queryState,
             expanded = searchExpanded,
-            onValueChange = { queryValue = it },
             onActivate = {
                 if (searchExpanded) {
                     // The input only covers part of the pill. Taps elsewhere on it must still
@@ -942,7 +943,7 @@ private fun NewTabScreen(
             onTrailingClick = {
                 if (searchExpanded) {
                     if (query.isNotBlank()) {
-                        queryValue = TextFieldValue()
+                        queryState.clearText()
                     } else if (onExitExpanded != null) {
                         onExitExpanded()
                     } else {
@@ -1074,10 +1075,9 @@ private fun AddressActionButton(
 }
 
 @Composable
-private fun SearchField(
-    value: TextFieldValue,
+internal fun SearchField(
+    state: TextFieldState,
     expanded: Boolean,
-    onValueChange: (TextFieldValue) -> Unit,
     onActivate: () -> Unit,
     onTrailingClick: () -> Unit,
     onSubmit: () -> Unit,
@@ -1121,21 +1121,20 @@ private fun SearchField(
         Spacer(Modifier.width(10.dp))
         if (expanded) {
             BasicTextField(
-                value = value,
-                onValueChange = onValueChange,
+                state = state,
                 modifier = Modifier
                     .weight(1f)
                     .focusRequester(focusRequester),
-                singleLine = true,
+                lineLimits = TextFieldLineLimits.SingleLine,
                 textStyle = inputTextStyle,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
-                keyboardActions = KeyboardActions(onGo = { onSubmit() }),
-                decorationBox = { inner ->
+                onKeyboardAction = { onSubmit() },
+                decorator = { inner ->
                     Box(
                         modifier = Modifier.fillMaxWidth(),
                         contentAlignment = Alignment.CenterStart,
                     ) {
-                        if (value.text.isEmpty()) {
+                        if (state.text.isEmpty()) {
                             Text(
                                 stringResource(R.string.address_hint),
                                 style = inputTextStyle.copy(color = colors.faint),
