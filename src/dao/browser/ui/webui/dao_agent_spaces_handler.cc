@@ -300,6 +300,8 @@ void DaoAgentSpacesHandler::HandleAgentSpaceAction(
     service->Stop(space_id);
   } else if (action == "dismiss") {
     service->Dismiss(space_id);
+  } else if (action == "open_result_tab") {
+    service->OpenResultTab(space_id, tab_id, browser_);
   }
 }
 

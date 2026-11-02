@@ -51,6 +51,7 @@ export interface AgentSpaceData {
   title?: string;
   cursor?: {x: number, y: number};
   events?: AgentSpaceEvent[];
+  tabs?: Array<{tab_id: string, title: string, url: string, active: boolean}>;
 }
 
 export interface AgentSpacesState {
@@ -318,6 +319,53 @@ export class DaoAgentSpacesElement extends CrLitElement {
 
       .panel {
         padding: 0 6px 6px;
+      }
+
+      .result-summary {
+        margin: 4px 4px 10px;
+        font-size: 12px;
+        line-height: 18px;
+        color: var(--text-primary);
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        user-select: text;
+      }
+
+      .result-heading,
+      .result-hint {
+        margin: 6px 4px;
+        font-size: 11px;
+        color: var(--text-secondary);
+      }
+
+      .result-tabs {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+
+      .result-tab {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        padding: 8px;
+        border: none;
+        border-radius: 8px;
+        background: transparent;
+        color: var(--text-secondary);
+        text-align: start;
+        font: inherit;
+        cursor: pointer;
+      }
+
+      .result-tab:hover,
+      .result-tab:focus-visible {
+        background: var(--ink-drop);
+      }
+
+      .result-tab .name {
+        font-size: 12px;
       }
 
       .frame {
@@ -644,6 +692,8 @@ export class DaoAgentSpacesElement extends CrLitElement {
   }
 
   private onStateChanged_(state: AgentSpacesState) {
+    const wasStreaming = this.spaces_.some(
+        s => s.space_id === this.expandedId_ && !this.isClosed_(s));
     this.spaces_ = state?.spaces || [];
     this.currentSpaceId_ = state?.currentSpaceId || '';
     const preview = this.spaces_.find(s => s.space_id === this.previewId_);
@@ -652,8 +702,11 @@ export class DaoAgentSpacesElement extends CrLitElement {
       this.hidePreview_();
     }
     const expanded = this.spaces_.find(s => s.space_id === this.expandedId_);
-    if (this.expandedId_ && (!expanded || this.isClosed_(expanded))) {
+    if (this.expandedId_ && (!expanded || this.currentSpaceId_)) {
       this.collapse_();
+    } else if (expanded && this.isClosed_(expanded) && wasStreaming) {
+      sendNative('stopAgentSpaceStream');
+      this.frameUrl_ = '';
     }
   }
 
@@ -680,13 +733,15 @@ export class DaoAgentSpacesElement extends CrLitElement {
       this.collapse_();
       return;
     }
-    if (this.isClosed_(space)) {
-      return;
+    if (this.expandedId_) {
+      this.collapse_();
     }
     this.expandedId_ = space.space_id;
     this.frameUrl_ = '';
     this.showAllSteps_ = false;
-    sendNative('startAgentSpaceStream', space.space_id);
+    if (!this.isClosed_(space)) {
+      sendNative('startAgentSpaceStream', space.space_id);
+    }
   }
 
   private collapse_() {
@@ -921,6 +976,9 @@ export class DaoAgentSpacesElement extends CrLitElement {
   }
 
   private renderPanel_(space: AgentSpaceData) {
+    if (this.isClosed_(space)) {
+      return this.renderResults_(space);
+    }
     const now = this.stateLabel_(space);
     const steps = (space.events || []).slice(-MAX_TIMELINE_STEPS).reverse();
     // Without a status the "now" line already shows the newest step.
@@ -998,6 +1056,41 @@ export class DaoAgentSpacesElement extends CrLitElement {
     `;
   }
 
+  private renderResults_(space: AgentSpaceData) {
+    const tabs = space.tabs || [];
+    return html`
+      <div class="panel results">
+        <p class="result-summary">${this.stateLabel_(space)}</p>
+        <div class="result-heading">${str('daoAgentSpaceFinalPages')}</div>
+        ${tabs.length ? html`
+          <ul class="result-tabs">
+            ${tabs.map(tab => html`
+              <li>
+                <button class="result-tab" title=${tab.url}
+                        @click=${() => sendNative(
+                            'agentSpaceAction', 'open_result_tab',
+                            space.space_id, tab.tab_id)}>
+                  ${this.renderIcon_('app-window')}
+                  <span class="text">
+                    <span class="name">${tab.title || tab.url}</span>
+                    <span class="detail">${tab.url}</span>
+                  </span>
+                </button>
+              </li>
+            `)}
+          </ul>
+          <p class="result-hint">${str('daoAgentSpaceReopenHint')}</p>
+        ` : html`
+          <p class="result-hint">${str('daoAgentSpaceNoSavedPages')}</p>
+        `}
+        <button class="btn"
+                @click=${(e: Event) => this.action_('dismiss', space, e)}>
+          ${this.renderIcon_('x')}${str('daoAgentSpaceDismiss')}
+        </button>
+      </div>
+    `;
+  }
+
   private renderSpace_(space: AgentSpaceData) {
     const expanded = this.expandedId_ === space.space_id;
     const closed = this.isClosed_(space);
@@ -1008,7 +1101,7 @@ export class DaoAgentSpacesElement extends CrLitElement {
       <div class="space ${expanded ? 'expanded' : ''}">
         <div class="row ${attention || closed ? 'tall' : ''}" role="button"
              tabindex="0"
-             aria-expanded=${closed ? nothing : String(expanded)}
+             aria-expanded=${String(expanded)}
              @click=${() => this.toggle_(space)}
              @keydown=${(e: KeyboardEvent) => this.onRowKeyDown_(space, e)}
              @pointerenter=${(e: PointerEvent) => this.onRowEnter_(space, e)}

@@ -379,4 +379,7 @@
 <translation id="4184924780268256627">申请方：<ph name="CLIENT"/>（名称由申请方提供）</translation>
 <translation id="6140948187512243695">查看详情</translation>
 <translation id="3586931643579894722">收起详情</translation>
+<translation id="2331429398851633279">任务结束时的页面</translation>
+<translation id="9135890620955532939">点击页面即可查看。已关闭的页面会按保存的地址重新打开，内容可能已有变化。</translation>
+<translation id="3776063931696474398">此任务没有保存页面记录。</translation>
 </translationbundle>

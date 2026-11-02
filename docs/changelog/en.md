@@ -4,6 +4,8 @@
 
 ### [Unreleased] Unreleased
 
+- Open finished or stopped AI tasks to read their full summary, view the pages open at task end, and reopen those pages.
+
 ### [1.0.132] - 2026-11-02
 
 - Harden AI chat data validation and math rendering against malicious input.

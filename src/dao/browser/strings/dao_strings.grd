@@ -758,6 +758,15 @@
       <message name="IDS_DAO_AGENT_SPACE_DISMISS" desc="Button that removes a finished or stopped AI task from the sidebar list.">
         Remove from list
       </message>
+      <message name="IDS_DAO_AGENT_SPACE_FINAL_PAGES" desc="Heading for the pages open when an AI task finished or stopped.">
+        Pages at task end
+      </message>
+      <message name="IDS_DAO_AGENT_SPACE_REOPEN_HINT" desc="Explains how pages listed in a finished AI task can be viewed.">
+        Select a page to view it. Closed pages reopen from their saved address and may have changed.
+      </message>
+      <message name="IDS_DAO_AGENT_SPACE_NO_SAVED_PAGES" desc="Empty state for older AI tasks that have no saved page list.">
+        No pages were saved for this task.
+      </message>
       <message name="IDS_DAO_AGENT_SPACE_LIVE" desc="Small badge on the live view of an AI task's page, showing that the image updates in real time.">
         Live
       </message>

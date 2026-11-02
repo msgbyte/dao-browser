@@ -264,6 +264,84 @@ describe('dao-agent-spaces', () => {
                                          ['dismiss', 's1-abcd']);
      });
 
+  it.each(['finished', 'stopped'] as const)(
+      'opens %s task results with saved pages and no live controls',
+      async state => {
+        const {el, send} = await createElement({
+          spaces: [space({
+            state,
+            summary: 'Found the answer\nDetails remain readable',
+            tabs: [
+              {tab_id: 't1', title: 'Result', url: 'https://example.com/one',
+               active: false},
+              {tab_id: 't2', title: '', url: 'https://example.com/two',
+               active: true},
+            ],
+          })],
+          currentSpaceId: '',
+        });
+        const row = el.shadowRoot!.querySelector('.row')!;
+        row.dispatchEvent(new KeyboardEvent('keydown', {
+          key: state === 'finished' ? 'Enter' : ' ',
+          bubbles: true, cancelable: true,
+        }));
+        await el.updateComplete;
+
+        const root = el.shadowRoot!;
+        expect(root.querySelector('.row')!.getAttribute('aria-expanded'))
+            .toBe('true');
+        expect(root.querySelector('.result-summary')!.textContent)
+            .toContain('Found the answer\nDetails remain readable');
+        const pages = root.querySelectorAll('.result-tab');
+        expect(pages).toHaveLength(2);
+        expect(pages[1]!.textContent).toContain('https://example.com/two');
+        expect(root.querySelector('.frame')).toBeNull();
+        expect(root.querySelector('.card-buttons')).toBeNull();
+        expect(send).not.toHaveBeenCalledWith(
+            'startAgentSpaceStream', expect.anything());
+        click(pages[1]!);
+        expect(send).toHaveBeenCalledWith(
+            'agentSpaceAction', ['open_result_tab', 's1-abcd', 't2']);
+        click(root.querySelector('.results .btn')!);
+        expect(send).toHaveBeenCalledWith(
+            'agentSpaceAction', ['dismiss', 's1-abcd']);
+      });
+
+  it('keeps an open task expanded when it ends and stops streaming', async () => {
+    const {el, send} = await createElement({spaces: [space()], currentSpaceId: ''});
+    click(el.shadowRoot!.querySelector('.row')!);
+    await el.updateComplete;
+    send.mockClear();
+    push('agentSpacesChanged', {
+      spaces: [space({state: 'finished', summary: 'Done'})], currentSpaceId: '',
+    });
+    await el.updateComplete;
+    expect(send).toHaveBeenCalledWith('stopAgentSpaceStream', []);
+    expect(el.shadowRoot!.querySelector('.results')).not.toBeNull();
+    expect(el.shadowRoot!.querySelector('.result-hint')!.textContent)
+        .toContain('[daoAgentSpaceNoSavedPages]');
+
+    push('agentSpacesChanged', {spaces: [], currentSpaceId: ''});
+    await el.updateComplete;
+    expect(el.shadowRoot!.querySelector('.panel')).toBeNull();
+  });
+
+  it('stops the previous stream when opening a historical task', async () => {
+    const {el, send} = await createElement({
+      spaces: [space(), space({space_id: 's2', state: 'finished'})],
+      currentSpaceId: '',
+    });
+    click(el.shadowRoot!.querySelectorAll('.row')[0]!);
+    await el.updateComplete;
+    send.mockClear();
+    click(el.shadowRoot!.querySelectorAll('.row')[1]!);
+    await el.updateComplete;
+    expect(send).toHaveBeenCalledWith('stopAgentSpaceStream', []);
+    expect(send).not.toHaveBeenCalledWith(
+        'startAgentSpaceStream', expect.anything());
+    expect(el.shadowRoot!.querySelector('.results')).not.toBeNull();
+  });
+
   it('leads the open card with the current status and recent steps',
      async () => {
        const events = ['Open the shop', 'Find the search box', 'Type Pro',
