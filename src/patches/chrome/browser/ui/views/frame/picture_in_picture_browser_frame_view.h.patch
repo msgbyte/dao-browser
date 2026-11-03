@@ -83,7 +83,7 @@ diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view
 +
 +  // Dao: Synchronize the overlay widget's screen bounds to sit over the
 +  // top of the main PiP window and flush its layout and paint. Called on
-+  // layout and widget bounds/visibility changes.
++  // layout, widget bounds/visibility changes, and before revealing controls.
 +  void DaoUpdateTopBarOverlayBounds();
 +
    base::WeakPtrFactory<PictureInPictureBrowserFrameView> weak_factory_{this};

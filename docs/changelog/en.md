@@ -4,7 +4,7 @@
 
 ### [Unreleased] Unreleased
 
-- Improve picture-in-picture title bar reliability on macOS when returning to a floating window, reducing the need to resize it to make the controls appear.
+- Improve picture-in-picture title bar reliability on macOS when opening or returning to a floating window, reducing the need to resize it to make the controls appear.
 - Hand control back to AI automatically when you close or hide a Dao Lite task window after taking over.
 - Fix missing page previews in tab control approval dialogs when tab hover previews are disabled or no cached screenshot is available.
 - Show the reason for a tab control request beside its page preview, with the page title and address below the preview.

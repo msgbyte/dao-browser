@@ -1,7 +1,7 @@
 diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view_interactive_uitest.cc b/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view_interactive_uitest.cc
 --- a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view_interactive_uitest.cc
 +++ b/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view_interactive_uitest.cc
-@@ -614,6 +614,101 @@
+@@ -614,6 +614,135 @@
              pip_frame_view()->GetWindowTitleForTesting()->GetEnabledColor());
  }
  
@@ -37,6 +37,40 @@ diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view
 +  hide_waiter.WaitForAnimationInterval(kAnimationDuration);
 +  EXPECT_FLOAT_EQ(0.0f, layer->opacity());
 +  EXPECT_EQ(client_bounds, pip_frame_view()->GetBoundsForClientView());
++}
++
++IN_PROC_BROWSER_TEST_F(PictureInPictureBrowserFrameViewTest,
++                       DaoOverlayRecoversOnHoverWithoutResize) {
++  ASSERT_NO_FATAL_FAILURE(SetUpDocumentPIP());
++
++  auto* widget = GetPipWidget();
++  auto* overlay = pip_frame_view()->dao_top_bar_overlay_widget();
++  ASSERT_TRUE(overlay);
++  ASSERT_TRUE(base::test::RunUntil([&] {
++    return overlay->IsVisible() && !overlay->GetContentsView()->size().IsEmpty();
++  }));
++  const gfx::Size window_size = widget->GetWindowBoundsInScreen().size();
++  const gfx::Size top_bar_size = overlay->GetContentsView()->size();
++  const gfx::Rect client_bounds = pip_frame_view()->GetBoundsForClientView();
++  pip_frame_view()->UpdateTopBarView(/*render_active=*/false);
++
++  // Recover both on entry and when the animation already targets active.
++  for (int attempt = 0; attempt < 2; ++attempt) {
++    overlay->Hide();
++    ASSERT_TRUE(base::test::RunUntil([&] { return !overlay->IsVisible(); }));
++    overlay->GetContentsView()->SetBoundsRect(gfx::Rect());
++    overlay->GetRootView()->InvalidateLayout();
++
++    pip_frame_view()->OnMouseEnteredOrExitedWindow(/*entered=*/true);
++    EXPECT_EQ(top_bar_size, overlay->GetContentsView()->size());
++    ASSERT_TRUE(base::test::RunUntil([&] { return overlay->IsVisible(); }));
++    AnimationWaiter show_waiter(
++        pip_frame_view()->GetRenderActiveAnimationsForTesting());
++    show_waiter.WaitForAnimationInterval(kAnimationDuration);
++    EXPECT_FLOAT_EQ(1.0f, overlay->GetContentsView()->layer()->opacity());
++    EXPECT_EQ(window_size, widget->GetWindowBoundsInScreen().size());
++    EXPECT_EQ(client_bounds, pip_frame_view()->GetBoundsForClientView());
++  }
 +}
 +
 +IN_PROC_BROWSER_TEST_F(PictureInPictureBrowserFrameViewTest,

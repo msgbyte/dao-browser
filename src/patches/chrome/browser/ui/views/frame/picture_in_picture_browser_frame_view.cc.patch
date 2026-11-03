@@ -406,7 +406,21 @@ diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view
    gfx::RectF bounds(control_view->GetMirroredBounds());
    views::View::ConvertRectToTarget(source_view, this, &bounds);
    return gfx::ToEnclosingRect(bounds);
-@@ -1003,7 +1254,10 @@
+@@ -988,6 +1239,13 @@
+ }
+ 
+ void PictureInPictureBrowserFrameView::UpdateTopBarView(bool render_active) {
++  // Dao: Retry the native overlay before revealing it, including missed shows.
++  if (render_active &&
++      (!animation_controller_->is_top_bar_active() ||
++       (dao_top_bar_overlay_widget_ &&
++        !dao_top_bar_overlay_widget_->IsVisible()))) {
++    DaoUpdateTopBarOverlayBounds();
++  }
+   // Pass the target state into the controller and let it handle overlapping
+   // start/stop transitions and animations automatically. Mirrors
+   // DocumentPipFrameView.
+@@ -1003,7 +1261,10 @@
  }
  
  int PictureInPictureBrowserFrameView::GetTopAreaHeight() const {
@@ -418,7 +432,7 @@ diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view
  }
  
  gfx::Size PictureInPictureBrowserFrameView::GetNonClientViewAreaSize() const {
-@@ -1094,6 +1348,87 @@
+@@ -1094,6 +1355,87 @@
    return auto_pip_setting_overlay_ && auto_pip_setting_overlay_->GetVisible();
  }
  

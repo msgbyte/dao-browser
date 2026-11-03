@@ -1141,10 +1141,10 @@ Built on Chromium's native PiP, adds a Document-PiP interception layer plus seve
 - **Document PiP top-bar positioning** — The floating title bar follows main-window
   bounds changes as well as layout updates, so Windows moves without resizing
   keep the title bar attached to the video, including title-bar drags.
-- **Document PiP top-bar display recovery** — Showing the main window
-  resynchronizes the floating title bar, flushes its pending layout, and requests
-  a fresh frame without resizing the video. Hidden main windows keep the
-  title-bar window hidden.
+- **Document PiP top-bar display recovery** — Showing the main window or revealing
+  the controls resynchronizes the floating title bar, flushes its pending layout,
+  and requests a fresh frame without resizing the video. Hidden main windows
+  keep the title-bar window hidden; repeated hover requests retry a hidden overlay.
 - **PiP event-monitor lifetime** — The frame and floating top bar use separate
   forwarding observers (`browser/pip/dao_pip_window_event_monitor.h`) so Windows
   detaches each listener from the correct native window during PiP or opener
