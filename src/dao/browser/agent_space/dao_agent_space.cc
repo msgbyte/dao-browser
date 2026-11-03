@@ -959,7 +959,9 @@ void DaoAgentSpace::HideWindowAfterFullscreenExit() {
     return;
   }
   browser_->GetWindow()->Hide();
-  NotifyChanged();
+  if (!service_->HandBack(id_)) {
+    NotifyChanged();
+  }
 }
 
 content::WebContents* DaoAgentSpace::FindTab(std::string_view tab_id) const {

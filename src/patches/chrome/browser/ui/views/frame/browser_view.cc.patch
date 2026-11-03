@@ -345,8 +345,8 @@ diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/v
      return views::CloseRequestResult::kCannotClose;
    }
  
-+  // Dao: Closing a live task window only hides it; explicit stop/finish,
-+  // empty windows and browser shutdown must still complete their teardown.
++  // Dao: Closing a live task window hides it and hands control back;
++  // stop/finish, empty windows and browser shutdown still complete teardown.
 +  if (!browser_shutdown::IsTryingToQuit() &&
 +      !UnloadController::From(browser_)->is_attempting_to_close_browser() &&
 +      !browser_->GetTabStripModel()->empty()) {

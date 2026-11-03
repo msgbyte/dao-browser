@@ -51,6 +51,7 @@
 #include "dao/browser/agent_space/dao_hidden_browser.h"
 #include "dao/browser/automation/dao_browser_tool_types.h"
 #include "dao/browser/ui/views/dao_agent_cursor_view.h"
+#include "dao/browser/ui/views/dao_tab_identity.h"
 #include "net/dns/mock_host_resolver.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/base_window.h"
@@ -193,8 +194,13 @@ IN_PROC_BROWSER_TEST_F(DaoAgentSpaceBrowserTest,
   BrowserWindowInterface* space_browser = space->browser();
   Eval(space_id, "window.savedTaskState = 'still running'");
 
-  for (int attempt = 0; attempt < 2; ++attempt) {
+  for (bool take_over : {false, true}) {
+    SCOPED_TRACE(take_over);
     ASSERT_TRUE(service_->ShowWindow(space_id));
+    if (take_over) {
+      ASSERT_TRUE(service_->TakeOver(space_id));
+      EXPECT_EQ(DaoAgentSpaceState::kUserInControl, space->state());
+    }
     EXPECT_TRUE(space_browser->GetWindow()->IsVisible());
     space_browser->GetWindow()->Close();
     ASSERT_TRUE(base::test::RunUntil([&] {
@@ -259,7 +265,8 @@ IN_PROC_BROWSER_TEST_F(DaoAgentSpaceBrowserTest,
 
   for (bool use_close_button : {true, false}) {
     SCOPED_TRACE(use_close_button);
-    ASSERT_TRUE(service_->ShowWindow(space_id));
+    ASSERT_TRUE(service_->TakeOver(space_id));
+    EXPECT_EQ(DaoAgentSpaceState::kUserInControl, space->state());
     ui_test_utils::ToggleFullscreenModeAndWait(space_browser);
     ASSERT_TRUE(space_browser->GetWindow()->IsFullscreen());
 
@@ -292,7 +299,7 @@ IN_PROC_BROWSER_TEST_F(DaoAgentSpaceBrowserTest,
   ASSERT_TRUE(WaitForLoad(space_id));
   DaoAgentSpace* space = Space(space_id);
   BrowserWindowInterface* space_browser = space->browser();
-  ASSERT_TRUE(service_->ShowWindow(space_id));
+  ASSERT_TRUE(service_->TakeOver(space_id));
   ui_test_utils::ToggleFullscreenModeAndWait(space_browser);
   ASSERT_TRUE(space_browser->GetWindow()->IsFullscreen());
 
@@ -303,7 +310,10 @@ IN_PROC_BROWSER_TEST_F(DaoAgentSpaceBrowserTest,
   EXPECT_EQ(space_browser, space->browser());
   EXPECT_FALSE(space_browser->GetWindow()->IsFullscreen());
   EXPECT_TRUE(space->IsWindowVisible());
-  EXPECT_EQ(DaoAgentSpaceState::kRunning, space->state());
+  EXPECT_EQ(DaoAgentSpaceState::kUserInControl, space->state());
+  EXPECT_EQ("SPACE_USER_IN_CONTROL",
+            ErrorCode(Call("get_page_info",
+                           base::DictValue().Set("space_id", space_id))));
 }
 #endif  // BUILDFLAG(IS_MAC)
 
@@ -725,42 +735,67 @@ IN_PROC_BROWSER_TEST_F(DaoAgentSpaceBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoAgentSpaceBrowserTest,
-                       RequestUserHelpWaitsForHandBack) {
-  const std::string space_id =
-      CreateSpace(embedded_test_server()->GetURL("/title1.html"));
+                       RequestUserHelpWaitsForHandBackOrWindowHidden) {
+  const GURL initial_url = embedded_test_server()->GetURL("/title1.html");
+  const GURL user_url = embedded_test_server()->GetURL("/title2.html");
+  const std::string space_id = CreateSpace(initial_url);
   ASSERT_TRUE(WaitForLoad(space_id));
+  DaoAgentSpace* space = Space(space_id);
+  BrowserWindowInterface* space_browser = space->browser();
 
-  base::test::TestFuture<DaoBrowserToolResult> help;
-  DaoBrowserToolCall call;
-  call.request_id = "help";
-  call.name = "request_user_help";
-  call.arguments = base::DictValue()
-                       .Set("space_id", space_id)
-                       .Set("reason", "Sign in to continue");
-  service_->ExecuteTool({DaoToolClient::kDaoAgent, "test-client", "Test"},
-                        std::move(call), help.GetCallback());
-  EXPECT_FALSE(help.IsReady());
-  EXPECT_EQ(DaoAgentSpaceState::kUserInControl, Space(space_id)->state());
-  EXPECT_EQ("Sign in to continue", Space(space_id)->handoff_message());
+  for (const std::string action : {"hand_back", "close", "hide"}) {
+    SCOPED_TRACE(action);
+    ASSERT_TRUE(content::NavigateToURL(space->GetCurrentContents(), initial_url));
+    base::test::TestFuture<DaoBrowserToolResult> help;
+    DaoBrowserToolCall call;
+    call.request_id = "help-" + action;
+    call.name = "request_user_help";
+    call.arguments = base::DictValue()
+                         .Set("space_id", space_id)
+                         .Set("reason", "Sign in to continue");
+    service_->ExecuteTool({DaoToolClient::kDaoAgent, "test-client", "Test"},
+                          std::move(call), help.GetCallback());
+    EXPECT_FALSE(help.IsReady());
+    EXPECT_EQ(DaoAgentSpaceState::kUserInControl, space->state());
+    EXPECT_EQ("Sign in to continue", space->handoff_message());
+    EXPECT_EQ("SPACE_USER_IN_CONTROL",
+              ErrorCode(Call("get_page_info",
+                             base::DictValue().Set("space_id", space_id))));
 
-  ASSERT_TRUE(service_->ShowWindow(space_id));
-  Space(space_id)->browser()->GetWindow()->Close();
-  ASSERT_TRUE(base::test::RunUntil([&] {
-    return !Space(space_id)->browser() ||
-           !Space(space_id)->browser()->GetWindow()->IsVisible();
-  }));
-  ASSERT_TRUE(Space(space_id)->browser());
-  EXPECT_FALSE(help.IsReady());
-  EXPECT_EQ(DaoAgentSpaceState::kUserInControl, Space(space_id)->state());
-  EXPECT_EQ("SPACE_USER_IN_CONTROL",
-            ErrorCode(Call("get_page_info",
-                           base::DictValue().Set("space_id", space_id))));
-
-  ASSERT_TRUE(service_->HandBack(space_id));
-  DaoBrowserToolResult result = help.Take();
-  ASSERT_FALSE(result.error);
-  EXPECT_TRUE(result.data.GetDict().FindDict("user_changes"));
-  EXPECT_EQ(DaoAgentSpaceState::kRunning, Space(space_id)->state());
+    ASSERT_TRUE(service_->ShowWindow(space_id));
+    ASSERT_TRUE(content::NavigateToURL(space->GetCurrentContents(), user_url));
+    EXPECT_FALSE(help.IsReady());
+    if (action == "hand_back") {
+      ASSERT_TRUE(service_->HandBack(space_id));
+    } else {
+      if (action == "close") {
+        space_browser->GetWindow()->Close();
+      } else {
+        ASSERT_TRUE(service_->HideWindow(space_id));
+      }
+      ASSERT_TRUE(base::test::RunUntil([&] {
+        return !space->browser() || !space->IsWindowVisible();
+      }));
+    }
+    ASSERT_EQ(space_browser, space->browser());
+    ASSERT_TRUE(help.IsReady());
+    DaoBrowserToolResult result = help.Take();
+    ASSERT_FALSE(result.error);
+    const base::DictValue* changes = result.data.GetDict().FindDict("user_changes");
+    ASSERT_TRUE(changes);
+    const base::ListValue* navigated = changes->FindList("navigated_tabs");
+    ASSERT_TRUE(navigated);
+    ASSERT_EQ(1u, navigated->size());
+    EXPECT_EQ(base::DictValue()
+                  .Set("tab_id", GetSidebarTabId(space->GetCurrentContents()))
+                  .Set("from", initial_url.spec())
+                  .Set("to", user_url.spec()),
+              (*navigated)[0].GetDict());
+    EXPECT_EQ(DaoAgentSpaceState::kRunning, space->state());
+    EXPECT_EQ(DaoAgentSpaceHandoffReason::kNone, space->handoff_reason());
+    EXPECT_TRUE(space->handoff_message().empty());
+    EXPECT_EQ(base::Value(user_url.spec()), Eval(space_id, "location.href"));
+  }
 }
 
 IN_PROC_BROWSER_TEST_F(DaoAgentSpaceBrowserTest, FinishKeepsChosenTabs) {
