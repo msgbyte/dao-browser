@@ -252,5 +252,7 @@ their thumbnails are never persisted.
 It also supports address-or-search navigation, persistent
 history/bookmarks/folders, Android system downloads, persistent engine
 preferences, default-private startup, signed extension installation and
-management, and CameraX QR scanning. Passwords, sync, Agent, and MCP are not
-yet implemented.
+management, CameraX QR scanning, and website-aware Android password autofill
+for system providers such as Bitwarden. Bitwarden's separate accessibility
+overlay requires browser support in Bitwarden itself. Built-in password storage,
+sync, Agent, and MCP are not yet implemented.

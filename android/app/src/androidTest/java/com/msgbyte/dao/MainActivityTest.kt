@@ -21,6 +21,7 @@ import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -840,7 +841,7 @@ class MainActivityTest {
         composeRule.onNodeWithContentDescription(menu).performClick()
         composeRule.onNodeWithText(find).performClick()
 
-        composeRule.onNodeWithText(findHint).assertIsDisplayed()
+        composeRule.onNode(hasSetTextAction() and hasText(findHint)).assertIsDisplayed()
         composeRule.onNode(hasSetTextAction()).performTextInput("dao")
         composeRule.onNodeWithContentDescription(closeFind).performClick()
         composeRule.onNodeWithContentDescription(menu).assertIsDisplayed()

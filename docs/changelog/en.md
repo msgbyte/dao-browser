@@ -740,6 +740,8 @@
 
 ### [Unreleased] Unreleased
 
+- Fix website identification for system password-manager autofill, so providers such as Bitwarden can match logins to the current site.
+
 ### [1.1.0] - 2026-11-03
 
 - Fix dragging the address-bar cursor to edit text beyond either end of a long URL.
