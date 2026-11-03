@@ -612,6 +612,15 @@
       <message name="IDS_DAO_MCP_APPROVAL_SPACE_TITLE" desc="Title when a local agent requests access to Dao Lite background tasks.">
         Allow Dao Lite background tasks?
       </message>
+      <message name="IDS_DAO_MCP_APPROVAL_SITE_SKILLS_TITLE" desc="Title when a local agent requests a single read of saved site instructions.">
+        Allow reading saved site instructions?
+      </message>
+      <message name="IDS_DAO_MCP_APPROVAL_SITE_SKILLS_EXPLANATION" desc="Scope of one read of saved site instructions. HOST is the requested website hostname.">
+        It can read the saved instructions matching <ph name="HOST">$1<ex>fanqienovel.com</ex></ph> this once. These may include private notes. This does not grant access to pages or Dao Lite background tasks.
+      </message>
+      <message name="IDS_DAO_MCP_APPROVAL_SITE_SKILLS_ALLOW" desc="Button allowing one read of saved site instructions without browser control.">
+        Allow reading
+      </message>
       <message name="IDS_DAO_MCP_APPROVAL_REQUESTER" desc="Requester shown prominently in the approval dialog. CLIENT is an unverified, self-reported name, not an authenticated application identity.">
         Request from: <ph name="CLIENT">$1<ex>Codex</ex></ph> (self-reported)
       </message>

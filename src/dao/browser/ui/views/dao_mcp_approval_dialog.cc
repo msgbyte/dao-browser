@@ -343,7 +343,9 @@ DaoMcpApprovalDialog::DaoMcpApprovalDialog(
     explicit_tab_id_ = request.tab_target->tab_id;
   }
   int title_id = IDS_DAO_MCP_APPROVAL_TITLE;
-  if (request.background_space) {
+  if (request.site_skills_host) {
+    title_id = IDS_DAO_MCP_APPROVAL_SITE_SKILLS_TITLE;
+  } else if (request.background_space) {
     title_id = IDS_DAO_MCP_APPROVAL_SPACE_TITLE;
   } else if (request.tab_target) {
     title_id = IDS_DAO_MCP_APPROVAL_TAB_TITLE;
@@ -358,7 +360,9 @@ DaoMcpApprovalDialog::DaoMcpApprovalDialog(
              static_cast<int>(ui::mojom::DialogButton::kCancel));
   SetButtonLabel(ui::mojom::DialogButton::kOk,
                  l10n_util::GetStringUTF16(
-                     request.background_space
+                     request.site_skills_host
+                         ? IDS_DAO_MCP_APPROVAL_SITE_SKILLS_ALLOW
+                     : request.background_space
                          ? IDS_DAO_MCP_APPROVAL_SPACE_ALLOW_ONE_HOUR
                          : IDS_DAO_MCP_APPROVAL_ALLOW));
   SetButtonLabel(ui::mojom::DialogButton::kCancel,
@@ -513,7 +517,7 @@ std::unique_ptr<views::View> DaoMcpApprovalDialog::BuildContents(
           IDS_DAO_MCP_APPROVAL_TIME,
           base::TimeFormatShortDateAndTimeWithTimeZone(request.requested_at)),
       TextSecondary(), true));
-  if (!request.background_space) {
+  if (!request.background_space && !request.site_skills_host) {
     std::u16string window_title = browser
                                       ? WindowMetadataController::From(browser)
                                             ->GetWindowTitleForCurrentTab(false)
@@ -627,11 +631,15 @@ std::unique_ptr<views::View> DaoMcpApprovalDialog::BuildContents(
           TextPrimary(), true))
       ->SetSubpixelRenderingEnabled(false);
   summary->AddChildView(CreateLabel(
-      l10n_util::GetStringUTF16(
-          request.background_space ? IDS_DAO_MCP_APPROVAL_SPACE_EXPLANATION
-          : (request.tab_target || !request.tab_choices.empty())
-              ? IDS_DAO_MCP_APPROVAL_TAB_EXPLANATION
-              : IDS_DAO_MCP_APPROVAL_EXPLANATION),
+      request.site_skills_host
+          ? l10n_util::GetStringFUTF16(
+                IDS_DAO_MCP_APPROVAL_SITE_SKILLS_EXPLANATION,
+                SanitizeLabel(*request.site_skills_host))
+          : l10n_util::GetStringUTF16(
+                request.background_space ? IDS_DAO_MCP_APPROVAL_SPACE_EXPLANATION
+                : (request.tab_target || !request.tab_choices.empty())
+                    ? IDS_DAO_MCP_APPROVAL_TAB_EXPLANATION
+                    : IDS_DAO_MCP_APPROVAL_EXPLANATION),
       TextSecondary(), true));
 
   std::u16string profile_name;

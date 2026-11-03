@@ -175,13 +175,23 @@ Agent:
   Jev configuration and tool permission).
 - background Agent Spaces (`create_space`, `list_spaces`, `set_space_status`,
   `request_user_help`, `handle_dialog`, `finish_space`, `run_browser_script`),
-  which run in hidden task windows under their own approval, plus MCP-only
-  `get_site_skills`. Passing `space_id` to other browser tools runs them in that
+  which run in hidden task windows under their own approval.
+  Passing `space_id` to other browser tools runs them in that
   space instead of a granted tab.
+- MCP-only `get_site_skills` reads enabled saved instructions matching a URL's
+  host or parent domain, excluding global skills. These notes may contain private
+  information. Each direct call requires a `reason` and separate consent for that
+  site and that one read, even when Dao Lite or page access is already allowed.
+  The dialog names the host and profile; the read stays bound to that profile if
+  another window becomes active. Consent is not remembered and grants no window,
+  tab, or background-task access. Cancellation, denial, timeout, or disconnection
+  prevents the read from returning notes. The `dao.siteSkills(url)` helper inside
+  an approved Lite script continues to use that script's background consent.
 
 `resolve_element_context` is an additional native Dao Agent browser tool and is
-not exposed to MCP. Agent memory, skills, workspace, and web-provider tools are
-also outside the MCP browser catalog.
+not exposed to MCP. General Agent memory, skill management, workspace, and
+web-provider tools are also outside the MCP browser catalog; the site-specific
+read above is the only skill access it exposes.
 
 The shared native catalog, executor, session, Page, Tab, and DevTools
 implementations live under `src/dao/browser/automation/`. MCP-specific service,

@@ -1387,7 +1387,7 @@
     },
     {
       "name": "get_site_skills",
-      "description": "Get Dao's skills for a site: notes Dao and the user saved about how to get things done there, such as where settings live or which steps a checkout needs. Call it before working on a site you have not used in this task, and follow them.",
+      "description": "Read saved operation notes matching a site's host or parent domain, such as where settings live or which steps a workflow needs. Use when these notes would help the task; they may contain private information. Each direct call requires a reason and separate consent for this one read, without granting page or Dao Lite control. The dao.siteSkills(url) script helper uses the script's existing Dao Lite consent.",
       "group": "space",
       "clients": [
         "mcp"

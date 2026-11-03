@@ -1,6 +1,9 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="zh-CN">
+<translation id="290424026864746715">允许读取已保存的网站操作说明？</translation>
+<translation id="1637688209180237019">仅允许本次读取与 <ph name="HOST"/> 匹配的已保存操作说明，其中可能包含私人笔记。此授权不允许访问网页或使用 Dao Lite 后台任务。</translation>
+<translation id="7860392304513652552">允许读取</translation>
 <translation id="5541402879665008342">页面预览</translation>
 <translation id="7621710121358407876">暂时无法预览此页面</translation>
 <translation id="5757375109985023827">选择标签页以预览</translation>

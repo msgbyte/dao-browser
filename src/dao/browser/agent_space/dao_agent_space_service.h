@@ -96,6 +96,8 @@ class DaoAgentSpaceService : public base::SupportsUserData::Data,
   void ExecuteTool(const DaoAgentSpaceClient& client,
                    DaoBrowserToolCall call,
                    ResultCallback callback);
+  // The caller must authorize reading this profile's matching site notes.
+  void GetSiteSkills(const base::DictValue& arguments, ResultCallback callback);
   void CancelTool(const DaoAgentSpaceClient& client,
                   std::string_view request_id);
   void CancelClientTools(std::string_view client_key);
@@ -181,7 +183,6 @@ class DaoAgentSpaceService : public base::SupportsUserData::Data,
   void HandleDialog(const DaoAgentSpaceClient& client,
                     const base::DictValue& arguments,
                     ResultCallback callback);
-  void GetSiteSkills(const base::DictValue& arguments, ResultCallback callback);
   void RunScript(const DaoAgentSpaceClient& client,
                  std::string request_id,
                  const base::DictValue& arguments,

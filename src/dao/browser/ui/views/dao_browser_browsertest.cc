@@ -15686,6 +15686,31 @@ IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
+                       ShowsSiteInstructionsReadScope) {
+  DaoMcpApprovalRequest request{
+      {.name = "Reported Client", .version = "1.2.3"},
+      "Read saved publishing instructions.",
+      base::Time::Now(),
+  };
+  request.site_skills_host = "fanqienovel.com";
+  DaoMcpApprovalDialog dialog(request, browser(), base::BindOnce([](bool) {}));
+  EXPECT_FALSE(FindPreviewImage(dialog.GetContentsView()));
+  EXPECT_EQ(l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_SITE_SKILLS_TITLE),
+            dialog.GetWindowTitle());
+  EXPECT_EQ(l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_SITE_SKILLS_ALLOW),
+            dialog.GetDialogButtonLabel(ui::mojom::DialogButton::kOk));
+  EXPECT_TRUE(HasVisibleDescendantLabelText(
+      dialog.GetContentsView(),
+      l10n_util::GetStringFUTF16(IDS_DAO_MCP_APPROVAL_SITE_SKILLS_EXPLANATION,
+                               u"fanqienovel.com")));
+  EXPECT_FALSE(HasVisibleDescendantLabelText(
+      dialog.GetContentsView(),
+      l10n_util::GetStringFUTF16(IDS_DAO_MCP_APPROVAL_SPACE_REMEMBER,
+                               u"Reported Client")));
+  dialog.DismissWithoutResult();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
                        KeepsBackgroundConsentScopeVisible) {
   DaoMcpApprovalRequest request{
       {.name = "Reported Client", .version = "1.2.3"},

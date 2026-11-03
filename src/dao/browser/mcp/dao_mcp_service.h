@@ -102,6 +102,8 @@ struct DaoMcpApprovalRequest {
   std::vector<DaoMcpTabGrant> tab_choices;
   // Requests access to background Agent Spaces instead of a user window.
   bool background_space = false;
+  // Reads matching site instructions once, without granting browser control.
+  std::optional<std::string> site_skills_host;
 };
 
 struct DaoMcpServiceStatus {
@@ -256,6 +258,19 @@ class DaoMcpService {
   void HandleToolsList(ConnectionState& connection, DaoMcpRequest request);
   void HandleToolsCall(ConnectionState& connection, DaoMcpRequest request);
   void HandleToolsCancel(ConnectionState& connection, DaoMcpRequest request);
+  void HandleSiteSkillsCall(ConnectionState& connection,
+                           DaoMcpRequest request,
+                           const DaoBrowserToolDefinition& definition);
+  void OnSiteSkillsApprovalResult(uint64_t connection_generation,
+                                 std::string request_id,
+                                 std::string approval_id,
+                                 bool allowed);
+  void CompleteSiteSkillsCall(uint64_t connection_generation,
+                             std::string request_id,
+                             std::string approval_id,
+                             DaoBrowserToolResult result);
+  void CancelSiteSkillsCalls(ConnectionState& connection,
+                            const DaoToolError& error);
   // Agent Space calls use their own approval scope: no user window or tab is
   // leased, the work happens in hidden task windows the user can watch.
   void HandleSpaceToolsCall(ConnectionState& connection,

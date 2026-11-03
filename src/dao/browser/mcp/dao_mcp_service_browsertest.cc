@@ -18,6 +18,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "base/check.h"
@@ -66,6 +67,8 @@
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "dao/browser/agent/dao_agent_lock_tab_helper.h"
+#include "dao/browser/agent/dao_agent_skill_service.h"
+#include "dao/browser/agent/dao_agent_skill_service_factory.h"
 #include "dao/browser/agent_space/dao_agent_space_service.h"
 #include "dao/browser/automation/dao_agent_lease_manager.h"
 #include "dao/browser/dao_pref_names.h"
@@ -1067,6 +1070,187 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
+                       SiteSkillsConsentIsScopedToOneReadAndProfile) {
+  auto* skills = DaoAgentSkillServiceFactory::GetForProfile(browser()->profile());
+  ASSERT_TRUE(skills);
+  for (const auto& [id, host] :
+       std::vector<std::pair<std::string, std::string>>{
+           {"matching", "example.com"}, {"other", "other.test"},
+           {"global", ""}, {"disabled", "example.com"}}) {
+    base::test::TestFuture<bool> saved;
+    skills->SaveUserSkill(
+        id, "---\nname: " + id + "\ndescription: Site instructions\nhosts:\n  - \"" +
+                (host.empty() ? "*" : host) +
+                "\"\n---\nSave the draft before publishing.\n",
+        host, saved.GetCallback());
+    ASSERT_TRUE(saved.Get());
+  }
+  base::test::TestFuture<bool> disabled;
+  skills->SetSkillDisabled("disabled", true, disabled.GetCallback());
+  ASSERT_TRUE(disabled.Get());
+
+  FakeApprovalDelegate approval;
+  service_->SetApprovalDelegate(&approval);
+  EnableService();
+  auto client = ConnectClient();
+  ASSERT_TRUE(client->Send(HelloRequest(nonce())));
+  ASSERT_TRUE(client->Read());
+  ASSERT_TRUE(client->Send(ToolCall(
+      "skills", "get_site_skills",
+      base::DictValue().Set("url", "https://author.example.com/chapters"))));
+  WaitForApprovalRequestCount(&approval, 1);
+  EXPECT_FALSE(approval.request().background_space);
+  EXPECT_EQ(std::optional<std::string>("author.example.com"),
+            approval.request().site_skills_host);
+  EXPECT_FALSE(approval.request().tab_target);
+  EXPECT_TRUE(approval.request().tab_choices.empty());
+  EXPECT_EQ(browser(), approval.browser());
+
+  // Switching the active profile cannot change which notes were approved.
+  ProfileManager* manager = g_browser_process->profile_manager();
+  Profile& secondary = profiles::testing::CreateProfileSync(
+      manager, manager->GenerateNextProfileDirectoryPath());
+  auto* secondary_browser = CreateBrowser(&secondary);
+  secondary_browser->GetWindow()->Show();
+  ui_test_utils::WaitForBrowserSetLastActive(secondary_browser);
+  approval.Resolve(true);
+  auto response = client->Read();
+  ASSERT_TRUE(response);
+  const base::ListValue* entries =
+      response->FindListByDottedPath("result.data.skills");
+  ASSERT_TRUE(entries);
+  ASSERT_EQ(1u, entries->size());
+  const base::DictValue& entry = entries->front().GetDict();
+  ASSERT_TRUE(entry.FindString("name"));
+  ASSERT_TRUE(entry.FindString("instructions"));
+  EXPECT_EQ("matching", *entry.FindString("name"));
+  EXPECT_NE(std::string::npos, entry.FindString("instructions")->find(
+                                 "Save the draft before publishing."));
+  EXPECT_TRUE(service_->GetConnections().empty());
+
+  ASSERT_TRUE(client->Send(ToolCall(
+      "read-again", "get_site_skills",
+      base::DictValue().Set("url", "https://author.example.com/chapters"))));
+  WaitForApprovalRequestCount(&approval, 2);
+  approval.Resolve(false);
+  response = client->Read();
+  ASSERT_TRUE(response);
+  EXPECT_EQ("AUTHORIZATION_DENIED",
+            *response->FindStringByDottedPath("result.error.code"));
+
+  // Reading notes neither grants Lite access nor window access.
+  ASSERT_TRUE(client->Send(ToolCall("spaces", "list_spaces")));
+  WaitForApprovalRequestCount(&approval, 3);
+  EXPECT_TRUE(approval.request().background_space);
+  approval.Resolve(true);
+  ASSERT_TRUE(client->Read());
+  // Conversely, an existing Lite grant does not replace read consent.
+  ASSERT_TRUE(client->Send(ToolCall(
+      "after-lite", "get_site_skills",
+      base::DictValue().Set("url", "https://example.com/"))));
+  WaitForApprovalRequestCount(&approval, 4);
+  EXPECT_FALSE(approval.request().background_space);
+  approval.Resolve(false);
+  ASSERT_TRUE(client->Read());
+  ASSERT_NO_FATAL_FAILURE(ApproveWindow(client.get(), &approval));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
+                       SiteSkillsRejectInvalidRequestsBeforeConsent) {
+  FakeApprovalDelegate approval;
+  service_->SetApprovalDelegate(&approval);
+  EnableService();
+  auto client = ConnectClient();
+  ASSERT_TRUE(client->Send(HelloRequest(nonce())));
+  ASSERT_TRUE(client->Read());
+  for (const auto& url : {"file:///private/notes", "not a URL"}) {
+    ASSERT_TRUE(client->Send(ToolCall(
+        "invalid", "get_site_skills", base::DictValue().Set("url", url))));
+    auto response = client->Read();
+    ASSERT_TRUE(response);
+    EXPECT_EQ("INVALID_ARGUMENT",
+              *response->FindStringByDottedPath("error.code"));
+  }
+  ASSERT_TRUE(client->Send(ToolCall(
+      "no-reason", "get_site_skills",
+      base::DictValue().Set("url", "https://example.com").Set("reason", ""))));
+  auto response = client->Read();
+  ASSERT_TRUE(response);
+  EXPECT_TRUE(response->FindDict("error"));
+  EXPECT_EQ(0u, approval.request_count());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
+                       SiteSkillsCancelCannotApproveReusedRequestId) {
+  FakeApprovalDelegate approval;
+  service_->SetApprovalDelegate(&approval);
+  EnableService();
+  auto client = ConnectClient();
+  ASSERT_TRUE(client->Send(HelloRequest(nonce())));
+  ASSERT_TRUE(client->Read());
+  ASSERT_TRUE(client->Send(ToolCall(
+      "skills", "get_site_skills",
+      base::DictValue().Set("url", "https://example.com"))));
+  WaitForApprovalRequestCount(&approval, 1);
+  ASSERT_TRUE(client->Send(CancelRequest("skills")));
+  auto response = client->Read();
+  ASSERT_TRUE(response);
+  EXPECT_EQ("TOOL_CANCELLED",
+            *response->FindStringByDottedPath("result.error.code"));
+  EXPECT_EQ(1u, approval.cancelled_connection_ids().size());
+
+  ASSERT_TRUE(client->Send(ToolCall(
+      "skills", "get_site_skills",
+      base::DictValue().Set("url", "https://other.test"))));
+  WaitForApprovalRequestCount(&approval, 2);
+  approval.ResolveAt(0, true);
+  approval.ResolveAt(1, false);
+  response = client->Read();
+  ASSERT_TRUE(response);
+  EXPECT_EQ("AUTHORIZATION_DENIED",
+            *response->FindStringByDottedPath("result.error.code"));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
+                       SiteSkillsTimeoutCannotReenterAsAllowed) {
+  AllowDuringCancelApprovalDelegate approval;
+  service_->SetApprovalDelegate(&approval);
+  service_->SetTimeoutsForTesting(base::Seconds(5), base::Milliseconds(100));
+  EnableService();
+  auto client = ConnectClient();
+  ASSERT_TRUE(client->Send(HelloRequest(nonce())));
+  ASSERT_TRUE(client->Read());
+  ASSERT_TRUE(client->Send(ToolCall(
+      "timeout", "get_site_skills",
+      base::DictValue().Set("url", "https://example.com"))));
+  auto response = client->Read();
+  ASSERT_TRUE(response);
+  EXPECT_EQ("AUTHORIZATION_TIMEOUT",
+            *response->FindStringByDottedPath("result.error.code"));
+  EXPECT_EQ(1u, approval.cancelled_request_count());
+  EXPECT_TRUE(service_->GetConnections().empty());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
+                       SiteSkillsDisconnectCancelsPendingConsent) {
+  AllowDuringCancelApprovalDelegate approval;
+  service_->SetApprovalDelegate(&approval);
+  EnableService();
+  auto client = ConnectClient();
+  ASSERT_TRUE(client->Send(HelloRequest(nonce())));
+  ASSERT_TRUE(client->Read());
+  ASSERT_TRUE(client->Send(ToolCall(
+      "disconnect", "get_site_skills",
+      base::DictValue().Set("url", "https://example.com"))));
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return approval.has_pending_request(); }));
+  client->Disconnect();
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return approval.cancelled_request_count() == 1; }));
+  EXPECT_TRUE(service_->GetConnections().empty());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
                        SpaceConsentSurvivesReconnectWithoutRenewal) {
   base::SimpleTestTickClock clock;
   clock.SetNowTicks(base::TimeTicks::Now());
@@ -1385,6 +1569,17 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
     }
     return nullptr;
   };
+  const base::DictValue* skills_tool = find_tool(*tools, "get_site_skills");
+  ASSERT_TRUE(skills_tool);
+  const base::ListValue* skills_required =
+      skills_tool->FindListByDottedPath("inputSchema.required");
+  ASSERT_TRUE(skills_required);
+  EXPECT_TRUE(std::ranges::any_of(
+      *skills_required, [](const base::Value& value) {
+        return value.is_string() && value.GetString() == "reason";
+      }));
+  EXPECT_FALSE(skills_tool->FindByDottedPath("inputSchema.properties.tab_id"));
+  EXPECT_FALSE(skills_tool->FindByDottedPath("inputSchema.properties.space_id"));
   const base::DictValue* page_tool = find_tool(*tools, "get_page_info");
   const base::DictValue* list_tool = find_tool(*tools, "list_tabs");
   ASSERT_TRUE(list_tool);

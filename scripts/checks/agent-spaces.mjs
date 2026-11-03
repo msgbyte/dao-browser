@@ -206,9 +206,10 @@ try {
   assert.equal(saved.code, 0, saved.err);
   assert.match(saved.out, /\[dao-browser\] saved /);
   assert.equal(JSON.parse(await readFile(savedPath, 'utf8')).title, 'Space check');
-  const skills = await runCli(['call', 'get_site_skills', JSON.stringify({url: origin})]);
+  const skills = await runCli(['run'],
+      `return await dao.siteSkills(${JSON.stringify(origin)});`);
   assert.equal(skills.code, 0, skills.err);
-  assert.ok(Array.isArray(JSON.parse(skills.out).data.skills));
+  assert.ok(Array.isArray(JSON.parse(skills.out)));
   console.log('PASS the CLI saves script files locally and lists site skills');
 
   const sidebar = (await (await fetch(`http://127.0.0.1:${port}/json/list`)).json())
