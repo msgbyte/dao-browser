@@ -6,6 +6,7 @@
 
 - Hand control back to AI automatically when you close or hide a Dao Lite task window after taking over.
 - Fix missing page previews in tab control approval dialogs when tab hover previews are disabled or no cached screenshot is available.
+- Show the reason for a tab control request beside its page preview, with the page title and address below the preview.
 
 ### [1.0.133] - 2026-11-03
 

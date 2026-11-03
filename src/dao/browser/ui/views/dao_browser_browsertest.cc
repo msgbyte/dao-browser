@@ -15502,6 +15502,30 @@ IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
   auto* details_button = FindLabelButtonWithText(
       contents, l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_SHOW_DETAILS));
   ASSERT_NE(nullptr, details_button);
+  auto* preview_image = FindPreviewImage(contents);
+  ASSERT_NE(nullptr, preview_image);
+  auto* reason = FindDescendantLabelWithText(
+      contents, l10n_util::GetStringFUTF16(IDS_DAO_MCP_APPROVAL_REASON,
+                                         u"Read this page."));
+  auto* title = FindDescendantLabelWithText(
+      contents, l10n_util::GetStringFUTF16(IDS_DAO_MCP_APPROVAL_TAB,
+                                         u"Requested page"));
+  auto* site = FindDescendantLabelWithText(contents, u"example.com:8443");
+  ASSERT_NE(nullptr, reason);
+  ASSERT_NE(nullptr, title);
+  ASSERT_NE(nullptr, site);
+  const auto expect_columns = [&] {
+    widget->LayoutRootViewIfNecessary();
+    const gfx::Rect preview_bounds =
+        preview_image->parent()->GetBoundsInScreen();
+    EXPECT_EQ(320, preview_bounds.width());
+    EXPECT_GT(preview_bounds.height(), 0);
+    EXPECT_LT(reason->GetBoundsInScreen().right(), preview_bounds.x());
+    EXPECT_LE(preview_bounds.bottom(), title->GetBoundsInScreen().y());
+    EXPECT_LE(title->GetBoundsInScreen().bottom(), site->GetBoundsInScreen().y());
+    EXPECT_EQ(preview_bounds.x(), site->GetBoundsInScreen().x());
+  };
+  expect_columns();
   const gfx::Size collapsed_size = widget->GetWindowBoundsInScreen().size();
   ui::MouseEvent click(ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
                        base::TimeTicks::Now(), ui::EF_NONE,
@@ -15513,9 +15537,11 @@ IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
             details_button->GetText());
   EXPECT_GT(widget->GetWindowBoundsInScreen().height(), collapsed_size.height());
   EXPECT_EQ(widget->GetWindowBoundsInScreen().width(), collapsed_size.width());
+  expect_columns();
   views::test::ButtonTestApi(details_button).NotifyClick(click);
   EXPECT_FALSE(HasVisibleDescendantLabelText(contents, url));
   EXPECT_EQ(collapsed_size, widget->GetWindowBoundsInScreen().size());
+  expect_columns();
   EXPECT_FALSE(resolved);
   EXPECT_FALSE(raw_dialog->GetIsDefault(ui::mojom::DialogButton::kOk));
   raw_dialog->DismissWithoutResult();
