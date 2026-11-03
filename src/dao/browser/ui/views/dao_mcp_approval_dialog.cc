@@ -76,12 +76,12 @@ constexpr int kContentSpacing = 12;
 constexpr int kDetailSpacing = 6;
 constexpr int kPreviewHeight = 160;
 
-gfx::Size FitPreviewSize(const gfx::Size& size) {
+gfx::Size FitPreviewSize(const gfx::Size& size, int width) {
   if (size.IsEmpty()) {
     return {};
   }
   return gfx::ScaleToRoundedSize(
-      size, std::min(static_cast<float>(kDialogWidth) / size.width(),
+      size, std::min(static_cast<float>(width) / size.width(),
                      static_cast<float>(kPreviewHeight) / size.height()));
 }
 
@@ -129,10 +129,11 @@ class DaoMcpTabPreviewView : public views::View,
   METADATA_HEADER(DaoMcpTabPreviewView, views::View)
 
  public:
-  explicit DaoMcpTabPreviewView(BrowserWindowInterface* browser)
+  explicit DaoMcpTabPreviewView(BrowserWindowInterface* browser,
+                               int width = kDialogWidth)
       : browser_(browser ? browser->GetWeakPtr() : nullptr) {
     SetLayoutManager(std::make_unique<views::FillLayout>());
-    SetPreferredSize(gfx::Size(kDialogWidth, kPreviewHeight));
+    SetPreferredSize(gfx::Size(width, kPreviewHeight));
     SetBackground(views::CreateRoundedRectBackground(AddressBarBackground(),
                                                      kContentCornerRadius));
     placeholder_ = AddChildView(CreateLabel({}, TextSecondary(), true));
@@ -233,7 +234,9 @@ class DaoMcpTabPreviewView : public views::View,
     }
     auto* view = web_contents()->GetRenderWidgetHostView();
     const gfx::Size size =
-        view ? FitPreviewSize(view->GetViewBounds().size()) : gfx::Size();
+        view ? FitPreviewSize(view->GetViewBounds().size(),
+                              GetPreferredSize().width())
+             : gfx::Size();
     if (!view || !view->IsSurfaceAvailableForCopy() || size.IsEmpty()) {
       RetryCapture();
       return;
@@ -271,7 +274,7 @@ class DaoMcpTabPreviewView : public views::View,
     capture_retry_.Stop();
     capture_.RunAndReset();
     const auto image = gfx::ImageSkia::CreateFrom1xBitmap(bitmap);
-    image_->SetImageSize(FitPreviewSize(image.size()));
+    image_->SetImageSize(FitPreviewSize(image.size(), GetPreferredSize().width()));
     image_->SetImage(ui::ImageModel::FromImageSkia(image));
     image_->SetVisible(true);
     placeholder_->SetVisible(false);
