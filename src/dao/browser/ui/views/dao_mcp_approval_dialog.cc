@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/i18n/case_conversion.h"
 #include "base/i18n/rtl.h"
 #include "base/i18n/time_formatting.h"
@@ -17,6 +18,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/thread_pool.h"
+#include "base/timer/timer.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_attributes_entry.h"
@@ -170,42 +172,32 @@ class DaoMcpTabPreviewView : public views::View,
       return;
     }
 
-    if (web_contents()->GetVisibility() != content::Visibility::VISIBLE) {
-      // Read the cached snapshot without subscribing and waking a hidden tab.
-      auto* helper = ThumbnailTabHelper::From(match);
-      auto data = helper ? helper->thumbnail()->data() : nullptr;
-      if (data) {
-        base::ThreadPool::PostTaskAndReplyWithResult(
-            FROM_HERE, {base::TaskPriority::USER_VISIBLE},
-            base::BindOnce(
-                [](ThumbnailImage::CompressedThumbnailData data) {
-                  return gfx::JPEGCodec::Decode(data->data);
-                },
-                std::move(data)),
-            base::BindOnce(&DaoMcpTabPreviewView::ShowBitmap,
-                           weak_factory_.GetWeakPtr()));
-      }
+    auto* helper = ThumbnailTabHelper::From(match);
+    auto data = helper ? helper->thumbnail()->data() : nullptr;
+    if (data) {
+      base::ThreadPool::PostTaskAndReplyWithResult(
+          FROM_HERE, {base::TaskPriority::USER_VISIBLE},
+          base::BindOnce(
+              [](ThumbnailImage::CompressedThumbnailData data) {
+                return gfx::JPEGCodec::Decode(data->data);
+              },
+              std::move(data)),
+          base::BindOnce(
+              [](base::WeakPtr<DaoMcpTabPreviewView> preview,
+                 const SkBitmap& bitmap) {
+                if (!preview) {
+                  return;
+                }
+                if (bitmap.drawsNothing()) {
+                  preview->StartCapture();
+                } else {
+                  preview->ShowBitmap(bitmap);
+                }
+              },
+              weak_factory_.GetWeakPtr()));
       return;
     }
-
-    auto* view = web_contents()->GetRenderWidgetHostView();
-    if (!view || !view->IsSurfaceAvailableForCopy()) {
-      return;
-    }
-    const gfx::Size size = FitPreviewSize(view->GetViewBounds().size());
-    if (size.IsEmpty()) {
-      return;
-    }
-    view->CopyFromSurface(gfx::Rect(), gfx::ScaleToRoundedSize(size, 2.f),
-                          base::Seconds(2),
-                          base::BindPostTaskToCurrentDefault(base::BindOnce(
-                              [](base::WeakPtr<DaoMcpTabPreviewView> preview,
-                                 const content::CopyFromSurfaceResult& result) {
-                                if (preview && result.has_value()) {
-                                  preview->ShowBitmap(result->bitmap);
-                                }
-                              },
-                              weak_factory_.GetWeakPtr())));
+    StartCapture();
   }
 
  private:
@@ -218,10 +210,66 @@ class DaoMcpTabPreviewView : public views::View,
                .has_value();
   }
 
-  void ShowBitmap(const SkBitmap& bitmap) {
-    if (!IsCurrentTarget() || bitmap.drawsNothing()) {
+  void StartCapture() {
+    if (!IsCurrentTarget()) {
       return;
     }
+    // Render hidden pages without activating them or changing page visibility.
+    capture_ = web_contents()->IncrementCapturerCount(
+        gfx::Size(), /*stay_hidden=*/true, /*stay_awake=*/false,
+        /*is_activity=*/false);
+    capture_timeout_.Start(
+        FROM_HERE, base::Seconds(3),
+        base::BindOnce(&DaoMcpTabPreviewView::ClearPreview,
+                       weak_factory_.GetWeakPtr(),
+                       IDS_DAO_MCP_APPROVAL_PREVIEW_UNAVAILABLE));
+    CapturePreview();
+  }
+
+  void CapturePreview() {
+    if (!IsCurrentTarget()) {
+      ClearPreview(IDS_DAO_MCP_APPROVAL_PREVIEW_UNAVAILABLE);
+      return;
+    }
+    auto* view = web_contents()->GetRenderWidgetHostView();
+    const gfx::Size size =
+        view ? FitPreviewSize(view->GetViewBounds().size()) : gfx::Size();
+    if (!view || !view->IsSurfaceAvailableForCopy() || size.IsEmpty()) {
+      RetryCapture();
+      return;
+    }
+    view->CopyFromSurface(gfx::Rect(), gfx::ScaleToRoundedSize(size, 2.f),
+                          base::Seconds(2),
+                          base::BindPostTaskToCurrentDefault(base::BindOnce(
+                              [](base::WeakPtr<DaoMcpTabPreviewView> preview,
+                                 const content::CopyFromSurfaceResult& result) {
+                                if (!preview) {
+                                  return;
+                                }
+                                if (result.has_value() &&
+                                    !result->bitmap.drawsNothing()) {
+                                  preview->ShowBitmap(result->bitmap);
+                                } else {
+                                  preview->RetryCapture();
+                                }
+                              },
+                              weak_factory_.GetWeakPtr())));
+  }
+
+  void RetryCapture() {
+    capture_retry_.Start(FROM_HERE, base::Milliseconds(100),
+                         base::BindOnce(&DaoMcpTabPreviewView::CapturePreview,
+                                        weak_factory_.GetWeakPtr()));
+  }
+
+  void ShowBitmap(const SkBitmap& bitmap) {
+    if (!IsCurrentTarget() || bitmap.drawsNothing()) {
+      ClearPreview(IDS_DAO_MCP_APPROVAL_PREVIEW_UNAVAILABLE);
+      return;
+    }
+    capture_timeout_.Stop();
+    capture_retry_.Stop();
+    capture_.RunAndReset();
     const auto image = gfx::ImageSkia::CreateFrom1xBitmap(bitmap);
     image_->SetImageSize(FitPreviewSize(image.size()));
     image_->SetImage(ui::ImageModel::FromImageSkia(image));
@@ -231,6 +279,9 @@ class DaoMcpTabPreviewView : public views::View,
 
   void ClearPreview(int message_id) {
     weak_factory_.InvalidateWeakPtrs();
+    capture_timeout_.Stop();
+    capture_retry_.Stop();
+    capture_.RunAndReset();
     image_->SetImage(ui::ImageModel());
     image_->SetVisible(false);
     placeholder_->SetText(l10n_util::GetStringUTF16(message_id));
@@ -255,6 +306,9 @@ class DaoMcpTabPreviewView : public views::View,
   std::optional<DaoToolTarget> target_;
   raw_ptr<views::ImageView> image_ = nullptr;
   raw_ptr<views::Label> placeholder_ = nullptr;
+  base::ScopedClosureRunner capture_;
+  base::OneShotTimer capture_timeout_;
+  base::OneShotTimer capture_retry_;
   base::WeakPtrFactory<DaoMcpTabPreviewView> weak_factory_{this};
 };
 

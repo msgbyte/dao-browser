@@ -4,6 +4,8 @@
 
 ### [Unreleased] Unreleased
 
+- Fix missing page previews in tab control approval dialogs when tab hover previews are disabled or no cached screenshot is available.
+
 ### [1.0.133] - 2026-11-03
 
 - Open finished or stopped AI tasks to read their full summary, view the pages open at task end, and reopen those pages.

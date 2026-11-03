@@ -15191,6 +15191,29 @@ class DaoMcpApprovalDialogTest : public InProcessBrowserTest {
     *target = {.tab_id = GetOrCreateSidebarTabId(tab->GetContents()),
                .url = tab->GetContents()->GetLastCommittedURL().spec()};
   }
+
+  void AddUncachedBackgroundTab(DaoToolTarget* target) {
+    browser()->profile()->GetPrefs()->SetBoolean(
+        dao::prefs::kDaoTabHoverPreviewEnabled, false);
+    ASSERT_TRUE(embedded_test_server()->Start());
+    auto* model = browser()->tab_strip_model();
+    const int index = model->count();
+    chrome::AddTabAt(browser(), embedded_test_server()->GetURL("/title1.html"),
+                     index, false);
+    auto* tab = model->GetTabAtIndex(index);
+    auto* contents = tab->GetContents();
+    ASSERT_TRUE(content::WaitForLoadStop(contents));
+    ASSERT_TRUE(content::ExecJs(contents, R"(
+      document.body.innerHTML = '';
+      document.documentElement.style.background = 'rgb(255, 0, 0)';
+    )"));
+    ASSERT_TRUE(ThumbnailTabHelper::From(tab));
+    ASSERT_FALSE(ThumbnailTabHelper::From(tab)->thumbnail()->has_data());
+    ASSERT_EQ(content::Visibility::HIDDEN, contents->GetVisibility());
+    ASSERT_FALSE(contents->IsBeingCaptured());
+    *target = {.tab_id = GetOrCreateSidebarTabId(contents),
+               .url = contents->GetLastCommittedURL().spec()};
+  }
 };
 
 IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
@@ -15203,6 +15226,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
   DaoMcpApprovalRequest request;
   request.tab_target = target;
   DaoMcpApprovalDialog dialog(request, browser(), base::BindOnce([](bool) {}));
+  EXPECT_FALSE(requested->IsBeingCaptured());
   auto* image = FindPreviewImage(dialog.GetContentsView());
   ASSERT_TRUE(image);
   ASSERT_TRUE(
@@ -15218,6 +15242,52 @@ IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
       dialog.GetContentsView(),
       l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_PREVIEW_UNAVAILABLE)));
   dialog.DismissWithoutResult();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
+                       CapturesUncachedBackgroundTabWithHoverPreviewDisabled) {
+  DaoToolTarget target;
+  ASSERT_NO_FATAL_FAILURE(AddUncachedBackgroundTab(&target));
+  auto* model = browser()->tab_strip_model();
+  auto* active = model->GetActiveWebContents();
+  auto* requested = model->GetWebContentsAt(1);
+  DaoMcpApprovalRequest request;
+  request.tab_target = target;
+  DaoMcpApprovalDialog dialog(request, browser(), base::BindOnce([](bool) {}));
+  EXPECT_TRUE(requested->IsBeingCaptured());
+  EXPECT_FALSE(requested->IsBeingVisiblyCaptured());
+  auto* image = FindPreviewImage(dialog.GetContentsView());
+  ASSERT_TRUE(image);
+  ASSERT_TRUE(
+      base::test::RunUntil([&] { return !image->GetImage().isNull(); }));
+  const SkColor color = GetCenterPixelColor(image->GetImage());
+  EXPECT_GT(SkColorGetR(color), 240u);
+  EXPECT_LT(SkColorGetG(color), 15u);
+  EXPECT_LT(SkColorGetB(color), 15u);
+  EXPECT_LE(image->GetImage().width(), 960);
+  EXPECT_LE(image->GetImage().height(), 320);
+  EXPECT_EQ(active, model->GetActiveWebContents());
+  EXPECT_EQ(content::Visibility::HIDDEN, requested->GetVisibility());
+  EXPECT_FALSE(requested->IsBeingCaptured());
+  EXPECT_FALSE(browser()->profile()->GetPrefs()->GetBoolean(
+      dao::prefs::kDaoTabHoverPreviewEnabled));
+  dialog.DismissWithoutResult();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
+                       ClosingDialogReleasesPendingPreviewCapture) {
+  DaoToolTarget target;
+  ASSERT_NO_FATAL_FAILURE(AddUncachedBackgroundTab(&target));
+  auto* requested = browser()->tab_strip_model()->GetWebContentsAt(1);
+  DaoMcpApprovalRequest request;
+  request.tab_target = target;
+  auto dialog = std::make_unique<DaoMcpApprovalDialog>(
+      request, browser(), base::BindOnce([](bool) {}));
+  EXPECT_TRUE(requested->IsBeingCaptured());
+  dialog.reset();
+  EXPECT_FALSE(requested->IsBeingCaptured());
+  base::RunLoop().RunUntilIdle();
+  EXPECT_FALSE(requested->IsBeingCaptured());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
@@ -15248,7 +15318,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
                        PickerDiscardsStalePreviewsAndClearsFilteredSelection) {
   DaoToolTarget first;
   DaoToolTarget second;
-  ASSERT_NO_FATAL_FAILURE(AddTabWithPreview(SK_ColorRED, &first));
+  ASSERT_NO_FATAL_FAILURE(AddUncachedBackgroundTab(&first));
   ASSERT_NO_FATAL_FAILURE(AddTabWithPreview(SK_ColorBLUE, &second));
   DaoMcpApprovalRequest request;
   request.tab_choices = {{first, u"First page"}, {second, u"Second page"}};
@@ -15262,11 +15332,14 @@ IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
                        ui::EF_LEFT_MOUSE_BUTTON);
   views::test::ButtonTestApi(FindLabelButtonWithText(contents, u"First page"))
       .NotifyClick(click);
+  auto* first_contents = browser()->tab_strip_model()->GetWebContentsAt(1);
+  EXPECT_TRUE(first_contents->IsBeingCaptured());
   // Keyboard focus changes selection without invoking the click callback.
   auto* second_radio = views::AsViewClass<views::RadioButton>(
       FindLabelButtonWithText(contents, u"Second page"));
   ASSERT_TRUE(second_radio);
   second_radio->SetChecked(true);
+  EXPECT_FALSE(first_contents->IsBeingCaptured());
   ASSERT_TRUE(
       base::test::RunUntil([&] { return !image->GetImage().isNull(); }));
   EXPECT_GT(SkColorGetB(GetCenterPixelColor(image->GetImage())), 240u);
