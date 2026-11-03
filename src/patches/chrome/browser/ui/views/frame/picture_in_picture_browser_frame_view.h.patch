@@ -12,7 +12,8 @@ diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view
  namespace views {
  class Label;
  class View;
-@@ -119,6 +123,8 @@
+@@ -118,6 +122,8 @@
+ 
    // views::WidgetObserver:
    void OnWidgetActivationChanged(views::Widget* widget, bool active) override;
 +  void OnWidgetBoundsChanged(views::Widget* widget,
@@ -20,7 +21,6 @@ diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view
    void OnWidgetDestroying(views::Widget* widget) override;
    void OnWidgetVisibilityChanged(views::Widget* eidget, bool visible) override;
  
-   // PictureInPictureWindow:
 @@ -129,6 +135,7 @@
  
    // PipTopBarAnimationController::Delegate:
@@ -82,8 +82,8 @@ diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view
 +  void DaoInitializeTopBarOverlay();
 +
 +  // Dao: Synchronize the overlay widget's screen bounds to sit over the
-+  // top of the main PiP window. Called on layout and on widget bounds
-+  // changes.
++  // top of the main PiP window and flush its layout and paint. Called on
++  // layout and widget bounds/visibility changes.
 +  void DaoUpdateTopBarOverlayBounds();
 +
    base::WeakPtrFactory<PictureInPictureBrowserFrameView> weak_factory_{this};

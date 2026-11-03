@@ -333,7 +333,7 @@ diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view
    // Clear the AutoPiP setting overlay view.
    if (auto_pip_setting_overlay_) {
      auto_pip_setting_overlay_ = nullptr;
-@@ -823,6 +1032,11 @@
+@@ -823,9 +1032,25 @@
  void PictureInPictureBrowserFrameView::OnWidgetActivationChanged(
      views::Widget* widget,
      bool active) {
@@ -345,9 +345,8 @@ diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view
    // The window may become inactive when a popup modal shows, so we need to
    // check if the mouse is still inside the window.
    UpdateTopBarView(active || mouse_inside_window_ || IsOverlayViewVisible());
-@@ -829,6 +1043,17 @@
- }
- 
++}
++
 +void PictureInPictureBrowserFrameView::OnWidgetBoundsChanged(
 +    views::Widget* widget,
 +    const gfx::Rect& new_bounds) {
@@ -357,13 +356,20 @@ diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view
 +  if (widget == GetWidget()) {
 +    DaoUpdateTopBarOverlayBounds();
 +  }
-+}
-+
+ }
+ 
  void PictureInPictureBrowserFrameView::OnWidgetDestroying(
-     views::Widget* widget) {
-   window_event_observer_.reset();
-   widget_observation_.Reset();
-@@ -916,6 +1141,14 @@
+@@ -840,6 +1065,9 @@
+     bool visible) {
+   if (visible) {
+     EnforceTucking();
++    DaoUpdateTopBarOverlayBounds();
++  } else if (dao_top_bar_overlay_widget_) {
++    dao_top_bar_overlay_widget_->Hide();
+   }
+ }
+ 
+@@ -916,6 +1144,14 @@
    location_icon_view_->Update(/*suppress_animations=*/false);
  }
  
@@ -378,7 +384,7 @@ diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view
  const ui::ColorProvider*
  PictureInPictureBrowserFrameView::GetTopBarColorProvider() const {
    return GetColorProvider();
-@@ -931,6 +1164,21 @@
+@@ -931,6 +1167,21 @@
  gfx::Rect PictureInPictureBrowserFrameView::ConvertTopBarControlViewBounds(
      views::View* control_view,
      views::View* source_view) const {
@@ -400,7 +406,7 @@ diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view
    gfx::RectF bounds(control_view->GetMirroredBounds());
    views::View::ConvertRectToTarget(source_view, this, &bounds);
    return gfx::ToEnclosingRect(bounds);
-@@ -1003,7 +1251,10 @@
+@@ -1003,7 +1254,10 @@
  }
  
  int PictureInPictureBrowserFrameView::GetTopAreaHeight() const {
@@ -412,7 +418,7 @@ diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view
  }
  
  gfx::Size PictureInPictureBrowserFrameView::GetNonClientViewAreaSize() const {
-@@ -1094,6 +1345,82 @@
+@@ -1094,6 +1348,87 @@
    return auto_pip_setting_overlay_ && auto_pip_setting_overlay_->GetVisible();
  }
  
@@ -463,7 +469,8 @@ diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view
 +}
 +
 +void PictureInPictureBrowserFrameView::DaoUpdateTopBarOverlayBounds() {
-+  if (!dao_top_bar_overlay_widget_ || !GetWidget()) {
++  if (!dao_top_bar_overlay_widget_ || !GetWidget() ||
++      !GetWidget()->IsVisible() || GetWidget()->IsClosed()) {
 +    return;
 +  }
 +  // Dao: Compute the overlay rect in screen coordinates, matching the original
@@ -485,11 +492,15 @@ diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view
 +      overlay_bounds_in_screen) {
 +    dao_top_bar_overlay_widget_->SetBounds(overlay_bounds_in_screen);
 +  }
++  // Dao: The parent layout cannot flush pending layout in this separate widget.
++  dao_top_bar_overlay_widget_->LayoutRootViewIfNecessary();
 +  // Dao: Show on first valid bounds. ShowInactive keeps focus on the main
 +  // PiP window.
 +  if (!dao_top_bar_overlay_widget_->IsVisible()) {
 +    dao_top_bar_overlay_widget_->ShowInactive();
 +  }
++  // Dao: Request a correctly sized frame even if native bounds did not change.
++  dao_top_bar_overlay_widget_->GetRootView()->SchedulePaint();
 +}
 +
  gfx::Size PictureInPictureBrowserFrameView::ComputeDialogPadding() const {

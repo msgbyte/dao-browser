@@ -1,7 +1,7 @@
 diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view_interactive_uitest.cc b/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view_interactive_uitest.cc
 --- a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view_interactive_uitest.cc
 +++ b/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view_interactive_uitest.cc
-@@ -614,6 +614,75 @@
+@@ -614,6 +614,101 @@
              pip_frame_view()->GetWindowTitleForTesting()->GetEnabledColor());
  }
  
@@ -36,6 +36,32 @@ diff --git a/chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view
 +  EXPECT_EQ(client_bounds, pip_frame_view()->GetBoundsForClientView());
 +  hide_waiter.WaitForAnimationInterval(kAnimationDuration);
 +  EXPECT_FLOAT_EQ(0.0f, layer->opacity());
++  EXPECT_EQ(client_bounds, pip_frame_view()->GetBoundsForClientView());
++}
++
++IN_PROC_BROWSER_TEST_F(PictureInPictureBrowserFrameViewTest,
++                       DaoOverlayRecoversWhenParentIsShownWithoutResize) {
++  ASSERT_NO_FATAL_FAILURE(SetUpDocumentPIP());
++
++  auto* widget = GetPipWidget();
++  auto* overlay = pip_frame_view()->dao_top_bar_overlay_widget();
++  ASSERT_TRUE(overlay);
++  ASSERT_TRUE(base::test::RunUntil([&] { return overlay->IsVisible(); }));
++  const gfx::Size window_size = widget->GetWindowBoundsInScreen().size();
++  const gfx::Rect client_bounds = pip_frame_view()->GetBoundsForClientView();
++
++  widget->Hide();
++  ASSERT_TRUE(base::test::RunUntil([&] { return !widget->IsVisible(); }));
++  // Simulate a child that missed showing; parent visibility must recover it.
++  overlay->Hide();
++  ASSERT_TRUE(base::test::RunUntil([&] { return !overlay->IsVisible(); }));
++  pip_frame_view()->UpdateTopBarView(/*render_active=*/true);
++  EXPECT_FALSE(overlay->IsVisible());
++
++  widget->ShowInactive();
++  ASSERT_TRUE(base::test::RunUntil([&] { return overlay->IsVisible(); }));
++  EXPECT_FALSE(overlay->GetContentsView()->size().IsEmpty());
++  EXPECT_EQ(window_size, widget->GetWindowBoundsInScreen().size());
 +  EXPECT_EQ(client_bounds, pip_frame_view()->GetBoundsForClientView());
 +}
 +
