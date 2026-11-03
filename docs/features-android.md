@@ -53,7 +53,7 @@ as its version update; desktop and iOS notes remain pending. See [the changelog 
 
 ## Current Status
 
-- **Target**: API 26+ application, compiled and targeted against SDK 36.
+- **Target**: API 26+ application, compiled against SDK 37 and targeting SDK 36.
 - **Engine**: Mozilla Android Components and GeckoView 153.0.2. The About page identifies the browser engine as `Gecko 153.0.2`, with the version sourced from the Gradle catalog.
 - **Verification**: Local build, unit, lint, APK-content, and API 34 emulator checks are available.
 - **Foundation gaps**: Password storage, sync, Agent, MCP, and a dedicated ad-blocking preference are not implemented.

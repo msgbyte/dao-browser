@@ -6,7 +6,7 @@ Dao Browser Android is a Kotlin application built with Mozilla Android Component
 
 - macOS on the existing development Mac
 - JDK 17
-- Android SDK 36
+- Android SDK 37
 - An Android API 26+ emulator or physical device
 
 Set the local SDK location before running Gradle, for example:
@@ -62,7 +62,7 @@ The `Build Android APK` workflow runs for pull requests and pushes to `main`
 that change `android/**` or the workflow itself. It can also be started manually
 from **Actions > Build Android APK > Run workflow**.
 
-The workflow uses JDK 17, Android SDK 36, and the checked-in Gradle wrapper,
+The workflow uses JDK 17, Android SDK 37, and the checked-in Gradle wrapper,
 including the existing pre-build asset checks:
 
 - Pull requests run `:app:assembleDebug` without secrets and upload

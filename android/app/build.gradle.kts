@@ -21,7 +21,7 @@ plugins {
 
 android {
     namespace = "com.msgbyte.dao"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.msgbyte.dao"
