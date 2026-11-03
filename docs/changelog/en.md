@@ -749,6 +749,8 @@
 
 ### [Unreleased] Unreleased
 
+### [1.2.0] - 2026-11-04
+
 - Fix website identification for system password-manager autofill, so providers such as Bitwarden can match logins to the current site.
 
 ### [1.1.0] - 2026-11-03
