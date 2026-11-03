@@ -162,7 +162,7 @@ profile ends the connection and releases all grants.
 
 ## Tool scope
 
-MCP exposes 43 native browser tools from the same versioned catalog used by Dao
+MCP exposes 44 native browser tools from the same versioned catalog used by Dao
 Agent:
 
 - page information, HTML, accessibility, scoped semantic queries, screenshots,
@@ -189,9 +189,9 @@ Agent:
   an approved Lite script continues to use that script's background consent.
 
 `resolve_element_context` is an additional native Dao Agent browser tool and is
-not exposed to MCP. General Agent memory, skill management, workspace, and
-web-provider tools are also outside the MCP browser catalog; the site-specific
-read above is the only skill access it exposes.
+not exposed to MCP. General Agent memory, workspace, web-provider tools, and
+other skill management are outside the MCP browser catalog. Skill access is
+limited to the site-specific read above and the separately approved save below.
 
 The shared native catalog, executor, session, Page, Tab, and DevTools
 implementations live under `src/dao/browser/automation/`. MCP-specific service,
@@ -200,6 +200,48 @@ under `src/dao/browser/mcp/`.
 
 The authoritative names and schemas are in
 `src/dao/browser/ui/webui/resources/agent/browser_tool_catalog.json`.
+
+## Saving user skills
+
+The MCP-only `save_skill` tool creates or replaces a user skill. Each direct call
+requires `skill_id`, `skill_md`, `host`, and a nonblank `reason`:
+
+```json
+{
+  "skill_id": "fanqie-publish",
+  "skill_md": "---\nname: Fanqie publishing\ndescription: Publishing workflow\n---\nSave the draft before publishing.\n",
+  "host": "fanqienovel.com",
+  "reason": "Save the publishing workflow for future tasks."
+}
+```
+
+Use an empty `host` for a global skill. A site skill applies to its host and
+subdomains. `skill_id` accepts 1–64 ASCII letters, digits, hyphens, or underscores
+and must start with a letter or digit. A nonempty host must be a lowercase bare
+hostname, without a scheme, port, path, or wildcard. `skill_md` must be valid
+UTF-8, at most 64 KiB, with `name` and `description` in opening YAML frontmatter
+and nonempty Markdown instructions. Control characters other than tabs and line
+endings are rejected. For a site skill, frontmatter `hosts` must be omitted or
+contain only the requested host.
+
+Before every save, a native dialog shows the complete proposed content, profile,
+site/global scope, and destination. The profile is pinned when consent is
+requested. Approval covers only that save and is never remembered; existing
+page, site-read, or Dao Lite consent cannot authorize it. Saving replaces the
+whole `SKILL.md` at the same host and ID. Files live under the approved profile:
+
+- Site: `DaoAgentSkills/user/hosts/<host>/<skill_id>/SKILL.md`
+- Global: `DaoAgentSkills/user/global/<skill_id>/SKILL.md`
+
+The writer rejects symlink destinations and uses atomic replacement. Success
+returns `{"saved": true, "skill_id": "fanqie-publish", "host": "fanqienovel.com"}`.
+`save_skill` cannot run through Agent Space routing or nested
+`dao.call('save_skill', ...)` scripts; use a direct MCP call without `space_id` or
+`tab_id`.
+
+Denial or cancellation before approval prevents writing. After approval and
+write dispatch, cancellation, timeout, or disconnection may not stop or undo the
+save. Do not automatically retry an uncertain save; verify its outcome first.
 
 ## Response selection and script execution
 

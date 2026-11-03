@@ -927,6 +927,34 @@ IN_PROC_BROWSER_TEST_F(DaoAgentSpaceBrowserTest, SpacesAreScopedToClient) {
   EXPECT_EQ(0, *listed.data.GetDict().FindInt("count"));
 }
 
+IN_PROC_BROWSER_TEST_F(DaoAgentSpaceBrowserTest,
+                       SaveSkillRequiresDirectMcpConsent) {
+  base::DictValue arguments;
+  arguments.Set("skill_id", "publishing");
+  arguments.Set("host", "example.com");
+  arguments.Set("skill_md", "---\nname: Publishing\ndescription: Workflow\n"
+                            "---\nSave the draft before publishing.\n");
+  EXPECT_EQ("AUTHORIZATION_DENIED",
+            ErrorCode(Call("save_skill", std::move(arguments),
+                           DaoToolClient::kMcp)));
+
+  DaoBrowserToolResult result = Call(
+      "run_browser_script",
+      base::DictValue().Set(
+          "code",
+          "try {\n"
+          "  await dao.call('save_skill', {skill_id: 'publishing',\n"
+          "    host: 'example.com', skill_md: '---\\nname: Publishing\\n' +\n"
+          "      'description: Workflow\\n---\\nSave the draft.\\n'});\n"
+          "  return 'unexpected success';\n"
+          "} catch (e) { return e.code; }"),
+      DaoToolClient::kMcp);
+  ASSERT_FALSE(result.error);
+  const std::string* code = result.data.GetDict().FindString("result");
+  ASSERT_TRUE(code);
+  EXPECT_EQ("AUTHORIZATION_DENIED", *code);
+}
+
 IN_PROC_BROWSER_TEST_F(DaoAgentSpaceBrowserTest, ScriptsDriveSpaces) {
   const GURL url = embedded_test_server()->GetURL("/title1.html");
   DaoBrowserToolResult result = Call(

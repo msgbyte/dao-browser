@@ -91,6 +91,24 @@
 namespace dao {
 namespace {
 
+constexpr char kSavedSkillMd[] =
+    "---\nname: Publishing\ndescription: Save a publishing workflow\n---\n"
+    "Save the draft before publishing.\n";
+
+base::DictValue SaveSkillArguments(std::string host = "example.com") {
+  return base::DictValue()
+      .Set("skill_id", "publishing")
+      .Set("skill_md", kSavedSkillMd)
+      .Set("host", std::move(host));
+}
+
+base::FilePath SavedSkillPath(Profile* profile, std::string host) {
+  auto path = profile->GetPath().AppendASCII("DaoAgentSkills/user");
+  path = host.empty() ? path.AppendASCII("global")
+                      : path.AppendASCII("hosts").AppendASCII(host);
+  return path.AppendASCII("publishing/SKILL.md");
+}
+
 bool HasDescendantLabelText(views::View* root, std::u16string_view text) {
   if (!root) {
     return false;
@@ -1251,6 +1269,246 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
+                       SaveSkillRequiresOneSaveConsentAndPinsProfile) {
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  FakeApprovalDelegate approval;
+  service_->SetApprovalDelegate(&approval);
+  EnableService();
+  auto client = ConnectClient();
+  ASSERT_TRUE(client->Send(HelloRequest(nonce())));
+  ASSERT_TRUE(client->Read());
+  ASSERT_TRUE(
+      client->Send(ToolCall("save", "save_skill", SaveSkillArguments())));
+  WaitForApprovalRequestCount(&approval, 1);
+  ASSERT_TRUE(approval.request().skill_save);
+  EXPECT_EQ("publishing", approval.request().skill_save->skill_id);
+  EXPECT_EQ("example.com", approval.request().skill_save->host);
+  EXPECT_EQ(kSavedSkillMd, approval.request().skill_save->skill_md);
+  EXPECT_FALSE(approval.request().background_space);
+  EXPECT_FALSE(approval.request().site_skills_host);
+  EXPECT_FALSE(approval.request().tab_target);
+  EXPECT_TRUE(approval.request().tab_choices.empty());
+  const auto site_path = SavedSkillPath(browser()->profile(), "example.com");
+  EXPECT_FALSE(base::PathExists(site_path));
+
+  ProfileManager* manager = g_browser_process->profile_manager();
+  Profile& secondary = profiles::testing::CreateProfileSync(
+      manager, manager->GenerateNextProfileDirectoryPath());
+  auto* secondary_browser = CreateBrowser(&secondary);
+  secondary_browser->GetWindow()->Show();
+  ui_test_utils::WaitForBrowserSetLastActive(secondary_browser);
+  approval.Resolve(true);
+  auto response = client->Read();
+  ASSERT_TRUE(response);
+  EXPECT_TRUE(
+      response->FindBoolByDottedPath("result.data.saved").value_or(false))
+      << response->DebugString();
+  std::string contents;
+  ASSERT_TRUE(base::ReadFileToString(site_path, &contents));
+  EXPECT_EQ(kSavedSkillMd, contents);
+  EXPECT_FALSE(base::PathExists(SavedSkillPath(&secondary, "example.com")));
+  EXPECT_TRUE(service_->GetConnections().empty());
+
+  browser()->GetWindow()->Show();
+  ui_test_utils::WaitForBrowserSetLastActive(browser());
+  ASSERT_TRUE(client->Send(ToolCall(
+      "denied", "save_skill",
+      SaveSkillArguments().Set("skill_md",
+                               std::string(kSavedSkillMd) + "New step.\n"))));
+  WaitForApprovalRequestCount(&approval, 2);
+  approval.Resolve(false);
+  response = client->Read();
+  ASSERT_TRUE(response);
+  EXPECT_EQ("AUTHORIZATION_DENIED",
+            *response->FindStringByDottedPath("result.error.code"));
+  ASSERT_TRUE(base::ReadFileToString(site_path, &contents));
+  EXPECT_EQ(kSavedSkillMd, contents);
+
+  // Lite and page grants must not authorize writes to future instructions.
+  ASSERT_TRUE(client->Send(ToolCall("lite", "list_spaces")));
+  WaitForApprovalRequestCount(&approval, 3);
+  approval.Resolve(true);
+  ASSERT_TRUE(client->Read());
+  ASSERT_TRUE(client->Send(
+      ToolCall("global", "save_skill", SaveSkillArguments(""))));
+  WaitForApprovalRequestCount(&approval, 4);
+  ASSERT_TRUE(approval.request().skill_save);
+  EXPECT_TRUE(approval.request().skill_save->host.empty());
+  approval.Resolve(true);
+  response = client->Read();
+  ASSERT_TRUE(response);
+  ASSERT_TRUE(response->FindBoolByDottedPath("result.ok").value_or(false));
+  const auto global_path = SavedSkillPath(browser()->profile(), "");
+  ASSERT_TRUE(base::ReadFileToString(global_path, &contents));
+  EXPECT_EQ(kSavedSkillMd, contents);
+
+  ASSERT_NO_FATAL_FAILURE(ApproveWindow(client.get(), &approval));
+  const size_t previous_requests = approval.request_count();
+  const std::string replacement =
+      std::string(kSavedSkillMd) + "Check the result.\n";
+  ASSERT_TRUE(client->Send(ToolCall(
+      "overwrite", "save_skill",
+      SaveSkillArguments("").Set("skill_md", replacement))));
+  WaitForApprovalRequestCount(&approval, previous_requests + 1);
+  approval.Resolve(true);
+  response = client->Read();
+  ASSERT_TRUE(response);
+  EXPECT_TRUE(
+      response->FindBoolByDottedPath("result.data.saved").value_or(false));
+  ASSERT_TRUE(base::ReadFileToString(global_path, &contents));
+  EXPECT_EQ(replacement, contents);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
+                       SaveSkillRejectsInvalidRequestsBeforeConsent) {
+  FakeApprovalDelegate approval;
+  service_->SetApprovalDelegate(&approval);
+  EnableService();
+  auto client = ConnectClient();
+  ASSERT_TRUE(client->Send(HelloRequest(nonce())));
+  ASSERT_TRUE(client->Read());
+  const std::vector<std::pair<std::string, std::string>> invalid = {
+      {"skill_id", "../escape"},
+      {"skill_id", ""},
+      {"skill_id", "/absolute"},
+      {"skill_id", "a\\b"},
+      {"skill_id", std::string(65, 'a')},
+      {"host", "../other"},
+      {"host", "https://example.com"},
+      {"host", "*.example.com"},
+      {"host", "Example.com"},
+      {"host", "example.com:443"},
+      {"host", "example..com"},
+      {"host", "-example.com"},
+      {"skill_md", "No frontmatter"},
+      {"skill_md", "---\nname: Missing description\n---\nInstructions"},
+      {"skill_md", "---\nname: Empty\ndescription: No body\n---\n"},
+      {"skill_md", "---\nname: Broad\ndescription: Scope\n"
+                   "hosts: [\"*\"]\n---\nDo it"},
+      {"skill_md", "---\nname: Other\ndescription: Scope\nhosts:\n"
+                   " - other.test\n---\nDo it"},
+      {"skill_md", std::string(kSavedSkillMd) + std::string(65536, 'x')},
+      {"skill_md", std::string(kSavedSkillMd) + '\0'},
+      {"reason", ""},
+      {"space_id", "space"},
+      {"tab_id", "tab"}};
+  for (const auto& [field, value] : invalid) {
+    SCOPED_TRACE(field + ": " + value.substr(0, 80));
+    ASSERT_TRUE(client->Send(ToolCall(
+        "invalid", "save_skill", SaveSkillArguments().Set(field, value))));
+    auto response = client->Read();
+    ASSERT_TRUE(response);
+    EXPECT_TRUE(response->FindDict("error")) << response->DebugString();
+  }
+  EXPECT_EQ(0u, approval.request_count());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
+                       SaveSkillCancelCannotApproveReusedRequestId) {
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  FakeApprovalDelegate approval;
+  service_->SetApprovalDelegate(&approval);
+  EnableService();
+  auto client = ConnectClient();
+  ASSERT_TRUE(client->Send(HelloRequest(nonce())));
+  ASSERT_TRUE(client->Read());
+  ASSERT_TRUE(
+      client->Send(ToolCall("save", "save_skill", SaveSkillArguments())));
+  WaitForApprovalRequestCount(&approval, 1);
+  ASSERT_TRUE(client->Send(CancelRequest("save")));
+  auto response = client->Read();
+  ASSERT_TRUE(response);
+  EXPECT_EQ("TOOL_CANCELLED",
+            *response->FindStringByDottedPath("result.error.code"));
+  ASSERT_TRUE(
+      client->Send(ToolCall("save", "save_skill", SaveSkillArguments(""))));
+  WaitForApprovalRequestCount(&approval, 2);
+  approval.ResolveAt(0, true);
+  approval.ResolveAt(1, false);
+  ASSERT_TRUE(client->Read());
+  // Drain the skill runner before checking that no late write was dispatched.
+  base::test::TestFuture<std::vector<SkillRegistryEntry>> registry;
+  DaoAgentSkillServiceFactory::GetForProfile(browser()->profile())
+      ->GetSkillRegistry(registry.GetCallback());
+  ASSERT_TRUE(registry.Wait());
+  EXPECT_FALSE(
+      base::PathExists(SavedSkillPath(browser()->profile(), "example.com")));
+  EXPECT_FALSE(base::PathExists(SavedSkillPath(browser()->profile(), "")));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
+                       SaveSkillTimeoutAndDisconnectCannotWrite) {
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  AllowDuringCancelApprovalDelegate approval;
+  service_->SetApprovalDelegate(&approval);
+  service_->SetTimeoutsForTesting(base::Seconds(5), base::Milliseconds(100));
+  EnableService();
+  for (bool disconnect : {false, true}) {
+    auto client = ConnectClient();
+    ASSERT_TRUE(client->Send(HelloRequest(nonce())));
+    ASSERT_TRUE(client->Read());
+    ASSERT_TRUE(
+        client->Send(ToolCall("save", "save_skill", SaveSkillArguments())));
+    if (disconnect) {
+      ASSERT_TRUE(base::test::RunUntil(
+          [&] { return approval.has_pending_request(); }));
+      client->Disconnect();
+      ASSERT_TRUE(base::test::RunUntil(
+          [&] { return approval.cancelled_request_count() == 2; }));
+    } else {
+      auto response = client->Read();
+      ASSERT_TRUE(response);
+      EXPECT_EQ("AUTHORIZATION_TIMEOUT",
+                *response->FindStringByDottedPath("result.error.code"));
+      EXPECT_EQ(1u, approval.cancelled_request_count());
+    }
+  }
+  base::test::TestFuture<std::vector<SkillRegistryEntry>> registry;
+  DaoAgentSkillServiceFactory::GetForProfile(browser()->profile())
+      ->GetSkillRegistry(registry.GetCallback());
+  ASSERT_TRUE(registry.Wait());
+  EXPECT_FALSE(
+      base::PathExists(SavedSkillPath(browser()->profile(), "example.com")));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
+                       SaveSkillRejectsSymlinkDestinations) {
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  base::ScopedTempDir temp;
+  ASSERT_TRUE(temp.CreateUniqueTempDir());
+  const auto outside = temp.GetPath().AppendASCII("outside");
+  ASSERT_TRUE(base::CreateDirectory(outside));
+  const auto original = outside.AppendASCII("SKILL.md");
+  ASSERT_TRUE(base::WriteFile(original, "Keep these instructions."));
+  const std::vector<std::string> destinations = {
+      "DaoAgentSkills", "DaoAgentSkills/user", "DaoAgentSkills/user/hosts",
+      "DaoAgentSkills/user/hosts/example.com",
+      "DaoAgentSkills/user/hosts/example.com/publishing",
+      "DaoAgentSkills/user/hosts/example.com/publishing/SKILL.md"};
+  for (size_t i = 0; i < destinations.size(); ++i) {
+    SCOPED_TRACE(destinations[i]);
+    const auto profile = temp.GetPath().AppendASCII(std::to_string(i));
+    DaoAgentSkillService skills(profile);
+    base::test::TestFuture<std::vector<SkillRegistryEntry>> registry;
+    skills.GetSkillRegistry(registry.GetCallback());
+    ASSERT_TRUE(registry.Wait());
+    const auto target = profile.AppendASCII(destinations[i]);
+    ASSERT_TRUE(base::DeletePathRecursively(target));
+    ASSERT_TRUE(base::CreateDirectory(target.DirName()));
+    ASSERT_TRUE(base::CreateSymbolicLink(
+        i == destinations.size() - 1 ? original : outside, target));
+    base::test::TestFuture<bool> saved;
+    skills.SaveUserSkill("publishing", kSavedSkillMd, "example.com",
+                         saved.GetCallback());
+    EXPECT_FALSE(saved.Get());
+    EXPECT_TRUE(base::IsLink(target));
+    std::string contents;
+    ASSERT_TRUE(base::ReadFileToString(original, &contents));
+    EXPECT_EQ("Keep these instructions.", contents);
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
                        SpaceConsentSurvivesReconnectWithoutRenewal) {
   base::SimpleTestTickClock clock;
   clock.SetNowTicks(base::TimeTicks::Now());
@@ -1548,7 +1806,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
   ASSERT_TRUE(result);
   const base::ListValue* tools = result->FindList("tools");
   ASSERT_TRUE(tools);
-  EXPECT_EQ(42u, tools->size());
+  EXPECT_EQ(43u, tools->size());
   for (const base::Value& tool : *tools) {
     const base::DictValue* reason =
         tool.GetDict().FindDictByDottedPath("inputSchema.properties.reason");
@@ -1569,17 +1827,21 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
     }
     return nullptr;
   };
-  const base::DictValue* skills_tool = find_tool(*tools, "get_site_skills");
-  ASSERT_TRUE(skills_tool);
-  const base::ListValue* skills_required =
-      skills_tool->FindListByDottedPath("inputSchema.required");
-  ASSERT_TRUE(skills_required);
-  EXPECT_TRUE(std::ranges::any_of(
-      *skills_required, [](const base::Value& value) {
-        return value.is_string() && value.GetString() == "reason";
-      }));
-  EXPECT_FALSE(skills_tool->FindByDottedPath("inputSchema.properties.tab_id"));
-  EXPECT_FALSE(skills_tool->FindByDottedPath("inputSchema.properties.space_id"));
+  for (const auto* name : {"get_site_skills", "save_skill"}) {
+    const base::DictValue* skills_tool = find_tool(*tools, name);
+    ASSERT_TRUE(skills_tool);
+    const base::ListValue* skills_required =
+        skills_tool->FindListByDottedPath("inputSchema.required");
+    ASSERT_TRUE(skills_required);
+    EXPECT_TRUE(std::ranges::any_of(
+        *skills_required, [](const base::Value& value) {
+          return value.is_string() && value.GetString() == "reason";
+        }));
+    EXPECT_FALSE(
+        skills_tool->FindByDottedPath("inputSchema.properties.tab_id"));
+    EXPECT_FALSE(
+        skills_tool->FindByDottedPath("inputSchema.properties.space_id"));
+  }
   const base::DictValue* page_tool = find_tool(*tools, "get_page_info");
   const base::DictValue* list_tool = find_tool(*tools, "list_tabs");
   ASSERT_TRUE(list_tool);
@@ -1642,7 +1904,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
   const base::ListValue* tools =
       list_response->FindListByDottedPath("result.tools");
   ASSERT_TRUE(tools);
-  EXPECT_EQ(42u, tools->size());
+  EXPECT_EQ(43u, tools->size());
   EXPECT_FALSE(approval.has_pending_request());
 
   ASSERT_TRUE(
@@ -2939,7 +3201,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
   const base::ListValue* tools =
       tools_response->FindListByDottedPath("result.tools");
   ASSERT_NE(nullptr, tools);
-  EXPECT_EQ(42u, tools->size());
+  EXPECT_EQ(43u, tools->size());
   EXPECT_EQ(DaoMcpStatus::kListening, service_->GetStatus().state);
 
   ASSERT_TRUE(helper.Send(

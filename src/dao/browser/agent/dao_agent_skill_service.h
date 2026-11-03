@@ -58,6 +58,13 @@ class DaoAgentSkillService : public KeyedService {
                      const std::string& host,
                      base::OnceCallback<void(bool)> callback);
 
+  // Validates externally supplied content and its approved host scope.
+  // Returns an error message, or nullopt when the request is valid.
+  static std::optional<std::string> ValidateUserSkill(
+      const std::string& skill_id,
+      const std::string& skill_md_content,
+      const std::string& host);
+
   // Delete a user skill directory by ID.
   void DeleteUserSkill(const std::string& skill_id,
                        base::OnceCallback<void(bool)> callback);

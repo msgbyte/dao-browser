@@ -14243,6 +14243,30 @@ IN_PROC_BROWSER_TEST_F(DaoAgentSkillServiceTest, RegistryReturnsList) {
   (void)future.Get();
 }
 
+IN_PROC_BROWSER_TEST_F(DaoAgentSkillServiceTest,
+                       ValidatesExternalSkillContent) {
+  const std::string body =
+      "---\nname: Publishing\ndescription: Publishing workflow\n"
+      "hosts: [example.com]\n---\nSave the draft.\n";
+  auto validate = [](const std::string& text, const std::string& host) {
+    return dao::DaoAgentSkillService::ValidateUserSkill("publishing", text,
+                                                       host);
+  };
+  EXPECT_FALSE(validate(body, "example.com"));
+  EXPECT_FALSE(validate(body, ""));
+  EXPECT_TRUE(validate(body, "other.test"));
+  EXPECT_FALSE(
+      validate(body + std::string(65536 - body.size(), 'x'), "example.com"));
+  EXPECT_TRUE(
+      validate(body + std::string(65537 - body.size(), 'x'), "example.com"));
+  EXPECT_TRUE(validate(body + '\xff', "example.com"));
+  EXPECT_TRUE(validate(
+      "---\nname: Invalid\ndescription: Closing delimiter\n---invalid\nBody",
+      ""));
+  EXPECT_FALSE(validate(
+      "---\r\nname: Publishing\r\ndescription: Workflow\r\n---\r\nBody", ""));
+}
+
 IN_PROC_BROWSER_TEST_F(DaoAgentSkillServiceTest, SaveAndLoadUserSkill) {
   auto* svc =
       dao::DaoAgentSkillServiceFactory::GetForProfile(browser()->GetProfile());
@@ -15708,6 +15732,51 @@ IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
       l10n_util::GetStringFUTF16(IDS_DAO_MCP_APPROVAL_SPACE_REMEMBER,
                                u"Reported Client")));
   dialog.DismissWithoutResult();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
+                       ShowsSkillSaveContentAndScope) {
+  const std::string markdown =
+      "---\nname: Publishing\ndescription: Workflow\n---\n"
+      "First step.\n\nSecond step.\n";
+  for (const std::string host : {"fanqienovel.com", ""}) {
+    DaoMcpApprovalRequest request{
+        {.name = "Reported Client", .version = "1.2.3"},
+        "Save publishing instructions.",
+        base::Time::Now(),
+    };
+    request.skill_save =
+        DaoMcpApprovalRequest::SkillSave{"publishing", markdown, host};
+    DaoMcpApprovalDialog dialog(request, browser(),
+                                base::BindOnce([](bool) {}));
+    auto* contents = dialog.GetContentsView();
+    EXPECT_FALSE(FindPreviewImage(contents));
+    EXPECT_EQ(l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_SAVE_SKILL_TITLE),
+              dialog.GetWindowTitle());
+    EXPECT_EQ(l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_SAVE_SKILL_ALLOW),
+              dialog.GetDialogButtonLabel(ui::mojom::DialogButton::kOk));
+    EXPECT_TRUE(
+        HasVisibleDescendantLabelText(contents, base::UTF8ToUTF16(markdown)));
+    EXPECT_TRUE(HasVisibleDescendantLabelText(
+        contents,
+        host.empty()
+            ? l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_SAVE_SKILL_GLOBAL)
+            : l10n_util::GetStringFUTF16(IDS_DAO_MCP_APPROVAL_SAVE_SKILL_SITE,
+                                       base::UTF8ToUTF16(host))));
+    const std::string destination =
+        "DaoAgentSkills/user/" +
+        (host.empty() ? std::string("global") : "hosts/" + host) +
+        "/publishing/SKILL.md";
+    EXPECT_TRUE(HasVisibleDescendantLabelText(
+        contents,
+        l10n_util::GetStringFUTF16(IDS_DAO_MCP_APPROVAL_SAVE_SKILL_DESTINATION,
+                                 base::UTF8ToUTF16(destination))));
+    EXPECT_FALSE(HasVisibleDescendantLabelText(
+        contents,
+        l10n_util::GetStringFUTF16(IDS_DAO_MCP_APPROVAL_SPACE_REMEMBER,
+                                 u"Reported Client")));
+    dialog.DismissWithoutResult();
+  }
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,

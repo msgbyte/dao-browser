@@ -5,6 +5,7 @@
 ### [Unreleased] Unreleased
 
 - Improve picture-in-picture title bar reliability on macOS when opening or returning to a floating window, reducing the need to resize it to make the controls appear.
+- Let external AI tools save or update reusable website and global instructions after you preview and approve each save.
 - Approve reading saved instructions for a website separately, without granting browser control or Dao Lite background access.
 - Hand control back to AI automatically when you close or hide a Dao Lite task window after taking over.
 - Fix missing page previews in tab control approval dialogs when tab hover previews are disabled or no cached screenshot is available.

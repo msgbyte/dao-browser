@@ -501,6 +501,13 @@ void DaoAgentSpaceService::ExecuteTool(const DaoAgentSpaceClient& client,
         DaoToolErrorCode::kInvalidArgument, "Request id is required.")));
     return;
   }
+  if (call.name == "save_skill") {
+    std::move(callback).Run(ErrorResult(MakeDaoToolError(
+        DaoToolErrorCode::kAuthorizationDenied,
+        "save_skill requires a direct MCP call with separate save consent; "
+        "it cannot run inside an Agent Space or script.")));
+    return;
+  }
   if (IsSpaceTool(call.name)) {
     ExecuteSpaceTool(client, *definition, std::move(call), std::move(callback));
     return;

@@ -343,7 +343,9 @@ DaoMcpApprovalDialog::DaoMcpApprovalDialog(
     explicit_tab_id_ = request.tab_target->tab_id;
   }
   int title_id = IDS_DAO_MCP_APPROVAL_TITLE;
-  if (request.site_skills_host) {
+  if (request.skill_save) {
+    title_id = IDS_DAO_MCP_APPROVAL_SAVE_SKILL_TITLE;
+  } else if (request.site_skills_host) {
     title_id = IDS_DAO_MCP_APPROVAL_SITE_SKILLS_TITLE;
   } else if (request.background_space) {
     title_id = IDS_DAO_MCP_APPROVAL_SPACE_TITLE;
@@ -360,7 +362,9 @@ DaoMcpApprovalDialog::DaoMcpApprovalDialog(
              static_cast<int>(ui::mojom::DialogButton::kCancel));
   SetButtonLabel(ui::mojom::DialogButton::kOk,
                  l10n_util::GetStringUTF16(
-                     request.site_skills_host
+                     request.skill_save
+                         ? IDS_DAO_MCP_APPROVAL_SAVE_SKILL_ALLOW
+                     : request.site_skills_host
                          ? IDS_DAO_MCP_APPROVAL_SITE_SKILLS_ALLOW
                      : request.background_space
                          ? IDS_DAO_MCP_APPROVAL_SPACE_ALLOW_ONE_HOUR
@@ -517,7 +521,8 @@ std::unique_ptr<views::View> DaoMcpApprovalDialog::BuildContents(
           IDS_DAO_MCP_APPROVAL_TIME,
           base::TimeFormatShortDateAndTimeWithTimeZone(request.requested_at)),
       TextSecondary(), true));
-  if (!request.background_space && !request.site_skills_host) {
+  if (!request.background_space && !request.site_skills_host &&
+      !request.skill_save) {
     std::u16string window_title = browser
                                       ? WindowMetadataController::From(browser)
                                             ->GetWindowTitleForCurrentTab(false)
@@ -631,7 +636,14 @@ std::unique_ptr<views::View> DaoMcpApprovalDialog::BuildContents(
           TextPrimary(), true))
       ->SetSubpixelRenderingEnabled(false);
   summary->AddChildView(CreateLabel(
-      request.site_skills_host
+      request.skill_save
+          ? (request.skill_save->host.empty()
+                 ? l10n_util::GetStringUTF16(
+                       IDS_DAO_MCP_APPROVAL_SAVE_SKILL_GLOBAL)
+                 : l10n_util::GetStringFUTF16(
+                       IDS_DAO_MCP_APPROVAL_SAVE_SKILL_SITE,
+                       SanitizeLabel(request.skill_save->host)))
+      : request.site_skills_host
           ? l10n_util::GetStringFUTF16(
                 IDS_DAO_MCP_APPROVAL_SITE_SKILLS_EXPLANATION,
                 SanitizeLabel(*request.site_skills_host))
@@ -641,6 +653,31 @@ std::unique_ptr<views::View> DaoMcpApprovalDialog::BuildContents(
                     ? IDS_DAO_MCP_APPROVAL_TAB_EXPLANATION
                     : IDS_DAO_MCP_APPROVAL_EXPLANATION),
       TextSecondary(), true));
+
+  if (request.skill_save) {
+    const auto& save = *request.skill_save;
+    const std::string destination =
+        "DaoAgentSkills/user/" +
+        (save.host.empty() ? std::string("global/")
+                           : "hosts/" + save.host + "/") +
+        save.skill_id + "/SKILL.md";
+    summary->AddChildView(CreateLabel(
+        l10n_util::GetStringFUTF16(IDS_DAO_MCP_APPROVAL_SAVE_SKILL_DESTINATION,
+                                 base::UTF8ToUTF16(destination)),
+        TextSecondary(), true));
+    summary->AddChildView(CreateLabel(
+        l10n_util::GetStringUTF16(IDS_DAO_MCP_APPROVAL_SAVE_SKILL_CONTENT),
+        TextPrimary(), false));
+    auto* scroll = summary->AddChildView(std::make_unique<views::ScrollView>());
+    scroll->SetHorizontalScrollBarMode(
+        views::ScrollView::ScrollBarMode::kDisabled);
+    scroll->ClipHeightTo(0, 160);
+    auto content =
+        CreateLabel(base::UTF8ToUTF16(save.skill_md), TextPrimary(), true);
+    content->SetElideBehavior(gfx::NO_ELIDE);
+    content->SetSelectable(true);
+    scroll->SetContents(std::move(content));
+  }
 
   std::u16string profile_name;
   if (browser && browser->GetProfile()) {
@@ -657,7 +694,8 @@ std::unique_ptr<views::View> DaoMcpApprovalDialog::BuildContents(
       g_browser_process->profile_manager()
               ->GetProfileAttributesStorage()
               .GetNumberOfProfiles() > 1;
-  auto* profile_container = has_multiple_profiles ? summary : details.get();
+  auto* profile_container =
+      has_multiple_profiles || request.skill_save ? summary : details.get();
   profile_container->AddChildView(CreateLabel(
       l10n_util::GetStringFUTF16(IDS_DAO_MCP_APPROVAL_PROFILE,
                                SanitizeLabel(std::move(profile_name))),

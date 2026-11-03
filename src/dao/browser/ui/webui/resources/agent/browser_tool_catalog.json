@@ -1408,6 +1408,39 @@
       }
     },
     {
+      "name": "save_skill",
+      "description": "Create or replace one user SKILL.md in Dao's active regular profile. Each direct MCP call requires a reason and a separate save confirmation showing the complete content and destination. Existing page, site-read or Dao Lite consent never authorizes a save. Not available inside run_browser_script. Saving replaces the entire existing file at the same host and skill_id. After approval, cancellation or disconnection cannot roll back an in-progress write.",
+      "group": "space",
+      "clients": [
+        "mcp"
+      ],
+      "sideEffect": "destructive",
+      "timeoutMs": 5000,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "skill_id": {
+            "type": "string",
+            "description": "1-64 ASCII letters, digits, hyphens or underscores, starting with a letter or digit. Prefer lowercase hyphenated names."
+          },
+          "skill_md": {
+            "type": "string",
+            "description": "Complete UTF-8 SKILL.md, at most 65536 bytes, starting with YAML frontmatter containing name and description and followed by Markdown instructions. For site skills, frontmatter hosts must be omitted or contain only host."
+          },
+          "host": {
+            "type": "string",
+            "description": "Lowercase bare hostname (including its subdomains when matching), or an empty string for a global skill. No scheme, port, path or wildcard."
+          }
+        },
+        "required": [
+          "skill_id",
+          "skill_md",
+          "host"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
       "name": "run_browser_script",
       "description": "Run one JavaScript snippet that drives Agent Spaces through many browser tool calls in a single round trip. The code runs in an isolated sandbox page (not in the target website) with top-level await; it can call `dao.createSpace(name, url)`, `dao.space(id)`, `dao.call(tool, args)` and Space helpers such as `find`, `click`, `fill`, `open`, `eval`, `status`, `help` and `finish`. If space_id is given, `space` is preset to it. Returns the script's return value and console output. Browser tools inside a script only act in spaces, never on the user's tabs.",
       "group": "space",

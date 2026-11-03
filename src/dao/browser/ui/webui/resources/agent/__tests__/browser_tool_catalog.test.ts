@@ -52,15 +52,15 @@ describe('browser_tool_catalog', () => {
     await initializeBrowserToolCatalog();
 
     expect(injectedCatalog.getString).toHaveBeenCalledTimes(2);
-    expect(getBrowserToolDefinitions('mcp')).toHaveLength(43);
+    expect(getBrowserToolDefinitions('mcp')).toHaveLength(44);
   });
 
-  it('exposes exactly 43 browser tools to MCP', async () => {
+  it('exposes exactly 44 browser tools to MCP', async () => {
     await initializeBrowserToolCatalog();
     const names = getBrowserToolDefinitions('mcp').map(
         tool => tool.function.name);
 
-    expect(names).toHaveLength(43);
+    expect(names).toHaveLength(44);
     expect(names).not.toContain('resolve_element_context');
     expect([...names].sort()).toEqual([
       'agent_click',
@@ -97,6 +97,7 @@ describe('browser_tool_catalog', () => {
       'request_user_help',
       'run_browser_script',
       'run_browser_task',
+      'save_skill',
       'scroll_down',
       'scroll_to_element',
       'scroll_up',
@@ -131,6 +132,21 @@ describe('browser_tool_catalog', () => {
     expect(task?.timeoutMs).toBe(65000);
     expect(task?.inputSchema.required).toEqual(['goal', 'completion']);
     expect(task?.inputSchema.additionalProperties).toBe(false);
+  });
+
+  it('exposes skill saving only to MCP without page or space routing', async () => {
+    await initializeBrowserToolCatalog();
+    const entry = getCatalogEntries('mcp').find(e => e.name === 'save_skill');
+    expect(entry?.clients).toEqual(['mcp']);
+    expect(entry?.sideEffect).toBe('destructive');
+    expect(entry?.inputSchema.required).toEqual(['skill_id', 'skill_md', 'host']);
+    expect(entry?.inputSchema.additionalProperties).toBe(false);
+    const schema = getBrowserToolDefinitions('mcp').find(
+        tool => tool.function.name === 'save_skill')?.function.parameters;
+    expect(schema?.properties).not.toHaveProperty('space_id');
+    expect(schema?.properties).not.toHaveProperty('tab_id');
+    expect(getCatalogEntries('dao_agent').some(e => e.name === 'save_skill'))
+        .toBe(false);
   });
 
   it('exposes the safe query-click-wait workflow', () => {

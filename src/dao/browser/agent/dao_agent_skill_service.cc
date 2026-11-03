@@ -4,11 +4,13 @@
 
 #include "dao/browser/agent/dao_agent_skill_service.h"
 
+#include <algorithm>
 #include <string>
 
 #include "base/files/file_enumerator.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
+#include "base/files/important_file_writer.h"
 #include "base/logging.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
@@ -20,6 +22,34 @@ namespace {
 
 constexpr char kSkillsDirName[] = "DaoAgentSkills";
 constexpr char kSkillFileName[] = "SKILL.md";
+
+bool IsSafeSkillPath(const std::string& skill_id, const std::string& host) {
+  if (skill_id.empty() || skill_id.size() > 64 ||
+      !base::IsAsciiAlphaNumeric(skill_id.front()) ||
+      !std::ranges::all_of(skill_id, [](char c) {
+        return base::IsAsciiAlphaNumeric(c) || c == '-' || c == '_';
+      })) {
+    return false;
+  }
+  if (host.empty()) {
+    return true;
+  }
+  if (host.size() > 253 || host != base::ToLowerASCII(host)) {
+    return false;
+  }
+  for (const auto& label : base::SplitStringPiece(
+           host, ".", base::KEEP_WHITESPACE, base::SPLIT_WANT_ALL)) {
+    if (label.empty() || label.size() > 63 ||
+        !base::IsAsciiAlphaNumeric(label.front()) ||
+        !base::IsAsciiAlphaNumeric(label.back()) ||
+        !std::ranges::all_of(label, [](char c) {
+          return base::IsAsciiAlphaNumeric(c) || c == '-';
+        })) {
+      return false;
+    }
+  }
+  return true;
+}
 
 // Built-in skill: summary
 constexpr char kSummarySkillMd[] = R"(---
@@ -341,30 +371,76 @@ void DaoAgentSkillService::SaveUserSkill(
 }
 
 // static
+std::optional<std::string> DaoAgentSkillService::ValidateUserSkill(
+    const std::string& skill_id,
+    const std::string& skill_md_content,
+    const std::string& host) {
+  if (!IsSafeSkillPath(skill_id, host)) {
+    return "skill_id must be 1-64 ASCII letters, digits, hyphens or "
+           "underscores and start with a letter or digit. host must be an "
+           "empty string or a lowercase hostname without a scheme, port, path "
+           "or wildcard.";
+  }
+  if (skill_md_content.size() > 64 * 1024 ||
+      !base::IsStringUTF8(skill_md_content) ||
+      std::ranges::any_of(skill_md_content, [](unsigned char c) {
+        return (c < 0x20 && c != '\n' && c != '\r' && c != '\t') || c == 0x7f;
+      })) {
+    return "skill_md must be UTF-8 text of at most 65536 bytes without control "
+           "characters other than tabs and line endings.";
+  }
+  SkillRegistryEntry entry;
+  std::string instructions;
+  const size_t frontmatter_end = skill_md_content.find("\n---", 3);
+  if ((!base::StartsWith(skill_md_content, "---\n") &&
+       !base::StartsWith(skill_md_content, "---\r\n")) ||
+      frontmatter_end == std::string::npos ||
+      (skill_md_content.compare(frontmatter_end + 1, 4, "---\n") != 0 &&
+       skill_md_content.compare(frontmatter_end + 1, 5, "---\r\n") != 0) ||
+      !ParseSkillMd(skill_md_content, &entry, &instructions) ||
+      entry.name.empty() || entry.description.empty() || instructions.empty()) {
+    return "skill_md must start with YAML frontmatter containing name and "
+           "description, followed by non-empty Markdown instructions.";
+  }
+  if (!host.empty() && std::ranges::any_of(
+                           entry.hosts, [&host](const std::string& value) {
+                             return value != host;
+                           })) {
+    return "Frontmatter hosts must be omitted or contain only the requested "
+           "host. Use an empty host to request a global skill.";
+  }
+  return std::nullopt;
+}
+
+// static
 bool DaoAgentSkillService::SaveUserSkillOnBackground(
     const base::FilePath& skills_path,
     const std::string& skill_id,
     const std::string& skill_md_content,
     const std::string& host) {
-  base::FilePath skill_dir;
-  if (host.empty()) {
-    skill_dir = skills_path.AppendASCII("user")
-                    .AppendASCII("global")
-                    .AppendASCII(skill_id);
-  } else {
-    skill_dir = skills_path.AppendASCII("user")
-                    .AppendASCII("hosts")
-                    .AppendASCII(host)
-                    .AppendASCII(skill_id);
-  }
-
-  if (!base::CreateDirectory(skill_dir)) {
-    LOG(ERROR) << "Failed to create skill directory: " << skill_dir.value();
+  if (!IsSafeSkillPath(skill_id, host) || base::IsLink(skills_path)) {
     return false;
   }
-
+  if (!base::CreateDirectory(skills_path)) {
+    return false;
+  }
+  base::FilePath skill_dir = skills_path;
+  std::vector<std::string> components = {
+      "user", host.empty() ? "global" : "hosts"};
+  if (!host.empty()) {
+    components.push_back(host);
+  }
+  components.push_back(skill_id);
+  for (const auto& component : components) {
+    skill_dir = skill_dir.AppendASCII(component);
+    if (base::IsLink(skill_dir) || !base::CreateDirectory(skill_dir)) {
+      return false;
+    }
+  }
   base::FilePath skill_file = skill_dir.AppendASCII(kSkillFileName);
-  return base::WriteFile(skill_file, skill_md_content);
+  return !base::IsLink(skill_file) &&
+         base::ImportantFileWriter::WriteFileAtomically(skill_file,
+                                                       skill_md_content);
 }
 
 void DaoAgentSkillService::DeleteUserSkill(

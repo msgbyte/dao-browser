@@ -621,6 +621,24 @@
       <message name="IDS_DAO_MCP_APPROVAL_SITE_SKILLS_ALLOW" desc="Button allowing one read of saved site instructions without browser control.">
         Allow reading
       </message>
+      <message name="IDS_DAO_MCP_APPROVAL_SAVE_SKILL_TITLE" desc="Title when a local agent requests saving persistent skill instructions.">
+        Save instructions for future tasks?
+      </message>
+      <message name="IDS_DAO_MCP_APPROVAL_SAVE_SKILL_ALLOW" desc="Button confirming one skill save.">
+        Save skill
+      </message>
+      <message name="IDS_DAO_MCP_APPROVAL_SAVE_SKILL_SITE" desc="Scope of saving site instructions. HOST is the approved hostname.">
+        Save for <ph name="HOST">$1<ex>example.com</ex></ph> and its subdomains. These instructions may guide future AI tasks. Saving replaces any skill at this destination.
+      </message>
+      <message name="IDS_DAO_MCP_APPROVAL_SAVE_SKILL_GLOBAL" desc="Scope of saving global instructions.">
+        Save as a global skill for future AI tasks. Saving replaces any skill at this destination.
+      </message>
+      <message name="IDS_DAO_MCP_APPROVAL_SAVE_SKILL_DESTINATION" desc="Exact skill file location relative to the selected browser profile. PATH is the relative path.">
+        Destination: <ph name="PATH">$1<ex>DaoAgentSkills/user/global/my-skill/SKILL.md</ex></ph>
+      </message>
+      <message name="IDS_DAO_MCP_APPROVAL_SAVE_SKILL_CONTENT" desc="Label above the full plain-text Markdown proposed by the external client.">
+        Proposed content (client-provided)
+      </message>
       <message name="IDS_DAO_MCP_APPROVAL_REQUESTER" desc="Requester shown prominently in the approval dialog. CLIENT is an unverified, self-reported name, not an authenticated application identity.">
         Request from: <ph name="CLIENT">$1<ex>Codex</ex></ph> (self-reported)
       </message>

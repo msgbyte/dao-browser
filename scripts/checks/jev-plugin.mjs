@@ -391,7 +391,7 @@ try {
     clientInfo: {name: 'Jev isolated integration', version: '1'}}).result;
   mcp.notify('notifications/initialized', {});
   const catalog = await mcp.call('tools/list', {}).result;
-  assert.equal(catalog.tools.length, 43);
+  assert.equal(catalog.tools.length, 44);
   assert(catalog.tools.some(tool => tool.name === 'run_browser_task'));
   const beforeDiscovery = requests;
   for (const selector of [enabled, permission]) {
@@ -399,7 +399,7 @@ try {
     await until(() => ui(`return !find('settings-dao-agent-page').agentPlugins_[0].effective;`), 'Jev disabled');
     const hidden = await mcp.call('tools/list', {}).result;
     assert(!hidden.tools.some(tool => tool.name === 'run_browser_task'), 'Disabled Jev is hidden from MCP discovery');
-    assert.equal(hidden.tools.length, 42);
+    assert.equal(hidden.tools.length, 43);
     await ui(`find('${selector}').click();`);
     await until(() => ui(`return find('settings-dao-agent-page').agentPlugins_[0].effective;`), 'Jev restored');
     assert((await mcp.call('tools/list', {}).result).tools.some(tool => tool.name === 'run_browser_task'));

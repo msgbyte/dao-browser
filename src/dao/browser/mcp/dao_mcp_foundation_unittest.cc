@@ -175,9 +175,9 @@ class DaoMcpCatalogTest : public testing::Test {
   bool owns_resource_bundle_ = false;
 };
 
-TEST_F(DaoMcpCatalogTest, ExposesExactlyFortyThreeToolsToMcp) {
+TEST_F(DaoMcpCatalogTest, ExposesExactlyFortyFourToolsToMcp) {
   const auto tools = DaoBrowserToolCatalog::Get()->List(DaoToolClient::kMcp);
-  EXPECT_EQ(43u, tools.size());
+  EXPECT_EQ(44u, tools.size());
   EXPECT_EQ(nullptr, DaoBrowserToolCatalog::Get()->Find(
                          "resolve_element_context", DaoToolClient::kMcp));
   EXPECT_NE(nullptr, DaoBrowserToolCatalog::Get()->Find(

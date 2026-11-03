@@ -385,4 +385,10 @@
 <translation id="2331429398851633279">任务结束时的页面</translation>
 <translation id="9135890620955532939">点击页面即可查看。已关闭的页面会按保存的地址重新打开，内容可能已有变化。</translation>
 <translation id="3776063931696474398">此任务没有保存页面记录。</translation>
+  <translation id="2070965939293463547">要保存供今后任务使用的操作说明吗？</translation>
+  <translation id="1902130226966984520">保存技能</translation>
+  <translation id="5904016914370605446">保存为适用于 <ph name="HOST"/> 及其子域名的技能。这些说明可能指导今后的 AI 任务。保存会替换此位置已有的技能。</translation>
+  <translation id="4053446320237329868">保存为供今后 AI 任务使用的全局技能。保存会替换此位置已有的技能。</translation>
+  <translation id="8047495800229127993">保存位置：<ph name="PATH"/></translation>
+  <translation id="6503014859519956973">拟保存内容（由客户端提供）</translation>
 </translationbundle>

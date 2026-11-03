@@ -50,6 +50,8 @@
 #include "crypto/secure_util.h"
 #include "dao/browser/agent/dao_agent_lock_tab_helper.h"
 #include "dao/browser/agent/dao_agent_plugins.h"
+#include "dao/browser/agent/dao_agent_skill_service.h"
+#include "dao/browser/agent/dao_agent_skill_service_factory.h"
 #include "dao/browser/agent_space/dao_agent_space_service.h"
 #include "dao/browser/automation/dao_browser_automation_session.h"
 #include "dao/browser/automation/dao_browser_target_policy.h"
@@ -307,15 +309,15 @@ struct DaoMcpService::ConnectionState {
   std::map<std::string, std::unique_ptr<DaoBrowserAutomationSession>,
            std::less<>>
       tab_tool_sessions;
-  struct SiteSkillsRead {
+  struct SkillCall {
     std::string approval_id;
+    std::string tool_name;
     base::WeakPtr<Profile> profile;
     base::DictValue arguments;
     base::OneShotTimer timer;
     bool awaiting_approval = true;
   };
-  std::map<std::string, std::unique_ptr<SiteSkillsRead>, std::less<>>
-      site_skills_reads;
+  std::map<std::string, std::unique_ptr<SkillCall>, std::less<>> skill_calls;
   ApprovalState space_approval_state = ApprovalState::kNotRequested;
   base::OneShotTimer space_approval_timer;
   base::WeakPtr<Profile> space_profile;
@@ -1139,7 +1141,7 @@ void DaoMcpService::ResetConnectionState(ConnectionState& connection) {
       "The MCP browser connection was closed.");
   CancelTabAccess(connection, closed);
   CancelSpaceCalls(connection, closed);
-  CancelSiteSkillsCalls(connection, closed);
+  CancelSkillCalls(connection, closed);
   connection.tab_tool_executor->CancelAll(closed);
   for (auto& [_, context] : connection.target_contexts) {
     context->tool_executor->CancelAll(closed);
@@ -1366,12 +1368,14 @@ void DaoMcpService::HandleToolsList(ConnectionState& connection,
             .Set("maxLength", 1024)
             .Set("description",
                  "Required on the first tool call and every "
-                 "request_tab_access or get_site_skills. Explain "
+                 "request_tab_access, get_site_skills or save_skill. Explain "
                  "why this access is needed for the user's task; Dao shows "
                  "this reason in the permission dialog. Use non-blank text "
                  "within 1024 UTF-8 bytes. May be omitted after requesting "
-                 "permission, except for request_tab_access and get_site_skills."));
-    if (definition->name == "get_site_skills") {
+                 "permission, except for request_tab_access, get_site_skills "
+                 "and save_skill."));
+    if (definition->name == "get_site_skills" ||
+        definition->name == "save_skill") {
       input_schema.FindList("required")->Append("reason");
     }
     if (definition->group != DaoBrowserToolGroup::kSpace &&
@@ -1471,8 +1475,8 @@ void DaoMcpService::HandleToolsCall(ConnectionState& connection,
                                "Unknown or unavailable MCP browser tool."));
     return;
   }
-  if (*name == "get_site_skills") {
-    HandleSiteSkillsCall(connection, std::move(request), *definition);
+  if (*name == "get_site_skills" || *name == "save_skill") {
+    HandleSkillCall(connection, std::move(request), *definition);
     return;
   }
   if (DaoAgentSpaceService::ShouldRoute(*name, *arguments)) {
@@ -1639,12 +1643,19 @@ void DaoMcpService::HandleToolsCancel(ConnectionState& connection,
         return pending.call.request_id == *request_id;
       });
   auto pending = connection.pending_tool_calls.find(*request_id);
-  auto site_read = connection.site_skills_reads.find(*request_id);
-  if (site_read != connection.site_skills_reads.end()) {
-    CompleteSiteSkillsCall(
-        connection.generation, *request_id, site_read->second->approval_id,
-        ErrorResult(MakeDaoToolError(DaoToolErrorCode::kToolCancelled,
-                                    "The site instructions read was cancelled.")));
+  auto skill_call = connection.skill_calls.find(*request_id);
+  if (skill_call != connection.skill_calls.end()) {
+    const bool save_dispatched =
+        skill_call->second->tool_name == "save_skill" &&
+        !skill_call->second->awaiting_approval;
+    CompleteSkillCall(
+        connection.generation, *request_id, skill_call->second->approval_id,
+        ErrorResult(MakeDaoToolError(
+            DaoToolErrorCode::kToolCancelled,
+            save_dispatched
+                ? "The skill request was cancelled; the approved save may "
+                  "still finish."
+                : "The skill request was cancelled.")));
   } else if (queued_space != connection.queued_space_calls.end()) {
     connection.queued_space_calls.erase(queued_space);
     connection.active_tool_calls.erase(*request_id);
@@ -1697,7 +1708,7 @@ void DaoMcpService::HandleToolsCancel(ConnectionState& connection,
   }
 }
 
-void DaoMcpService::HandleSiteSkillsCall(
+void DaoMcpService::HandleSkillCall(
     ConnectionState& connection,
     DaoMcpRequest request,
     const DaoBrowserToolDefinition& definition) {
@@ -1708,19 +1719,34 @@ void DaoMcpService::HandleSiteSkillsCall(
     return;
   }
   DaoMcpApprovalRequest approval(*connection.client_info, *reason,
-                                base::Time::Now());
+                                 base::Time::Now());
   arguments.Remove("reason");
   auto validation = ValidateToolArguments(definition, arguments);
   if (!validation.has_value()) {
     SendError(connection, request.id, std::move(validation).error());
     return;
   }
-  const GURL url(*arguments.FindString("url"));
-  if (!url.is_valid() || !url.SchemeIsHTTPOrHTTPS()) {
-    SendError(connection, request.id,
-              MakeDaoToolError(DaoToolErrorCode::kInvalidArgument,
-                               "url must be an http(s) URL."));
-    return;
+  if (definition.name == "save_skill") {
+    auto error = DaoAgentSkillService::ValidateUserSkill(
+        *arguments.FindString("skill_id"), *arguments.FindString("skill_md"),
+        *arguments.FindString("host"));
+    if (error) {
+      SendError(connection, request.id,
+                MakeDaoToolError(DaoToolErrorCode::kInvalidArgument, *error));
+      return;
+    }
+    approval.skill_save = DaoMcpApprovalRequest::SkillSave{
+        *arguments.FindString("skill_id"), *arguments.FindString("skill_md"),
+        *arguments.FindString("host")};
+  } else {
+    const GURL url(*arguments.FindString("url"));
+    if (!url.is_valid() || !url.SchemeIsHTTPOrHTTPS()) {
+      SendError(connection, request.id,
+                MakeDaoToolError(DaoToolErrorCode::kInvalidArgument,
+                                 "url must be an http(s) URL."));
+      return;
+    }
+    approval.site_skills_host = url.host();
   }
   std::string serialized_arguments;
   if (!base::JSONWriter::Write(arguments, &serialized_arguments) ||
@@ -1739,46 +1765,45 @@ void DaoMcpService::HandleSiteSkillsCall(
     SendError(connection, request.id,
               MakeDaoToolError(DaoToolErrorCode::kTargetGone,
                                "Open a regular Dao browser window, then retry. "
-                               "Site instructions use that window's profile.",
+                               "Skills use that window's profile.",
                                true));
     return;
   }
 
   const std::string request_id = *request.id;
   const std::string approval_id =
-      connection.connection_id + ":site-skills:" +
+      connection.connection_id + ":skills:" +
       base::Uuid::GenerateRandomV4().AsLowercaseString();
-  auto read = std::make_unique<ConnectionState::SiteSkillsRead>();
-  read->approval_id = approval_id;
-  read->profile = browser->GetProfile()->GetWeakPtr();
-  read->arguments = std::move(arguments);
-  read->timer.Start(
+  auto call = std::make_unique<ConnectionState::SkillCall>();
+  call->approval_id = approval_id;
+  call->tool_name = definition.name;
+  call->profile = browser->GetProfile()->GetWeakPtr();
+  call->arguments = std::move(arguments);
+  call->timer.Start(
       FROM_HERE, approval_timeout_,
       base::BindOnce(
-          &DaoMcpService::CompleteSiteSkillsCall, weak_factory_.GetWeakPtr(),
+          &DaoMcpService::CompleteSkillCall, weak_factory_.GetWeakPtr(),
           connection.generation, request_id, approval_id,
           ErrorResult(MakeDaoToolError(
               DaoToolErrorCode::kAuthorizationTimeout,
-              "The site instructions read was not authorized in time.", true))));
-  connection.site_skills_reads.emplace(request_id, std::move(read));
+              "The skill request was not authorized in time.", true))));
+  connection.skill_calls.emplace(request_id, std::move(call));
   connection.active_tool_calls.insert(request_id);
   connection.active_tool_call_bytes.emplace(request_id,
-                                            serialized_arguments.size());
+                                           serialized_arguments.size());
   connection.active_tool_call_bytes_total += serialized_arguments.size();
-  approval.site_skills_host = url.host();
   if (!approval_delegate_) {
-    OnSiteSkillsApprovalResult(connection.generation, request_id, approval_id,
-                              false);
+    OnSkillApprovalResult(connection.generation, request_id, approval_id, false);
     return;
   }
   approval_delegate_->RequestApproval(
       approval, browser, approval_id,
-      base::BindOnce(&DaoMcpService::OnSiteSkillsApprovalResult,
+      base::BindOnce(&DaoMcpService::OnSkillApprovalResult,
                     weak_factory_.GetWeakPtr(), connection.generation,
                     request_id, approval_id));
 }
 
-void DaoMcpService::OnSiteSkillsApprovalResult(
+void DaoMcpService::OnSkillApprovalResult(
     uint64_t connection_generation,
     std::string request_id,
     std::string approval_id,
@@ -1787,8 +1812,8 @@ void DaoMcpService::OnSiteSkillsApprovalResult(
   if (!connection || connection->closing) {
     return;
   }
-  auto it = connection->site_skills_reads.find(request_id);
-  if (it == connection->site_skills_reads.end() ||
+  auto it = connection->skill_calls.find(request_id);
+  if (it == connection->skill_calls.end() ||
       it->second->approval_id != approval_id ||
       !it->second->awaiting_approval) {
     return;
@@ -1796,25 +1821,24 @@ void DaoMcpService::OnSiteSkillsApprovalResult(
   it->second->awaiting_approval = false;
   it->second->timer.Stop();
   if (!allowed || !it->second->profile) {
-    CompleteSiteSkillsCall(
+    CompleteSkillCall(
         connection_generation, request_id, approval_id,
         ErrorResult(MakeDaoToolError(
             allowed ? DaoToolErrorCode::kTargetGone
                     : DaoToolErrorCode::kAuthorizationDenied,
             allowed ? "The browser profile is no longer available."
-                    : "Reading saved instructions for this site was not "
-                      "authorized.")));
+                    : "The skill request was not authorized.")));
     return;
   }
   RecordAcceptedToolCall(connection_generation,
-                        it->second->profile->GetPrefs(), "get_site_skills");
+                        it->second->profile->GetPrefs(), it->second->tool_name);
   // Status observers may close the connection or cancel this request.
   connection = FindConnection(connection_generation);
   if (!connection || connection->closing) {
     return;
   }
-  it = connection->site_skills_reads.find(request_id);
-  if (it == connection->site_skills_reads.end() ||
+  it = connection->skill_calls.find(request_id);
+  if (it == connection->skill_calls.end() ||
       it->second->approval_id != approval_id) {
     return;
   }
@@ -1823,51 +1847,94 @@ void DaoMcpService::OnSiteSkillsApprovalResult(
           ? DaoAgentSpaceService::GetForProfile(it->second->profile.get())
           : nullptr;
   if (!service) {
-    CompleteSiteSkillsCall(
+    CompleteSkillCall(
         connection_generation, request_id, approval_id,
         ErrorResult(MakeDaoToolError(
             DaoToolErrorCode::kTargetGone,
             "The browser profile is no longer available.")));
     return;
   }
+  const bool saving = it->second->tool_name == "save_skill";
   it->second->timer.Start(
       FROM_HERE,
-      DaoBrowserToolCatalog::Get()->Find("get_site_skills", DaoToolClient::kMcp)
+      DaoBrowserToolCatalog::Get()
+          ->Find(it->second->tool_name, DaoToolClient::kMcp)
           ->timeout,
       base::BindOnce(
-          &DaoMcpService::CompleteSiteSkillsCall, weak_factory_.GetWeakPtr(),
+          &DaoMcpService::CompleteSkillCall, weak_factory_.GetWeakPtr(),
           connection_generation, request_id, approval_id,
           ErrorResult(MakeDaoToolError(
               DaoToolErrorCode::kToolTimeout,
-              "Reading site instructions timed out.", true))));
+              saving ? "The skill save timed out; the approved save may still "
+                       "finish."
+                     : "The site instructions read timed out.",
+              !saving))));
+  if (saving) {
+    auto* skills =
+        DaoAgentSkillServiceFactory::GetForProfile(it->second->profile.get());
+    if (!skills) {
+      CompleteSkillCall(
+          connection_generation, request_id, approval_id,
+          ErrorResult(MakeDaoToolError(DaoToolErrorCode::kTargetGone,
+                                      "The skill service is unavailable.")));
+      return;
+    }
+    const auto& arguments = it->second->arguments;
+    skills->SaveUserSkill(
+        *arguments.FindString("skill_id"), *arguments.FindString("skill_md"),
+        *arguments.FindString("host"),
+        base::BindOnce(
+            [](base::OnceCallback<void(DaoBrowserToolResult)> complete,
+               std::string skill_id, std::string host, bool saved) {
+              if (!saved) {
+                std::move(complete).Run(ErrorResult(MakeDaoToolError(
+                    DaoToolErrorCode::kInternalError,
+                    "Could not save the skill. Check the profile's skill "
+                    "directory and file permissions.")));
+                return;
+              }
+              DaoBrowserToolResult result;
+              result.ok = true;
+              result.data = base::Value(base::DictValue()
+                                            .Set("saved", true)
+                                            .Set("skill_id", skill_id)
+                                            .Set("host", host));
+              std::move(complete).Run(std::move(result));
+            },
+            base::BindOnce(&DaoMcpService::CompleteSkillCall,
+                           weak_factory_.GetWeakPtr(), connection_generation,
+                           request_id, approval_id),
+            *arguments.FindString("skill_id"), *arguments.FindString("host")));
+    return;
+  }
   service->GetSiteSkills(
       it->second->arguments,
-      base::BindOnce(&DaoMcpService::CompleteSiteSkillsCall,
+      base::BindOnce(&DaoMcpService::CompleteSkillCall,
                     weak_factory_.GetWeakPtr(), connection_generation,
                     request_id, approval_id));
 }
 
-void DaoMcpService::CompleteSiteSkillsCall(uint64_t connection_generation,
-                                         std::string request_id,
-                                         std::string approval_id,
-                                         DaoBrowserToolResult result) {
+void DaoMcpService::CompleteSkillCall(uint64_t connection_generation,
+                                     std::string request_id,
+                                     std::string approval_id,
+                                     DaoBrowserToolResult result) {
   ConnectionState* connection = FindConnection(connection_generation);
   if (!connection) {
     return;
   }
-  auto it = connection->site_skills_reads.find(request_id);
-  if (it == connection->site_skills_reads.end() ||
+  auto it = connection->skill_calls.find(request_id);
+  if (it == connection->skill_calls.end() ||
       it->second->approval_id != approval_id) {
     return;
   }
-  auto read = std::move(it->second);
-  connection->site_skills_reads.erase(it);
-  read->timer.Stop();
+  auto call = std::move(it->second);
+  connection->skill_calls.erase(it);
+  call->timer.Stop();
   // Remove the request before cancellation, which may resolve the dialog.
-  if (read->awaiting_approval && approval_delegate_) {
+  if (call->awaiting_approval && approval_delegate_) {
     approval_delegate_->CancelApproval(approval_id);
   }
-  if (result.ok && !read->profile) {
+  if (result.ok && !call->profile) {
     result = ErrorResult(MakeDaoToolError(
         DaoToolErrorCode::kTargetGone,
         "The browser profile is no longer available."));
@@ -1876,12 +1943,12 @@ void DaoMcpService::CompleteSiteSkillsCall(uint64_t connection_generation,
                      std::move(result));
 }
 
-void DaoMcpService::CancelSiteSkillsCalls(ConnectionState& connection,
-                                        const DaoToolError& error) {
-  while (!connection.site_skills_reads.empty()) {
-    auto& [request_id, read] = *connection.site_skills_reads.begin();
-    CompleteSiteSkillsCall(connection.generation, request_id, read->approval_id,
-                           ErrorResult(error));
+void DaoMcpService::CancelSkillCalls(ConnectionState& connection,
+                                    const DaoToolError& error) {
+  while (!connection.skill_calls.empty()) {
+    auto& [request_id, call] = *connection.skill_calls.begin();
+    CompleteSkillCall(connection.generation, request_id, call->approval_id,
+                      ErrorResult(error));
   }
 }
 
@@ -2786,7 +2853,7 @@ void DaoMcpService::RejectConnection(ConnectionState& connection,
   }
   FailPendingCalls(connection, error);
   CancelSpaceCalls(connection, error);
-  CancelSiteSkillsCalls(connection, error);
+  CancelSkillCalls(connection, error);
   connection.tab_tool_executor->CancelAll(error);
   for (auto& [_, context] : connection.target_contexts) {
     context->tool_executor->CancelAll(error);
