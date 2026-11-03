@@ -4,6 +4,8 @@
 
 ### [Unreleased] Unreleased
 
+### [1.0.134] - 2026-11-04
+
 - Improve picture-in-picture title bar reliability on macOS when opening or returning to a floating window, reducing the need to resize it to make the controls appear.
 - Let external AI tools save or update reusable website and global instructions after you preview and approve each save.
 - Approve reading saved instructions for a website separately, without granting browser control or Dao Lite background access.
