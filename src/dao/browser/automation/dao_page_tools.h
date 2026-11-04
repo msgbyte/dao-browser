@@ -21,6 +21,7 @@
 #include "base/sequence_checker.h"
 #include "base/types/expected.h"
 #include "base/values.h"
+#include "content/public/browser/weak_document_ptr.h"
 #include "dao/browser/automation/dao_browser_tool_types.h"
 #include "dao/browser/automation/dao_devtools_client.h"
 #include "ui/gfx/geometry/rect_f.h"
@@ -126,6 +127,16 @@ class DaoPageTools {
   void QueueHighlightCleanup(base::WeakPtr<content::WebContents> target,
                              std::string generation);
 
+  void ExecuteAction(std::string_view request_id);
+  void CollectFocusedCursorBounds(
+      std::string_view request_id,
+      std::vector<content::WeakDocumentPtr> frames,
+      base::ListValue bounds,
+      base::OnceClosure continuation);
+  void MoveActionCursor(std::string_view request_id, double x, double y);
+  void ShowActionCursor(std::string_view request_id,
+                        std::string element_expression,
+                        base::OnceClosure continuation);
   void ExecuteGetPageInfo(std::string_view request_id);
   void ExecuteGetPageHtml(std::string_view request_id);
   void ExecuteAccessibilityTree(std::string_view request_id);

@@ -24,6 +24,7 @@
 #include "base/timer/timer.h"
 #include "base/uuid.h"
 #include "build/build_config.h"
+#include "chrome/common/chrome_isolated_world_ids.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/render_frame_host.h"
@@ -42,6 +43,84 @@ constexpr size_t kMaxPageTextBytes = 512 * 1024;
 constexpr int kMaxHighlightCleanupAttempts = 2;
 constexpr base::TimeDelta kHighlightCleanupTimeout = base::Seconds(2);
 constexpr base::TimeDelta kHighlightCleanupRetryDelay = base::Milliseconds(50);
+
+constexpr char kCursorGeometryScript[] = R"js(
+  function cursorClipParent(el) {
+    const position = getComputedStyle(el).position;
+    // Positioned descendants escape overflow ancestors before their containing
+    // block. offsetParent also accounts for transforms and paint containment.
+    if (position === 'fixed' || position === 'absolute') return el.offsetParent;
+    return el.assignedSlot || el.parentElement || el.getRootNode().host;
+  }
+  function visibleCursorBounds(el) {
+    if (!el) return null;
+    const style = getComputedStyle(el);
+    if (style.display === 'none' || style.visibility === 'hidden' ||
+        style.visibility === 'collapse') return null;
+    const rect = el === document.body || el === document.documentElement ?
+        {left: 0, top: 0, right: innerWidth, bottom: innerHeight} :
+        el.getBoundingClientRect();
+    let left = Math.max(0, rect.left), top = Math.max(0, rect.top);
+    let right = Math.min(innerWidth, rect.right);
+    let bottom = Math.min(innerHeight, rect.bottom);
+    for (let parent = cursorClipParent(el); parent;
+         parent = cursorClipParent(parent)) {
+      if (parent === document.documentElement) continue;
+      const css = getComputedStyle(parent);
+      const paint = /(?:^| )(paint|strict|content)(?: |$)/.test(css.contain);
+      const clipX = paint || /^(auto|scroll|hidden|clip)$/.test(css.overflowX);
+      const clipY = paint || /^(auto|scroll|hidden|clip)$/.test(css.overflowY);
+      if (!clipX && !clipY) continue;
+      const bounds = parent.getBoundingClientRect();
+      const sx = parent.offsetWidth ? bounds.width / parent.offsetWidth : 1;
+      const sy = parent.offsetHeight ? bounds.height / parent.offsetHeight : 1;
+      const x = bounds.left + parent.clientLeft * sx;
+      const y = bounds.top + parent.clientTop * sy;
+      if (clipX) {
+        left = Math.max(left, x);
+        right = Math.min(right, x + parent.clientWidth * sx);
+      }
+      if (clipY) {
+        top = Math.max(top, y);
+        bottom = Math.min(bottom, y + parent.clientHeight * sy);
+      }
+    }
+    return right > left && bottom > top ?
+        {left, top, width: right - left, height: bottom - top} : null;
+  }
+)js";
+
+std::string WithCursorGeometry(std::string_view script) {
+  return "(function(){" + std::string(kCursorGeometryScript) + "return (" +
+         std::string(script) + ")})()";
+}
+
+constexpr char kActionCursorScript[] = R"js(
+(function(el) {
+  const bounds = visibleCursorBounds(el);
+  return bounds ? JSON.stringify({x: bounds.left + bounds.width / 2,
+                                 y: bounds.top + bounds.height / 2}) : '';
+})
+)js";
+
+constexpr char kFocusedCursorScript[] = R"js(
+(function() {
+  let el = document.activeElement;
+  while (el && el.shadowRoot && el.shadowRoot.activeElement) {
+    el = el.shadowRoot.activeElement;
+  }
+  const bounds = visibleCursorBounds(el);
+  if (!bounds) return null;
+  const rect = el.getBoundingClientRect();
+  const style = getComputedStyle(el);
+  const sx = el.offsetWidth ? rect.width / el.offsetWidth : 1;
+  const sy = el.offsetHeight ? rect.height / el.offsetHeight : 1;
+  return {...bounds,
+          frame_x: rect.left + (el.clientLeft + (parseFloat(style.paddingLeft) || 0)) * sx,
+          frame_y: rect.top + (el.clientTop + (parseFloat(style.paddingTop) || 0)) * sy,
+          scale_x: sx, scale_y: sy};
+})()
+)js";
 
 constexpr char kHighlightInjectScript[] = R"js(
 (function() {
@@ -196,7 +275,8 @@ constexpr char kSnapshotHelpersScript[] = R"js(
 std::string WithSnapshotHelpers(std::string_view script) {
   // Parenthesized: the script literal starts with a newline, which would
   // otherwise end the return statement.
-  return "(function(){" + std::string(kSnapshotHelpersScript) + "return (" +
+  return "(function(){" + std::string(kSnapshotHelpersScript) +
+         std::string(kCursorGeometryScript) + "return (" +
          std::string(script) + ")})()";
 }
 
@@ -823,6 +903,10 @@ struct DaoPageTools::Operation : public content::WebContentsObserver {
 
   void PrimaryPageChanged(content::Page& page) override {
     Observe(nullptr);
+    // Navigation after an action completes must not invalidate its feedback.
+    if (pending_result) {
+      return;
+    }
     base::WeakPtr<DaoPageTools> owner_copy = owner;
     const std::string request_id_copy = request_id;
     if (owner_copy && owner_copy->FindOperation(request_id_copy)) {
@@ -849,6 +933,9 @@ struct DaoPageTools::Operation : public content::WebContentsObserver {
   base::OneShotTimer wait_poll;
   int pending_background_click_commands = 0;
   bool ref_cursor_moved = false;
+  bool cursor_started = false;
+  bool waiting_for_cursor = false;
+  std::optional<DaoBrowserToolResult> pending_result;
   bool owns_lock = false;
   bool temporary_highlight = false;
   bool persistent_highlight_committed = false;
@@ -1013,6 +1100,45 @@ void DaoPageTools::Execute(std::string request_id,
     return;
   }
 
+  Operation* op = FindOperation(request_id);
+  std::string cursor_element;
+  if (name == "type_text" || name == "press_key_chord") {
+    std::vector<content::WeakDocumentPtr> frames;
+    content::RenderFrameHost* focused = op->target->GetFocusedFrame();
+    for (auto* frame = focused ? focused : op->target->GetPrimaryMainFrame();
+         frame; frame = frame->GetParent()) {
+      frames.push_back(frame->GetWeakDocumentPtr());
+    }
+    std::ranges::reverse(frames);
+    CollectFocusedCursorBounds(
+        request_id, std::move(frames), base::ListValue(),
+        base::BindOnce(&DaoPageTools::ExecuteAction, weak_factory_.GetWeakPtr(),
+                       request_id));
+    return;
+  } else if (name == "scroll_down" || name == "scroll_up") {
+    cursor_element = "document.documentElement";
+  } else if (name == "click_element" || name == "highlight_element") {
+    if (const std::string* selector = op->arguments.FindString("selector")) {
+      cursor_element = "document.querySelector(" +
+                       QuoteForJavaScript(*selector) + ")";
+    }
+  }
+  if (ui_delegate_ && !cursor_element.empty()) {
+    ShowActionCursor(
+        request_id, std::move(cursor_element),
+        base::BindOnce(&DaoPageTools::ExecuteAction, weak_factory_.GetWeakPtr(),
+                       request_id));
+    return;
+  }
+  ExecuteAction(request_id);
+}
+
+void DaoPageTools::ExecuteAction(std::string_view request_id) {
+  Operation* operation = FindOperation(request_id);
+  if (!operation) {
+    return;
+  }
+  const std::string name = operation->name;
   if (name == "get_page_info") {
     ExecuteGetPageInfo(request_id);
   } else if (name == "get_page_html") {
@@ -1052,6 +1178,167 @@ void DaoPageTools::Execute(std::string request_id,
   } else {
     ExecuteScript(request_id);
   }
+}
+
+void DaoPageTools::CollectFocusedCursorBounds(
+    std::string_view request_id,
+    std::vector<content::WeakDocumentPtr> frames,
+    base::ListValue bounds,
+    base::OnceClosure continuation) {
+  if (!ValidateOperationTarget(request_id)) {
+    return;
+  }
+  Operation* operation = FindOperation(request_id);
+  content::RenderFrameHost* focused = operation->target->GetFocusedFrame();
+  if (!focused) {
+    focused = operation->target->GetPrimaryMainFrame();
+  }
+  if (!ui_delegate_ || frames.empty() ||
+      frames.back().AsRenderFrameHostIfValid() != focused ||
+      std::ranges::any_of(frames, [](const content::WeakDocumentPtr& frame) {
+        return !frame.AsRenderFrameHostIfValid();
+      })) {
+    std::move(continuation).Run();
+    return;
+  }
+  if (bounds.size() == frames.size()) {
+    gfx::RectF visible;
+    float x = 0, y = 0, sx = 1, sy = 1;
+    for (size_t i = 0; i < bounds.size(); ++i) {
+      const auto& rect = bounds[i].GetDict();
+      gfx::RectF current(rect.FindDouble("left").value_or(0),
+                         rect.FindDouble("top").value_or(0),
+                         rect.FindDouble("width").value_or(0),
+                         rect.FindDouble("height").value_or(0));
+      current.Scale(sx, sy);
+      current.Offset(x, y);
+      if (i == 0) {
+        visible = current;
+      } else {
+        visible.Intersect(current);
+      }
+      x += rect.FindDouble("frame_x").value_or(0) * sx;
+      y += rect.FindDouble("frame_y").value_or(0) * sy;
+      sx *= rect.FindDouble("scale_x").value_or(1);
+      sy *= rect.FindDouble("scale_y").value_or(1);
+    }
+    const gfx::PointF point = visible.CenterPoint();
+    base::WeakPtr<DaoPageTools> weak_this = weak_factory_.GetWeakPtr();
+    if (!visible.IsEmpty() && std::isfinite(point.x()) &&
+        std::isfinite(point.y())) {
+      MoveActionCursor(request_id, point.x(), point.y());
+    }
+    if (weak_this && weak_this->ValidateOperationTarget(request_id)) {
+      std::move(continuation).Run();
+    }
+    return;
+  }
+
+  // Read each focused document directly, including cross-origin child frames.
+  content::RenderFrameHost* frame =
+      frames[bounds.size()].AsRenderFrameHostIfValid();
+  frame->ExecuteJavaScriptInIsolatedWorld(
+      base::UTF8ToUTF16(WithCursorGeometry(kFocusedCursorScript)),
+      base::BindOnce(
+          [](base::WeakPtr<DaoPageTools> self, std::string request_id,
+             std::vector<content::WeakDocumentPtr> frames,
+             base::ListValue bounds, base::OnceClosure continuation,
+             base::Value result) {
+            if (!self || !self->ValidateOperationTarget(request_id)) {
+              return;
+            }
+            if (!result.is_dict()) {
+              std::move(continuation).Run();
+              return;
+            }
+            bounds.Append(std::move(result));
+            self->CollectFocusedCursorBounds(
+                request_id, std::move(frames), std::move(bounds),
+                std::move(continuation));
+          },
+          weak_factory_.GetWeakPtr(), std::string(request_id),
+          std::move(frames), std::move(bounds), std::move(continuation)),
+      ISOLATED_WORLD_ID_CHROME_INTERNAL);
+}
+
+void DaoPageTools::MoveActionCursor(std::string_view request_id,
+                                   double x,
+                                   double y) {
+  Operation* operation = FindOperation(request_id);
+  if (!operation || !ui_delegate_) {
+    return;
+  }
+  operation->cursor_started = true;
+  operation->waiting_for_cursor = true;
+  // Feedback must not delay keyboard input and redirect focus.
+  ui_delegate_->MoveCursor(
+      operation->target.get(), x, y, std::nullopt,
+      base::BindOnce(
+          [](base::WeakPtr<DaoPageTools> self,
+             std::string request_id, bool moved) {
+            if (!self) {
+              return;
+            }
+            Operation* operation =
+                self->FindOperation(request_id);
+            if (!operation) {
+              return;
+            }
+            operation->cursor_started = moved;
+            operation->waiting_for_cursor = false;
+            if (moved) {
+              self->TrackCursor(operation->target.get());
+            }
+            if (operation->pending_result) {
+              self->Finish(
+                  request_id,
+                  std::move(*operation->pending_result));
+            }
+          },
+          weak_factory_.GetWeakPtr(), std::string(request_id)));
+}
+
+void DaoPageTools::ShowActionCursor(std::string_view request_id,
+                                    std::string element_expression,
+                                    base::OnceClosure continuation) {
+  if (!ui_delegate_) {
+    std::move(continuation).Run();
+    return;
+  }
+  base::DictValue params;
+  params.Set("expression", WithCursorGeometry(kActionCursorScript) + "(" +
+                               element_expression + ")");
+  params.Set("returnByValue", true);
+  SendCommand(
+      request_id, "Runtime.evaluate", std::move(params),
+      base::BindOnce(
+          [](base::WeakPtr<DaoPageTools> self, std::string request_id,
+             base::OnceClosure continuation,
+             DaoDevToolsClient::CommandResult result) {
+            if (!self) {
+              return;
+            }
+            Operation* operation = self->FindOperation(request_id);
+            if (!operation) {
+              return;
+            }
+            std::optional<std::string> json = RemoteString(result);
+            std::optional<base::Value> parsed =
+                json ? base::JSONReader::Read(*json, base::JSON_PARSE_RFC)
+                     : std::nullopt;
+            if (parsed && parsed->is_dict()) {
+              const auto x = parsed->GetDict().FindDouble("x");
+              const auto y = parsed->GetDict().FindDouble("y");
+              if (x && y && std::isfinite(*x) && std::isfinite(*y)) {
+                self->MoveActionCursor(request_id, *x, *y);
+              }
+            }
+            if (self && self->ValidateOperationTarget(request_id)) {
+              std::move(continuation).Run();
+            }
+          },
+          weak_factory_.GetWeakPtr(), std::string(request_id),
+          std::move(continuation)));
 }
 
 bool DaoPageTools::Cancel(std::string_view request_id, DaoToolError error) {
@@ -1224,6 +1511,11 @@ void DaoPageTools::Finish(std::string_view request_id,
   if (it == operations_.end()) {
     return;
   }
+  // Keep sequential tools from overtaking feedback, without delaying input.
+  if (!result.error && it->second->waiting_for_cursor) {
+    it->second->pending_result = std::move(result);
+    return;
+  }
   std::unique_ptr<Operation> operation = std::move(it->second);
   operations_.erase(it);
   if (result.error) {
@@ -1271,7 +1563,8 @@ void DaoPageTools::CleanupOperation(Operation* operation) {
 
 void DaoPageTools::CancelCursorState(Operation* operation) {
   if (!operation || !operation->target || !ui_delegate_ ||
-      (operation->name != "move_cursor" && operation->name != "agent_click" &&
+      (!operation->cursor_started && operation->name != "move_cursor" &&
+       operation->name != "agent_click" &&
        operation->name != "click_by_ref")) {
     return;
   }
@@ -1656,7 +1949,7 @@ void DaoPageTools::ExecuteRefAction(std::string_view request_id,
     return;
   }
   const bool fill = operation->name == "fill_by_ref";
-  const bool animate = !fill && animate_cursor && ui_delegate_;
+  const bool animate = animate_cursor && ui_delegate_;
   const std::string* text = operation->arguments.FindString("text");
   if (fill && !text) {
     FinishError(request_id, InvalidArgument("Fill text is required."));
@@ -1760,6 +2053,14 @@ void DaoPageTools::ExecuteRefAction(std::string_view request_id,
   }
   var failed = checkPreconditions();
   if (failed) return failed;
+  function cursorBounds() {
+    var bounds = el.getBoundingClientRect();
+    if (fill) {
+      return JSON.stringify(visibleCursorBounds(el) || {skip_cursor: true});
+    }
+    return JSON.stringify({left: bounds.left, top: bounds.top,
+                           width: bounds.width, height: bounds.height});
+  }
   if (fill) {
     if (!isTextField(el)) {
       return fail('Fill requires a text input, textarea, or contenteditable host.');
@@ -1795,6 +2096,7 @@ void DaoPageTools::ExecuteRefAction(std::string_view request_id,
     }
     failed = checkField();
     if (failed) return failed;
+    if (animate) return cursorBounds();
     selectContents();
     failed = checkField();
     if (failed) return failed;
@@ -1828,11 +2130,7 @@ void DaoPageTools::ExecuteRefAction(std::string_view request_id,
     }
     return JSON.stringify({filled: true, ref_id: refId});
   }
-  if (animate) {
-    var bounds = el.getBoundingClientRect();
-    return JSON.stringify({left: bounds.left, top: bounds.top,
-                           width: bounds.width, height: bounds.height});
-  }
+  if (animate) return cursorBounds();
   el.click();
   return JSON.stringify({clicked: true, ref_id: refId});
 })
@@ -1882,40 +2180,55 @@ void DaoPageTools::ExecuteRefAction(std::string_view request_id,
                     }
                     if (animate) {
                       const base::DictValue& rect = parsed->GetDict();
+                      if (rect.FindBool("skip_cursor").value_or(false)) {
+                        self->ExecuteRefAction(request_id, false);
+                        return;
+                      }
                       const auto left = rect.FindDouble("left");
                       const auto top = rect.FindDouble("top");
                       const auto width = rect.FindDouble("width");
                       const auto height = rect.FindDouble("height");
                       if (!left || !top || !width || !height) {
                         self->FinishError(
-                            request_id, InternalError("Invalid click bounds."));
+                            request_id, InternalError("Invalid action bounds."));
                         return;
                       }
                       const gfx::RectF bounds(*left, *top, *width, *height);
                       const gfx::PointF center = bounds.CenterPoint();
+                      operation->cursor_started = true;
                       self->ui_delegate_->MoveCursor(
                           operation->target.get(), center.x(), center.y(),
-                          bounds,
+                          operation->name == "fill_by_ref"
+                              ? std::nullopt
+                              : std::make_optional(bounds),
                           base::BindOnce(
                               [](base::WeakPtr<DaoPageTools> self,
                                  std::string request_id, bool moved) {
-                                if (!self ||
-                                    !self->ValidateOperationTarget(request_id)) {
+                                if (!self) {
                                   return;
                                 }
                                 Operation* operation =
                                     self->FindOperation(request_id);
+                                if (!operation) {
+                                  return;
+                                }
+                                operation->cursor_started = moved;
+                                if (!self->ValidateOperationTarget(request_id)) {
+                                  return;
+                                }
+                                operation = self->FindOperation(request_id);
                                 operation->ref_cursor_moved = moved;
                                 if (moved) {
                                   self->TrackCursor(operation->target.get());
                                 }
-                                // Revalidate after animation before clicking.
+                                // Revalidate after animation before acting.
                                 self->ExecuteRefAction(request_id, false);
                               },
                               self, request_id));
                       return;
                     }
-                    if (operation->ref_cursor_moved && self->ui_delegate_) {
+                    if (operation->ref_cursor_moved && self->ui_delegate_ &&
+                        operation->name == "click_by_ref") {
                       self->ui_delegate_->PlayClickRipple(
                           operation->target.get());
                     }
@@ -2414,7 +2727,7 @@ void DaoPageTools::ExecuteScrollToElement(std::string_view request_id) {
   const std::string script =
       "(() => { const el=document.querySelector(" + QuoteForJavaScript(query) +
       "); if(!el) return JSON.stringify({error:'element not found'});"
-      "el.scrollIntoView({behavior:'smooth',block:'center'});"
+      "el.scrollIntoView({behavior:'instant',block:'center'});"
       "return JSON.stringify({scrolled:true}); })()";
   base::DictValue params;
   params.Set("expression", script);
@@ -2423,6 +2736,7 @@ void DaoPageTools::ExecuteScrollToElement(std::string_view request_id) {
       request_id, "Runtime.evaluate", std::move(params),
       base::BindOnce(
           [](base::WeakPtr<DaoPageTools> self, std::string request_id,
+             std::string query,
              DaoDevToolsClient::CommandResult result) {
             if (!self) {
               return;
@@ -2441,9 +2755,17 @@ void DaoPageTools::ExecuteScrollToElement(std::string_view request_id) {
                   InternalError("Scroll-to-element evaluation failed."));
               return;
             }
-            self->FinishSuccess(request_id, std::move(*parsed));
+            if (parsed->GetDict().FindString("error")) {
+              self->FinishSuccess(request_id, std::move(*parsed));
+              return;
+            }
+            self->ShowActionCursor(
+                request_id,
+                "document.querySelector(" + QuoteForJavaScript(query) + ")",
+                base::BindOnce(&DaoPageTools::FinishSuccess, self, request_id,
+                               std::move(*parsed)));
           },
-          weak_factory_.GetWeakPtr(), std::string(request_id)));
+          weak_factory_.GetWeakPtr(), std::string(request_id), query));
 }
 
 void DaoPageTools::ExecutePressKeyChord(std::string_view request_id) {

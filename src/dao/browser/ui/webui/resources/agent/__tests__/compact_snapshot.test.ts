@@ -5,7 +5,9 @@ import {afterEach, beforeEach, expect, it, vi} from 'vitest';
 // geometry, wrapped with the shared helpers exactly as WithSnapshotHelpers() does.
 const source = readFileSync('src/dao/browser/automation/dao_page_tools.cc', 'utf8');
 const helpers = source.match(/kSnapshotHelpersScript\[\] = R"js\(([\s\S]*?)\)js";/)![1];
-const withHelpers = (script: string) => `(function(){${helpers}return (${script})})()`;
+const geometry = source.match(/kCursorGeometryScript\[\] = R"js\(([\s\S]*?)\)js";/)![1];
+const withGeometry = (script: string) => `(function(){${geometry}return (${script})})()`;
+const withHelpers = (script: string) => `(function(){${helpers}${geometry}return (${script})})()`;
 const script = withHelpers(source.match(/kAccessibilityTreeScript\[\] = R"js\(([\s\S]*?)\)js";/)![1]);
 const observe = () => JSON.parse((0, eval)(script)('compact', null, 'snapshot-test', false));
 const query = (filters: Record<string, unknown> = {}) =>
@@ -14,6 +16,8 @@ const actionScript = withHelpers(source.match(/WithSnapshotHelpers\(R"js\(\n(\(f
 const click = (element: {ref_id: string; role: string; name: string; value?: string}, animate = false) =>
   JSON.parse((0, eval)(actionScript)(element.ref_id, 'snapshot-test',
     {role: element.role, name: element.name, value: element.value}, false, '', animate));
+const cursorScript = source.match(/kActionCursorScript\[\] = R"js\(([\s\S]*?)\)js";/)![1];
+const cursorPosition = (element: Element | null) => (0, eval)(withGeometry(cursorScript))(element);
 
 afterEach(() => { vi.restoreAllMocks(); document.body.innerHTML = ''; });
 
@@ -36,6 +40,115 @@ it('prepares the cursor destination without clicking, then clicks once', () => {
   expect(clicked).not.toHaveBeenCalled();
   expect(click(element)).toEqual({clicked: true, ref_id: element.ref_id});
   expect(clicked).toHaveBeenCalledTimes(1);
+});
+
+it('focuses a fill target for cursor feedback before editing its value', () => {
+  document.body.innerHTML = '<input aria-label="Title" value="original">';
+  const input = document.querySelector('input')!;
+  const element = query({role: 'textbox'}).matches[0];
+  const beforeInput = vi.fn();
+  input.addEventListener('beforeinput', beforeInput);
+
+  const prepare = () => JSON.parse((0, eval)(actionScript)(
+    element.ref_id, 'snapshot-test', {}, true, 'original', true));
+  expect(prepare()).toEqual({left: 10, top: 10, width: 100, height: 30});
+  expect(document.activeElement).toBe(input);
+  expect(input.value).toBe('original');
+  expect(beforeInput).not.toHaveBeenCalled();
+
+  input.readOnly = true;
+  expect(JSON.parse((0, eval)(actionScript)(
+    element.ref_id, 'snapshot-test', {}, true, 'changed', false)))
+      .toHaveProperty('error');
+  expect(input.value).toBe('original');
+});
+
+it('keeps fill feedback inside a large input visible in the viewport', () => {
+  document.body.innerHTML = '<textarea aria-label="Notes">original</textarea>';
+  const input = document.querySelector('textarea')!;
+  const element = query({role: 'textbox'}).matches[0];
+  vi.spyOn(input, 'getBoundingClientRect').mockReturnValue(
+    {left: -30, right: 70, top: -1000, bottom: 3000,
+      width: 100, height: 4000} as DOMRect);
+  const prepare = () => JSON.parse((0, eval)(actionScript)(
+    element.ref_id, 'snapshot-test', {}, true, 'original', true));
+  expect(prepare()).toEqual({left: 0, top: 0, width: 70, height: innerHeight});
+  vi.spyOn(input, 'getBoundingClientRect').mockReturnValue(
+    {left: 10, right: 110, top: -100, bottom: -20,
+      width: 100, height: 80} as DOMRect);
+  expect(prepare()).toEqual({skip_cursor: true});
+  expect(input.value).toBe('original');
+});
+
+it('positions action feedback inside the visible portion of its target', () => {
+  document.body.innerHTML = '<input>';
+  const input = document.querySelector('input')!;
+  vi.spyOn(input, 'getBoundingClientRect').mockReturnValue(
+    {left: -30, right: 70, top: -10, bottom: 30} as DOMRect);
+  expect(JSON.parse(cursorPosition(input))).toEqual({x: 35, y: 15});
+  input.style.visibility = 'hidden';
+  expect(cursorPosition(input)).toBe('');
+  expect(cursorPosition(null)).toBe('');
+});
+
+it('clips input feedback to the scroll container as well as the viewport', () => {
+  document.body.innerHTML = '<div style="overflow-x:hidden;overflow-y:hidden"><textarea>original</textarea></div>';
+  const container = document.querySelector('div')!;
+  const field = document.querySelector('textarea')!;
+  Object.defineProperty(container, 'getBoundingClientRect', {value: () =>
+    ({left: 0, right: 200, top: 0, bottom: 20, width: 200, height: 20})});
+  for (const [name, value] of Object.entries({
+    offsetWidth: 200, offsetHeight: 20, clientWidth: 200, clientHeight: 20,
+  })) Object.defineProperty(container, name, {value});
+  expect(JSON.parse(cursorPosition(field))).toEqual({x: 60, y: 15});
+  const element = query({role: 'textbox'}).matches[0];
+  expect(JSON.parse((0, eval)(actionScript)(
+    element.ref_id, 'snapshot-test', {}, true, 'original', true)))
+      .toEqual({left: 10, top: 10, width: 100, height: 10});
+});
+
+it('locates the focused input inside a shadow root', () => {
+  document.body.innerHTML = '<div id="host"></div>';
+  const host = document.querySelector('#host')!;
+  const shadow = host.attachShadow({mode: 'open'});
+  shadow.innerHTML = '<input>';
+  shadow.querySelector('input')!.focus();
+  expect(document.activeElement).toBe(host);
+  const focusedScript = source.match(/kFocusedCursorScript\[\] = R"js\(([\s\S]*?)\)js";/)![1];
+  expect((0, eval)(withGeometry(focusedScript)))
+    .toMatchObject({left: 10, top: 10, width: 100, height: 30});
+});
+
+it('does not clip a fixed input to an unrelated overflow ancestor', () => {
+  document.body.innerHTML = '<div style="overflow-x:hidden;overflow-y:hidden"><input style="position:fixed"></div>';
+  const input = document.querySelector('input')!;
+  expect(JSON.parse(cursorPosition(input))).toEqual({x: 60, y: 25});
+});
+
+it('clips slotted input feedback to its shadow scroll container', () => {
+  document.body.innerHTML = '<div id="host"><input></div>';
+  const shadow = document.querySelector('#host')!.attachShadow({mode: 'open'});
+  shadow.innerHTML = '<div style="overflow-x:hidden;overflow-y:hidden"><slot></slot></div>';
+  const container = shadow.querySelector('div')!;
+  Object.defineProperty(container, 'getBoundingClientRect', {value: () =>
+    ({left: 0, right: 200, top: 0, bottom: 20, width: 200, height: 20})});
+  for (const [name, value] of Object.entries({
+    offsetWidth: 200, offsetHeight: 20, clientWidth: 200, clientHeight: 20,
+  })) Object.defineProperty(container, name, {value});
+  expect(JSON.parse(cursorPosition(document.querySelector('input'))))
+    .toEqual({x: 60, y: 15});
+});
+
+it('uses the viewport for page actions without an element target', () => {
+  vi.stubGlobal('innerWidth', 800);
+  vi.stubGlobal('innerHeight', 600);
+  try {
+    expect(JSON.parse(cursorPosition(document.documentElement))).toEqual({x: 400, y: 300});
+    document.body.innerHTML = '<button id="offscreen">Outside</button>';
+    expect(cursorPosition(document.querySelector('button'))).toBe('');
+  } finally {
+    vi.unstubAllGlobals();
+  }
 });
 
 it.each(['name', 'snapshot', 'removed'])('rejects a %s change during cursor movement', change => {

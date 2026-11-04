@@ -38,6 +38,7 @@
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/browser/render_frame_host.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/test_navigation_observer.h"
@@ -129,6 +130,7 @@ public:
                   std::optional<gfx::RectF> target_bounds,
                   base::OnceCallback<void(bool)> callback) override {
     ++move_count_;
+    last_position_ = gfx::PointF(x, y);
     last_target_bounds_ = target_bounds;
     if (respect_target_activation_ && !CanAnimateTarget(target)) {
       std::move(callback).Run(false);
@@ -175,6 +177,7 @@ public:
   int animation_count() const { return animation_count_; }
   int ripple_count() const { return ripple_count_; }
   int cancel_cursor_count() const { return cancel_cursor_count_; }
+  gfx::PointF last_position() const { return last_position_; }
   const std::optional<gfx::RectF> &last_target_bounds() const {
     return last_target_bounds_;
   }
@@ -207,6 +210,7 @@ private:
   int animation_count_ = 0;
   int ripple_count_ = 0;
   int cancel_cursor_count_ = 0;
+  gfx::PointF last_position_;
   std::optional<gfx::RectF> last_target_bounds_;
   bool respect_target_activation_ = false;
   bool hold_next_cursor_move_ = false;
@@ -528,6 +532,340 @@ IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
+                       FillMovesCursorBeforeEditingAndRevalidates) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
+  auto session = MakeSessionForActiveTab();
+  content::WebContents* target = session->ResolveTarget().value();
+  ASSERT_TRUE(content::ExecJs(target, R"(
+    document.body.innerHTML = '<input id="field" value="original" '
+      + 'style="position:fixed;left:80px;top:100px;width:200px;height:40px;'
+      + 'box-sizing:border-box">';
+  )"));
+  auto query = Execute(session.get(), "query_elements",
+                       base::DictValue().Set("role", "textbox"));
+  ASSERT_TRUE(query.ok) << query.error->message;
+  const auto& data = query.data.GetDict();
+  base::DictValue args = base::DictValue()
+      .Set("ref_id",
+           *(*data.FindList("matches"))[0].GetDict().FindString("ref_id"))
+      .Set("document_id", *data.FindString("document_id"))
+      .Set("snapshot_id", *data.FindString("snapshot_id"))
+      .Set("text", "replacement");
+  for (bool moved : {false, true}) {
+    ASSERT_TRUE(content::ExecJs(target, "field.readOnly = false;"));
+    const int previous_moves = ui_delegate_.move_count();
+    DaoBrowserToolCall call;
+    call.request_id = "fill-cursor-revalidation";
+    call.name = "fill_by_ref";
+    call.arguments = args.Clone();
+    call.timeout = base::Seconds(5);
+    ui_delegate_.HoldNextCursorMove(base::DoNothing());
+    base::test::TestFuture<DaoBrowserToolResult> future;
+    executor_->Execute(session.get(), DaoToolClient::kMcp, std::move(call),
+                       future.GetCallback());
+    ASSERT_TRUE(base::test::RunUntil([&] {
+      return ui_delegate_.move_count() == previous_moves + 1 || future.IsReady();
+    }));
+    ASSERT_FALSE(future.IsReady());
+    EXPECT_EQ(gfx::PointF(180, 120), ui_delegate_.last_position());
+    EXPECT_FALSE(ui_delegate_.last_target_bounds());
+    EXPECT_EQ("original", content::EvalJs(target, "field.value"));
+    ASSERT_TRUE(content::ExecJs(target, "field.readOnly = true;"));
+    ui_delegate_.CompletePendingCursorMove(moved);
+    EXPECT_FALSE(future.Take().ok);
+    EXPECT_EQ("original", content::EvalJs(target, "field.value"));
+    EXPECT_EQ(moved ? 1 : 0, ui_delegate_.cancel_cursor_count());
+    EXPECT_EQ(0, ui_delegate_.ripple_count());
+  }
+
+  ASSERT_TRUE(content::ExecJs(target, "field.readOnly = false;"));
+  EXPECT_TRUE(Execute(session.get(), "fill_by_ref", args.Clone()).ok);
+  EXPECT_EQ("replacement", content::EvalJs(target, "field.value"));
+  EXPECT_EQ(3, ui_delegate_.move_count());
+  EXPECT_EQ(0, ui_delegate_.ripple_count());
+
+  ui_delegate_.RespectTargetActivation();
+  chrome::AddTabAt(browser(), second_url(), 1, true);
+  content::WebContents* foreground =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(content::WaitForLoadStop(foreground));
+  args.Set("text", "background");
+  EXPECT_TRUE(Execute(session.get(), "fill_by_ref", std::move(args)).ok);
+  EXPECT_EQ("background", content::EvalJs(target, "field.value"));
+  EXPECT_EQ(3, ui_delegate_.animation_count());
+  EXPECT_EQ(foreground, browser()->tab_strip_model()->GetActiveWebContents());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
+                       InputDispatchDoesNotWaitForCursorAnimation) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
+  auto session = MakeSessionForActiveTab();
+  content::WebContents* target = session->ResolveTarget().value();
+  ASSERT_TRUE(content::ExecJs(target, R"(
+    document.body.innerHTML = '<input id="field" style="position:fixed;'
+      + 'left:80px;top:100px;width:200px;height:40px;box-sizing:border-box">';
+    field.focus();
+  )"));
+  for (const std::string name : {"type_text", "press_key_chord"}) {
+    SCOPED_TRACE(name);
+    ui_delegate_.HoldNextCursorMove(base::DoNothing());
+    base::DictValue args = name == "type_text"
+                              ? base::DictValue().Set("text", "Dao")
+                              : base::DictValue().Set("keys", "x");
+    DaoBrowserToolCall call;
+    call.request_id = "input-cursor-" + name;
+    call.name = name;
+    call.arguments = std::move(args);
+    call.timeout = base::Seconds(5);
+    base::test::TestFuture<DaoBrowserToolResult> future;
+    executor_->Execute(session.get(), DaoToolClient::kMcp, std::move(call),
+                       future.GetCallback());
+    ASSERT_TRUE(base::test::RunUntil([&] {
+      return content::EvalJs(target, "field.value").ExtractString() ==
+             (name == "type_text" ? "Dao" : "Daox");
+    }));
+    EXPECT_FALSE(future.IsReady());
+    EXPECT_EQ(gfx::PointF(180, 120), ui_delegate_.last_position());
+    EXPECT_EQ(name == "type_text" ? "Dao" : "Daox",
+              content::EvalJs(target, "field.value"));
+    ui_delegate_.CompletePendingCursorMove(true);
+    auto result = future.Take();
+    ASSERT_TRUE(result.ok) << result.error->message;
+  }
+  EXPECT_EQ(2, ui_delegate_.move_count());
+  EXPECT_EQ(0, ui_delegate_.ripple_count());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
+                       InputCursorClipsToScrollContainer) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
+  auto session = MakeSessionForActiveTab();
+  content::WebContents* target = session->ResolveTarget().value();
+  ASSERT_TRUE(content::ExecJs(target, R"(
+    document.body.innerHTML = '<div style="position:fixed;left:40px;top:40px;'
+      + 'width:320px;height:160px;overflow:hidden"><textarea id="field" '
+      + 'style="display:block;margin:0;width:300px;height:1200px;'
+      + 'box-sizing:border-box">original</textarea></div>';
+  )"));
+  auto query = Execute(session.get(), "query_elements",
+                       base::DictValue().Set("role", "textbox"));
+  ASSERT_TRUE(query.ok) << query.error->message;
+  const auto& data = query.data.GetDict();
+  auto result = Execute(session.get(), "fill_by_ref", base::DictValue()
+      .Set("ref_id",
+           *(*data.FindList("matches"))[0].GetDict().FindString("ref_id"))
+      .Set("document_id", *data.FindString("document_id"))
+      .Set("snapshot_id", *data.FindString("snapshot_id"))
+      .Set("text", "replacement"));
+  ASSERT_TRUE(result.ok) << result.error->message;
+  EXPECT_EQ(gfx::PointF(190, 120), ui_delegate_.last_position());
+  EXPECT_EQ("replacement", content::EvalJs(target, "field.value"));
+  EXPECT_TRUE(content::EvalJs(target,
+      "document.elementFromPoint(190, 120) === field").ExtractBool());
+  EXPECT_TRUE(Execute(session.get(), "type_text",
+                      base::DictValue().Set("text", "!")).ok);
+  EXPECT_EQ(gfx::PointF(190, 120), ui_delegate_.last_position());
+  EXPECT_EQ("replacement!", content::EvalJs(target, "field.value"));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
+                       InputCursorUsesLayoutClippingAncestors) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
+  auto session = MakeSessionForActiveTab();
+  content::WebContents* target = session->ResolveTarget().value();
+  for (const std::string position : {"fixed", "absolute"}) {
+    SCOPED_TRACE(position);
+    ASSERT_TRUE(content::ExecJs(target, content::JsReplace(R"(
+      document.body.innerHTML = '<div style="overflow:hidden;width:1px;height:1px">'
+        + '<input id="field" style="left:80px;top:100px;width:200px;height:40px;'
+        + 'box-sizing:border-box"></div>';
+      field.style.position = $1;
+      field.focus();
+    )", position)));
+    EXPECT_TRUE(Execute(session.get(), "type_text",
+                        base::DictValue().Set("text", "Dao")).ok);
+    EXPECT_EQ(gfx::PointF(180, 120), ui_delegate_.last_position());
+    EXPECT_EQ("Dao", content::EvalJs(target, "field.value"));
+    EXPECT_TRUE(content::EvalJs(target,
+        "document.elementFromPoint(180, 120) === field").ExtractBool());
+  }
+  ASSERT_TRUE(content::ExecJs(target, R"(
+    document.body.innerHTML = '<div id="host"><textarea id="field" '
+      + 'style="display:block;width:300px;height:1200px;box-sizing:border-box">'
+      + '</textarea></div>';
+    host.attachShadow({mode:'open'}).innerHTML = '<div style="position:fixed;'
+      + 'left:40px;top:40px;width:320px;height:160px;overflow:hidden">'
+      + '<slot></slot></div>';
+    field.focus();
+  )"));
+  EXPECT_TRUE(Execute(session.get(), "type_text",
+                      base::DictValue().Set("text", "slotted")).ok);
+  EXPECT_EQ(gfx::PointF(190, 120), ui_delegate_.last_position());
+  EXPECT_EQ("slotted", content::EvalJs(target, "field.value"));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
+                       InputCursorFollowsSameOriginAndCrossOriginFrames) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
+  auto session = MakeSessionForActiveTab();
+  content::WebContents* target = session->ResolveTarget().value();
+  for (bool cross_origin : {false, true}) {
+    SCOPED_TRACE(cross_origin);
+    ASSERT_TRUE(content::ExecJs(target, R"(
+      document.body.innerHTML = '<iframe id="embedded" style="position:fixed;'
+        + 'left:40px;top:40px;width:600px;height:400px;border:4px solid;padding:8px 12px;'
+        + 'transform:scale(.75);transform-origin:0 0"></iframe>';
+    )"));
+    ASSERT_TRUE(content::NavigateIframeToURL(
+        target, "embedded", cross_origin ? embedded_test_server()->GetURL(
+            "b.test", "/title1.html") : first_url()));
+    content::RenderFrameHost* child =
+        content::ChildFrameAt(target->GetPrimaryMainFrame(), 0);
+    ASSERT_TRUE(child);
+    ASSERT_TRUE(content::ExecJs(child, R"(
+      document.body.innerHTML = '<input id="field" style="position:absolute;'
+        + 'left:20px;top:20px;width:100px;height:30px;box-sizing:border-box">';
+      field.focus();
+    )"));
+    ASSERT_TRUE(base::test::RunUntil(
+        [&] { return target->GetFocusedFrame() == child; }));
+    auto result = Execute(session.get(), "type_text",
+                          base::DictValue().Set("text", "Dao"));
+    ASSERT_TRUE(result.ok) << result.error->message;
+    EXPECT_EQ(gfx::PointF(104.5f, 75.25f), ui_delegate_.last_position());
+    EXPECT_EQ("Dao", content::EvalJs(child, "field.value"));
+    EXPECT_TRUE(Execute(session.get(), "press_key_chord",
+                        base::DictValue().Set("keys", "x")).ok);
+    EXPECT_EQ(gfx::PointF(104.5f, 75.25f), ui_delegate_.last_position());
+    EXPECT_EQ("Daox", content::EvalJs(child, "field.value"));
+    ASSERT_TRUE(content::ExecJs(child, content::JsReplace(R"(
+      (async () => {
+        document.body.innerHTML = '';
+        const frame = document.createElement('iframe');
+        frame.style = 'position:absolute;left:30px;top:25px;width:300px;'
+          + 'height:200px;border:2px solid;padding:4px 8px';
+        const loaded = new Promise(resolve => frame.onload = resolve);
+        frame.src = $1;
+        document.body.append(frame);
+        await loaded;
+      })()
+    )", embedded_test_server()->GetURL("a.test", "/title2.html"))));
+    content::RenderFrameHost* nested = content::ChildFrameAt(child, 0);
+    ASSERT_TRUE(nested);
+    ASSERT_TRUE(content::ExecJs(nested, R"(
+      document.body.innerHTML = '<input id="field" style="position:absolute;'
+        + 'left:20px;top:20px;width:100px;height:30px;box-sizing:border-box">';
+      field.focus();
+    )"));
+    ASSERT_TRUE(base::test::RunUntil(
+        [&] { return target->GetFocusedFrame() == nested; }));
+    EXPECT_TRUE(Execute(session.get(), "type_text",
+                        base::DictValue().Set("text", "nested")).ok);
+    EXPECT_EQ(gfx::PointF(134.5f, 98.5f), ui_delegate_.last_position());
+    EXPECT_EQ("nested", content::EvalJs(nested, "field.value"));
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
+                       CompletedActionKeepsResultDuringCursorFeedback) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
+  auto session = MakeSessionForActiveTab();
+  content::WebContents* target = session->ResolveTarget().value();
+  ASSERT_TRUE(content::ExecJs(target, R"(
+    document.body.innerHTML = '<button id="button">Continue</button>';
+    window.clicks = 0;
+    button.onclick = () => ++window.clicks;
+  )"));
+  ui_delegate_.HoldNextCursorMove(base::DoNothing());
+  DaoBrowserToolCall call;
+  call.request_id = "completed-action-cursor";
+  call.name = "click_element";
+  call.arguments = base::DictValue().Set("selector", "#button");
+  call.timeout = base::Seconds(5);
+  base::test::TestFuture<DaoBrowserToolResult> future;
+  executor_->Execute(session.get(), DaoToolClient::kMcp, std::move(call),
+                     future.GetCallback());
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return content::EvalJs(target, "window.clicks").ExtractInt() == 1 &&
+           devtools_client_->pending_command_count_for_testing() == 0;
+  }));
+  EXPECT_FALSE(future.IsReady());
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), second_url()));
+  ui_delegate_.CompletePendingCursorMove(false);
+  auto result = future.Take();
+  ASSERT_TRUE(result.ok) << result.error->message;
+  EXPECT_EQ(0u, executor_->page_cursor_count_for_testing());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
+                       CancelInputDuringCursorFeedbackCompletesOnce) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
+  auto session = MakeSessionForActiveTab();
+  content::WebContents* target = session->ResolveTarget().value();
+  ASSERT_TRUE(content::ExecJs(target, R"(
+    document.body.innerHTML = '<input id="field">';
+    field.focus();
+  )"));
+  ui_delegate_.HoldNextCursorMove(base::DoNothing());
+  DaoBrowserToolCall call;
+  call.request_id = "cancel-input-cursor";
+  call.name = "type_text";
+  call.arguments = base::DictValue().Set("text", "Dao");
+  call.timeout = base::Seconds(5);
+  base::test::TestFuture<DaoBrowserToolResult> future;
+  executor_->Execute(session.get(), DaoToolClient::kMcp, std::move(call),
+                     future.GetCallback());
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return content::EvalJs(target, "field.value").ExtractString() == "Dao" &&
+           devtools_client_->pending_command_count_for_testing() == 0;
+  }));
+  EXPECT_FALSE(future.IsReady());
+  executor_->Cancel("cancel-input-cursor");
+  auto result = future.Take();
+  ASSERT_FALSE(result.ok);
+  ASSERT_TRUE(result.error);
+  EXPECT_EQ(DaoToolErrorCode::kToolCancelled, result.error->code);
+  executor_->Cancel("cancel-input-cursor");
+  EXPECT_EQ(1, ui_delegate_.cancel_cursor_count());
+  EXPECT_EQ(0u, executor_->page_cursor_count_for_testing());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
+                       PageActionsShowCursorAtTheirTargets) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
+  auto session = MakeSessionForActiveTab();
+  content::WebContents* target = session->ResolveTarget().value();
+  ASSERT_TRUE(content::ExecJs(target, R"(
+    document.body.innerHTML = '<button id="button" style="position:absolute;'
+      + 'left:80px;top:1800px;width:200px;height:40px">Continue</button>';
+    document.body.style.height = '3000px';
+    window.clicks = 0;
+    button.onclick = () => ++window.clicks;
+  )"));
+  EXPECT_TRUE(Execute(session.get(), "scroll_down",
+                      base::DictValue().Set("amount", 100)).ok);
+  EXPECT_EQ(1, ui_delegate_.move_count());
+  EXPECT_TRUE(Execute(session.get(), "scroll_up",
+                      base::DictValue().Set("amount", 100)).ok);
+  EXPECT_EQ(2, ui_delegate_.move_count());
+  EXPECT_TRUE(Execute(session.get(), "scroll_to_element",
+                      base::DictValue().Set("selector", "#button")).ok);
+  EXPECT_EQ(3, ui_delegate_.move_count());
+  const double center_y = content::EvalJs(target, R"(
+    button.getBoundingClientRect().top + 20
+  )").ExtractDouble();
+  EXPECT_EQ(gfx::PointF(180, center_y), ui_delegate_.last_position());
+  EXPECT_TRUE(Execute(session.get(), "click_element",
+                      base::DictValue().Set("selector", "#button")).ok);
+  EXPECT_EQ(4, ui_delegate_.move_count());
+  EXPECT_EQ(1, content::EvalJs(target, "window.clicks"));
+  EXPECT_TRUE(Execute(session.get(), "highlight_element",
+                      base::DictValue().Set("selector", "#button")).ok);
+  EXPECT_EQ(5, ui_delegate_.move_count());
+  EXPECT_EQ(gfx::PointF(180, center_y), ui_delegate_.last_position());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
                        FillByRefHonorsBeforeInputCancellation) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
   auto session = MakeSessionForActiveTab();
@@ -664,7 +1002,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
           '<p>old <strong>description<br></strong>second line</p>' +
           '<p>last line</p></div>';
       window.field = document.getElementById('field');
-      field.contentEditable = $1;
+      field.setAttribute('contenteditable', $1);
       window.inputs = [];
       field.oninput = e => inputs.push(e.isTrusted);
     )",
@@ -1659,6 +1997,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
             EXPECT_EQ(DaoToolErrorCode::kToolCancelled, result.error->code);
           },
           &callback_count));
+  ASSERT_TRUE(base::test::RunUntil([&] { return !page_tools; }));
   devtools_client_->SetCommandCallbackForTesting(
       DaoDevToolsClient::CommandCallbackForTesting());
 
