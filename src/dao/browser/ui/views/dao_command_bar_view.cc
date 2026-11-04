@@ -453,6 +453,7 @@ void DaoCommandBarView::InitAutocompleteController() {
 
   AutocompleteControllerConfig config;
   config.provider_types = GetAutocompleteProviderTypesForCurrentMode();
+  config.unscoped_open_tab_suggestions = true;
 
   autocomplete_controller_ = std::make_unique<AutocompleteController>(
       std::make_unique<ChromeAutocompleteProviderClient>(profile), config);
@@ -1302,10 +1303,11 @@ void DaoCommandBarView::UpdateSuggestions() {
       const AutocompleteMatch& match = visible_matches_[row.index];
       bool is_bookmark =
           bookmark_model && bookmark_model->IsBookmarked(match.destination_url);
-      suggestion_views_[i]->SetMatch(match, is_bookmark,
-                                     enhanced_suggestions_enabled
-                                         ? GetIntentLabelForMatch(match)
-                                         : std::u16string());
+      suggestion_views_[i]->SetMatch(
+          match, is_bookmark,
+          enhanced_suggestions_enabled || match.has_tab_match.value_or(false)
+              ? GetIntentLabelForMatch(match)
+              : std::u16string());
       suggestion_views_[i]->SetVisible(true);
       suggestion_views_[i]->SetSelected(i == selected_index_);
     }

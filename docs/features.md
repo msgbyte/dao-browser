@@ -414,6 +414,11 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
     History-backed suggestions may delete their history entries; bookmarks stay
     intact. Non-deletable rows leave Shift+Delete to normal text editing.
   - **Ask AI** — Submits prompt directly to the Agent
+  - **Open-tab search** — Normal input matches open-tab titles and URLs,
+    including UUIDs, without requiring `@tabs`. Both suggestion modes show a
+    localized `Switch Tab` label; accepting the row activates the existing tab
+    instead of opening a duplicate. Matching stays within the same profile and
+    private-browsing context.
   - **System commands** — Normal input supplements Chromium results with at
     most two whole-title or alias prefix matches; an exact safe UI command is
     promoted to the front. The **Enable > command mode** toggle in

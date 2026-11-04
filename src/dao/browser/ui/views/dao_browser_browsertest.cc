@@ -4296,6 +4296,86 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       OpenTabUuidSearchSwitchesExistingTabInBothModes) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  // Incognito keeps history providers from supplying the open-tab results.
+  auto* test_browser = CreateIncognitoBrowser();
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      test_browser, embedded_test_server()->GetURL("/title1.html")));
+  const std::u16string url_uuid = u"b163a958-3184-4d2a-8cad-265ee6c771af";
+  const std::u16string title_uuid = u"a59b0ee8-c9b9-49c2-95ec-bec83d942a71";
+  ASSERT_TRUE(AddTabAtIndexToBrowser(
+      test_browser, 1,
+      embedded_test_server()->GetURL(
+          "/title1.html?id=" + base::UTF16ToUTF8(url_uuid)),
+      ui::PAGE_TRANSITION_TYPED));
+  ASSERT_TRUE(AddTabAtIndexToBrowser(
+      test_browser, 2, embedded_test_server()->GetURL("/title2.html"),
+      ui::PAGE_TRANSITION_TYPED));
+  auto* tab_strip = test_browser->tab_strip_model();
+  auto* titled_tab = tab_strip->GetWebContentsAt(2);
+  content::TitleWatcher title_watcher(titled_tab, title_uuid);
+  ASSERT_TRUE(content::ExecJs(
+      titled_tab, content::JsReplace("document.title = $1", title_uuid)));
+  ASSERT_EQ(title_uuid, title_watcher.WaitAndGetTitle());
+
+  auto* command_bar = GetBrowserView(test_browser)->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+  const auto switch_label =
+      l10n_util::GetStringUTF16(IDS_DAO_SUGGESTION_INTENT_SWITCH_TAB);
+  for (bool enhanced : {false, true}) {
+    SCOPED_TRACE(enhanced);
+    test_browser->GetProfile()->GetPrefs()->SetBoolean(
+        dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled, enhanced);
+    for (int target_index : {1, 2}) {
+      SCOPED_TRACE(target_index);
+      tab_strip->ActivateTabAt(0);
+      auto* target = tab_strip->GetWebContentsAt(target_index);
+      const GURL target_url = target->GetLastCommittedURL();
+      command_bar->ShowForNewTab();
+      ASSERT_TRUE(EnterCommandBarText(
+          command_bar, target_index == 1 ? url_uuid : title_uuid));
+      ASSERT_TRUE(base::test::RunUntil([&] {
+        return HasDescendantLabelText(command_bar, switch_label);
+      }));
+
+      auto* first_row =
+          FindDescendantViewOfClass<DaoSuggestionItemView>(command_bar);
+      ASSERT_NE(nullptr, first_row);
+      DaoSuggestionItemView* switch_row = nullptr;
+      int row_index = 0;
+      for (views::View* child : first_row->parent()->children()) {
+        auto* row = views::AsViewClass<DaoSuggestionItemView>(child);
+        if (row && row->GetVisible() &&
+            HasDescendantLabelText(row, switch_label)) {
+          switch_row = row;
+          break;
+        }
+        ++row_index;
+      }
+      ASSERT_NE(nullptr, switch_row);
+      if (enhanced) {
+        EXPECT_TRUE(switch_row->OnMousePressed(ui::MouseEvent(
+            ui::EventType::kMousePressed, gfx::Point(1, 1), gfx::Point(1, 1),
+            ui::EventTimeForNow(), ui::EF_LEFT_MOUSE_BUTTON,
+            ui::EF_LEFT_MOUSE_BUTTON)));
+      } else {
+        ASSERT_EQ(0, command_bar->GetSelectedIndexForTesting());
+        for (int i = 0; i < row_index; ++i) {
+          SendDialogKey(command_bar->GetWidget(), ui::VKEY_DOWN);
+        }
+        ASSERT_EQ(row_index, command_bar->GetSelectedIndexForTesting());
+        SendDialogKey(command_bar->GetWidget(), ui::VKEY_RETURN);
+      }
+      EXPECT_FALSE(command_bar->GetVisible());
+      EXPECT_EQ(target, tab_strip->GetActiveWebContents());
+      EXPECT_EQ(target_url, target->GetLastCommittedURL());
+      EXPECT_EQ(3, tab_strip->count());
+    }
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
                        EmptyInputShowsNoSuggestionsInBothModes) {
   DaoCommandBarView* command_bar = GetBrowserView(browser())->dao_command_bar();
   ASSERT_NE(nullptr, command_bar);
