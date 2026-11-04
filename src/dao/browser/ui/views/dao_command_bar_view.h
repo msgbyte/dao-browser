@@ -5,9 +5,11 @@
 #ifndef DAO_BROWSER_UI_VIEWS_DAO_COMMAND_BAR_VIEW_H_
 #define DAO_BROWSER_UI_VIEWS_DAO_COMMAND_BAR_VIEW_H_
 
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
@@ -19,6 +21,7 @@
 #include "components/favicon_base/favicon_types.h"
 #include "components/omnibox/browser/autocomplete_controller.h"
 #include "components/omnibox/browser/autocomplete_match.h"
+#include "components/tabs/public/tab_interface.h"
 #include "dao/browser/ui/views/dao_lucide_icons.h"
 #include "ui/native_theme/native_theme.h"
 #include "ui/native_theme/native_theme_observer.h"
@@ -144,6 +147,7 @@ class DaoCommandBarView : public views::View,
 
   void Navigate(const std::u16string& text);
   void NavigateToMatch(const AutocompleteMatch& match);
+  tabs::TabHandle FindOpenTabTarget(const AutocompleteMatch& match) const;
   // Feeds the accepted input -> match association into the shortcuts
   // database so ShortcutsProvider ranks this destination higher for the
   // same prefix next time (mirrors ChromeOmniboxClient's behavior).
@@ -216,6 +220,8 @@ class DaoCommandBarView : public views::View,
   std::vector<raw_ptr<DaoSuggestionItemView>> suggestion_views_;
   std::vector<AutocompleteMatch> visible_matches_;
   std::vector<SuggestionRow> displayed_rows_;
+  // Keep each open-tab result bound across asynchronous updates of one query.
+  std::map<std::pair<GURL, std::u16string>, tabs::TabHandle> open_tab_targets_;
 
   std::unique_ptr<AutocompleteController> autocomplete_controller_;
   std::unique_ptr<ChromeAutocompleteSchemeClassifier> scheme_classifier_;

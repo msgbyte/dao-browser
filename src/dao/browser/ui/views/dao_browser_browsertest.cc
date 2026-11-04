@@ -77,6 +77,7 @@
 #include "chrome/browser/ui/tab_contents/chrome_web_contents_view_delegate.h"
 #include "chrome/browser/ui/tabs/tab_change_type.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
+#include "chrome/browser/ui/tabs/tab_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/thumbnails/thumbnail_tab_helper.h"
 #include "chrome/browser/ui/toasts/api/toast_id.h"
@@ -3730,6 +3731,33 @@ class DaoCommandBarBrowserTest : public InProcessBrowserTest {
     return command_bar->GetUserInputTextForTesting() == text;
   }
 
+  DaoSuggestionItemView* FindSwitchTabSuggestion(
+      DaoCommandBarView* command_bar) {
+    auto* first_row =
+        FindDescendantViewOfClass<DaoSuggestionItemView>(command_bar);
+    if (!first_row) {
+      return nullptr;
+    }
+    for (views::View* child : first_row->parent()->children()) {
+      auto* row = views::AsViewClass<DaoSuggestionItemView>(child);
+      if (row && row->IsDrawn() &&
+          HasDescendantLabelText(
+              row, l10n_util::GetStringUTF16(
+                       IDS_DAO_SUGGESTION_INTENT_SWITCH_TAB))) {
+        return row;
+      }
+    }
+    return nullptr;
+  }
+
+  void ClickSuggestion(DaoSuggestionItemView* row) {
+    ASSERT_NE(nullptr, row);
+    EXPECT_TRUE(row->OnMousePressed(ui::MouseEvent(
+        ui::EventType::kMousePressed, gfx::Point(1, 1), gfx::Point(1, 1),
+        ui::EventTimeForNow(), ui::EF_LEFT_MOUSE_BUTTON,
+        ui::EF_LEFT_MOUSE_BUTTON)));
+  }
+
   bool LoadAgentWebUI() {
     agent_sidebar_ = GetBrowserView(browser())->dao_agent_sidebar();
     if (!agent_sidebar_) {
@@ -4373,6 +4401,146 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
       EXPECT_EQ(3, tab_strip->count());
     }
   }
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       OpenTabUuidSearchDistinguishesFragmentsAndTitles) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  auto* test_browser = CreateIncognitoBrowser();
+  const GURL base_url = embedded_test_server()->GetURL("/title1.html");
+  const std::u16string uuid = u"a59b0ee8-c9b9-49c2-95ec-bec83d942a71";
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(test_browser, base_url));
+  ASSERT_TRUE(AddTabAtIndexToBrowser(test_browser, 1, base_url,
+                                    ui::PAGE_TRANSITION_TYPED));
+  auto* tab_strip = test_browser->tab_strip_model();
+  auto* target = tab_strip->GetWebContentsAt(1);
+  auto* command_bar = GetBrowserView(test_browser)->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+
+  for (bool enhanced : {false, true}) {
+    SCOPED_TRACE(enhanced);
+    test_browser->GetProfile()->GetPrefs()->SetBoolean(
+        dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled, enhanced);
+    for (bool match_title : {false, true}) {
+      SCOPED_TRACE(match_title);
+      const GURL source_url = match_title ? base_url : base_url.Resolve("#other");
+      const GURL target_url =
+          match_title ? base_url : base_url.Resolve("#" + base::UTF16ToUTF8(uuid));
+      tab_strip->ActivateTabAt(0);
+      ASSERT_TRUE(ui_test_utils::NavigateToURL(test_browser, source_url));
+      tab_strip->ActivateTabAt(1);
+      ASSERT_TRUE(ui_test_utils::NavigateToURL(test_browser, target_url));
+      const std::u16string title = match_title ? uuid : u"Target page";
+      content::TitleWatcher title_watcher(target, title);
+      ASSERT_TRUE(content::ExecJs(
+          target, content::JsReplace("document.title = $1", title)));
+      ASSERT_EQ(title, title_watcher.WaitAndGetTitle());
+      tab_strip->ActivateTabAt(0);
+
+      command_bar->ShowForNewTab();
+      ASSERT_TRUE(EnterCommandBarText(command_bar, uuid));
+      ASSERT_TRUE(base::test::RunUntil(
+          [&] { return FindSwitchTabSuggestion(command_bar) != nullptr; }));
+      ClickSuggestion(FindSwitchTabSuggestion(command_bar));
+      EXPECT_FALSE(command_bar->GetVisible());
+      EXPECT_EQ(target, tab_strip->GetActiveWebContents());
+      EXPECT_EQ(target_url, target->GetLastCommittedURL());
+      EXPECT_EQ(source_url,
+                tab_strip->GetWebContentsAt(0)->GetLastCommittedURL());
+      EXPECT_EQ(2, tab_strip->count());
+    }
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       OpenTabSuggestionDoesNotRetargetAfterClose) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  auto* test_browser = CreateIncognitoBrowser();
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      test_browser, embedded_test_server()->GetURL("/title1.html")));
+  const GURL target_url = embedded_test_server()->GetURL("/title2.html");
+  for (int index : {1, 2}) {
+    ASSERT_TRUE(AddTabAtIndexToBrowser(test_browser, index, target_url,
+                                      ui::PAGE_TRANSITION_TYPED));
+  }
+  auto* tab_strip = test_browser->tab_strip_model();
+  auto* target = tab_strip->GetWebContentsAt(2);
+  const std::u16string uuid = u"a59b0ee8-c9b9-49c2-95ec-bec83d942a71";
+  content::TitleWatcher title_watcher(target, uuid);
+  ASSERT_TRUE(content::ExecJs(
+      target, content::JsReplace("document.title = $1", uuid)));
+  ASSERT_EQ(uuid, title_watcher.WaitAndGetTitle());
+  tab_strip->ActivateTabAt(0);
+  auto* source = tab_strip->GetActiveWebContents();
+  auto* command_bar = GetBrowserView(test_browser)->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+  command_bar->ShowForNewTab();
+  command_bar->SetUserInputAndInlineAutocompletionForTesting(uuid, u"");
+  // Freeze the displayed result so closing the target cannot refresh it first.
+  AutocompleteMatch match(nullptr, 1000, false, AutocompleteMatchType::OPEN_TAB);
+  match.contents = base::UTF8ToUTF16(target_url.spec());
+  match.fill_into_edit = match.contents;
+  match.description = uuid;
+  match.destination_url = target_url;
+  match.has_tab_match = true;
+  command_bar->SetAutocompleteMatchesForTesting({match}, true);
+  auto* row = FindSwitchTabSuggestion(command_bar);
+  ASSERT_NE(nullptr, row);
+
+  auto* duplicate = tab_strip->GetWebContentsAt(1);
+  content::TitleWatcher duplicate_title_watcher(duplicate, uuid);
+  ASSERT_TRUE(content::ExecJs(
+      duplicate, content::JsReplace("document.title = $1", uuid)));
+  ASSERT_EQ(uuid, duplicate_title_watcher.WaitAndGetTitle());
+  tab_strip->CloseWebContentsAt(2, TabCloseTypes::CLOSE_NONE);
+  // An async pass must not bind the stale result to the identical duplicate.
+  command_bar->SetAutocompleteMatchesForTesting({match}, true);
+  ClickSuggestion(row);
+  EXPECT_EQ(source, tab_strip->GetActiveWebContents());
+  EXPECT_EQ(2, tab_strip->count());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       OpenTabSuggestionFollowsTargetToAnotherWindow) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  auto* test_browser = CreateIncognitoBrowser();
+  const GURL target_url = embedded_test_server()->GetURL("/title1.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(test_browser, target_url));
+  ASSERT_TRUE(AddTabAtIndexToBrowser(test_browser, 1, target_url,
+                                    ui::PAGE_TRANSITION_TYPED));
+  auto* destination_browser = CreateBrowser(test_browser->GetProfile());
+  auto* tab_strip = test_browser->tab_strip_model();
+  auto* destination_model = destination_browser->tab_strip_model();
+  auto* target = tab_strip->GetWebContentsAt(1);
+  const std::u16string uuid = u"a59b0ee8-c9b9-49c2-95ec-bec83d942a71";
+  content::TitleWatcher title_watcher(target, uuid);
+  ASSERT_TRUE(content::ExecJs(
+      target, content::JsReplace("document.title = $1", uuid)));
+  ASSERT_EQ(uuid, title_watcher.WaitAndGetTitle());
+  tab_strip->ActivateTabAt(0);
+  auto* command_bar = GetBrowserView(test_browser)->dao_command_bar();
+  ASSERT_NE(nullptr, command_bar);
+  command_bar->ShowForNewTab();
+  command_bar->SetUserInputAndInlineAutocompletionForTesting(uuid, u"");
+  AutocompleteMatch match(nullptr, 1000, false, AutocompleteMatchType::OPEN_TAB);
+  match.contents = base::UTF8ToUTF16(target_url.spec());
+  match.fill_into_edit = match.contents;
+  match.description = uuid;
+  match.destination_url = target_url;
+  match.has_tab_match = true;
+  command_bar->SetAutocompleteMatchesForTesting({match}, true);
+  auto* row = FindSwitchTabSuggestion(command_bar);
+  ASSERT_NE(nullptr, row);
+
+  const int destination_count = destination_model->count();
+  destination_model->InsertDetachedTabAt(
+      destination_count, tab_strip->DetachTabAtForInsertion(1),
+      AddTabTypes::ADD_NONE);
+  ClickSuggestion(row);
+  EXPECT_EQ(target, destination_model->GetActiveWebContents());
+  EXPECT_EQ(target_url, target->GetLastCommittedURL());
+  EXPECT_EQ(1, tab_strip->count());
+  EXPECT_EQ(destination_count + 1, destination_model->count());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,

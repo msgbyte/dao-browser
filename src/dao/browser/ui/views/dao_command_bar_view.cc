@@ -27,7 +27,9 @@
 #include "chrome/browser/sessions/tab_restore_service_factory.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
+#include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/navigator/browser_navigator.h"
@@ -983,6 +985,7 @@ void DaoCommandBarView::OnResultChanged(AutocompleteController* controller,
 
 void DaoCommandBarView::StartAutocomplete(const std::u16string& text) {
   ++autocomplete_start_count_for_testing_;
+  open_tab_targets_.clear();
   InitAutocompleteController();
   if (!autocomplete_controller_ || !scheme_classifier_) {
     return;
@@ -1037,6 +1040,7 @@ void DaoCommandBarView::ClearSuggestions() {
   }
   visible_matches_.clear();
   displayed_rows_.clear();
+  open_tab_targets_.clear();
   dropdown_scroll_view_->SetVisible(false);
   visible_suggestion_count_ = 0;
   selected_index_ = -1;
@@ -1175,6 +1179,15 @@ void DaoCommandBarView::UpdateSuggestions() {
     visible_matches_.reserve(result.size() + 1);
     for (size_t i = 0; i < result.size(); ++i) {
       visible_matches_.push_back(result.match_at(i));
+      const auto& match = visible_matches_.back();
+      if (match.type == AutocompleteMatchType::OPEN_TAB) {
+        auto [target, inserted] = open_tab_targets_.try_emplace(
+            std::make_pair(match.destination_url, match.description),
+            tabs::TabHandle::Null());
+        if (inserted) {
+          target->second = FindOpenTabTarget(match);
+        }
+      }
     }
   }
 
@@ -1805,6 +1818,7 @@ void DaoCommandBarView::SetUserInputAndInlineAutocompletionForTesting(
   autocomplete_start_count_for_testing_ = 0;
   ask_ai_row_index_ = -1;
   visible_matches_.clear();
+  open_tab_targets_.clear();
 
   const std::u16string display_text = user_input + inline_autocompletion;
   updating_textfield_ = true;
@@ -2117,7 +2131,63 @@ void DaoCommandBarView::RecordShortcut(const AutocompleteMatch& match) {
   shortcuts_backend->AddOrUpdateShortcut(user_input_text_, match);
 }
 
+tabs::TabHandle DaoCommandBarView::FindOpenTabTarget(
+    const AutocompleteMatch& match) const {
+  auto* active_browser = GetLastActiveBrowserWindowInterfaceWithAnyProfile();
+  auto* active_contents = active_browser
+                              ? active_browser->GetTabStripModel()
+                                    ->GetActiveWebContents()
+                              : nullptr;
+  for (auto* candidate : GetAllBrowserWindowInterfaces()) {
+    if (candidate->GetProfile() != browser_->GetProfile() ||
+        candidate->IsDeleteScheduled()) {
+      continue;
+    }
+    auto* model = candidate->GetTabStripModel();
+    for (int index = 0; index < model->count(); ++index) {
+      auto* tab = model->GetTabAtIndex(index);
+      auto* contents = tab->GetContents();
+      if (contents != active_contents &&
+          contents->GetLastCommittedURL() == match.destination_url &&
+          contents->GetTitle() == match.description) {
+        return tab->GetHandle();
+      }
+    }
+  }
+  return tabs::TabHandle::Null();
+}
+
 void DaoCommandBarView::NavigateToMatch(const AutocompleteMatch& match) {
+  if (match.type == AutocompleteMatchType::OPEN_TAB) {
+    const auto target = open_tab_targets_.find(
+        std::make_pair(match.destination_url, match.description));
+    const auto handle = target == open_tab_targets_.end()
+                            ? tabs::TabHandle::Null()
+                            : target->second;
+    const AutocompleteMatch accepted_match = match;
+    // Hide can publish autocomplete updates, so retain values before clearing.
+    Hide();
+    auto* tab = handle.Get();
+    auto* target_browser = tab ? tab->GetBrowserWindowInterface() : nullptr;
+    if (!target_browser || target_browser->IsDeleteScheduled() ||
+        target_browser->GetProfile() != browser_->GetProfile() ||
+        tab->GetContents()->GetVisibleURL() != accepted_match.destination_url) {
+      return;
+    }
+    auto* model = target_browser->GetTabStripModel();
+    const int index = model->GetIndexOfTab(tab);
+    if (index < 0) {
+      return;
+    }
+    RecordShortcut(accepted_match);
+    model->ActivateTabAt(index);
+    if (target_browser->GetWindow()) {
+      target_browser->GetWindow()->Activate();
+    }
+    tab->GetContents()->Focus();
+    return;
+  }
+
   // Learn from the accepted suggestion regardless of which navigation
   // branch runs below; invalid destinations fall back to plain text
   // navigation and carry nothing worth learning.

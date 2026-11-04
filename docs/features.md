@@ -418,7 +418,10 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
     including UUIDs, without requiring `@tabs`. Both suggestion modes show a
     localized `Switch Tab` label; accepting the row activates the existing tab
     instead of opening a duplicate. Matching stays within the same profile and
-    private-browsing context.
+    private-browsing context. Open-tab results retain the matched tab's identity,
+    distinguishing full URLs including fragments and same-URL tabs with different
+    titles. Moving a target to another window preserves the destination;
+    closing it or navigating it elsewhere makes the stale action a no-op.
   - **System commands** — Normal input supplements Chromium results with at
     most two whole-title or alias prefix matches; an exact safe UI command is
     promoted to the front. The **Enable > command mode** toggle in
