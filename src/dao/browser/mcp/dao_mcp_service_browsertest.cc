@@ -1221,6 +1221,213 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
+                       YoloModeEnableResolvesPendingInitialApproval) {
+  FakeApprovalDelegate approval;
+  service_->SetApprovalDelegate(&approval);
+  EnableService();
+  for (bool explicit_page : {false, true}) {
+    SCOPED_TRACE(explicit_page);
+    service_->SetPageYoloModeEnabled(false);
+    auto client = ConnectClient();
+    ASSERT_TRUE(client->Send(HelloRequest(nonce())));
+    ASSERT_TRUE(client->Read());
+    const size_t index = approval.request_count();
+    ASSERT_TRUE(client->Send(explicit_page ? PageApprovalCall("pending")
+                                           : ToolCall("pending", "list_tabs")));
+    WaitForApprovalRequestCount(&approval, index + 1);
+    service_->SetSpaceYoloModeEnabled(true);
+    EXPECT_EQ(DaoMcpStatus::kPendingApproval, service_->GetStatus().state);
+    service_->SetPageYoloModeEnabled(true);
+    ASSERT_EQ(DaoMcpStatus::kLeaseActive, service_->GetStatus().state);
+    auto response = client->Read();
+    ASSERT_TRUE(response);
+    EXPECT_EQ(true, response->FindBoolByDottedPath("result.ok"));
+    EXPECT_EQ(explicit_page ? 1u : 0u, service_->GetControlledTargetCount());
+    EXPECT_FALSE(approval.cancelled_connection_ids().empty());
+    approval.ResolveAt(index, false);
+    EXPECT_EQ(DaoMcpStatus::kLeaseActive, service_->GetStatus().state);
+    service_->StopControl(service_->GetConnections().front().connection_id);
+    WaitUntilListeningWithoutClient();
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
+                       YoloModeEnableResolvesPendingTabAccess) {
+  FakeApprovalDelegate approval;
+  service_->SetApprovalDelegate(&approval);
+  EnableService();
+  auto client = ConnectClient();
+  ASSERT_TRUE(client->Send(HelloRequest(nonce())));
+  ASSERT_TRUE(client->Read());
+  ApproveWindow(client.get(), &approval);
+  const std::string connection_id =
+      service_->GetConnections().front().connection_id;
+  auto* first = browser()->tab_strip_model()->GetActiveWebContents();
+  const std::string first_id = GetOrCreateSidebarTabId(first);
+  ASSERT_TRUE(AddTabAtIndex(1, embedded_test_server()->GetURL("/title2.html"),
+                            ui::PAGE_TRANSITION_TYPED));
+  auto* second = browser()->tab_strip_model()->GetActiveWebContents();
+  const std::string second_id = GetOrCreateSidebarTabId(second);
+  for (bool explicit_page : {true, false}) {
+    SCOPED_TRACE(explicit_page);
+    service_->SetPageYoloModeEnabled(false);
+    const size_t index = approval.page_request_count();
+    ASSERT_TRUE(client->Send(
+        ToolCall("pending-page", "request_tab_access",
+                 explicit_page ? base::DictValue().Set("tab_id", first_id)
+                               : base::DictValue())));
+    ASSERT_TRUE(base::test::RunUntil(
+        [&] { return approval.page_request_count() == index + 1; }));
+    service_->SetPageYoloModeEnabled(true);
+    ASSERT_TRUE(service_->IsTargetControlled(explicit_page ? first : second));
+    auto response = client->Read();
+    ASSERT_TRUE(response);
+    ASSERT_TRUE(response->FindStringByDottedPath("result.data.tab_id"));
+    EXPECT_EQ(explicit_page ? first_id : second_id,
+              *response->FindStringByDottedPath("result.data.tab_id"));
+    EXPECT_FALSE(service_->IsTargetControlled(explicit_page ? second : first));
+    service_->RevokeTab(connection_id, explicit_page ? first_id : second_id);
+  }
+
+  service_->SetPageYoloModeEnabled(false);
+  ASSERT_TRUE(
+      client->Send(ToolCall("new-page-request", "request_tab_access",
+                            base::DictValue().Set("tab_id", first_id))));
+  ASSERT_TRUE(
+      base::test::RunUntil([&] { return approval.page_request_count() == 3; }));
+  approval.ResolvePageAt(0, first_id);
+  approval.ResolvePageAt(1, first_id);
+  EXPECT_EQ(0u, service_->GetControlledTargetCount());
+  approval.ResolvePageAt(2, std::nullopt);
+  auto response = client->Read();
+  ASSERT_TRUE(response);
+  EXPECT_EQ(false, response->FindBoolByDottedPath("result.ok"));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
+                       YoloModeEnableRejectsIneligiblePendingPickerTarget) {
+  FakeApprovalDelegate approval;
+  service_->SetApprovalDelegate(&approval);
+  EnableService();
+  auto client = ConnectClient();
+  ASSERT_TRUE(client->Send(HelloRequest(nonce())));
+  ASSERT_TRUE(client->Read());
+  ApproveWindow(client.get(), &approval);
+  ASSERT_TRUE(
+      AddTabAtIndex(1, GURL("dao://settings"), ui::PAGE_TRANSITION_TYPED));
+  ASSERT_TRUE(client->Send(ToolCall("picker", "request_tab_access")));
+  ASSERT_TRUE(
+      base::test::RunUntil([&] { return approval.page_request_count() == 1; }));
+  const size_t completed = service_->tool_call_completion_count_for_testing();
+  service_->SetPageYoloModeEnabled(true);
+  ASSERT_GT(service_->tool_call_completion_count_for_testing(), completed);
+  auto response = client->Read();
+  ASSERT_TRUE(response);
+  EXPECT_EQ(false, response->FindBoolByDottedPath("result.ok"));
+  EXPECT_EQ(0u, service_->GetControlledTargetCount());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
+                       YoloModeEnableResolvesPendingSpacesWithoutConsentGrant) {
+  FakeApprovalDelegate approval;
+  service_->SetApprovalDelegate(&approval);
+  EnableService();
+  auto first = ConnectClient();
+  auto second = ConnectClient();
+  for (auto* client : {first.get(), second.get()}) {
+    ASSERT_TRUE(client->Send(HelloRequest(nonce())));
+    ASSERT_TRUE(client->Read());
+    ASSERT_TRUE(client->Send(ToolCall("pending-space", "list_spaces")));
+  }
+  WaitForApprovalRequestCount(&approval, 2);
+  const size_t completed = service_->tool_call_completion_count_for_testing();
+  service_->SetPageYoloModeEnabled(true);
+  EXPECT_EQ(completed, service_->tool_call_completion_count_for_testing());
+  service_->SetSpaceYoloModeEnabled(true);
+  ASSERT_EQ(completed + 2, service_->tool_call_completion_count_for_testing());
+  for (auto* client : {first.get(), second.get()}) {
+    auto response = client->Read();
+    ASSERT_TRUE(response);
+    EXPECT_EQ(true, response->FindBoolByDottedPath("result.ok"));
+  }
+  EXPECT_EQ(2u, approval.cancelled_connection_ids().size());
+  EXPECT_TRUE(g_browser_process->local_state()
+                  ->GetList(prefs::kDaoAgentSpaceAllowedClients)
+                  .empty());
+  service_->SetSpaceYoloModeEnabled(false);
+  ASSERT_TRUE(first->Send(ToolCall("renew", "list_spaces")));
+  WaitForApprovalRequestCount(&approval, 3);
+  // An old dialog must not authorize this newer request after YOLO is off.
+  approval.ResolveAt(0, true);
+  approval.ResolveAt(1, true);
+  EXPECT_EQ(completed + 2, service_->tool_call_completion_count_for_testing());
+  approval.ResolveAt(2, false);
+  auto response = first->Read();
+  ASSERT_TRUE(response);
+  EXPECT_TRUE(response->FindDict("error"));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
+                       YoloModeDisableRechecksScriptSubcalls) {
+  FakeApprovalDelegate approval;
+  service_->SetApprovalDelegate(&approval);
+  EnableService();
+  auto* spaces = DaoAgentSpaceService::GetForProfile(browser()->GetProfile());
+  for (bool manual_consent : {false, true}) {
+    SCOPED_TRACE(manual_consent);
+    service_->SetSpaceYoloModeEnabled(!manual_consent);
+    auto client = ConnectClient();
+    ASSERT_TRUE(client->Send(HelloRequest(nonce())));
+    ASSERT_TRUE(client->Read());
+    ASSERT_TRUE(client->Send(ToolCall(
+        "create", "create_space",
+        base::DictValue()
+            .Set("name", "Script gate")
+            .Set("url",
+                 embedded_test_server()->GetURL("/title1.html").spec()))));
+    if (manual_consent) {
+      WaitForApprovalRequestCount(&approval, 1);
+      approval.Resolve(true);
+    }
+    auto response = client->Read();
+    ASSERT_TRUE(response);
+    const std::string* id =
+        response->FindStringByDottedPath("result.data.space_id");
+    ASSERT_TRUE(id);
+    auto* contents = spaces->FindSpace(*id)->GetCurrentContents();
+    ASSERT_TRUE(content::WaitForLoadStop(contents));
+    service_->SetSpaceYoloModeEnabled(true);
+    ASSERT_TRUE(client->Send(
+        ToolCall("script", "run_browser_script",
+                 base::DictValue().Set("space_id", *id).Set("code", R"JS(
+          await space.eval("document.title = 'YOLO waiting'");
+          try {
+            await space.call('wait_for_element', {
+              role: 'button', text: 'Resume', timeout_ms: 5000,
+            });
+            await dao.createSpace('After switch');
+            return 'allowed';
+          } catch (error) {
+            return error.code;
+          }
+        )JS"))));
+    ASSERT_TRUE(base::test::RunUntil(
+        [&] { return contents->GetTitle() == u"YOLO waiting"; }));
+    service_->SetSpaceYoloModeEnabled(false);
+    ASSERT_TRUE(content::ExecJs(
+        contents, "document.body.innerHTML = '<button>Resume</button>'"));
+    response = client->Read();
+    ASSERT_TRUE(response);
+    ASSERT_TRUE(response->FindStringByDottedPath("result.data.result"))
+        << response->DebugString();
+    EXPECT_EQ(manual_consent ? "allowed" : "AUTHORIZATION_DENIED",
+              *response->FindStringByDottedPath("result.data.result"));
+    EXPECT_EQ(manual_consent ? 2u : 1u, spaces->GetActiveSpaceCount());
+    DaoAgentSpaceService::StopSpacesForClient(DaoToolClient::kMcp);
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
                        SpaceCallsUseBackgroundApprovalWithoutTabLease) {
   FakeApprovalDelegate approval;
   service_->SetApprovalDelegate(&approval);

@@ -7,7 +7,7 @@
 - Show the AI cursor during form filling, typing, key presses, scrolling, clicks, and highlights, including fields inside embedded pages and scrolling panels; background actions keep the current page's cursor visible.
 - Find open tabs by UUIDs in their titles or addresses from the command bar, and switch to the matching tab even when tabs share an address or differ only after #.
 - Update Mini Dao's site controls to match the main window's tile layout. Extensions wrap and scroll in shorter windows, and resizing keeps the panel and site actions visible.
-- Add two independent YOLO switches in Local agent collaboration to automatically approve Dao Lite or browser-page access separately.
+- Add two independent YOLO switches in Local agent collaboration to automatically approve Dao Lite or browser-page access separately, including pending requests; turning off Dao Lite auto-approval also applies to running scripts before their next action.
 - Fix local agent settings failing to refresh connection status and show quick setup after enabling the server.
 
 ### [1.0.134] - 2026-11-04

@@ -41,6 +41,7 @@
 
 class BrowserWindowInterface;
 class PrefService;
+class Profile;
 
 namespace base {
 class SequencedTaskRunner;
@@ -289,6 +290,7 @@ class DaoMcpService {
   void RequestSpaceApproval(ConnectionState& connection, std::string reason);
   void OnSpaceApprovalResult(uint64_t connection_generation,
                              std::string connection_id,
+                             uint64_t approval_serial,
                              bool allowed);
   void OnSpaceApprovalTimeout(uint64_t connection_generation,
                               std::string connection_id);
@@ -301,6 +303,8 @@ class DaoMcpService {
   void CancelSpaceCalls(ConnectionState& connection,
                         const DaoToolError& error);
   bool IsSpaceClientRemembered(const ConnectionState& connection) const;
+  bool IsSpaceClientAuthorized(const ConnectionState& connection,
+                               Profile* profile) const;
   void SendSuccess(ConnectionState& connection,
                    std::string id,
                    base::DictValue result);
@@ -316,6 +320,7 @@ class DaoMcpService {
                        BrowserWindowInterface* browser,
                        std::string reason);
   void RequestTabAccess(ConnectionState& connection, PendingToolCall pending);
+  void AutoApproveTabAccess(ConnectionState& connection);
   void OnTabAccessResult(uint64_t connection_generation,
                          uint64_t approval_serial,
                          std::optional<std::string> tab_id);

@@ -52,6 +52,9 @@ struct DaoAgentSpaceClient {
   std::string label;
   // Copied into script subcalls so a long-running script cannot outlive consent.
   base::TimeTicks authorization_deadline = base::TimeTicks();
+  // Recheck mutable permissions before each operation, including script
+  // subcalls.
+  base::RepeatingCallback<bool()> authorization_check = {};
 };
 
 // Owns the Agent Spaces of one profile and routes browser tools into them.

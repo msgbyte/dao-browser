@@ -295,6 +295,7 @@ struct DaoMcpService::ConnectionState {
   uint64_t page_approval_serial = 0;
   std::string page_approval_id;
   std::string page_request_id;
+  std::optional<std::string> page_requested_tab_id;
   std::map<std::string, PageCandidate, std::less<>> page_candidates;
   base::OneShotTimer page_approval_timer;
   std::map<std::string, PendingToolCall, std::less<>> pending_tool_calls;
@@ -319,6 +320,7 @@ struct DaoMcpService::ConnectionState {
   };
   std::map<std::string, std::unique_ptr<SkillCall>, std::less<>> skill_calls;
   ApprovalState space_approval_state = ApprovalState::kNotRequested;
+  uint64_t space_approval_serial = 0;
   base::OneShotTimer space_approval_timer;
   base::WeakPtr<Profile> space_profile;
   std::vector<PendingToolCall> queued_space_calls;
@@ -547,6 +549,33 @@ void DaoMcpService::SetPageYoloModeEnabled(bool enabled) {
     return;
   }
   local_state_->SetBoolean(prefs::kDaoMcpPageYoloModeEnabled, enabled);
+  if (enabled) {
+    std::vector<uint64_t> pending;
+    for (const auto& [generation, connection] : connections_) {
+      if (connection->approval_state == ApprovalState::kPending ||
+          !connection->page_request_id.empty()) {
+        pending.push_back(generation);
+      }
+    }
+    for (uint64_t generation : pending) {
+      ConnectionState* connection = FindConnection(generation);
+      if (!connection || connection->closing || !IsPageYoloModeEnabled()) {
+        continue;
+      }
+      if (connection->approval_state == ApprovalState::kPending) {
+        const std::string approval_id = connection->connection_id;
+        OnApprovalResult(generation, approval_id, true);
+        if (approval_delegate_) {
+          approval_delegate_->CancelApproval(approval_id);
+        }
+      }
+      connection = FindConnection(generation);
+      if (connection && !connection->closing && IsPageYoloModeEnabled() &&
+          !connection->page_request_id.empty()) {
+        AutoApproveTabAccess(*connection);
+      }
+    }
+  }
   UpdateStatus(/*notify_if_unchanged=*/true);
 }
 
@@ -562,6 +591,27 @@ void DaoMcpService::SetSpaceYoloModeEnabled(bool enabled) {
     return;
   }
   local_state_->SetBoolean(prefs::kDaoMcpSpaceYoloModeEnabled, enabled);
+  if (enabled) {
+    std::vector<uint64_t> pending;
+    for (const auto& [generation, connection] : connections_) {
+      if (connection->space_approval_state == ApprovalState::kPending) {
+        pending.push_back(generation);
+      }
+    }
+    for (uint64_t generation : pending) {
+      ConnectionState* connection = FindConnection(generation);
+      if (!connection || connection->closing || !IsSpaceYoloModeEnabled() ||
+          connection->space_approval_state != ApprovalState::kPending) {
+        continue;
+      }
+      const std::string connection_id = connection->connection_id;
+      OnSpaceApprovalResult(generation, connection_id,
+                            connection->space_approval_serial, true);
+      if (approval_delegate_) {
+        approval_delegate_->CancelApproval(SpaceApprovalId(connection_id));
+      }
+    }
+  }
   UpdateStatus(/*notify_if_unchanged=*/true);
 }
 
@@ -2010,12 +2060,7 @@ void DaoMcpService::HandleSpaceToolsCall(
     }
     bool allowed = false;
     if (profile && DaoAgentSpaceService::GetForProfile(profile)) {
-      const auto grant = space_approval_expirations_.find(
-          {profile->GetPath(), connection.client_info->name});
-      allowed = IsSpaceYoloModeEnabled() ||
-                IsSpaceClientRemembered(connection) ||
-                (grant != space_approval_expirations_.end() &&
-                 space_approval_clock_->NowTicks() < grant->second);
+      allowed = IsSpaceClientAuthorized(connection, profile);
       if (allowed) {
         connection.space_profile = profile->GetWeakPtr();
       }
@@ -2089,6 +2134,7 @@ void DaoMcpService::RequestSpaceApproval(ConnectionState& connection,
   }
   connection.space_profile = profile->GetWeakPtr();
   connection.space_approval_state = ApprovalState::kPending;
+  const uint64_t approval_serial = ++connection.space_approval_serial;
   DaoMcpApprovalRequest request(*connection.client_info, std::move(reason),
                                 base::Time::Now());
   request.background_space = true;
@@ -2100,23 +2146,26 @@ void DaoMcpService::RequestSpaceApproval(ConnectionState& connection,
                      weak_factory_.GetWeakPtr(), connection_generation,
                      connection_id));
   if (!approval_delegate_) {
-    OnSpaceApprovalResult(connection_generation, connection_id, false);
+    OnSpaceApprovalResult(connection_generation, connection_id, approval_serial,
+                          false);
     return;
   }
   approval_delegate_->RequestApproval(
       request, browser, SpaceApprovalId(connection_id),
       base::BindOnce(&DaoMcpService::OnSpaceApprovalResult,
                      weak_factory_.GetWeakPtr(), connection_generation,
-                     connection_id));
+                     connection_id, approval_serial));
 }
 
 void DaoMcpService::OnSpaceApprovalResult(uint64_t connection_generation,
                                           std::string connection_id,
+                                          uint64_t approval_serial,
                                           bool allowed) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   ConnectionState* connection = FindConnection(connection_generation);
   if (!connection || connection->closing ||
       connection->connection_id != connection_id ||
+      connection->space_approval_serial != approval_serial ||
       connection->space_approval_state != ApprovalState::kPending) {
     return;
   }
@@ -2137,7 +2186,9 @@ void DaoMcpService::OnSpaceApprovalResult(uint64_t connection_generation,
   std::erase_if(space_approval_expirations_, [now](const auto& grant) {
     return now >= grant.second;
   });
-  space_approval_expirations_[key] = now + base::Hours(1);
+  if (!IsSpaceYoloModeEnabled()) {
+    space_approval_expirations_[key] = now + base::Hours(1);
+  }
   std::vector<uint64_t> approved;
   for (auto& [generation, candidate] : connections_) {
     if (!candidate->closing && candidate->client_info &&
@@ -2146,6 +2197,7 @@ void DaoMcpService::OnSpaceApprovalResult(uint64_t connection_generation,
         candidate->space_profile->GetPath() == key.first &&
         candidate->client_info->name == key.second) {
       candidate->space_approval_state = ApprovalState::kAllowed;
+      ++candidate->space_approval_serial;
       candidate->space_approval_timer.Stop();
       approved.push_back(generation);
     }
@@ -2215,17 +2267,15 @@ void DaoMcpService::DispatchSpaceCall(ConnectionState& connection,
                          pending.call.name);
   DaoAgentSpaceClient client{DaoToolClient::kMcp, connection.connection_id,
                             connection.client_info->name};
-  if (!IsSpaceYoloModeEnabled() && !IsSpaceClientRemembered(connection)) {
-    auto grant = space_approval_expirations_.find(
-        {profile->GetPath(), connection.client_info->name});
-    if (grant == space_approval_expirations_.end()) {
-      connection.space_tool_calls.erase(request_id);
-      connection.active_tool_calls.erase(request_id);
-      SendError(connection, request_id, AuthorizationDenied());
-      return;
-    }
-    client.authorization_deadline = grant->second;
-  }
+  client.authorization_check = base::BindRepeating(
+      [](base::WeakPtr<DaoMcpService> service, uint64_t generation) {
+        const ConnectionState* current =
+            service ? service->FindConnection(generation) : nullptr;
+        return current && !current->closing &&
+               service->IsSpaceClientAuthorized(
+                   *current, current->space_profile.get());
+      },
+      weak_factory_.GetWeakPtr(), connection.generation);
   spaces->ExecuteTool(
       client, std::move(pending.call),
       base::BindOnce(&DaoMcpService::OnSpaceToolCallComplete,
@@ -2296,6 +2346,18 @@ bool DaoMcpService::IsSpaceClientRemembered(
   }
   return local_state_->GetList(prefs::kDaoAgentSpaceAllowedClients)
       .contains(connection.client_info->name);
+}
+
+bool DaoMcpService::IsSpaceClientAuthorized(const ConnectionState& connection,
+                                            Profile* profile) const {
+  if (!profile || !connection.client_info) {
+    return false;
+  }
+  const auto grant = space_approval_expirations_.find(
+      {profile->GetPath(), connection.client_info->name});
+  return IsSpaceYoloModeEnabled() || IsSpaceClientRemembered(connection) ||
+         (grant != space_approval_expirations_.end() &&
+          space_approval_clock_->NowTicks() < grant->second);
 }
 
 void DaoMcpService::SendSuccess(ConnectionState& connection,
@@ -2546,6 +2608,8 @@ void DaoMcpService::RequestTabAccess(ConnectionState& connection,
   }
   const uint64_t serial = ++connection.page_approval_serial;
   connection.page_request_id = request_id;
+  connection.page_requested_tab_id =
+      requested_id ? std::make_optional(*requested_id) : std::nullopt;
   connection.page_approval_id =
       base::Uuid::GenerateRandomV4().AsLowercaseString();
   if (requested_id && connection.target_contexts.contains(*requested_id)) {
@@ -2553,8 +2617,7 @@ void DaoMcpService::RequestTabAccess(ConnectionState& connection,
     return;
   }
   if (auto_approve) {
-    OnTabAccessResult(generation, serial,
-                      connection.page_candidates.begin()->first);
+    AutoApproveTabAccess(connection);
     return;
   }
   connection.page_approval_timer.Start(
@@ -2578,6 +2641,24 @@ void DaoMcpService::RequestTabAccess(ConnectionState& connection,
                      weak_factory_.GetWeakPtr(), generation, serial));
 }
 
+void DaoMcpService::AutoApproveTabAccess(ConnectionState& connection) {
+  std::optional<std::string> tab_id = connection.page_requested_tab_id;
+  if (!tab_id && connection.window_session) {
+    BrowserWindowInterface* window =
+        connection.window_session->browser_window();
+    auto* active = window ? window->GetActiveTabInterface() : nullptr;
+    if (active) {
+      tab_id = GetSidebarTabId(active->GetContents());
+    }
+  }
+  const std::string approval_id = connection.page_approval_id;
+  OnTabAccessResult(connection.generation, connection.page_approval_serial,
+                    std::move(tab_id));
+  if (approval_delegate_) {
+    approval_delegate_->CancelApproval(approval_id);
+  }
+}
+
 void DaoMcpService::OnTabAccessResult(uint64_t generation,
                                       uint64_t serial,
                                       std::optional<std::string> tab_id) {
@@ -2590,6 +2671,7 @@ void DaoMcpService::OnTabAccessResult(uint64_t generation,
   }
   const std::string request_id = std::move(connection->page_request_id);
   connection->page_request_id.clear();
+  connection->page_requested_tab_id.reset();
   connection->page_approval_id.clear();
   connection->page_approval_timer.Stop();
   auto candidates = std::move(connection->page_candidates);
@@ -2646,6 +2728,7 @@ void DaoMcpService::CancelTabAccess(ConnectionState& connection,
   const std::string request_id = std::move(connection.page_request_id);
   const std::string approval_id = std::move(connection.page_approval_id);
   connection.page_request_id.clear();
+  connection.page_requested_tab_id.reset();
   connection.page_approval_id.clear();
   ++connection.page_approval_serial;
   connection.page_approval_timer.Stop();
