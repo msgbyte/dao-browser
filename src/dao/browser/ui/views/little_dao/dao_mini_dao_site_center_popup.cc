@@ -5,6 +5,7 @@
 #include "dao/browser/ui/views/little_dao/dao_mini_dao_site_center_popup.h"
 
 #include <algorithm>
+#include <limits>
 #include <memory>
 #include <utility>
 
@@ -50,6 +51,7 @@
 #include "ui/views/controls/button/label_button.h"
 #include "ui/views/controls/image_view.h"
 #include "ui/views/controls/label.h"
+#include "ui/views/controls/scroll_view.h"
 #include "ui/views/layout/box_layout.h"
 #include "ui/views/view_utils.h"
 #include "url/gurl.h"
@@ -174,6 +176,7 @@ DaoMiniDaoSiteCenterPopup::DaoMiniDaoSiteCenterPopup(
       views::BoxLayout::CrossAxisAlignment::kStretch);
 
   BuildMainPanel();
+  card_layout->SetFlexForView(main_panel_, 1);
   BuildQrPanel();
   qr_panel_->SetVisible(false);
 
@@ -244,7 +247,17 @@ void DaoMiniDaoSiteCenterPopup::BuildMainPanel() {
   extensions_layout->set_cross_axis_alignment(
       views::BoxLayout::CrossAxisAlignment::kStretch);
 
-  extensions_section_ = extensions_tile_->AddChildView(
+  // Let extensions scroll instead of shrinking the site action tiles.
+  layout->SetFlexForView(extensions_tile_, 1);
+  auto* extensions_scroll =
+      extensions_tile_->AddChildView(std::make_unique<views::ScrollView>());
+  extensions_scroll->SetBackgroundColor(std::nullopt);
+  extensions_scroll->SetDrawOverflowIndicator(false);
+  extensions_scroll->SetHorizontalScrollBarMode(
+      views::ScrollView::ScrollBarMode::kDisabled);
+  extensions_scroll->ClipHeightTo(0, std::numeric_limits<int>::max());
+  extensions_layout->SetFlexForView(extensions_scroll, 1);
+  extensions_section_ = extensions_scroll->SetContents(
       std::make_unique<DaoControlCenterExtensionsSection>(
           browser_,
           DaoControlCenterExtensionsSection::ActionsPlacement::kHeader,
@@ -482,11 +495,10 @@ void DaoMiniDaoSiteCenterPopup::Layout(PassKey) {
   int card_height = card_->GetHeightForWidth(card_width);
   constexpr int kMargin = 12;
 
-  int card_x = anchor_.x() - card_width;
+  const int card_x =
+      std::clamp(anchor_.x() - card_width, kMargin,
+                 std::max(kMargin, width() - card_width - kMargin));
   int card_y = anchor_.y();
-  if (card_x < kMargin) {
-    card_x = kMargin;
-  }
   if (card_y + card_height > height() - kMargin) {
     card_y = std::max(kMargin, height() - card_height - kMargin);
   }

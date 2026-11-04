@@ -4,7 +4,7 @@
 
 ### [Unreleased] Unreleased
 
-- Update Mini Dao's site controls to match the main window's tile layout. Extension icons wrap onto additional rows when needed.
+- Update Mini Dao's site controls to match the main window's tile layout. Extensions wrap and scroll in shorter windows, and resizing keeps the panel and site actions visible.
 
 ### [1.0.134] - 2026-11-04
 

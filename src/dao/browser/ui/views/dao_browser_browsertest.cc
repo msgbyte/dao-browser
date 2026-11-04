@@ -11273,6 +11273,66 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
   removed.Wait();
 }
 
+IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
+                       SiteCenterKeepsActionsVisibleWithScrollableExtensions) {
+  constexpr size_t kExtensionCount = 41;
+  std::vector<std::unique_ptr<extensions::TestExtensionDir>> extension_dirs;
+  for (size_t i = 0; i < kExtensionCount; ++i) {
+    extension_dirs.push_back(std::make_unique<extensions::TestExtensionDir>());
+    ASSERT_TRUE(LoadActionExtension(browser()->GetProfile(),
+                                    extension_dirs.back().get()));
+  }
+
+  auto* little_dao_browser = dao::DaoLittleDaoController::OpenInLittleDao(
+      browser()->GetProfile(), GURL("data:text/html,site-center-scroll"));
+  ASSERT_NE(nullptr, little_dao_browser);
+  auto* browser_view = GetBrowserView(little_dao_browser);
+  browser_view->DeprecatedLayoutImmediately();
+  browser_view->dao_little_dao_view()->ShowMiniDaoSiteCenterForTesting();
+  auto* popup = browser_view->dao_mini_dao_site_center_popup();
+  ASSERT_NE(nullptr, popup);
+
+  auto* section =
+      FindDescendantViewOfClass<DaoControlCenterExtensionsSection>(popup);
+  ASSERT_NE(nullptr, section);
+  std::vector<views::ImageButton*> extensions;
+  CollectDescendantImageButtons(section, &extensions);
+  ASSERT_EQ(kExtensionCount, extensions.size());
+
+  for (int window_height : {400, 640, 400}) {
+    SCOPED_TRACE(window_height);
+    gfx::Rect bounds = little_dao_browser->GetWindow()->GetBounds();
+    bounds.set_size(gfx::Size(600, window_height));
+    little_dao_browser->GetWindow()->SetBounds(bounds);
+    browser_view->GetWidget()->LayoutRootViewIfNecessary();
+    ASSERT_LE(popup->height(), window_height);
+
+    for (int message_id : {IDS_DAO_MINI_DAO_SITE_CENTER_PAGE_INFO,
+                           IDS_DAO_MINI_DAO_SITE_CENTER_QR_CODE,
+                           IDS_DAO_MINI_DAO_SITE_CENTER_MORE}) {
+      auto* button = FindButtonWithAccessibleName(
+          popup, l10n_util::GetStringUTF16(message_id));
+      ASSERT_NE(nullptr, button);
+      SCOPED_TRACE(base::UTF16ToUTF8(l10n_util::GetStringUTF16(message_id)));
+      EXPECT_FALSE(button->GetVisibleBounds().IsEmpty());
+      EXPECT_EQ(button->GetLocalBounds(), button->GetVisibleBounds());
+      EXPECT_EQ(button->GetPreferredSize().height(),
+                button->GetVisibleBounds().height());
+    }
+
+    auto* scroll = FindDescendantViewOfClass<views::ScrollView>(popup);
+    ASSERT_NE(nullptr, scroll);
+    EXPECT_EQ(window_height == 400, scroll->IsVerticalContentOverflowing());
+    extensions.back()->ScrollRectToVisible(extensions.back()->GetLocalBounds());
+    EXPECT_EQ(extensions.back()->GetLocalBounds(),
+              extensions.back()->GetVisibleBounds());
+  }
+
+  BrowserRemovedWaiter removed(little_dao_browser);
+  little_dao_browser->GetWindow()->Close();
+  removed.Wait();
+}
+
 // =============================================================================
 // DaoAgentWebUILoadTest
 //

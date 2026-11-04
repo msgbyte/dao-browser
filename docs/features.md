@@ -1335,7 +1335,7 @@ macOS-style floating control center panel bundling extensions and utilities.
 Lightweight window form factor for popups / mini-tools.
 
 - **DaoLittleDaoController** / **DaoLittleDaoView** (`little_dao/`) — Top bar (48px) with hostname display + "Open in Dao" button
-- **Mini Dao site controls** — A frosted card uses the main Control Center's shared action tiles and wrapping extensions tile, with Page Info, native share on macOS, QR Code, and More arranged in two columns. The site header and QR sub-panel remain page-scoped, and Mini Dao extraction is omitted
+- **Mini Dao site controls** — A frosted card uses the main Control Center's shared action tiles and wrapping extensions tile, with Page Info, native share on macOS, QR Code, and More arranged in two columns. The extensions tile scrolls when the window is too short to show every row, keeping the site action tiles fully visible; resizing a narrower window also clamps the card to its right edge. The site header and QR sub-panel remain page-scoped, and Mini Dao extraction is omitted
 - **Address click feedback** — Clicking the address opens the command bar and fades out the pressed highlight, so the address does not stay dark after the command bar closes
 - **Browser::Create timing control** — Static-flag pattern (`IsCreatingLittleDao()`) to pass state into BrowserView during construction
 - **External-link trust** — The macOS external-link path preserves Chromium's launch-trust classification through `StartupTabs`. Untrusted launches retain an opaque navigation initiator; ordinary launches keep the default behavior.
