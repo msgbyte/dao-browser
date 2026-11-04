@@ -4520,6 +4520,46 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
   replacement->Disconnect();
 }
 
+IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
+                       BackgroundInputPreservesForegroundCursor) {
+  content::WebContents* target =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(content::ExecJs(target, R"(
+    document.body.innerHTML = '<input id="field">';
+    field.focus();
+  )"));
+  FakeApprovalDelegate approval;
+  service_->SetApprovalDelegate(&approval);
+  EnableService();
+  auto client = ConnectClient();
+  ASSERT_TRUE(client);
+  ASSERT_TRUE(client->Send(HelloRequest(nonce())));
+  ASSERT_TRUE(client->Read());
+  ASSERT_TRUE(client->Send(PageApprovalCall("cursor-page")));
+  WaitForApprovalRequestCount(&approval, 1u);
+  approval.Resolve(true);
+  ASSERT_TRUE(client->Read());
+  chrome::AddTabAt(browser(), embedded_test_server()->GetURL("/title2.html"), 1,
+                   true);
+  content::WebContents* foreground =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(content::WaitForLoadStop(foreground));
+  DaoAgentCursorView* cursor =
+      BrowserView::GetBrowserViewForBrowser(browser())->dao_agent_cursor();
+  ASSERT_TRUE(cursor);
+  cursor->ShowAtCenter();
+  const gfx::PointF position = cursor->cursor_position_for_testing();
+  ASSERT_TRUE(client->Send(ToolCall("background-input", "type_text",
+                                    base::DictValue().Set("text", "Dao"))));
+  auto response = client->Read();
+  ASSERT_TRUE(response);
+  EXPECT_FALSE(response->contains("error"));
+  EXPECT_EQ("Dao", content::EvalJs(target, "field.value"));
+  EXPECT_TRUE(cursor->is_visible());
+  EXPECT_EQ(position, cursor->cursor_position_for_testing());
+  EXPECT_EQ(foreground, browser()->tab_strip_model()->GetActiveWebContents());
+}
+
 IN_PROC_BROWSER_TEST_F(DaoMcpControlBannerTest,
                        StopControlAllowsAReplacementConnection) {
   FakeApprovalDelegate approval;

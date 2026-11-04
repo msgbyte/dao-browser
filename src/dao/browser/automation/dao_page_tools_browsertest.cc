@@ -51,6 +51,7 @@
 #include "dao/browser/strings/grit/dao_strings.h"
 #include "dao/browser/ui/views/dao_agent_cursor_view.h"
 #include "dao/browser/ui/views/dao_agent_sidebar_view.h"
+#include "dao/browser/ui/webui/dao_agent_ui.h"
 #include "net/dns/mock_host_resolver.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -764,6 +765,29 @@ IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
     EXPECT_EQ(gfx::PointF(134.5f, 98.5f), ui_delegate_.last_position());
     EXPECT_EQ("nested", content::EvalJs(nested, "field.value"));
   }
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,
+                       AgentBackgroundFeedbackPreservesForegroundCursor) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url()));
+  content::WebContents* target =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  chrome::AddTabAt(browser(), second_url(), 1, true);
+  ASSERT_TRUE(content::WaitForLoadStop(
+      browser()->tab_strip_model()->GetActiveWebContents()));
+  DaoAgentCursorView* cursor =
+      BrowserView::GetBrowserViewForBrowser(browser())->dao_agent_cursor();
+  ASSERT_TRUE(cursor);
+  cursor->ShowAtCenter();
+  const gfx::PointF position = cursor->cursor_position_for_testing();
+  DaoAgentUIHandler handler;
+  base::test::TestFuture<bool> moved;
+  handler.MoveCursor(target, 100, 100, std::nullopt, moved.GetCallback());
+  EXPECT_FALSE(moved.Get());
+  EXPECT_TRUE(cursor->is_visible());
+  EXPECT_EQ(position, cursor->cursor_position_for_testing());
+  handler.PlayClickRipple(target);
+  EXPECT_TRUE(cursor->is_visible());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpPageToolsBrowserTest,

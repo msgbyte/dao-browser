@@ -348,7 +348,9 @@ class DaoMcpPageUiDelegate final : public DaoPageTools::UiDelegate {
       return;
     }
     if (!CanAnimateAgentCursorForTarget(target)) {
-      cursor_view->Hide();
+      if (browser_view->GetActiveWebContents() == target) {
+        cursor_view->Hide();
+      }
       std::move(callback).Run(false);
       return;
     }
@@ -371,7 +373,9 @@ class DaoMcpPageUiDelegate final : public DaoPageTools::UiDelegate {
       return;
     }
     if (!CanAnimateAgentCursorForTarget(target)) {
-      cursor_view->Hide();
+      if (browser_view->GetActiveWebContents() == target) {
+        cursor_view->Hide();
+      }
       return;
     }
     cursor_view->PlayClickRipple();

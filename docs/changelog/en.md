@@ -4,7 +4,7 @@
 
 ### [Unreleased] Unreleased
 
-- Show the AI cursor during form filling, typing, key presses, scrolling, clicks, and highlights, including fields inside embedded pages and scrolling panels.
+- Show the AI cursor during form filling, typing, key presses, scrolling, clicks, and highlights, including fields inside embedded pages and scrolling panels; background actions keep the current page's cursor visible.
 - Update Mini Dao's site controls to match the main window's tile layout. Extensions wrap and scroll in shorter windows, and resizing keeps the panel and site actions visible.
 
 ### [1.0.134] - 2026-11-04
