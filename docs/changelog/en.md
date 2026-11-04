@@ -4,6 +4,8 @@
 
 ### [Unreleased] Unreleased
 
+### [1.0.135] - 2026-11-05
+
 - Show the AI cursor during form filling, typing, key presses, scrolling, clicks, and highlights, including fields inside embedded pages and scrolling panels; background actions keep the current page's cursor visible.
 - Find open tabs by UUIDs in their titles or addresses from the command bar, and switch to the matching tab even when tabs share an address or differ only after #.
 - Update Mini Dao's site controls to match the main window's tile layout. Extensions wrap and scroll in shorter windows, and resizing keeps the panel and site actions visible.
