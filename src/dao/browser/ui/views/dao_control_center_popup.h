@@ -5,6 +5,8 @@
 #ifndef DAO_BROWSER_UI_VIEWS_DAO_CONTROL_CENTER_POPUP_H_
 #define DAO_BROWSER_UI_VIEWS_DAO_CONTROL_CENTER_POPUP_H_
 
+#include <memory>
+
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
@@ -18,6 +20,10 @@ class BrowserWindowInterface;
 
 namespace gfx {
 class Rect;
+}
+
+namespace views {
+class Background;
 }
 
 namespace dao {
@@ -56,6 +62,8 @@ class DaoControlCenterPopup : public views::View,
   void ShareCurrentPage(const gfx::Rect& anchor_rect);
 
   BrowserWindowInterface* browser() const { return browser_; }
+
+  static std::unique_ptr<views::Background> CreateCardBackground();
 
   // Shared tile metrics for the main panel.
   static constexpr int kTileCornerRadius = 12;

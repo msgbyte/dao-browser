@@ -4,6 +4,8 @@
 
 ### [Unreleased] Unreleased
 
+- Update Mini Dao's site controls to match the main window's tile layout. Extension icons wrap onto additional rows when needed.
+
 ### [1.0.134] - 2026-11-04
 
 - Improve picture-in-picture title bar reliability on macOS when opening or returning to a floating window, reducing the need to resize it to make the controls appear.

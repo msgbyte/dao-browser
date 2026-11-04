@@ -26,6 +26,8 @@
 #include "dao/browser/strings/grit/dao_strings.h"
 #include "dao/browser/ui/views/dao_colors.h"
 #include "dao/browser/ui/views/dao_control_center_extensions_section.h"
+#include "dao/browser/ui/views/dao_control_center_popup.h"
+#include "dao/browser/ui/views/dao_control_center_tile.h"
 #include "dao/browser/ui/views/dao_lucide_icons.h"
 #include "dao/browser/ui/views/dao_qr_code_image.h"
 #include "third_party/blink/public/common/input/web_input_event.h"
@@ -62,7 +64,6 @@ namespace {
 
 constexpr int kActionButtonHeight = 38;
 constexpr int kActionCornerRadius = 8;
-constexpr int kActionRowInsetH = 6;
 constexpr int kHeaderInsetH = 2;
 constexpr int kHeaderInsetV = 4;
 constexpr int kQrCardCornerRadius = 10;
@@ -131,20 +132,6 @@ class MiniSiteActionButton : public views::LabelButton {
 BEGIN_METADATA(MiniSiteActionButton)
 END_METADATA
 
-std::unique_ptr<views::View> CreateActionButtonRow(
-    std::unique_ptr<MiniSiteActionButton> button) {
-  auto row = std::make_unique<views::View>();
-  auto* layout = row->SetLayoutManager(std::make_unique<views::BoxLayout>(
-      views::BoxLayout::Orientation::kHorizontal,
-      gfx::Insets::VH(0, kActionRowInsetH), 0));
-  layout->set_cross_axis_alignment(
-      views::BoxLayout::CrossAxisAlignment::kStretch);
-
-  views::View* button_view = row->AddChildView(std::move(button));
-  layout->SetFlexForView(button_view, 1);
-  return row;
-}
-
 gfx::Image GetFaviconForWebContents(content::WebContents* web_contents) {
   if (!web_contents) {
     return gfx::Image();
@@ -205,11 +192,20 @@ DaoMiniDaoSiteCenterPopup::~DaoMiniDaoSiteCenterPopup() {
 
 void DaoMiniDaoSiteCenterPopup::ApplyTheme() {
   if (card_) {
-    card_->SetBackground(views::CreateRoundedRectBackground(
-        PopupBackground(), kCardCornerRadius));
+    card_->SetBackground(DaoControlCenterPopup::CreateCardBackground());
   }
-  if (separator_) {
-    separator_->SetBackground(views::CreateSolidBackground(SeparatorColor()));
+  extensions_tile_->SetBackground(views::CreateRoundedRectBackground(
+      ControlCenterTileBackground(), DaoControlCenterPopup::kTileCornerRadius));
+  extensions_section_->ApplyTheme();
+  domain_label_->SetEnabledColor(ControlCenterTileTitleColor());
+  status_label_->SetEnabledColor(ControlCenterTileSubtitleColor());
+  qr_url_label_->SetEnabledColor(ControlCenterSecondaryTextColor());
+  for (views::View* row : main_panel_->children()) {
+    for (views::View* child : row->children()) {
+      if (auto* tile = views::AsViewClass<DaoControlCenterTileButton>(child)) {
+        tile->ApplyTheme();
+      }
+    }
   }
 }
 
@@ -240,53 +236,48 @@ void DaoMiniDaoSiteCenterPopup::BuildMainPanel() {
   status_label_->SetEnabledColor(ControlCenterSecondaryTextColor());
   main_panel_->AddChildView(std::move(header));
 
-  separator_ = main_panel_->AddChildView(std::make_unique<views::View>());
-  separator_->SetPreferredSize(gfx::Size(0, 1));
+  extensions_tile_ = main_panel_->AddChildView(std::make_unique<views::View>());
+  auto* extensions_layout =
+      extensions_tile_->SetLayoutManager(std::make_unique<views::BoxLayout>(
+          views::BoxLayout::Orientation::kVertical,
+          gfx::Insets::TLBR(6, 6, 4, 6), 0));
+  extensions_layout->set_cross_axis_alignment(
+      views::BoxLayout::CrossAxisAlignment::kStretch);
 
-  auto extension_label = std::make_unique<views::Label>(
-      l10n_util::GetStringUTF16(
-          IDS_DAO_MINI_DAO_SITE_CENTER_EXTENSIONS_LABEL));
-  PrepareGlassLabel(extension_label.get());
-  extension_label->SetHorizontalAlignment(gfx::ALIGN_LEFT);
-  extension_label->SetEnabledColor(ControlCenterSecondaryTextColor());
-  main_panel_->AddChildView(std::move(extension_label));
-
-  extensions_section_ = main_panel_->AddChildView(
+  extensions_section_ = extensions_tile_->AddChildView(
       std::make_unique<DaoControlCenterExtensionsSection>(
           browser_,
-          DaoControlCenterExtensionsSection::ActionsPlacement::kGrid,
+          DaoControlCenterExtensionsSection::ActionsPlacement::kHeader,
           base::BindRepeating(&DaoMiniDaoSiteCenterPopup::Hide,
                               base::Unretained(this)),
           base::BindRepeating(
               &DaoMiniDaoSiteCenterPopup::GetAnchorViewForExtensions,
               base::Unretained(this))));
 
-  main_panel_->AddChildView(CreateActionButtonRow(
-      std::make_unique<MiniSiteActionButton>(
-          l10n_util::GetStringUTF16(IDS_DAO_MINI_DAO_SITE_CENTER_PAGE_INFO),
-          LucideIcon::kShieldCheck,
-          base::BindRepeating(&DaoMiniDaoSiteCenterPopup::OnPageInfoClicked,
-                              base::Unretained(this)))));
+  auto* site_row = main_panel_->AddChildView(CreateControlCenterTileRow());
+  site_row->AddChildView(std::make_unique<DaoControlCenterActionTile>(
+      l10n_util::GetStringUTF16(IDS_DAO_MINI_DAO_SITE_CENTER_PAGE_INFO),
+      LucideIcon::kShieldCheck,
+      base::BindRepeating(&DaoMiniDaoSiteCenterPopup::OnPageInfoClicked,
+                          base::Unretained(this))));
 #if BUILDFLAG(IS_MAC)
-  main_panel_->AddChildView(CreateActionButtonRow(
-      std::make_unique<MiniSiteActionButton>(
-          l10n_util::GetStringUTF16(IDS_DAO_MINI_DAO_SITE_CENTER_SHARE),
-          LucideIcon::kShare,
-          base::BindRepeating(&DaoMiniDaoSiteCenterPopup::OnShareClicked,
-                              base::Unretained(this)))));
+  site_row->AddChildView(std::make_unique<DaoControlCenterActionTile>(
+      l10n_util::GetStringUTF16(IDS_DAO_MINI_DAO_SITE_CENTER_SHARE),
+      LucideIcon::kShare,
+      base::BindRepeating(&DaoMiniDaoSiteCenterPopup::OnShareClicked,
+                          base::Unretained(this))));
 #endif
-  main_panel_->AddChildView(CreateActionButtonRow(
-      std::make_unique<MiniSiteActionButton>(
-          l10n_util::GetStringUTF16(IDS_DAO_MINI_DAO_SITE_CENTER_QR_CODE),
-          LucideIcon::kQrCode,
-          base::BindRepeating(&DaoMiniDaoSiteCenterPopup::OnQrClicked,
-                              base::Unretained(this)))));
-  main_panel_->AddChildView(CreateActionButtonRow(
-      std::make_unique<MiniSiteActionButton>(
-          l10n_util::GetStringUTF16(IDS_DAO_MINI_DAO_SITE_CENTER_MORE),
-          LucideIcon::kEllipsis,
-          base::BindRepeating(&DaoMiniDaoSiteCenterPopup::OnMoreClicked,
-                              base::Unretained(this)))));
+  auto* utility_row = main_panel_->AddChildView(CreateControlCenterTileRow());
+  utility_row->AddChildView(std::make_unique<DaoControlCenterActionTile>(
+      l10n_util::GetStringUTF16(IDS_DAO_MINI_DAO_SITE_CENTER_QR_CODE),
+      LucideIcon::kQrCode,
+      base::BindRepeating(&DaoMiniDaoSiteCenterPopup::OnQrClicked,
+                          base::Unretained(this))));
+  utility_row->AddChildView(std::make_unique<DaoControlCenterActionTile>(
+      l10n_util::GetStringUTF16(IDS_DAO_MINI_DAO_SITE_CENTER_MORE),
+      LucideIcon::kEllipsis,
+      base::BindRepeating(&DaoMiniDaoSiteCenterPopup::OnMoreClicked,
+                          base::Unretained(this))));
 }
 
 void DaoMiniDaoSiteCenterPopup::BuildQrPanel() {
@@ -487,9 +478,8 @@ void DaoMiniDaoSiteCenterPopup::OnNativeThemeUpdated(
 }
 
 void DaoMiniDaoSiteCenterPopup::Layout(PassKey) {
-  gfx::Size card_pref = card_->GetPreferredSize();
   const int card_width = kCardWidth;
-  int card_height = card_pref.height();
+  int card_height = card_->GetHeightForWidth(card_width);
   constexpr int kMargin = 12;
 
   int card_x = anchor_.x() - card_width;

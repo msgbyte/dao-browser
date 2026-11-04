@@ -160,6 +160,8 @@ dao_browser_ui_sources = [
   "//dao/browser/ui/views/dao_control_center_popup.h",
   "//dao/browser/ui/views/dao_control_center_qr_view.cc",
   "//dao/browser/ui/views/dao_control_center_qr_view.h",
+  "//dao/browser/ui/views/dao_control_center_tile.cc",
+  "//dao/browser/ui/views/dao_control_center_tile.h",
   "//dao/browser/ui/views/dao_control_center_utility_section.cc",
   "//dao/browser/ui/views/dao_control_center_utility_section.h",
   "//dao/browser/ui/views/dao_corner_overlay_view.cc",

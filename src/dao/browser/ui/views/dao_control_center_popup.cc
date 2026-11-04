@@ -172,11 +172,16 @@ DaoControlCenterPopup::DaoControlCenterPopup(BrowserWindowInterface* browser)
   ApplyTheme();
 }
 
+std::unique_ptr<views::Background>
+DaoControlCenterPopup::CreateCardBackground() {
+  return std::make_unique<CardBackground>(ControlCenterCardBackground(),
+                                          ControlCenterCardBorder(),
+                                          kCardCornerRadius);
+}
+
 void DaoControlCenterPopup::ApplyTheme() {
   if (card_) {
-    card_->SetBackground(std::make_unique<CardBackground>(
-        ControlCenterCardBackground(), ControlCenterCardBorder(),
-        kCardCornerRadius));
+    card_->SetBackground(CreateCardBackground());
   }
   if (extensions_tile_) {
     extensions_tile_->SetBackground(views::CreateRoundedRectBackground(

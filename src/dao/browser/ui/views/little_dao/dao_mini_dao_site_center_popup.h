@@ -72,8 +72,8 @@ class DaoMiniDaoSiteCenterPopup : public views::View,
 
  private:
   static constexpr int kCardWidth = 320;
-  static constexpr int kCardCornerRadius = 12;
-  static constexpr int kCardPadding = 12;
+  static constexpr int kCardCornerRadius = 16;
+  static constexpr int kCardPadding = 10;
 
   void ApplyTheme();
   void BuildMainPanel();
@@ -97,7 +97,7 @@ class DaoMiniDaoSiteCenterPopup : public views::View,
   raw_ptr<views::ImageView> qr_image_ = nullptr;
   raw_ptr<views::Label> qr_url_label_ = nullptr;
   raw_ptr<DaoControlCenterExtensionsSection> extensions_section_ = nullptr;
-  raw_ptr<views::View> separator_ = nullptr;
+  raw_ptr<views::View> extensions_tile_ = nullptr;
 
   base::ScopedObservation<ui::NativeTheme, ui::NativeThemeObserver>
       native_theme_observation_{this};

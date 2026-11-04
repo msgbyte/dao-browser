@@ -173,6 +173,7 @@
 #include "dao/browser/ui/views/dao_control_center_more_menu.h"
 #include "dao/browser/ui/views/dao_control_center_popup.h"
 #include "dao/browser/ui/views/dao_control_center_qr_view.h"
+#include "dao/browser/ui/views/dao_control_center_tile.h"
 #include "dao/browser/ui/views/dao_control_center_utility_section.h"
 #include "dao/browser/ui/views/dao_corner_overlay_view.h"
 #include "dao/browser/ui/views/dao_cross_window_drag.h"
@@ -11134,11 +11135,10 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
-                       SiteCenterActionButtonKeepsRowInset) {
+                       SiteCenterUsesSharedTilesAndReturnsFromQr) {
   BrowserWindowInterface* little_dao_browser =
       dao::DaoLittleDaoController::OpenInLittleDao(
-          browser()->GetProfile(),
-          GURL("data:text/html,site-center-button-inset"));
+          browser()->GetProfile(), GURL("data:text/html,site-center-tiles"));
   ASSERT_NE(nullptr, little_dao_browser);
 
   BrowserView* little_browser_view = GetBrowserView(little_dao_browser);
@@ -11158,10 +11158,115 @@ IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
   ASSERT_NE(nullptr, page_info_button);
   ASSERT_NE(nullptr, page_info_button->parent());
 
-  constexpr int kExpectedInset = 6;
-  EXPECT_GE(page_info_button->x(), kExpectedInset);
-  EXPECT_LE(page_info_button->bounds().right(),
-            page_info_button->parent()->width() - kExpectedInset);
+  EXPECT_NE(nullptr,
+            views::AsViewClass<DaoControlCenterActionTile>(page_info_button));
+  auto* qr_button = FindButtonWithAccessibleName(
+      popup, l10n_util::GetStringUTF16(IDS_DAO_MINI_DAO_SITE_CENTER_QR_CODE));
+  auto* more_button = FindButtonWithAccessibleName(
+      popup, l10n_util::GetStringUTF16(IDS_DAO_MINI_DAO_SITE_CENTER_MORE));
+  ASSERT_NE(nullptr, qr_button);
+  ASSERT_NE(nullptr, more_button);
+  EXPECT_EQ(qr_button->parent(), more_button->parent());
+  EXPECT_EQ(qr_button->height(), more_button->height());
+  EXPECT_NEAR(qr_button->width(), more_button->width(), 1);
+  EXPECT_EQ(DaoControlCenterPopup::kTileSpacing,
+            more_button->x() - qr_button->bounds().right());
+  EXPECT_GT(qr_button->GetBoundsInScreen().y(),
+            page_info_button->GetBoundsInScreen().y());
+#if BUILDFLAG(IS_MAC)
+  auto* share_button = FindButtonWithAccessibleName(
+      popup, l10n_util::GetStringUTF16(IDS_DAO_MINI_DAO_SITE_CENTER_SHARE));
+  ASSERT_NE(nullptr, share_button);
+  EXPECT_EQ(page_info_button->parent(), share_button->parent());
+  EXPECT_NEAR(page_info_button->width(), share_button->width(), 1);
+  EXPECT_EQ(DaoControlCenterPopup::kTileSpacing,
+            share_button->x() - page_info_button->bounds().right());
+#endif
+
+  auto* theme = ui::NativeTheme::GetInstanceForNativeUi();
+  const auto original_scheme = theme->preferred_color_scheme();
+  base::ScopedClosureRunner restore_theme(base::BindOnce(
+      [](ui::NativeTheme* theme,
+         ui::NativeTheme::PreferredColorScheme color_scheme) {
+        theme->set_preferred_color_scheme(color_scheme);
+        theme->NotifyOnNativeThemeUpdated();
+      },
+      base::Unretained(theme), original_scheme));
+  for (auto scheme : {ui::NativeTheme::PreferredColorScheme::kDark,
+                      ui::NativeTheme::PreferredColorScheme::kLight}) {
+    theme->set_preferred_color_scheme(scheme);
+    theme->NotifyOnNativeThemeUpdated();
+    auto* label = FindDescendantLabelWithText(
+        qr_button,
+        l10n_util::GetStringUTF16(IDS_DAO_MINI_DAO_SITE_CENTER_QR_CODE));
+    ASSERT_NE(nullptr, label);
+    EXPECT_EQ(ControlCenterTileLabelColor(), label->GetEnabledColor());
+  }
+
+  views::test::ButtonTestApi(qr_button).NotifyClick(
+      ui::MouseEvent(ui::EventType::kMouseReleased, gfx::Point(), gfx::Point(),
+                     ui::EventTimeForNow(), ui::EF_LEFT_MOUSE_BUTTON,
+                     ui::EF_LEFT_MOUSE_BUTTON));
+  EXPECT_FALSE(qr_button->IsDrawn());
+  auto* back_button = FindButtonWithAccessibleName(
+      popup, l10n_util::GetStringUTF16(
+                 IDS_DAO_MINI_DAO_SITE_CENTER_BACK_BUTTON_LABEL));
+  ASSERT_NE(nullptr, back_button);
+  EXPECT_TRUE(back_button->IsDrawn());
+  views::test::ButtonTestApi(back_button)
+      .NotifyClick(ui::MouseEvent(ui::EventType::kMouseReleased, gfx::Point(),
+                                  gfx::Point(), ui::EventTimeForNow(),
+                                  ui::EF_LEFT_MOUSE_BUTTON,
+                                  ui::EF_LEFT_MOUSE_BUTTON));
+  EXPECT_TRUE(qr_button->IsDrawn());
+  EXPECT_TRUE(page_info_button->IsDrawn());
+  EXPECT_FALSE(back_button->IsDrawn());
+
+  BrowserRemovedWaiter removed(little_dao_browser);
+  little_dao_browser->GetWindow()->Close();
+  removed.Wait();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoLittleDaoViewBrowserTest,
+                       SiteCenterExtensionsWrapBelowHeaderActions) {
+  constexpr size_t kExtensionCount = 9;
+  std::vector<std::unique_ptr<extensions::TestExtensionDir>> extension_dirs;
+  for (size_t i = 0; i < kExtensionCount; ++i) {
+    extension_dirs.push_back(std::make_unique<extensions::TestExtensionDir>());
+    ASSERT_TRUE(LoadActionExtension(browser()->GetProfile(),
+                                    extension_dirs.back().get()));
+  }
+
+  BrowserWindowInterface* little_dao_browser =
+      dao::DaoLittleDaoController::OpenInLittleDao(
+          browser()->GetProfile(),
+          GURL("data:text/html,site-center-extensions"));
+  ASSERT_NE(nullptr, little_dao_browser);
+  auto* browser_view = GetBrowserView(little_dao_browser);
+  browser_view->DeprecatedLayoutImmediately();
+  browser_view->dao_little_dao_view()->ShowMiniDaoSiteCenterForTesting();
+  browser_view->DeprecatedLayoutImmediately();
+
+  auto* popup = browser_view->dao_mini_dao_site_center_popup();
+  auto* section =
+      FindDescendantViewOfClass<DaoControlCenterExtensionsSection>(popup);
+  ASSERT_NE(nullptr, section);
+  for (int message_id : {IDS_DAO_CONTROL_CENTER_ADD_EXTENSION,
+                         IDS_DAO_CONTROL_CENTER_MANAGE_EXTENSIONS}) {
+    auto* button = FindButtonWithAccessibleName(
+        section, l10n_util::GetStringUTF16(message_id));
+    ASSERT_NE(nullptr, button);
+    EXPECT_EQ(button->GetLocalBounds(), button->GetVisibleBounds());
+  }
+
+  std::vector<views::ImageButton*> buttons;
+  CollectDescendantImageButtons(section, &buttons);
+  ASSERT_EQ(kExtensionCount, buttons.size());
+  for (auto* button : buttons) {
+    EXPECT_FALSE(button->GetVisibleBounds().IsEmpty());
+    EXPECT_EQ(button->GetLocalBounds(), button->GetVisibleBounds());
+  }
+  EXPECT_GT(buttons.back()->y(), buttons.front()->y());
 
   BrowserRemovedWaiter removed(little_dao_browser);
   little_dao_browser->GetWindow()->Close();

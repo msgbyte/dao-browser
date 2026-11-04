@@ -18,18 +18,19 @@
 #include "dao/browser/strings/grit/dao_strings.h"
 #include "dao/browser/ui/views/dao_colors.h"
 #include "dao/browser/ui/views/dao_control_center_popup.h"
+#include "dao/browser/ui/views/dao_control_center_tile.h"
 #include "dao/browser/ui/views/dao_lucide_icons.h"
 #include "dao/browser/ui/views/dao_toast_view.h"
 #include "dao/browser/ui/views/little_dao/dao_little_dao_controller.h"
+#include "third_party/skia/include/core/SkMatrix.h"
+#include "third_party/skia/include/core/SkPath.h"
+#include "third_party/skia/include/utils/SkParsePath.h"
 #include "ui/accessibility/ax_enums.mojom.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/geometry/rect_f.h"
-#include "third_party/skia/include/core/SkMatrix.h"
-#include "third_party/skia/include/core/SkPath.h"
-#include "third_party/skia/include/utils/SkParsePath.h"
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/background.h"
 #include "ui/views/controls/button/button.h"
@@ -48,13 +49,6 @@ constexpr int kStatusBadgeSize = 32;
 constexpr int kStatusIconSize = 16;
 constexpr int kStatusTextGap = 10;
 constexpr int kStatusTextSpacing = 1;
-
-// Compact action tile: icon above a short label.
-constexpr int kActionTileHeight = 56;
-constexpr int kActionTileTopInset = 10;
-constexpr int kActionTileInsetH = 4;
-constexpr int kActionIconSize = 18;
-constexpr int kActionLabelGap = 6;
 
 constexpr int kTitleFontSize = 12;
 constexpr int kLabelFontSize = 11;
@@ -93,85 +87,16 @@ std::unique_ptr<views::Label> CreateTileLabel(const std::u16string& text,
   return label;
 }
 
-std::unique_ptr<views::View> CreateTileRow() {
-  auto row = std::make_unique<views::View>();
-  auto* layout = row->SetLayoutManager(std::make_unique<views::BoxLayout>(
-      views::BoxLayout::Orientation::kHorizontal, gfx::Insets(),
-      DaoControlCenterPopup::kTileSpacing));
-  layout->set_cross_axis_alignment(
-      views::BoxLayout::CrossAxisAlignment::kStretch);
-  // Tiles report a zero preferred width, so equal flex splits the row evenly.
-  layout->SetDefaultFlex(1);
-  return row;
-}
-
-// Base tile: paints the rounded tile surface with a hover tint on top.
-class TileButton : public views::Button {
-  METADATA_HEADER(TileButton, views::Button)
-
- public:
-  explicit TileButton(views::Button::PressedCallback callback)
-      : Button(std::move(callback)) {
-    SetInstallFocusRingOnFocus(false);
-  }
-
-  // Re-applies theme colors to the tile's labels.
-  virtual void ApplyTheme() {}
-
-  void SetVisualEnabled(bool enabled) {
-    visually_enabled_ = enabled;
-    if (!enabled) {
-      SetBackground(nullptr);
-    }
-    SchedulePaint();
-  }
-
-  void OnMouseEntered(const ui::MouseEvent& event) override {
-    Button::OnMouseEntered(event);
-    if (visually_enabled_) {
-      SetBackground(views::CreateRoundedRectBackground(
-          SuggestionHover(), DaoControlCenterPopup::kTileCornerRadius));
-      SchedulePaint();
-    }
-  }
-
-  void OnMouseExited(const ui::MouseEvent& event) override {
-    Button::OnMouseExited(event);
-    SetBackground(nullptr);
-    SchedulePaint();
-  }
-
-  void OnPaintBackground(gfx::Canvas* canvas) override {
-    cc::PaintFlags flags;
-    flags.setAntiAlias(true);
-    flags.setStyle(cc::PaintFlags::kFill_Style);
-    flags.setColor(ControlCenterTileBackground());
-    canvas->DrawRoundRect(gfx::RectF(GetLocalBounds()),
-                          DaoControlCenterPopup::kTileCornerRadius, flags);
-    // The hover tint, when set as the background, paints over the surface.
-    Button::OnPaintBackground(canvas);
-  }
-
- protected:
-  bool visually_enabled() const { return visually_enabled_; }
-
- private:
-  bool visually_enabled_ = true;
-};
-
-BEGIN_METADATA(TileButton)
-END_METADATA
-
 // A wide tile with a round icon badge, a title and a status line. When
 // active, the badge switches to the accent color.
-class StatusTile : public TileButton {
-  METADATA_HEADER(StatusTile, TileButton)
+class StatusTile : public DaoControlCenterTileButton {
+  METADATA_HEADER(StatusTile, DaoControlCenterTileButton)
 
  public:
   StatusTile(const std::u16string& title,
              LucideIcon icon,
              views::Button::PressedCallback callback)
-      : TileButton(std::move(callback)), icon_(icon) {
+      : DaoControlCenterTileButton(std::move(callback)), icon_(icon) {
     title_ = AddChildView(
         CreateTileLabel(title, kTitleFontSize, gfx::Font::Weight::SEMIBOLD));
     title_->SetHorizontalAlignment(gfx::ALIGN_LEFT);
@@ -244,50 +169,6 @@ class StatusTile : public TileButton {
 BEGIN_METADATA(StatusTile)
 END_METADATA
 
-// A compact tile with an icon above a short label.
-class ActionTile : public TileButton {
-  METADATA_HEADER(ActionTile, TileButton)
-
- public:
-  ActionTile(const std::u16string& label_text,
-             LucideIcon icon,
-             views::Button::PressedCallback callback)
-      : TileButton(std::move(callback)), icon_(icon) {
-    label_ = AddChildView(CreateTileLabel(label_text, kLabelFontSize,
-                                          gfx::Font::Weight::NORMAL));
-    label_->SetHorizontalAlignment(gfx::ALIGN_CENTER);
-
-    SetPreferredSize(gfx::Size(0, kActionTileHeight));
-    SetAccessibleName(label_text);
-    ApplyTheme();
-  }
-
-  void ApplyTheme() override {
-    label_->SetEnabledColor(ControlCenterTileLabelColor());
-  }
-
-  void Layout(PassKey) override {
-    label_->SetBounds(kActionTileInsetH,
-                      kActionTileTopInset + kActionIconSize + kActionLabelGap,
-                      std::max(0, width() - 2 * kActionTileInsetH),
-                      label_->font_list().GetHeight());
-  }
-
-  void PaintButtonContents(gfx::Canvas* canvas) override {
-    const gfx::RectF icon_rect((width() - kActionIconSize) / 2.0f,
-                               kActionTileTopInset, kActionIconSize,
-                               kActionIconSize);
-    DrawLucideIcon(canvas, icon_, icon_rect, ControlCenterTileIconColor());
-  }
-
- private:
-  LucideIcon icon_;
-  raw_ptr<views::Label> label_ = nullptr;
-};
-
-BEGIN_METADATA(ActionTile)
-END_METADATA
-
 }  // namespace
 
 BEGIN_METADATA(DaoControlCenterUtilitySection)
@@ -303,7 +184,7 @@ DaoControlCenterUtilitySection::DaoControlCenterUtilitySection(
       views::BoxLayout::CrossAxisAlignment::kStretch);
 
   // Wide status tiles: dark mode and high performance mode.
-  views::View* status_row = AddChildView(CreateTileRow());
+  views::View* status_row = AddChildView(CreateControlCenterTileRow());
   {
     auto tile = std::make_unique<StatusTile>(
         l10n_util::GetStringUTF16(IDS_DAO_FORCE_DARK_MODE_TITLE),
@@ -330,18 +211,18 @@ DaoControlCenterUtilitySection::DaoControlCenterUtilitySection(
   }
 
   // Compact action tiles: QR code, Mini Dao, more.
-  views::View* action_row = AddChildView(CreateTileRow());
-  action_row->AddChildView(std::make_unique<ActionTile>(
+  views::View* action_row = AddChildView(CreateControlCenterTileRow());
+  action_row->AddChildView(std::make_unique<DaoControlCenterActionTile>(
       l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_QR_CODE),
       LucideIcon::kQrCode,
       base::BindRepeating(&DaoControlCenterUtilitySection::OnQrClicked,
                           base::Unretained(this))));
-  action_row->AddChildView(std::make_unique<ActionTile>(
+  action_row->AddChildView(std::make_unique<DaoControlCenterActionTile>(
       l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_MINI_DAO),
       LucideIcon::kExternalLink,
       base::BindRepeating(&DaoControlCenterUtilitySection::OnMiniDaoClicked,
                           base::Unretained(this))));
-  action_row->AddChildView(std::make_unique<ActionTile>(
+  action_row->AddChildView(std::make_unique<DaoControlCenterActionTile>(
       l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_MORE),
       LucideIcon::kEllipsis,
       base::BindRepeating(&DaoControlCenterUtilitySection::OnMoreClicked,
@@ -357,7 +238,7 @@ DaoControlCenterUtilitySection::~DaoControlCenterUtilitySection() = default;
 void DaoControlCenterUtilitySection::Refresh() {
   for (views::View* row : children()) {
     for (views::View* child : row->children()) {
-      if (auto* tile = views::AsViewClass<TileButton>(child)) {
+      if (auto* tile = views::AsViewClass<DaoControlCenterTileButton>(child)) {
         tile->ApplyTheme();
       }
     }
