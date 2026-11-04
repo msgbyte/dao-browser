@@ -535,6 +535,36 @@ void DaoMcpService::SetEnabled(bool enabled) {
   local_state_->SetBoolean(prefs::kDaoMcpServerEnabled, enabled);
 }
 
+bool DaoMcpService::IsPageYoloModeEnabled() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return local_state_ &&
+         local_state_->GetBoolean(prefs::kDaoMcpPageYoloModeEnabled);
+}
+
+void DaoMcpService::SetPageYoloModeEnabled(bool enabled) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!local_state_) {
+    return;
+  }
+  local_state_->SetBoolean(prefs::kDaoMcpPageYoloModeEnabled, enabled);
+  UpdateStatus(/*notify_if_unchanged=*/true);
+}
+
+bool DaoMcpService::IsSpaceYoloModeEnabled() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return local_state_ &&
+         local_state_->GetBoolean(prefs::kDaoMcpSpaceYoloModeEnabled);
+}
+
+void DaoMcpService::SetSpaceYoloModeEnabled(bool enabled) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!local_state_) {
+    return;
+  }
+  local_state_->SetBoolean(prefs::kDaoMcpSpaceYoloModeEnabled, enabled);
+  UpdateStatus(/*notify_if_unchanged=*/true);
+}
+
 DaoMcpServiceStatus DaoMcpService::GetStatus() const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return status_;
@@ -1982,7 +2012,8 @@ void DaoMcpService::HandleSpaceToolsCall(
     if (profile && DaoAgentSpaceService::GetForProfile(profile)) {
       const auto grant = space_approval_expirations_.find(
           {profile->GetPath(), connection.client_info->name});
-      allowed = IsSpaceClientRemembered(connection) ||
+      allowed = IsSpaceYoloModeEnabled() ||
+                IsSpaceClientRemembered(connection) ||
                 (grant != space_approval_expirations_.end() &&
                  space_approval_clock_->NowTicks() < grant->second);
       if (allowed) {
@@ -2184,7 +2215,7 @@ void DaoMcpService::DispatchSpaceCall(ConnectionState& connection,
                          pending.call.name);
   DaoAgentSpaceClient client{DaoToolClient::kMcp, connection.connection_id,
                             connection.client_info->name};
-  if (!IsSpaceClientRemembered(connection)) {
+  if (!IsSpaceYoloModeEnabled() && !IsSpaceClientRemembered(connection)) {
     auto grant = space_approval_expirations_.find(
         {profile->GetPath(), connection.client_info->name});
     if (grant == space_approval_expirations_.end()) {
@@ -2429,6 +2460,10 @@ void DaoMcpService::RequestApproval(ConnectionState& connection,
       base::BindOnce(&DaoMcpService::OnApprovalTimeout,
                      weak_factory_.GetWeakPtr(), connection_generation,
                      connection_id));
+  if (IsPageYoloModeEnabled()) {
+    OnApprovalResult(connection_generation, connection_id, true);
+    return;
+  }
   if (!approval_delegate_) {
     RejectConnection(connection, AuthorizationDenied());
     return;
@@ -2454,7 +2489,8 @@ void DaoMcpService::RequestTabAccess(ConnectionState& connection,
   BrowserWindowInterface* browser = window;
   TabListInterface* tab_list =
       window ? TabListInterface::From(window) : nullptr;
-  if (!browser || !tab_list || !approval_delegate_) {
+  const bool auto_approve = IsPageYoloModeEnabled();
+  if (!browser || !tab_list || (!auto_approve && !approval_delegate_)) {
     OnToolCallComplete(generation, request_id, false,
                        ErrorResult(AuthorizationDenied()));
     return;
@@ -2471,6 +2507,8 @@ void DaoMcpService::RequestTabAccess(ConnectionState& connection,
     content::WebContents* contents = tab->GetContents();
     const std::string tab_id = GetOrCreateSidebarTabId(contents);
     if ((requested_id && *requested_id != tab_id) ||
+        (auto_approve && !requested_id &&
+         tab != window->GetActiveTabInterface()) ||
         !ValidateExternalTarget(browser, browser->GetProfile(), contents)
              .has_value()) {
       continue;
@@ -2512,6 +2550,11 @@ void DaoMcpService::RequestTabAccess(ConnectionState& connection,
       base::Uuid::GenerateRandomV4().AsLowercaseString();
   if (requested_id && connection.target_contexts.contains(*requested_id)) {
     OnTabAccessResult(generation, serial, *requested_id);
+    return;
+  }
+  if (auto_approve) {
+    OnTabAccessResult(generation, serial,
+                      connection.page_candidates.begin()->first);
     return;
   }
   connection.page_approval_timer.Start(
@@ -3195,6 +3238,14 @@ void DaoMcpService::SetEnabled(bool enabled) {
   }
 }
 
+bool DaoMcpService::IsPageYoloModeEnabled() const {
+  return false;
+}
+void DaoMcpService::SetPageYoloModeEnabled(bool enabled) {}
+bool DaoMcpService::IsSpaceYoloModeEnabled() const {
+  return false;
+}
+void DaoMcpService::SetSpaceYoloModeEnabled(bool enabled) {}
 DaoMcpServiceStatus DaoMcpService::GetStatus() const { return {}; }
 std::string DaoMcpService::GetMcpConfiguration() const { return {}; }
 BrowserWindowInterface* DaoMcpService::GetAuthorizedBrowser() const {

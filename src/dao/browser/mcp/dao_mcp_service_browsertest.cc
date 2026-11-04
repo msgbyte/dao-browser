@@ -832,6 +832,8 @@ class DaoMcpServiceBrowserTest : public InProcessBrowserTest {
     service_->SetApprovalDelegate(nullptr);
     service_->SetSpaceApprovalClockForTesting(nullptr);
     service_->SetEnabled(false);
+    service_->SetPageYoloModeEnabled(false);
+    service_->SetSpaceYoloModeEnabled(false);
     service_->SetTimeoutsForTesting(base::Seconds(5), base::Seconds(30));
     InProcessBrowserTest::TearDownOnMainThread();
   }
@@ -1046,6 +1048,179 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest, IsDisabledByDefault) {
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
+                       YoloModeApprovesPagesAndRestoresPromptsWhenDisabled) {
+  EXPECT_FALSE(service_->IsPageYoloModeEnabled());
+  EXPECT_FALSE(service_->IsSpaceYoloModeEnabled());
+  service_->SetPageYoloModeEnabled(true);
+  EXPECT_TRUE(g_browser_process->local_state()->GetBoolean(
+      prefs::kDaoMcpPageYoloModeEnabled));
+  EXPECT_EQ(DaoMcpStatus::kDisabled, service_->GetStatus().state);
+  FakeApprovalDelegate approval;
+  service_->SetApprovalDelegate(&approval);
+  EnableService();
+  auto client = ConnectClient();
+  ASSERT_TRUE(client->Send(HelloRequest(nonce())));
+  ASSERT_TRUE(client->Read());
+  ASSERT_TRUE(client->Send(PageApprovalCall("initial-page")));
+  auto response = client->Read();
+  ASSERT_TRUE(response);
+  EXPECT_EQ(true, response->FindBoolByDottedPath("result.ok"));
+  EXPECT_EQ(1u, service_->GetControlledTargetCount());
+  EXPECT_EQ(0u, approval.request_count());
+
+  // Page auto-approval never authorizes Dao Lite.
+  ASSERT_TRUE(client->Send(ToolCall("separate-space-consent", "list_spaces")));
+  WaitForApprovalRequestCount(&approval, 1);
+  EXPECT_TRUE(approval.request().background_space);
+  approval.Resolve(false);
+  response = client->Read();
+  ASSERT_TRUE(response);
+  EXPECT_TRUE(response->FindDict("error"));
+
+  auto* first = browser()->tab_strip_model()->GetActiveWebContents();
+  const std::string first_id = GetOrCreateSidebarTabId(first);
+  ASSERT_TRUE(AddTabAtIndex(1, embedded_test_server()->GetURL("/title2.html"),
+                            ui::PAGE_TRANSITION_TYPED));
+  auto* second = browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_NE(first, second);
+  const std::string second_id = GetOrCreateSidebarTabId(second);
+  ASSERT_TRUE(client->Send(ToolCall("current-page", "request_tab_access")));
+  response = client->Read();
+  ASSERT_TRUE(response);
+  ASSERT_TRUE(response->FindStringByDottedPath("result.data.tab_id"));
+  EXPECT_EQ(second_id, *response->FindStringByDottedPath("result.data.tab_id"));
+  EXPECT_EQ(0u, approval.page_request_count());
+
+  const std::string connection_id =
+      service_->GetConnections().front().connection_id;
+  service_->RevokeTab(connection_id, first_id);
+  EXPECT_FALSE(service_->IsTargetControlled(first));
+  ASSERT_TRUE(
+      client->Send(ToolCall("explicit-page", "request_tab_access",
+                            base::DictValue().Set("tab_id", first_id))));
+  response = client->Read();
+  ASSERT_TRUE(response);
+  ASSERT_TRUE(response->FindStringByDottedPath("result.data.tab_id"));
+  EXPECT_EQ(first_id, *response->FindStringByDottedPath("result.data.tab_id"));
+  EXPECT_EQ(0u, approval.page_request_count());
+
+  service_->SetPageYoloModeEnabled(false);
+  service_->RevokeTab(connection_id, first_id);
+  ApprovePage(client.get(), &approval, first);
+  EXPECT_EQ(1u, approval.page_request_count());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
+                       YoloModeApprovesWindowWithoutGrantingEveryPage) {
+  service_->SetPageYoloModeEnabled(true);
+  FakeApprovalDelegate approval;
+  service_->SetApprovalDelegate(&approval);
+  EnableService();
+  auto client = ConnectClient();
+  ASSERT_TRUE(client->Send(HelloRequest(nonce())));
+  ASSERT_TRUE(client->Read());
+  ASSERT_TRUE(client->Send(ToolCall("window", "list_tabs")));
+  auto response = client->Read();
+  ASSERT_TRUE(response);
+  EXPECT_EQ(0, response->FindIntByDottedPath("result.data.count"));
+  EXPECT_EQ(0u, approval.request_count());
+  EXPECT_EQ(0u, service_->GetControlledTargetCount());
+
+  // An ineligible active page must not silently select another open page.
+  ASSERT_TRUE(
+      AddTabAtIndex(1, GURL("dao://settings"), ui::PAGE_TRANSITION_TYPED));
+  ASSERT_TRUE(client->Send(ToolCall("internal-page", "request_tab_access")));
+  response = client->Read();
+  ASSERT_TRUE(response);
+  EXPECT_FALSE(response->FindBoolByDottedPath("result.ok").value_or(false));
+  EXPECT_EQ(0u, service_->GetControlledTargetCount());
+  EXPECT_EQ(0u, approval.page_request_count());
+
+  auto other = ConnectClient();
+  ASSERT_TRUE(other->Send(HelloRequest(nonce())));
+  ASSERT_TRUE(other->Read());
+  ASSERT_TRUE(other->Send(PageApprovalCall("explicit-internal-page")));
+  response = other->Read();
+  ASSERT_TRUE(response);
+  EXPECT_TRUE(response->FindDict("error"));
+  EXPECT_EQ(0u, approval.request_count());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
+                       YoloModeApprovesSpacesWithoutRememberingConsent) {
+  service_->SetSpaceYoloModeEnabled(true);
+  FakeApprovalDelegate approval;
+  service_->SetApprovalDelegate(&approval);
+  EnableService();
+  auto client = ConnectClient();
+  ASSERT_TRUE(client->Send(HelloRequest(nonce())));
+  ASSERT_TRUE(client->Read());
+  ASSERT_TRUE(client->Send(ToolCall(
+      "create", "create_space", base::DictValue().Set("name", "YOLO task"))));
+  auto response = client->Read();
+  ASSERT_TRUE(response);
+  const std::string* id =
+      response->FindStringByDottedPath("result.data.space_id");
+  ASSERT_TRUE(id) << response->DebugString();
+  const std::string space_id = *id;
+  EXPECT_EQ(0u, approval.request_count());
+  EXPECT_EQ(0u, service_->GetControlledTargetCount());
+  EXPECT_TRUE(g_browser_process->local_state()
+                  ->GetList(prefs::kDaoAgentSpaceAllowedClients)
+                  .empty());
+  ASSERT_TRUE(client->Send(ToolCall(
+      "info", "get_page_info", base::DictValue().Set("space_id", space_id))));
+  response = client->Read();
+  ASSERT_TRUE(response);
+  EXPECT_EQ(true, response->FindBoolByDottedPath("result.ok"));
+
+  // Dao Lite auto-approval never authorizes existing browser pages.
+  ASSERT_TRUE(client->Send(PageApprovalCall("separate-page-consent")));
+  WaitForApprovalRequestCount(&approval, 1);
+  EXPECT_FALSE(approval.request().background_space);
+  approval.Resolve(true);
+  response = client->Read();
+  ASSERT_TRUE(response);
+  EXPECT_EQ(true, response->FindBoolByDottedPath("result.ok"));
+
+  service_->SetSpaceYoloModeEnabled(false);
+  ASSERT_TRUE(
+      client->Send(ToolCall("after-disable", "get_page_info",
+                            base::DictValue().Set("space_id", space_id))));
+  WaitForApprovalRequestCount(&approval, 2);
+  EXPECT_TRUE(approval.request().background_space);
+  approval.Resolve(false);
+  response = client->Read();
+  ASSERT_TRUE(response);
+  EXPECT_TRUE(response->FindDict("error"));
+  DaoAgentSpaceService::GetForProfile(browser()->GetProfile())->Stop(space_id);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
+                       YoloModeKeepsSiteSkillsConsentSeparate) {
+  service_->SetPageYoloModeEnabled(true);
+  service_->SetSpaceYoloModeEnabled(true);
+  FakeApprovalDelegate approval;
+  service_->SetApprovalDelegate(&approval);
+  EnableService();
+  auto client = ConnectClient();
+  ASSERT_TRUE(client->Send(HelloRequest(nonce())));
+  ASSERT_TRUE(client->Read());
+  ASSERT_TRUE(client->Send(
+      ToolCall("skills", "get_site_skills",
+               base::DictValue().Set("url", "https://example.com"))));
+  WaitForApprovalRequestCount(&approval, 1);
+  EXPECT_EQ(std::optional<std::string>("example.com"),
+            approval.request().site_skills_host);
+  approval.Resolve(false);
+  auto response = client->Read();
+  ASSERT_TRUE(response);
+  ASSERT_TRUE(response->FindStringByDottedPath("result.error.code"));
+  EXPECT_EQ("AUTHORIZATION_DENIED",
+            *response->FindStringByDottedPath("result.error.code"));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
                        SpaceCallsUseBackgroundApprovalWithoutTabLease) {
   FakeApprovalDelegate approval;
   service_->SetApprovalDelegate(&approval);
@@ -1089,7 +1264,8 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
                        SiteSkillsConsentIsScopedToOneReadAndProfile) {
-  auto* skills = DaoAgentSkillServiceFactory::GetForProfile(browser()->profile());
+  auto* skills =
+      DaoAgentSkillServiceFactory::GetForProfile(browser()->GetProfile());
   ASSERT_TRUE(skills);
   for (const auto& [id, host] :
        std::vector<std::pair<std::string, std::string>>{
@@ -1288,7 +1464,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
   EXPECT_FALSE(approval.request().site_skills_host);
   EXPECT_FALSE(approval.request().tab_target);
   EXPECT_TRUE(approval.request().tab_choices.empty());
-  const auto site_path = SavedSkillPath(browser()->profile(), "example.com");
+  const auto site_path = SavedSkillPath(browser()->GetProfile(), "example.com");
   EXPECT_FALSE(base::PathExists(site_path));
 
   ProfileManager* manager = g_browser_process->profile_manager();
@@ -1338,7 +1514,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
   response = client->Read();
   ASSERT_TRUE(response);
   ASSERT_TRUE(response->FindBoolByDottedPath("result.ok").value_or(false));
-  const auto global_path = SavedSkillPath(browser()->profile(), "");
+  const auto global_path = SavedSkillPath(browser()->GetProfile(), "");
   ASSERT_TRUE(base::ReadFileToString(global_path, &contents));
   EXPECT_EQ(kSavedSkillMd, contents);
 
@@ -1428,12 +1604,12 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
   ASSERT_TRUE(client->Read());
   // Drain the skill runner before checking that no late write was dispatched.
   base::test::TestFuture<std::vector<SkillRegistryEntry>> registry;
-  DaoAgentSkillServiceFactory::GetForProfile(browser()->profile())
+  DaoAgentSkillServiceFactory::GetForProfile(browser()->GetProfile())
       ->GetSkillRegistry(registry.GetCallback());
   ASSERT_TRUE(registry.Wait());
   EXPECT_FALSE(
-      base::PathExists(SavedSkillPath(browser()->profile(), "example.com")));
-  EXPECT_FALSE(base::PathExists(SavedSkillPath(browser()->profile(), "")));
+      base::PathExists(SavedSkillPath(browser()->GetProfile(), "example.com")));
+  EXPECT_FALSE(base::PathExists(SavedSkillPath(browser()->GetProfile(), "")));
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
@@ -1464,11 +1640,11 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
     }
   }
   base::test::TestFuture<std::vector<SkillRegistryEntry>> registry;
-  DaoAgentSkillServiceFactory::GetForProfile(browser()->profile())
+  DaoAgentSkillServiceFactory::GetForProfile(browser()->GetProfile())
       ->GetSkillRegistry(registry.GetCallback());
   ASSERT_TRUE(registry.Wait());
   EXPECT_FALSE(
-      base::PathExists(SavedSkillPath(browser()->profile(), "example.com")));
+      base::PathExists(SavedSkillPath(browser()->GetProfile(), "example.com")));
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,

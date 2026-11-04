@@ -34,9 +34,12 @@ function createPage() {
     PolymerElement: class {},
     WebUiListenerMixin: (base: unknown) => base,
     RouteObserverMixin: (base: new () => object) => class extends base {
-      currentRouteChanged() {}
+      currentRouteChanged() {
+        throw new Error('RouteObserverMixin callback must be overridden');
+      }
     },
     routes,
+    chrome: {settingsPrivate: {PrefType: {BOOLEAN: 'BOOLEAN'}}},
     PrefsMixin: (base: unknown) => base,
     SiteSettingsBrowserProxyImpl: {getInstance: () => ({})},
     customElements: {define: () => {}},
@@ -81,6 +84,32 @@ function createSettingsController(
   });
   return new Controller();
 }
+
+describe('local agent YOLO mode', () => {
+  it.each([[false, false], [true, false], [false, true], [true, true]])(
+      'keeps Dao Lite=%s and browser pages=%s independent', (space, pageAccess) => {
+        const page = createPage();
+        page.daoMcpBrowserProxy_.setDaoMcpSpaceYoloModeEnabled = vi.fn();
+        page.daoMcpBrowserProxy_.setDaoMcpPageYoloModeEnabled = vi.fn();
+        page.updateDaoMcpStatus_({
+          enabled: false, state: 'disabled', canStop: false,
+          spaceYoloModeEnabled: space, pageYoloModeEnabled: pageAccess,
+        });
+        expect(page.daoMcpSpaceYoloModePref_?.value).toBe(space);
+        expect(page.daoMcpPageYoloModePref_?.value).toBe(pageAccess);
+        expect(page.daoMcpEnabledPref_.value).toBe(false);
+        page.onDaoMcpSpaceYoloModeChange_({target: {checked: !space}});
+        expect(page.daoMcpBrowserProxy_.setDaoMcpSpaceYoloModeEnabled)
+            .toHaveBeenCalledWith(!space);
+        expect(page.daoMcpBrowserProxy_.setDaoMcpPageYoloModeEnabled)
+            .not.toHaveBeenCalled();
+        page.onDaoMcpPageYoloModeChange_({target: {checked: !pageAccess}});
+        expect(page.daoMcpBrowserProxy_.setDaoMcpPageYoloModeEnabled)
+            .toHaveBeenCalledWith(!pageAccess);
+        expect(page.daoMcpBrowserProxy_.setDaoMcpSpaceYoloModeEnabled)
+            .toHaveBeenCalledTimes(1);
+      });
+});
 
 describe('manual local agent integration', () => {
   it.each(['sidebar', 'scroll'])(

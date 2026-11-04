@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_local_agent_page.ts
-@@ -0,0 +1,478 @@
+@@ -0,0 +1,537 @@
 +// Copyright 2026 Dao Browser Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -50,6 +50,8 @@ index 0000000000..0000000001
 +
 +export interface DaoMcpStatus {
 +  enabled: boolean;
++  pageYoloModeEnabled?: boolean;
++  spaceYoloModeEnabled?: boolean;
 +  state: DaoMcpStatusState;
 +  clientName?: string;
 +  clientPid?: number;
@@ -69,6 +71,8 @@ index 0000000000..0000000001
 +export interface DaoMcpBrowserProxy {
 +  getDaoMcpStatus(): Promise<DaoMcpStatus>;
 +  setDaoMcpEnabled(enabled: boolean): void;
++  setDaoMcpPageYoloModeEnabled(enabled: boolean): void;
++  setDaoMcpSpaceYoloModeEnabled(enabled: boolean): void;
 +  getDaoMcpSetupContent(option: DaoMcpSetupOption): Promise<string>;
 +  copyDaoMcpSetupContent(option: DaoMcpSetupOption): Promise<boolean>;
 +  stopDaoMcpControl(connectionId: string): void;
@@ -86,6 +90,14 @@ index 0000000000..0000000001
 +
 +  setDaoMcpEnabled(enabled: boolean): void {
 +    chrome.send('setDaoMcpEnabled', [enabled]);
++  }
++
++  setDaoMcpPageYoloModeEnabled(enabled: boolean): void {
++    chrome.send('setDaoMcpPageYoloModeEnabled', [enabled]);
++  }
++
++  setDaoMcpSpaceYoloModeEnabled(enabled: boolean): void {
++    chrome.send('setDaoMcpSpaceYoloModeEnabled', [enabled]);
 +  }
 +
 +  getDaoMcpSetupContent(option: DaoMcpSetupOption): Promise<string> {
@@ -152,6 +164,28 @@ index 0000000000..0000000001
 +        value() {
 +          return {
 +            key: 'dao.mcp_server_enabled',
++            type: chrome.settingsPrivate.PrefType.BOOLEAN,
++            value: false,
++          };
++        },
++      },
++
++      daoMcpPageYoloModePref_: {
++        type: Object,
++        value() {
++          return {
++            key: 'dao.mcp_page_yolo_mode_enabled',
++            type: chrome.settingsPrivate.PrefType.BOOLEAN,
++            value: false,
++          };
++        },
++      },
++
++      daoMcpSpaceYoloModePref_: {
++        type: Object,
++        value() {
++          return {
++            key: 'dao.mcp_space_yolo_mode_enabled',
 +            type: chrome.settingsPrivate.PrefType.BOOLEAN,
 +            value: false,
 +          };
@@ -228,6 +262,10 @@ index 0000000000..0000000001
 +  declare private daoMcpSupported_: boolean;
 +  declare private daoMcpEnabledPref_:
 +      chrome.settingsPrivate.PrefObject<boolean>;
++  declare private daoMcpPageYoloModePref_:
++      chrome.settingsPrivate.PrefObject<boolean>;
++  declare private daoMcpSpaceYoloModePref_:
++      chrome.settingsPrivate.PrefObject<boolean>;
 +  declare private daoMcpStatusText_: string;
 +  declare private daoMcpStatusState_: DaoMcpStatusState;
 +  declare private daoMcpConnections_: DaoMcpConnection[];
@@ -260,7 +298,6 @@ index 0000000000..0000000001
 +  }
 +
 +  override currentRouteChanged(newRoute: Route, oldRoute?: Route) {
-+    super.currentRouteChanged(newRoute, oldRoute);
 +    if (oldRoute && newRoute !== oldRoute &&
 +        (newRoute === routes.DAO_LOCAL_AGENTS || newRoute === routes.BASIC)) {
 +      void this.refreshLocalAgents();
@@ -357,6 +394,16 @@ index 0000000000..0000000001
 +    this.daoMcpBrowserProxy_.setDaoMcpEnabled(enabled);
 +  }
 +
++  private onDaoMcpPageYoloModeChange_(event: Event) {
++    const enabled = (event.target as SettingsToggleButtonElement).checked;
++    this.daoMcpBrowserProxy_.setDaoMcpPageYoloModeEnabled(enabled);
++  }
++
++  private onDaoMcpSpaceYoloModeChange_(event: Event) {
++    const enabled = (event.target as SettingsToggleButtonElement).checked;
++    this.daoMcpBrowserProxy_.setDaoMcpSpaceYoloModeEnabled(enabled);
++  }
++
 +  private onDaoMcpSetupOptionChange_(event: Event) {
 +    const option = (event.target as HTMLSelectElement).value;
 +    if (option !== 'codex' && option !== 'claude-code' &&
@@ -441,6 +488,18 @@ index 0000000000..0000000001
 +      key: 'dao.mcp_server_enabled',
 +      type: chrome.settingsPrivate.PrefType.BOOLEAN,
 +      value: status.enabled,
++    };
++
++    this.daoMcpPageYoloModePref_ = {
++      key: 'dao.mcp_page_yolo_mode_enabled',
++      type: chrome.settingsPrivate.PrefType.BOOLEAN,
++      value: status.pageYoloModeEnabled ?? false,
++    };
++
++    this.daoMcpSpaceYoloModePref_ = {
++      key: 'dao.mcp_space_yolo_mode_enabled',
++      type: chrome.settingsPrivate.PrefType.BOOLEAN,
++      value: status.spaceYoloModeEnabled ?? false,
 +    };
 +
 +    const statusStringKeys: Record<DaoMcpStatusState, string> = {

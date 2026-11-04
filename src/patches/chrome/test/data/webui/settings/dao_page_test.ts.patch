@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/test/data/webui/settings/dao_page_test.ts
-@@ -0,0 +1,877 @@
+@@ -0,0 +1,914 @@
 +// Copyright 2026 Dao Browser Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -71,6 +71,8 @@ index 0000000000..0000000001
 +    super([
 +      'getDaoMcpStatus',
 +      'setDaoMcpEnabled',
++      'setDaoMcpPageYoloModeEnabled',
++      'setDaoMcpSpaceYoloModeEnabled',
 +      'getDaoMcpSetupContent',
 +      'copyDaoMcpSetupContent',
 +      'stopDaoMcpControl',
@@ -88,6 +90,14 @@ index 0000000000..0000000001
 +
 +  setDaoMcpEnabled(enabled: boolean): void {
 +    this.methodCalled('setDaoMcpEnabled', enabled);
++  }
++
++  setDaoMcpPageYoloModeEnabled(enabled: boolean): void {
++    this.methodCalled('setDaoMcpPageYoloModeEnabled', enabled);
++  }
++
++  setDaoMcpSpaceYoloModeEnabled(enabled: boolean): void {
++    this.methodCalled('setDaoMcpSpaceYoloModeEnabled', enabled);
 +  }
 +
 +  getDaoMcpSetupContent(option: DaoMcpSetupOption): Promise<string> {
@@ -294,6 +304,33 @@ index 0000000000..0000000001
 +    toggle.notifyChangedByUserInteraction();
 +
 +    assertTrue(await mcpBrowserProxy.whenCalled('setDaoMcpEnabled'));
++  });
++
++  test('yoloModesDefaultOffAndRemainIndependent', async function() {
++    const space = localAgentPage.shadowRoot!
++        .querySelector<SettingsToggleButtonElement>('#daoMcpSpaceYoloModeEnabled')!;
++    const page = localAgentPage.shadowRoot!
++        .querySelector<SettingsToggleButtonElement>('#daoMcpPageYoloModeEnabled')!;
++    assertFalse(space.checked);
++    assertFalse(page.checked);
++    space.checked = true;
++    space.notifyChangedByUserInteraction();
++    assertTrue(await mcpBrowserProxy.whenCalled('setDaoMcpSpaceYoloModeEnabled'));
++    sendMcpStatus({
++      enabled: false, state: 'disabled', canStop: false,
++      spaceYoloModeEnabled: true, pageYoloModeEnabled: false,
++    });
++    assertTrue(space.checked);
++    assertFalse(page.checked);
++    page.checked = true;
++    page.notifyChangedByUserInteraction();
++    assertTrue(await mcpBrowserProxy.whenCalled('setDaoMcpPageYoloModeEnabled'));
++    sendMcpStatus({
++      enabled: false, state: 'disabled', canStop: false,
++      spaceYoloModeEnabled: false, pageYoloModeEnabled: true,
++    });
++    assertFalse(space.checked);
++    assertTrue(page.checked);
 +  });
 +
 +  test('mcpRendersDisabledReadyAndApprovalRequestedStates', function() {

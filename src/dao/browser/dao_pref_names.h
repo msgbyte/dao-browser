@@ -25,6 +25,12 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry);
 // The service is disabled by default and remains independent of Dao Agent.
 inline constexpr char kDaoMcpServerEnabled[] = "dao.mcp_server_enabled";
 
+// Independent opt-in automatic approval for browser pages and Dao Lite access.
+inline constexpr char kDaoMcpPageYoloModeEnabled[] =
+    "dao.mcp_page_yolo_mode_enabled";
+inline constexpr char kDaoMcpSpaceYoloModeEnabled[] =
+    "dao.mcp_space_yolo_mode_enabled";
+
 // Profile-scoped MCP tool execution counters, kept separate from Dao Agent.
 inline constexpr char kDaoMcpUsageStats[] = "dao.mcp_usage_stats";
 

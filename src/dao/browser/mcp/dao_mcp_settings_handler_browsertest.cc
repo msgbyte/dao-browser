@@ -12,10 +12,11 @@
 #include "base/files/file_path.h"
 #include "base/i18n/rtl.h"
 #include "base/json/json_reader.h"
-#include "base/path_service.h"
 #include "base/json/json_writer.h"
+#include "base/path_service.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/test/run_until.h"
 #include "base/test/scoped_path_override.h"
 #include "base/test/test_future.h"
 #include "base/values.h"
@@ -69,6 +70,22 @@ class FakeDaoMcpSettingsService : public DaoMcpSettingsService {
  public:
   bool IsEnabled() const override { return enabled_; }
 
+  bool IsPageYoloModeEnabled() const override {
+    return page_yolo_mode_enabled_;
+  }
+
+  void SetPageYoloModeEnabled(bool enabled) override {
+    page_yolo_mode_enabled_ = enabled;
+  }
+
+  bool IsSpaceYoloModeEnabled() const override {
+    return space_yolo_mode_enabled_;
+  }
+
+  void SetSpaceYoloModeEnabled(bool enabled) override {
+    space_yolo_mode_enabled_ = enabled;
+  }
+
   DaoMcpServiceStatus GetStatus() const override { return status_; }
 
   void SetEnabled(bool enabled) override {
@@ -121,6 +138,8 @@ class FakeDaoMcpSettingsService : public DaoMcpSettingsService {
 
  private:
   bool enabled_ = false;
+  bool page_yolo_mode_enabled_ = false;
+  bool space_yolo_mode_enabled_ = false;
   std::string mcp_configuration_ = kTestMcpConfiguration;
   DaoMcpServiceStatus status_;
   std::vector<DaoMcpConnectionInfo> connections_;
@@ -140,6 +159,8 @@ class TestDaoMcpSettingsHandler : public DaoMcpSettingsHandler {
   using DaoMcpSettingsHandler::HandleResetDaoMcpUsageStats;
   using DaoMcpSettingsHandler::HandleRevokeDaoMcpTab;
   using DaoMcpSettingsHandler::HandleSetDaoMcpEnabled;
+  using DaoMcpSettingsHandler::HandleSetDaoMcpPageYoloModeEnabled;
+  using DaoMcpSettingsHandler::HandleSetDaoMcpSpaceYoloModeEnabled;
   using DaoMcpSettingsHandler::HandleStopDaoMcpControl;
   using DaoMcpSettingsHandler::set_web_ui;
 };
@@ -239,6 +260,24 @@ TEST_F(DaoMcpSettingsHandlerTest, WritesGlobalEnabledStateThroughService) {
 
   EXPECT_TRUE(service()->IsEnabled());
   EXPECT_EQ(1, service()->set_enabled_call_count());
+}
+
+TEST_F(DaoMcpSettingsHandlerTest, WritesAndReadsYoloModesIndependently) {
+  EXPECT_FALSE(service()->IsPageYoloModeEnabled());
+  EXPECT_FALSE(service()->IsSpaceYoloModeEnabled());
+  for (bool page_enabled : {false, true}) {
+    const bool previous_space = service()->IsSpaceYoloModeEnabled();
+    handler()->HandleSetDaoMcpPageYoloModeEnabled(
+        base::ListValue().Append(page_enabled));
+    EXPECT_EQ(previous_space, service()->IsSpaceYoloModeEnabled());
+    for (bool space_enabled : {false, true}) {
+      handler()->HandleSetDaoMcpSpaceYoloModeEnabled(
+          base::ListValue().Append(space_enabled));
+      EXPECT_EQ(page_enabled, GetStatus().FindBool("pageYoloModeEnabled"));
+      EXPECT_EQ(space_enabled, GetStatus().FindBool("spaceYoloModeEnabled"));
+      EXPECT_FALSE(service()->IsEnabled());
+    }
+  }
 }
 
 TEST_F(DaoMcpSettingsHandlerTest, RejectsStopWithoutExplicitConnection) {
@@ -682,6 +721,33 @@ IN_PROC_BROWSER_TEST_F(DaoMcpSettingsPageBrowserTest,
     })()
   )JS"));
 
+  ASSERT_EQ(true, content::EvalJs(contents, R"JS(
+    (async () => {
+      const page = window.daoMcpPageForTest;
+      const space = page.shadowRoot.querySelector('#daoMcpSpaceYoloModeEnabled');
+      const browserPage = page.shadowRoot.querySelector('#daoMcpPageYoloModeEnabled');
+      if (!space || !browserPage || space.checked || browserPage.checked ||
+          !space.label || !space.subLabel || !browserPage.label || !browserPage.subLabel) {
+        return false;
+      }
+      for (const [toggle, expectedSpace, expectedPage] of [
+        [space, true, false], [browserPage, true, true],
+        [space, false, true], [browserPage, false, false],
+      ]) {
+        toggle.click();
+        const status = await page.daoMcpBrowserProxy_.getDaoMcpStatus();
+        if (status.spaceYoloModeEnabled !== expectedSpace ||
+            status.pageYoloModeEnabled !== expectedPage ||
+            space.checked !== expectedSpace || browserPage.checked !== expectedPage) {
+          return false;
+        }
+      }
+      return true;
+    })()
+  )JS"));
+  EXPECT_FALSE(local_state->GetBoolean(prefs::kDaoMcpPageYoloModeEnabled));
+  EXPECT_FALSE(local_state->GetBoolean(prefs::kDaoMcpSpaceYoloModeEnabled));
+
   EXPECT_TRUE(local_state->GetBoolean(prefs::kDaoMcpServerEnabled));
   EXPECT_EQ(DaoMcpStatus::kListening, DaoMcpService::Get()->GetStatus().state);
 
@@ -901,6 +967,8 @@ IN_PROC_BROWSER_TEST_F(DaoMcpSettingsPageBrowserTest,
           canStop: false,
         }),
         setDaoMcpEnabled: () => {},
+        setDaoMcpPageYoloModeEnabled: () => {},
+        setDaoMcpSpaceYoloModeEnabled: () => {},
         getDaoMcpSetupContent: option => new Promise(resolve => {
           setupResolvers.push({option, resolve});
         }),

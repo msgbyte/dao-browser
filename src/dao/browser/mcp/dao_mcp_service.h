@@ -164,6 +164,10 @@ class DaoMcpService {
   void Shutdown();
 
   void SetEnabled(bool enabled);
+  bool IsPageYoloModeEnabled() const;
+  void SetPageYoloModeEnabled(bool enabled);
+  bool IsSpaceYoloModeEnabled() const;
+  void SetSpaceYoloModeEnabled(bool enabled);
   DaoMcpServiceStatus GetStatus() const;
   std::string GetMcpConfiguration() const;
   BrowserWindowInterface* GetAuthorizedBrowser() const;

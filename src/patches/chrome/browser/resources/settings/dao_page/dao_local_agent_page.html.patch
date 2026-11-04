@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_local_agent_page.html
-@@ -0,0 +1,378 @@
+@@ -0,0 +1,397 @@
 +<style include="settings-shared">
 +  .dao-mcp-page {
 +    margin-top: 12px;
@@ -23,6 +23,10 @@ index 0000000000..0000000001
 +
 +  #daoMcpServerEnabled {
 +    padding: 4px 16px;
++  }
++
++  .dao-yolo-settings settings-toggle-button {
++    padding: 4px 0;
 +  }
 +
 +  .dao-mcp-section {
@@ -271,6 +275,21 @@ index 0000000000..0000000001
 +          </div>
 +        </div>
 +      </template>
++      <div id="daoMcpYoloMode" class="dao-mcp-section dao-yolo-settings">
++        <div class="dao-mcp-section-title">$i18n{daoMcpYoloModeLabel}</div>
++        <settings-toggle-button id="daoMcpSpaceYoloModeEnabled"
++            pref="{{daoMcpSpaceYoloModePref_}}"
++            label="$i18n{daoMcpSpaceYoloModeLabel}"
++            sub-label="$i18n{daoMcpSpaceYoloModeSubLabel}"
++            on-settings-boolean-control-change="onDaoMcpSpaceYoloModeChange_">
++        </settings-toggle-button>
++        <settings-toggle-button id="daoMcpPageYoloModeEnabled"
++            pref="{{daoMcpPageYoloModePref_}}"
++            label="$i18n{daoMcpPageYoloModeLabel}"
++            sub-label="$i18n{daoMcpPageYoloModeSubLabel}"
++            on-settings-boolean-control-change="onDaoMcpPageYoloModeChange_">
++        </settings-toggle-button>
++      </div>
 +      <div id="daoMcpConnectionSection"
 +          class="dao-mcp-section dao-mcp-status-section">
 +        <div class="dao-mcp-status-copy">

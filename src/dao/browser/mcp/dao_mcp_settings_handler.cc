@@ -82,6 +82,22 @@ class DaoMcpSettingsServiceImpl final : public DaoMcpSettingsService {
     DaoMcpService::Get()->SetEnabled(enabled);
   }
 
+  bool IsPageYoloModeEnabled() const override {
+    return DaoMcpService::Get()->IsPageYoloModeEnabled();
+  }
+
+  void SetPageYoloModeEnabled(bool enabled) override {
+    DaoMcpService::Get()->SetPageYoloModeEnabled(enabled);
+  }
+
+  bool IsSpaceYoloModeEnabled() const override {
+    return DaoMcpService::Get()->IsSpaceYoloModeEnabled();
+  }
+
+  void SetSpaceYoloModeEnabled(bool enabled) override {
+    DaoMcpService::Get()->SetSpaceYoloModeEnabled(enabled);
+  }
+
   std::vector<DaoMcpConnectionInfo> GetConnections() const override {
     return DaoMcpService::Get()->GetConnections();
   }
@@ -173,6 +189,16 @@ void DaoMcpSettingsHandler::RegisterMessages() {
       base::BindRepeating(&DaoMcpSettingsHandler::HandleSetDaoMcpEnabled,
                           base::Unretained(this)));
   web_ui()->RegisterMessageCallback(
+      "setDaoMcpPageYoloModeEnabled",
+      base::BindRepeating(
+          &DaoMcpSettingsHandler::HandleSetDaoMcpPageYoloModeEnabled,
+          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "setDaoMcpSpaceYoloModeEnabled",
+      base::BindRepeating(
+          &DaoMcpSettingsHandler::HandleSetDaoMcpSpaceYoloModeEnabled,
+          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
       "getDaoMcpSetupContent",
       base::BindRepeating(
           &DaoMcpSettingsHandler::HandleGetDaoMcpSetupContent,
@@ -235,6 +261,18 @@ void DaoMcpSettingsHandler::HandleSetDaoMcpEnabled(
     const base::ListValue& args) {
   CHECK_EQ(1u, args.size());
   service_->SetEnabled(args[0].GetBool());
+}
+
+void DaoMcpSettingsHandler::HandleSetDaoMcpPageYoloModeEnabled(
+    const base::ListValue& args) {
+  CHECK_EQ(1u, args.size());
+  service_->SetPageYoloModeEnabled(args[0].GetBool());
+}
+
+void DaoMcpSettingsHandler::HandleSetDaoMcpSpaceYoloModeEnabled(
+    const base::ListValue& args) {
+  CHECK_EQ(1u, args.size());
+  service_->SetSpaceYoloModeEnabled(args[0].GetBool());
 }
 
 void DaoMcpSettingsHandler::HandleGetDaoMcpSetupContent(
@@ -398,6 +436,8 @@ base::DictValue DaoMcpSettingsHandler::CreateStatusValue() {
   const DaoMcpServiceStatus status = service_->GetStatus();
   base::DictValue result;
   result.Set("enabled", service_->IsEnabled());
+  result.Set("pageYoloModeEnabled", service_->IsPageYoloModeEnabled());
+  result.Set("spaceYoloModeEnabled", service_->IsSpaceYoloModeEnabled());
   result.Set("state", StatusName(status.state));
 
   result.Set("usageStats", BuildDaoMcpUsageStats(GetPrefs()));

@@ -20,6 +20,8 @@ namespace dao::prefs {
 
 void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
   registry->RegisterBooleanPref(kDaoMcpServerEnabled, false);
+  registry->RegisterBooleanPref(kDaoMcpPageYoloModeEnabled, false);
+  registry->RegisterBooleanPref(kDaoMcpSpaceYoloModeEnabled, false);
   registry->RegisterListPref(kDaoAgentSpaceAllowedClients);
 }
 

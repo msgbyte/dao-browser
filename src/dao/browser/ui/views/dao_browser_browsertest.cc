@@ -15630,7 +15630,7 @@ class DaoMcpApprovalDialogTest : public InProcessBrowserTest {
   }
 
   void AddUncachedBackgroundTab(DaoToolTarget* target) {
-    browser()->profile()->GetPrefs()->SetBoolean(
+    browser()->GetProfile()->GetPrefs()->SetBoolean(
         dao::prefs::kDaoTabHoverPreviewEnabled, false);
     ASSERT_TRUE(embedded_test_server()->Start());
     auto* model = browser()->tab_strip_model();
@@ -15706,7 +15706,7 @@ IN_PROC_BROWSER_TEST_F(DaoMcpApprovalDialogTest,
   EXPECT_EQ(active, model->GetActiveWebContents());
   EXPECT_EQ(content::Visibility::HIDDEN, requested->GetVisibility());
   EXPECT_FALSE(requested->IsBeingCaptured());
-  EXPECT_FALSE(browser()->profile()->GetPrefs()->GetBoolean(
+  EXPECT_FALSE(browser()->GetProfile()->GetPrefs()->GetBoolean(
       dao::prefs::kDaoTabHoverPreviewEnabled));
   dialog.DismissWithoutResult();
 }

@@ -1100,6 +1100,21 @@
       <message name="IDS_DAO_CLASSIFY_TABS_EMPTY" desc="Toast shown when no eligible tabs are available for AI classification.">No tabs to classify</message>
       <message name="IDS_DAO_CLASSIFY_TABS_FAILED" desc="Toast shown when AI tab classification fails without applying a result.">Could not classify tabs. Please try again.</message>
       <message name="IDS_DAO_CLASSIFY_TABS_CHANGED" desc="Toast shown when a stale AI classification result is discarded after tabs or folders changed.">Tabs or folders changed. Please classify again.</message>
+      <message name="IDS_DAO_MCP_YOLO_MODE_LABEL" desc="Label for automatic local agent browser access approval.">
+        YOLO mode
+      </message>
+      <message name="IDS_DAO_MCP_SPACE_YOLO_MODE_LABEL" desc="Label for automatic Dao Lite access approval.">
+        Automatically approve Dao Lite
+      </message>
+      <message name="IDS_DAO_MCP_SPACE_YOLO_MODE_SUB_LABEL" desc="Description of independent automatic Dao Lite approval.">
+        Allow local agents to use Dao Lite background spaces, including signed-in sites, without asking. Applies to all profiles.
+      </message>
+      <message name="IDS_DAO_MCP_PAGE_YOLO_MODE_LABEL" desc="Label for automatic browser page access approval.">
+        Automatically approve browser pages
+      </message>
+      <message name="IDS_DAO_MCP_PAGE_YOLO_MODE_SUB_LABEL" desc="Description of independent automatic browser page approval.">
+        Allow local agents to control browser windows and pages, including signed-in sites, without asking. Applies to all profiles.
+      </message>
     </messages>
   </release>
 </grit>

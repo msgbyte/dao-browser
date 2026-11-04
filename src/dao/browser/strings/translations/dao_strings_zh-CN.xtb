@@ -391,4 +391,9 @@
   <translation id="4053446320237329868">保存为供今后 AI 任务使用的全局技能。保存会替换此位置已有的技能。</translation>
   <translation id="8047495800229127993">保存位置：<ph name="PATH"/></translation>
   <translation id="6503014859519956973">拟保存内容（由客户端提供）</translation>
+  <translation id="7347806219854221616">YOLO 模式</translation>
+  <translation id="5200196628395945499">Dao Lite 自动授权</translation>
+  <translation id="7013202652686573076">自动允许本机 Agent 使用 Dao Lite 后台空间（包括已登录的网站），无需询问。适用于所有个人资料。</translation>
+  <translation id="985137052450203009">前台页面自动授权</translation>
+  <translation id="8384609973295054104">自动允许本机 Agent 控制浏览器窗口和页面（包括已登录的网站），无需询问。适用于所有个人资料。</translation>
 </translationbundle>

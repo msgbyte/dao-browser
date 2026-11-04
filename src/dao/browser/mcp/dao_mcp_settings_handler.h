@@ -36,6 +36,10 @@ class DaoMcpSettingsService {
   virtual bool IsEnabled() const = 0;
   virtual DaoMcpServiceStatus GetStatus() const = 0;
   virtual void SetEnabled(bool enabled) = 0;
+  virtual bool IsPageYoloModeEnabled() const = 0;
+  virtual void SetPageYoloModeEnabled(bool enabled) = 0;
+  virtual bool IsSpaceYoloModeEnabled() const = 0;
+  virtual void SetSpaceYoloModeEnabled(bool enabled) = 0;
   virtual std::vector<DaoMcpConnectionInfo> GetConnections() const = 0;
   virtual void StopControl(std::string_view connection_id) = 0;
   virtual void RevokeTab(std::string_view connection_id,
@@ -63,6 +67,8 @@ class DaoMcpSettingsHandler : public settings::SettingsPageUIHandler {
  protected:
   void HandleGetDaoMcpStatus(const base::ListValue& args);
   void HandleSetDaoMcpEnabled(const base::ListValue& args);
+  void HandleSetDaoMcpPageYoloModeEnabled(const base::ListValue& args);
+  void HandleSetDaoMcpSpaceYoloModeEnabled(const base::ListValue& args);
   void HandleGetDaoMcpSetupContent(const base::ListValue& args);
   void HandleCopyDaoMcpSetupContent(const base::ListValue& args);
   void HandleStopDaoMcpControl(const base::ListValue& args);
