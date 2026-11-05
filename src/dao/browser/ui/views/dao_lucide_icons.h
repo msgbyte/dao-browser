@@ -49,6 +49,7 @@ enum class LucideIcon {
   kDownload,
   kZap,
   kCheck,
+  kCopy,
 };
 
 // Draw a Lucide icon into |rect| on |canvas| using |color|.

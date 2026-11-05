@@ -407,6 +407,15 @@ void DrawLucideIcon(gfx::Canvas* canvas,
       // https://github.com/lucide-icons/lucide/blob/main/icons/check.svg
       DrawSvgPath(canvas, "M20 6 9 17l-5-5", s, ox, oy, flags);
       break;
+    case LucideIcon::kCopy:
+      // https://github.com/lucide-icons/lucide/blob/main/icons/copy.svg
+      // <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+      canvas->DrawRoundRect(gfx::RectF(ox + 8 * s, oy + 8 * s, 14 * s, 14 * s),
+                            2 * s, flags);
+      DrawSvgPath(canvas,
+                  "M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2",
+                  s, ox, oy, flags);
+      break;
     case LucideIcon::kDownload:
       // https://github.com/lucide-icons/lucide/blob/main/icons/download.svg
       DrawSvgPath(canvas, "M12 15V3", s, ox, oy, flags);
