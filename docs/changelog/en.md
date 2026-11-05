@@ -4,6 +4,8 @@
 
 ### [Unreleased] Unreleased
 
+- Try experimental command bar suggestion ordering in Settings: keep your input unchanged, search or open exactly what you type, and find matching open tabs near the top. The option is off by default and works independently of enhanced suggestions.
+
 ### [1.0.135] - 2026-11-05
 
 - Show the AI cursor during form filling, typing, key presses, scrolling, clicks, and highlights, including fields inside embedded pages and scrolling panels; background actions keep the current page's cursor visible.

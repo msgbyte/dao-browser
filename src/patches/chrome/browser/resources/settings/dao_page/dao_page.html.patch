@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_page.html
-@@ -0,0 +1,839 @@
+@@ -0,0 +1,844 @@
 +<style include="settings-shared">
 +  .dao-tab-categories {
 +    border-top: var(--cr-separator-line);
@@ -576,6 +576,11 @@ index 0000000000..0000000001
 +      pref="{{prefs.dao.enhanced_command_bar_suggestions_enabled}}"
 +      label="$i18n{enhancedCommandBarSuggestionsEnabledLabel}"
 +      sub-label="$i18n{enhancedCommandBarSuggestionsEnabledSubLabel}">
++  </settings-toggle-button>
++  <settings-toggle-button id="experimentalCommandBarRankingEnabled"
++      pref="{{prefs.dao.experimental_command_bar_ranking_enabled}}"
++      label="$i18n{experimentalCommandBarRankingLabel}"
++      sub-label="$i18n{experimentalCommandBarRankingSubLabel}">
 +  </settings-toggle-button>
 +  <settings-toggle-button id="commandBarCommandModeEnabled"
 +      pref="{{prefs.dao.command_bar_command_mode_enabled}}"

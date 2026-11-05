@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/test/data/webui/settings/dao_page_test.ts
-@@ -0,0 +1,914 @@
+@@ -0,0 +1,941 @@
 +// Copyright 2026 Dao Browser Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -214,6 +214,11 @@ index 0000000000..0000000001
 +      dao: {
 +        enhanced_command_bar_suggestions_enabled: {
 +          key: 'dao.enhanced_command_bar_suggestions_enabled',
++          type: chrome.settingsPrivate.PrefType.BOOLEAN,
++          value: false,
++        },
++        experimental_command_bar_ranking_enabled: {
++          key: 'dao.experimental_command_bar_ranking_enabled',
 +          type: chrome.settingsPrivate.PrefType.BOOLEAN,
 +          value: false,
 +        },
@@ -733,6 +738,28 @@ index 0000000000..0000000001
 +    assertTrue(!!toggle);
 +    assertEquals('dao.command_bar_command_mode_enabled', toggle.pref!.key);
 +    assertTrue(!toggle.checked);
++  });
++
++  test('experimentalCommandBarRankingToggleIsIndependent', function() {
++    const toggle =
++        page.shadowRoot!.querySelector<SettingsToggleButtonElement>(
++            '#experimentalCommandBarRankingEnabled');
++    assertTrue(!!toggle);
++    assertEquals(
++        'dao.experimental_command_bar_ranking_enabled', toggle.pref!.key);
++    assertTrue(!toggle.checked);
++    toggle.click();
++    flush();
++    assertTrue(toggle.checked);
++    assertTrue(page.getPref<boolean>(
++        'dao.experimental_command_bar_ranking_enabled').value);
++    assertFalse(page.getPref<boolean>(
++        'dao.enhanced_command_bar_suggestions_enabled').value);
++    toggle.click();
++    flush();
++    assertTrue(!toggle.checked);
++    assertFalse(page.getPref<boolean>(
++        'dao.experimental_command_bar_ranking_enabled').value);
 +  });
 +
 +  test('askAiToggleBindsToDaoPref', function() {

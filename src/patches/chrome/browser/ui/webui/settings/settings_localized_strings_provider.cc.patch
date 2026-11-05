@@ -54,7 +54,7 @@ diff --git a/chrome/browser/ui/webui/settings/settings_localized_strings_provide
  
    std::u16string license = l10n_util::GetStringFUTF16(
        IDS_VERSION_UI_LICENSE, chrome::kChromiumProjectURL,
-@@ -4451,6 +4461,335 @@
+@@ -4451,6 +4461,339 @@
                                    IDS_SETTINGS_EXTENSIONS_CHECKBOX_LABEL);
  }
  
@@ -337,6 +337,10 @@ diff --git a/chrome/browser/ui/webui/settings/settings_localized_strings_provide
 +       IDS_SETTINGS_ENHANCED_COMMAND_BAR_SUGGESTIONS_ENABLED_LABEL},
 +      {"enhancedCommandBarSuggestionsEnabledSubLabel",
 +       IDS_SETTINGS_ENHANCED_COMMAND_BAR_SUGGESTIONS_ENABLED_SUB_LABEL},
++      {"experimentalCommandBarRankingLabel",
++       IDS_DAO_COMMAND_BAR_EXPERIMENTAL_RANKING_LABEL},
++      {"experimentalCommandBarRankingSubLabel",
++       IDS_DAO_COMMAND_BAR_EXPERIMENTAL_RANKING_SUB_LABEL},
 +      {"commandBarCommandModeEnabledLabel",
 +       IDS_SETTINGS_COMMAND_BAR_COMMAND_MODE_ENABLED_LABEL},
 +      {"commandBarCommandModeEnabledSubLabel",
@@ -390,7 +394,7 @@ diff --git a/chrome/browser/ui/webui/settings/settings_localized_strings_provide
  void AddSecurityKeysStrings(content::WebUIDataSource* html_source) {
    static constexpr webui::LocalizedString kSecurityKeysStrings[] = {
        {"securityBundleResetToDefaultsButtonLabel",
-@@ -4600,6 +4939,7 @@
+@@ -4600,6 +4943,7 @@
    AddClearBrowsingDataStrings(html_source, profile);
    AddCommonStrings(html_source, profile);
    AddDownloadsStrings(html_source);

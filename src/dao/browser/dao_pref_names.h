@@ -94,10 +94,15 @@ inline constexpr char kDaoLittleDaoEnabled[] = "dao.little_dao_enabled";
 inline constexpr char kDaoForceDarkModeEnabled[] =
     "dao.force_dark_mode_enabled";
 
-// Boolean pref that enables the richer Arc-style command bar suggestion
-// pipeline. Kept off by default while the ranking model is still maturing.
+// Enables additional Chromium providers, page context, and intent labels.
+// Independent of experimental suggestion ordering; off by default.
 inline constexpr char kDaoEnhancedCommandBarSuggestionsEnabled[] =
     "dao.enhanced_command_bar_suggestions_enabled";
+
+// Keeps typed input as the default action and promotes matching open tabs.
+// Off by default; also suppresses automatic completion and selection previews.
+inline constexpr char kDaoExperimentalCommandBarRankingEnabled[] =
+    "dao.experimental_command_bar_ranking_enabled";
 
 // Boolean pref that enables the optional leading ">" command mode. Off by
 // default; normal command suggestions do not depend on this pref.

@@ -444,6 +444,12 @@
       </message>
 
       <!-- Suggestion item -->
+      <message name="IDS_DAO_COMMAND_BAR_EXPERIMENTAL_RANKING_LABEL" desc="Label for the default-off setting that changes command bar suggestion ordering while preserving typed input.">
+        Experimental command bar suggestion ordering
+      </message>
+      <message name="IDS_DAO_COMMAND_BAR_EXPERIMENTAL_RANKING_SUB_LABEL" desc="Description of experimental command bar ordering. Enter uses the original input unless a suggestion is explicitly selected.">
+        Prioritize matching open tabs without changing your input. Press Enter to search or open the address you typed.
+      </message>
       <message name="IDS_DAO_SUGGESTION_REMOVE" desc="Accessible name and tooltip of the command bar button that deletes a suggestion using Chromium's built-in deletion support.">
         Remove suggestion
       </message>

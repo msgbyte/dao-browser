@@ -3703,6 +3703,9 @@ IN_PROC_BROWSER_TEST_F(DaoAddressBarBrowserTest,
 
 class DaoCommandBarBrowserTest : public InProcessBrowserTest {
  protected:
+  static constexpr char kExperimentalRankingPref[] =
+      "dao.experimental_command_bar_ranking_enabled";
+
   class DeletionTestProvider : public AutocompleteProvider {
    public:
     DeletionTestProvider() : AutocompleteProvider(TYPE_HISTORY_URL) {}
@@ -4237,6 +4240,286 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
                          dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled));
   EXPECT_FALSE(
       prefs->GetBoolean(dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       ExperimentalRankingIsOptInAndPreservesInput) {
+  auto* prefs = browser()->GetProfile()->GetPrefs();
+  ASSERT_NE(nullptr, prefs->FindPreference(kExperimentalRankingPref));
+  EXPECT_FALSE(prefs->GetBoolean(kExperimentalRankingPref));
+  auto* bar = GetBrowserView(browser())->dao_command_bar();
+  auto* field = FindDescendantViewOfClass<views::Textfield>(bar);
+  ASSERT_NE(nullptr, field);
+
+  AutocompleteMatch history(nullptr, 1400, false,
+                            AutocompleteMatchType::HISTORY_URL);
+  history.allowed_to_be_default_match = true;
+  history.contents = history.fill_into_edit = u"git.example";
+  history.inline_autocompletion = u".example";
+  history.destination_url = GURL("https://git.example/");
+  AutocompleteMatch search(nullptr, 1300, false,
+                           AutocompleteMatchType::SEARCH_SUGGEST);
+  search.contents = search.fill_into_edit = u"git tutorial";
+  search.destination_url = GURL("https://example.com/search?q=git+tutorial");
+  AutocompleteMatch tab(nullptr, 900, false, AutocompleteMatchType::OPEN_TAB);
+  tab.contents = tab.fill_into_edit = u"Open git tab";
+  tab.destination_url = GURL("https://example.com/git");
+  tab.has_tab_match = true;
+
+  for (bool enhanced : {false, true}) {
+    SCOPED_TRACE(enhanced);
+    prefs->SetBoolean(dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled,
+                      enhanced);
+    for (bool experimental : {false, true, false}) {
+      SCOPED_TRACE(experimental);
+      prefs->SetBoolean(kExperimentalRankingPref, experimental);
+      bar->ShowForNewTab();
+      bar->SetUserInputAndInlineAutocompletionForTesting(u"git", u"");
+      bar->SetAutocompleteMatchesForTesting({history, search, tab}, true);
+      EXPECT_EQ(5, bar->GetVisibleSuggestionCountForTesting());
+      EXPECT_EQ(experimental ? u"git" : u"git.example", field->GetText());
+      EXPECT_EQ(experimental ? u"git" : u"git.example",
+                bar->GetVisibleSuggestionTitleForTesting(0));
+      EXPECT_EQ(experimental ? 2 : 1, bar->GetAskAiRowIndexForTesting());
+      if (experimental) {
+        EXPECT_EQ(u"Open git tab", bar->GetVisibleSuggestionTitleForTesting(1));
+        EXPECT_TRUE(bar->GetInlineAutocompletionForTesting().empty());
+        SendDialogKey(bar->GetWidget(), ui::VKEY_DOWN);
+        EXPECT_EQ(u"git", field->GetText());
+        EXPECT_FALSE(bar->IsSelectionPreviewActiveForTesting());
+        bar->SetAutocompleteMatchesForTesting({search, tab, history}, true);
+        EXPECT_EQ(1, bar->GetSelectedIndexForTesting());
+        EXPECT_EQ(u"git", field->GetText());
+        SendDialogKey(bar->GetWidget(), ui::VKEY_RIGHT);
+        EXPECT_EQ(u"git", field->GetText());
+        AutocompleteMatch replacement = tab;
+        replacement.description = u"Another tab at the same address";
+        bar->SetAutocompleteMatchesForTesting({search, replacement, history},
+                                              true);
+        EXPECT_EQ(0, bar->GetSelectedIndexForTesting());
+        SendDialogKey(bar->GetWidget(), ui::VKEY_DOWN);
+        bar->SetAutocompleteMatchesForTesting({history, search}, true);
+        EXPECT_EQ(0, bar->GetSelectedIndexForTesting());
+        EXPECT_EQ(u"git", field->GetText());
+        SendDialogKey(bar->GetWidget(), ui::VKEY_DOWN);
+        SendDialogKey(bar->GetWidget(), ui::VKEY_DOWN);
+        EXPECT_EQ(u"git", field->GetText());
+        AutocompleteMatch updated_history = history;
+        updated_history.type = AutocompleteMatchType::BOOKMARK_TITLE;
+        bar->SetAutocompleteMatchesForTesting({search, updated_history}, true);
+        EXPECT_EQ(3, bar->GetSelectedIndexForTesting());
+        SendDialogKey(bar->GetWidget(), ui::VKEY_TAB);
+        EXPECT_EQ(u"git.example", field->GetText());
+      }
+      bar->Hide();
+    }
+  }
+
+  prefs->SetBoolean(kExperimentalRankingPref, true);
+  bar->ShowForNewTab();
+  bar->SetUserInputAndInlineAutocompletionForTesting(u"settings", u"");
+  bar->SetAutocompleteMatchesForTesting({});
+  EXPECT_EQ(u"settings", bar->GetVisibleSuggestionTitleForTesting(0));
+  EXPECT_FALSE(bar->IsSelectedCommandForTesting());
+  EXPECT_TRUE(bar->IsVisibleSuggestionCommandForTesting(1));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       ExperimentalRankingSearchesUnlessTabExplicitlyChosen) {
+  auto* prefs = browser()->GetProfile()->GetPrefs();
+  ASSERT_NE(nullptr, prefs->FindPreference(kExperimentalRankingPref));
+  prefs->SetBoolean(kExperimentalRankingPref, true);
+  ASSERT_TRUE(embedded_test_server()->Start());
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), embedded_test_server()->GetURL("/title1.html")));
+  auto* target = browser()->tab_strip_model()->GetActiveWebContents();
+
+  auto* service =
+      TemplateURLServiceFactory::GetForProfile(browser()->GetProfile());
+  search_test_utils::WaitForTemplateURLServiceToLoad(service);
+  TemplateURLData data;
+  data.SetShortName(u"Dao Test Search");
+  data.SetKeyword(u"dao-test");
+  data.SetURL(
+      embedded_test_server()->GetURL("/title2.html?q={searchTerms}").spec());
+  service->SetUserSelectedDefaultSearchProvider(
+      service->Add(std::make_unique<TemplateURL>(data)));
+
+  AutocompleteMatch tab(nullptr, 1500, false, AutocompleteMatchType::OPEN_TAB);
+  tab.allowed_to_be_default_match = true;
+  tab.destination_url = target->GetLastCommittedURL();
+  tab.contents = tab.fill_into_edit =
+      base::UTF8ToUTF16(tab.destination_url.spec());
+  tab.contents_class = {{0, AutocompleteMatch::ACMatchClassification::URL}};
+  tab.description = target->GetTitle();
+  tab.description_class = {{0, AutocompleteMatch::ACMatchClassification::NONE}};
+  tab.has_tab_match = true;
+  auto* bar = GetBrowserView(browser())->dao_command_bar();
+
+  for (bool enhanced : {false, true}) {
+    SCOPED_TRACE(enhanced);
+    prefs->SetBoolean(dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled,
+                      enhanced);
+    ASSERT_TRUE(AddTabAtIndexToBrowser(browser(), 0, GURL("about:blank"),
+                                       ui::PAGE_TRANSITION_TYPED));
+    auto* origin = browser()->tab_strip_model()->GetActiveWebContents();
+    bar->ShowForNewTab();
+    bar->SetUserInputAndInlineAutocompletionForTesting(u"git", u"");
+    bar->SetAutocompleteMatchesForTesting({tab}, true);
+    EXPECT_EQ(u"git", bar->GetVisibleSuggestionTitleForTesting(0));
+
+    ui_test_utils::TabAddedWaiter added(browser());
+    SendDialogKey(bar->GetWidget(), ui::VKEY_RETURN);
+    auto* search_contents = added.Wait();
+    ASSERT_TRUE(content::WaitForLoadStop(search_contents));
+    EXPECT_EQ(embedded_test_server()->GetURL("/title2.html?q=git"),
+              search_contents->GetLastCommittedURL());
+    EXPECT_NE(target, browser()->tab_strip_model()->GetActiveWebContents());
+
+    AutocompleteMatch search(nullptr, 1200, false,
+                             AutocompleteMatchType::SEARCH_SUGGEST);
+    search.destination_url =
+        embedded_test_server()->GetURL("/title2.html?q=git+tutorial");
+    search.contents = search.fill_into_edit = u"git tutorial";
+    search.contents_class = {
+        {0, AutocompleteMatch::ACMatchClassification::NONE}};
+    bar->ShowForNewTab();
+    bar->SetUserInputAndInlineAutocompletionForTesting(u"git", u"");
+    bar->SetAutocompleteMatchesForTesting({search}, true);
+    SendDialogKey(bar->GetWidget(), ui::VKEY_DOWN);
+    SendDialogKey(bar->GetWidget(), ui::VKEY_DOWN);
+    search.type = AutocompleteMatchType::SEARCH_SUGGEST_ENTITY;
+    bar->SetAutocompleteMatchesForTesting({search}, true);
+    EXPECT_EQ(2, bar->GetSelectedIndexForTesting());
+    ui_test_utils::TabAddedWaiter suggested_search_added(browser());
+    SendDialogKey(bar->GetWidget(), ui::VKEY_RETURN);
+    auto* suggested_search_contents = suggested_search_added.Wait();
+    ASSERT_TRUE(content::WaitForLoadStop(suggested_search_contents));
+    EXPECT_EQ(search.destination_url,
+              suggested_search_contents->GetLastCommittedURL());
+
+    const int tab_count = browser()->tab_strip_model()->count();
+    for (bool click : {false, true}) {
+      browser()->tab_strip_model()->ActivateTabAt(
+          browser()->tab_strip_model()->GetIndexOfWebContents(origin));
+      bar->ShowForNewTab();
+      bar->SetUserInputAndInlineAutocompletionForTesting(u"git", u"");
+      bar->SetAutocompleteMatchesForTesting({tab}, true);
+      bar->GetWidget()->LayoutRootViewIfNecessary();
+      if (click) {
+        ClickSuggestion(FindSwitchTabSuggestion(bar));
+      } else {
+        SendDialogKey(bar->GetWidget(), ui::VKEY_DOWN);
+        bar->SetAutocompleteMatchesForTesting({tab}, true);
+        EXPECT_EQ(u"git",
+                  FindDescendantViewOfClass<views::Textfield>(bar)->GetText());
+        SendDialogKey(bar->GetWidget(), ui::VKEY_RETURN);
+      }
+      EXPECT_EQ(target, browser()->tab_strip_model()->GetActiveWebContents());
+      EXPECT_EQ(tab_count, browser()->tab_strip_model()->count());
+      EXPECT_FALSE(bar->GetVisible());
+    }
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       ExperimentalRankingOpensTypedUrlWithoutSwitching) {
+  auto* prefs = browser()->GetProfile()->GetPrefs();
+  ASSERT_NE(nullptr, prefs->FindPreference(kExperimentalRankingPref));
+  prefs->SetBoolean(kExperimentalRankingPref, true);
+  ASSERT_TRUE(embedded_test_server()->Start());
+  const GURL url = embedded_test_server()->GetURL("/title1.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+  auto* target = browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(AddTabAtIndexToBrowser(browser(), 0, GURL("about:blank"),
+                                     ui::PAGE_TRANSITION_TYPED));
+
+  AutocompleteMatch tab(nullptr, 1500, false, AutocompleteMatchType::OPEN_TAB);
+  tab.allowed_to_be_default_match = true;
+  tab.destination_url = url;
+  tab.contents = tab.fill_into_edit = base::UTF8ToUTF16(url.spec());
+  tab.description = target->GetTitle();
+  tab.has_tab_match = true;
+  auto* bar = GetBrowserView(browser())->dao_command_bar();
+  bar->ShowForNewTab();
+  bar->SetUserInputAndInlineAutocompletionForTesting(tab.contents, u"");
+  bar->SetAutocompleteMatchesForTesting({tab}, true);
+  EXPECT_EQ(3, bar->GetVisibleSuggestionCountForTesting());
+  EXPECT_EQ(tab.contents, bar->GetVisibleSuggestionTitleForTesting(0));
+  EXPECT_EQ(-1, bar->GetAskAiRowIndexForTesting());
+
+  ui_test_utils::TabAddedWaiter added(browser());
+  SendDialogKey(bar->GetWidget(), ui::VKEY_RETURN);
+  auto* opened = added.Wait();
+  ASSERT_TRUE(content::WaitForLoadStop(opened));
+  EXPECT_EQ(url, opened->GetLastCommittedURL());
+  EXPECT_NE(target, opened);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       ExperimentalRankingPreservesHistoryDeletion) {
+  browser()->GetProfile()->GetPrefs()->SetBoolean(kExperimentalRankingPref,
+                                                  true);
+  auto* bar = GetBrowserView(browser())->dao_command_bar();
+  deletion_provider_ = base::MakeRefCounted<DeletionTestProvider>();
+  for (bool typed_url : {false, true}) {
+    SCOPED_TRACE(typed_url);
+    const std::u16string text = typed_url ? u"https://git.example/" : u"git";
+    bar->ShowForNewTab();
+    ASSERT_TRUE(EnterCommandBarText(bar, text));
+    AutocompleteMatch match(deletion_provider_.get(), 1200, !typed_url,
+                            typed_url ? AutocompleteMatchType::BOOKMARK_TITLE
+                                      : AutocompleteMatchType::SEARCH_HISTORY);
+    match.contents = match.fill_into_edit = text;
+    match.destination_url =
+        GURL(typed_url ? "https://git.example/"
+                       : "https://example.com/search?q=git");
+    if (typed_url) {
+      AutocompleteMatch history(deletion_provider_.get(), 1000, true,
+                                AutocompleteMatchType::HISTORY_URL);
+      history.destination_url = match.destination_url;
+      match.duplicate_matches.push_back(history);
+    }
+    bar->SetAutocompleteMatchesForTesting({match}, true);
+    auto* row = FindDescendantViewOfClass<DaoSuggestionItemView>(bar);
+    auto* remove = FindDescendantViewOfClass<views::ImageButton>(row);
+    ASSERT_NE(nullptr, remove);
+    SimulateMouseEnter(row);
+    EXPECT_TRUE(remove->GetVisible());
+    deletion_provider_->deleted_urls.clear();
+    SendDialogKey(bar->GetWidget(), ui::VKEY_DELETE, ui::EF_SHIFT_DOWN);
+    EXPECT_EQ(std::vector<GURL>{match.destination_url},
+              deletion_provider_->deleted_urls);
+    EXPECT_EQ(text,
+              FindDescendantViewOfClass<views::Textfield>(bar)->GetText());
+    EXPECT_TRUE(bar->GetVisible());
+    bar->Hide();
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       ExperimentalRankingParsesTypedAddresses) {
+  browser()->GetProfile()->GetPrefs()->SetBoolean(kExperimentalRankingPref,
+                                                  true);
+  ASSERT_TRUE(embedded_test_server()->Start());
+  const GURL local_url = embedded_test_server()->GetURL("/title1.html");
+  const std::vector<std::pair<std::u16string, GURL>> cases = {
+      {base::UTF8ToUTF16(local_url.spec().substr(7)), local_url},
+      {u"about:blank", GURL("about:blank")}};
+  auto* bar = GetBrowserView(browser())->dao_command_bar();
+  for (const auto& [text, expected] : cases) {
+    SCOPED_TRACE(text);
+    bar->ShowForNewTab();
+    bar->SetUserInputAndInlineAutocompletionForTesting(text, u"");
+    bar->SetAutocompleteMatchesForTesting({});
+    EXPECT_EQ(-1, bar->GetAskAiRowIndexForTesting());
+    EXPECT_EQ(text, bar->GetVisibleSuggestionTitleForTesting(0));
+    ui_test_utils::TabAddedWaiter added(browser());
+    SendDialogKey(bar->GetWidget(), ui::VKEY_RETURN);
+    auto* contents = added.Wait();
+    ASSERT_TRUE(content::WaitForLoadStop(contents));
+    EXPECT_EQ(expected, contents->GetLastCommittedURL());
+  }
 }
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest, AskAiPrefDefaultsOn) {

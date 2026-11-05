@@ -417,9 +417,17 @@ bool DaoCommandBarView::AskAiEnabled() const {
              dao::prefs::kDaoAskAiEnabled);
 }
 
+bool DaoCommandBarView::ExperimentalRankingEnabled() const {
+  return browser_ && browser_->GetProfile() &&
+         browser_->GetProfile()->GetPrefs()->GetBoolean(
+             dao::prefs::kDaoExperimentalCommandBarRankingEnabled);
+}
+
 bool DaoCommandBarView::ShouldShowAskAiSuggestion() const {
   return AskAiEnabled() && !user_input_text_.empty() &&
-         !LooksLikeURL(user_input_text_);
+         (ExperimentalRankingEnabled()
+              ? AutocompleteMatch::IsSearchType(CreateTypedInputMatch().type)
+              : !LooksLikeURL(user_input_text_));
 }
 
 int DaoCommandBarView::GetAutocompleteProviderTypesForCurrentMode() const {
@@ -895,6 +903,18 @@ bool DaoCommandBarView::HandleKeyEvent(views::Textfield* sender,
     return true;
   }
 
+  if (ExperimentalRankingEnabled()) {
+    if (key_event.key_code() == ui::VKEY_RIGHT) {
+      return false;
+    }
+    if (key_event.key_code() == ui::VKEY_TAB) {
+      if (selection_explicitly_changed_ && GetSelectedRow()) {
+        FillInput(GetSelectionPreviewText());
+      }
+      return true;
+    }
+  }
+
   // Right arrow accepts either an explicit preview or the automatically
   // highlighted row. Automatic highlighting alone must never write suggestion
   // text into the textfield.
@@ -1154,6 +1174,8 @@ void DaoCommandBarView::UpdateSuggestions() {
   }
 
   const int previously_selected_command = selected_command_id_;
+  const bool experimental_ranking_enabled = ExperimentalRankingEnabled();
+  std::optional<AutocompleteMatch> previously_selected_match;
   std::optional<SuggestionRow::Kind> previously_selected_non_command_kind;
   GURL previously_selected_destination;
   std::u16string previously_selected_fill_into_edit;
@@ -1167,6 +1189,9 @@ void DaoCommandBarView::UpdateSuggestions() {
         const AutocompleteMatch& match = visible_matches_[selected_row->index];
         previously_selected_destination = match.destination_url;
         previously_selected_fill_into_edit = match.fill_into_edit;
+        if (experimental_ranking_enabled) {
+          previously_selected_match = match;
+        }
       }
     }
   }
@@ -1262,6 +1287,10 @@ void DaoCommandBarView::UpdateSuggestions() {
         non_command_rows.end());
   }
 
+  if (experimental_ranking_enabled && !command_mode_) {
+    RankExperimentalSuggestions();
+  }
+
   ask_ai_row_index_ = -1;
   for (size_t i = 0; i < displayed_rows_.size(); ++i) {
     if (displayed_rows_[i].kind == SuggestionRow::Kind::kAskAi) {
@@ -1300,7 +1329,7 @@ void DaoCommandBarView::UpdateSuggestions() {
     if (row.kind == SuggestionRow::Kind::kAskAi) {
       suggestion_views_[i]->SetAskAiPrompt(
           user_input_text_,
-          enhanced_suggestions_enabled
+          enhanced_suggestions_enabled || experimental_ranking_enabled
               ? l10n_util::GetStringUTF16(IDS_DAO_SUGGESTION_INTENT_ASK_DAO)
               : std::u16string());
       suggestion_views_[i]->SetVisible(true);
@@ -1316,11 +1345,12 @@ void DaoCommandBarView::UpdateSuggestions() {
       const AutocompleteMatch& match = visible_matches_[row.index];
       bool is_bookmark =
           bookmark_model && bookmark_model->IsBookmarked(match.destination_url);
-      suggestion_views_[i]->SetMatch(
-          match, is_bookmark,
-          enhanced_suggestions_enabled || match.has_tab_match.value_or(false)
-              ? GetIntentLabelForMatch(match)
-              : std::u16string());
+      suggestion_views_[i]->SetMatch(match, is_bookmark,
+                                     enhanced_suggestions_enabled ||
+                                             experimental_ranking_enabled ||
+                                             match.has_tab_match.value_or(false)
+                                         ? GetIntentLabelForMatch(match)
+                                         : std::u16string());
       suggestion_views_[i]->SetVisible(true);
       suggestion_views_[i]->SetSelected(i == selected_index_);
     }
@@ -1352,6 +1382,21 @@ void DaoCommandBarView::UpdateSuggestions() {
           break;
         }
         const AutocompleteMatch& match = visible_matches_[row.index];
+        const auto action_kind = [](const AutocompleteMatch& candidate) {
+          if (candidate.type == AutocompleteMatchType::OPEN_TAB) {
+            return 0;
+          }
+          if (candidate.has_tab_match.value_or(false)) {
+            return 1;
+          }
+          return AutocompleteMatch::IsSearchType(candidate.type) ? 2 : 3;
+        };
+        if (previously_selected_match &&
+            (action_kind(match) != action_kind(*previously_selected_match) ||
+             (match.type == AutocompleteMatchType::OPEN_TAB &&
+              match.description != previously_selected_match->description))) {
+          continue;
+        }
         // Providers may reformat completion text for the same destination.
         if (match.destination_url == previously_selected_destination &&
             (previously_selected_destination.is_valid() ||
@@ -1363,6 +1408,12 @@ void DaoCommandBarView::UpdateSuggestions() {
       if (next_selected_index < 0) {
         selection_explicitly_changed_ = false;
       }
+    }
+    if (next_selected_index < 0 && experimental_ranking_enabled &&
+        !command_mode_) {
+      selection_explicitly_changed_ = false;
+      command_selection_invalidated_ = false;
+      next_selected_index = 0;
     }
     if (next_selected_index < 0 && previously_selected_command < 0 &&
         !command_selection_invalidated_) {
@@ -1384,6 +1435,75 @@ void DaoCommandBarView::UpdateSuggestions() {
   }
 
   InvalidateLayout();
+}
+
+AutocompleteMatch DaoCommandBarView::CreateTypedInputMatch() const {
+  AutocompleteMatch typed_match = CreateExactSearchMatch(user_input_text_);
+  AutocompleteInput input(
+      user_input_text_,
+      metrics::OmniboxEventProto::INSTANT_NTP_WITH_OMNIBOX_AS_STARTING_FOCUS,
+      *scheme_classifier_, /*should_use_https_as_default_scheme=*/true);
+  if (input.type() == metrics::OmniboxInputType::URL) {
+    typed_match.type = AutocompleteMatchType::URL_WHAT_YOU_TYPED;
+    typed_match.destination_url = input.canonicalized_url();
+    typed_match.contents = typed_match.fill_into_edit = user_input_text_;
+    typed_match.contents_class = {
+        {0, AutocompleteMatch::ACMatchClassification::URL}};
+  }
+  // The typed action must never inherit a provider's switch-to-tab action.
+  typed_match.has_tab_match = false;
+  return typed_match;
+}
+
+void DaoCommandBarView::RankExperimentalSuggestions() {
+  AutocompleteMatch typed_match = CreateTypedInputMatch();
+  const bool typed_url = !AutocompleteMatch::IsSearchType(typed_match.type);
+
+  const auto is_tab = [](const AutocompleteMatch& match) {
+    return match.type == AutocompleteMatchType::OPEN_TAB ||
+           match.has_tab_match.value_or(false);
+  };
+  std::erase_if(displayed_rows_, [&](const SuggestionRow& row) {
+    if (row.kind != SuggestionRow::Kind::kAutocomplete) {
+      return false;
+    }
+    const auto& match = visible_matches_[row.index];
+    if (is_tab(match)) {
+      return false;
+    }
+    const bool duplicate =
+        typed_url ? !AutocompleteMatch::IsSearchType(match.type) &&
+                        match.destination_url == typed_match.destination_url
+                  : IsExactSearchMatch(match, user_input_text_);
+    if (duplicate) {
+      // Preserve the provider records used by Chromium's deletion path.
+      typed_match.duplicate_matches.insert(typed_match.duplicate_matches.end(),
+                                           match.duplicate_matches.begin(),
+                                           match.duplicate_matches.end());
+      if (match.deletable) {
+        typed_match.duplicate_matches.push_back(match);
+      }
+    }
+    return duplicate;
+  });
+
+  const auto priority = [&](const SuggestionRow& row) {
+    if (row.kind == SuggestionRow::Kind::kCommand) {
+      return 1;
+    }
+    if (row.kind == SuggestionRow::Kind::kAskAi) {
+      return 2;
+    }
+    return is_tab(visible_matches_[row.index]) ? 0 : 3;
+  };
+  std::stable_sort(displayed_rows_.begin(), displayed_rows_.end(),
+                   [&](const SuggestionRow& lhs, const SuggestionRow& rhs) {
+                     return priority(lhs) < priority(rhs);
+                   });
+  const int typed_index = static_cast<int>(visible_matches_.size());
+  visible_matches_.push_back(std::move(typed_match));
+  displayed_rows_.insert(displayed_rows_.begin(),
+                         {SuggestionRow::Kind::kAutocomplete, typed_index});
 }
 
 std::u16string DaoCommandBarView::GetIntentLabelForMatch(
@@ -1447,8 +1567,9 @@ bool DaoCommandBarView::IsExactSearchMatch(
 }
 
 std::u16string DaoCommandBarView::GetInlineAutocompletionForResult() const {
-  if (!autocomplete_controller_ || selection_preview_active_ ||
-      suppress_ghost_for_current_query_ || user_input_text_.empty()) {
+  if (ExperimentalRankingEnabled() || !autocomplete_controller_ ||
+      selection_preview_active_ || suppress_ghost_for_current_query_ ||
+      user_input_text_.empty()) {
     return std::u16string();
   }
 
@@ -1583,7 +1704,7 @@ std::u16string DaoCommandBarView::GetSelectionPreviewText() const {
 }
 
 void DaoCommandBarView::UpdateSelectionPreview() {
-  if (selected_index_ < 0 ||
+  if (ExperimentalRankingEnabled() || selected_index_ < 0 ||
       selected_index_ >= visible_suggestion_count_) {
     ClearSelectionPreview(true);
     return;
@@ -2006,6 +2127,13 @@ void DaoCommandBarView::ApplySelectedSuggestion() {
   // Empty input: Enter only dismisses the bar.
   if (user_input_text_.empty()) {
     Navigate(std::u16string());
+    return;
+  }
+
+  if (ExperimentalRankingEnabled() && !command_mode_ &&
+      !selection_explicitly_changed_) {
+    const AutocompleteMatch typed_match = CreateTypedInputMatch();
+    NavigateToMatch(typed_match);
     return;
   }
 

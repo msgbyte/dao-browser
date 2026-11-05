@@ -414,6 +414,18 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
     History-backed suggestions may delete their history entries; bookmarks stay
     intact. Non-deletable rows leave Shift+Delete to normal text editing.
   - **Ask AI** — Submits prompt directly to the Agent
+  - **Experimental suggestion ordering** — An independent, default-off toggle
+    in **You and Dao** keeps the typed Search/Open action first, followed by
+    matching open tabs, commands, Ask AI, and the remaining Chromium results.
+    Enabling it preserves typed text during automatic updates and arrow-key
+    browsing; Right Arrow moves the caret, while Tab explicitly accepts a
+    selected suggestion. Enter submits the original query or address unless
+    the user explicitly selected a suggestion. An open tab at the typed address
+    never replaces the default Open action. Disabling the experiment restores
+    existing ordering and completion behavior. **Enhanced command bar
+    suggestions** separately enables more Chromium providers, current-page
+    context, and action labels; either setting works independently. Explicit
+    `>` command mode retains its command-only behavior.
   - **Open-tab search** — Normal input matches open-tab titles and URLs,
     including UUIDs, without requiring `@tabs`. Both suggestion modes show a
     localized `Switch Tab` label; accepting the row activates the existing tab
@@ -423,10 +435,10 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
     titles. Moving a target to another window preserves the destination;
     closing it or navigating it elsewhere makes the stale action a no-op.
   - **System commands** — Normal input supplements Chromium results with at
-    most two whole-title or alias prefix matches; an exact safe UI command is
-    promoted to the front. The **Enable > command mode** toggle in
-    **You and Dao** settings is off by default and independent of enhanced
-    suggestions. When enabled, `>` switches to provider-free command mode and
+    most two whole-title or alias prefix matches; with experimental ordering off,
+    an exact safe UI command is promoted to the front. The **Enable > command
+    mode** toggle in **You and Dao** settings is off by default and independent of
+    enhanced suggestions. When enabled, `>` switches to provider-free command mode and
     lists or filters all eight commands: Open Settings, Reopen Closed Tab,
     Copy Current Link, Open Downloads, Open History, Manage Extensions, Open
     Agent Settings, and Open Task Manager. Localized aliases augment the
@@ -442,7 +454,8 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
     current tab, window, or group title for display and completion; Agent
     Settings follows the browser's existing Settings availability checks.
   - URL-vs-query detection heuristics + provider inline completion when no
-    selection preview is active; the native textfield contains the typed prefix
+    selection preview is active and experimental ordering is off; the native
+    textfield contains the typed prefix
     plus a selected completion suffix, so Select All, copy, and replacement
     edits include the completed text, while long suffixes keep the typed prefix
     and caret boundary visible
@@ -452,13 +465,15 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
     whitespace-only input shows no suggestions
   - Enter before suggestions arrive submits the typed query through the default
     search provider; Ask AI requires an actual selected suggestion
-  - The first result is highlighted automatically without writing that row's
+  - With experimental ordering off, the first result is highlighted automatically
+    without writing that row's
     `fill_into_edit` value into the native textfield; provider-owned inline
     completion remains a distinct selected suffix, and only explicit arrow-key
     browsing previews a row while the original query remains separate and
     autocomplete is not restarted. Updates to the selected URL's display text
     refresh its preview while preserving the selection.
-  - Keyboard-first: Backspace rejects a non-identical preview without deleting
+  - With experimental ordering off, Backspace rejects a non-identical preview
+    without deleting
     the query; that exact rejected suggestion stays suppressed while the user
     continues typing, and later provider results remain highlight-only until the
     user browses or accepts them; Right Arrow or Tab accepts the highlighted or

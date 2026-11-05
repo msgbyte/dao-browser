@@ -166,6 +166,7 @@ class DaoCommandBarView : public views::View,
   void StopAutocomplete();
   void ClearSuggestions();
   void UpdateSuggestions();
+  void RankExperimentalSuggestions();
   std::vector<int> GetMatchingCommandIndices(bool command_mode) const;
   bool IsCommandEnabled(int command_index) const;
   std::u16string GetCommandTitle(int command_index) const;
@@ -196,6 +197,7 @@ class DaoCommandBarView : public views::View,
   void OnSuggestionClicked(int index);
   void OnSuggestionRemoved(int index);
   bool EnhancedSuggestionsEnabled() const;
+  bool ExperimentalRankingEnabled() const;
   bool AskAiEnabled() const;
   bool ShouldShowAskAiSuggestion() const;
   int GetAutocompleteProviderTypesForCurrentMode() const;
@@ -203,6 +205,7 @@ class DaoCommandBarView : public views::View,
   const SuggestionRow* GetSelectedRow() const;
   std::u16string GetIntentLabelForMatch(const AutocompleteMatch& match) const;
   GURL GetSearchUrl(const std::u16string& search_terms) const;
+  AutocompleteMatch CreateTypedInputMatch() const;
   AutocompleteMatch CreateExactSearchMatch(
       const std::u16string& search_terms) const;
   bool IsExactSearchMatch(const AutocompleteMatch& match,
