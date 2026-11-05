@@ -791,10 +791,13 @@ persistent background pages, and blocking WebRequest path on every rebase.
   stays open; clicking outside or switching tabs still closes it. Escape closes
   the main, QR, and More panels.
 
-- [ ] Copy Image pastes the displayed QR image, including its favicon, into an
-  image-capable app, keeps the panel open, and shows localized confirmation.
-  Reopening resets the button label. A URL too long for a QR code clears the
-  old image and disables copying. Verify English/Chinese and light/dark appearance.
+- [ ] Click the QR image to copy it, including its favicon, into an image-capable
+  app without closing the panel. At rest, only the QR image and URL appear;
+  hovering or focusing the image reveals a small copy icon in its top-right
+  corner. Copying replaces it with a checkmark and localized tooltip/accessibility
+  confirmation; the copied bitmap contains no overlay. Reopening resets the
+  confirmation. Verify keyboard focus/activation, English/Chinese and light/dark
+  appearance. A URL too long for a QR code clears the image and disables copying.
 
 - [ ] Run `DaoHighPerformance*BrowserTest.*`: the main panel's High Performance
   Mode tile replaces Security, toggles its highlighted lightning badge and On /

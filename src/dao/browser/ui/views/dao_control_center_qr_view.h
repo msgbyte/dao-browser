@@ -9,14 +9,13 @@
 #include "ui/views/view.h"
 
 namespace views {
-class ImageView;
 class Label;
-class MdTextButton;
 }
 
 namespace dao {
 
 class DaoControlCenterPopup;
+class QrCopyImageButton;
 
 // Displays a QR code of the current page URL.
 // Shown when the user clicks the QR button in the utility section.
@@ -37,9 +36,8 @@ class DaoControlCenterQrView : public views::View {
   void OnCopyImageClicked();
 
   raw_ptr<DaoControlCenterPopup> popup_;
-  raw_ptr<views::ImageView> qr_image_ = nullptr;
   raw_ptr<views::Label> url_label_ = nullptr;
-  raw_ptr<views::MdTextButton> copy_button_ = nullptr;
+  raw_ptr<QrCopyImageButton> copy_button_ = nullptr;
 };
 
 }  // namespace dao

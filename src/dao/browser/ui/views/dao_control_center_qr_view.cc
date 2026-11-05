@@ -5,6 +5,7 @@
 #include "dao/browser/ui/views/dao_control_center_qr_view.h"
 
 #include "base/strings/utf_string_conversions.h"
+#include "cc/paint/paint_flags.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "components/favicon/content/content_favicon_driver.h"
@@ -13,20 +14,22 @@
 #include "dao/browser/strings/grit/dao_strings.h"
 #include "dao/browser/ui/views/dao_colors.h"
 #include "dao/browser/ui/views/dao_control_center_popup.h"
+#include "dao/browser/ui/views/dao_lucide_icons.h"
 #include "dao/browser/ui/views/dao_qr_code_image.h"
-#include "dao/browser/ui/views/dao_system_dialog.h"
 #include "ui/base/clipboard/scoped_clipboard_writer.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/models/image_model.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/gfx/canvas.h"
+#include "ui/gfx/geometry/rect_f.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/image/image.h"
 #include "ui/gfx/image/image_skia_rep.h"
 #include "ui/gfx/text_constants.h"
 #include "ui/views/background.h"
 #include "ui/views/border.h"
+#include "ui/views/controls/button/image_button.h"
 #include "ui/views/controls/button/label_button.h"
-#include "ui/views/controls/image_view.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/layout/box_layout.h"
 
@@ -94,6 +97,74 @@ gfx::Image GetFaviconForWebContents(content::WebContents* web_contents) {
 
 }  // namespace
 
+class QrCopyImageButton : public views::ImageButton {
+  METADATA_HEADER(QrCopyImageButton, views::ImageButton)
+
+ public:
+  explicit QrCopyImageButton(PressedCallback callback)
+      : ImageButton(std::move(callback)) {
+    SetInstallFocusRingOnFocus(false);
+    SetFocusBehavior(FocusBehavior::ALWAYS);
+    SetFlipCanvasOnPaintForRTLUI(false);
+    SetImageHorizontalAlignment(ALIGN_CENTER);
+    SetImageVerticalAlignment(ALIGN_MIDDLE);
+    SetMinimumImageSize(gfx::Size(kQrSize, kQrSize));
+    SetBorder(views::CreateEmptyBorder(gfx::Insets(kQrImageCardInset)));
+    SetCopied(false);
+  }
+
+  void SetCopied(bool copied) {
+    copied_ = copied;
+    const auto text = l10n_util::GetStringUTF16(
+        copied ? IDS_DAO_CONTROL_CENTER_QR_IMAGE_COPIED
+               : IDS_DAO_CONTROL_CENTER_QR_COPY_IMAGE);
+    SetAccessibleName(text);
+    SetTooltipText(text);
+    SchedulePaint();
+  }
+
+ protected:
+  void PaintButtonContents(gfx::Canvas* canvas) override {
+    // The card fill must survive the popup's button-hover background reset.
+    cc::PaintFlags flags;
+    flags.setAntiAlias(true);
+    flags.setColor(SK_ColorWHITE);
+    canvas->DrawRoundRect(gfx::RectF(GetLocalBounds()), kQrCornerRadius, flags);
+    ImageButton::PaintButtonContents(canvas);
+    if (!GetEnabled() ||
+        (GetState() != STATE_HOVERED && GetState() != STATE_PRESSED &&
+         !HasFocus())) {
+      return;
+    }
+
+    const gfx::RectF badge(width() - 28, 4, 24, 24);
+    canvas->DrawRoundRect(badge, 6, flags);
+    flags.setStyle(cc::PaintFlags::kStroke_Style);
+    flags.setStrokeWidth(1);
+    flags.setColor(SkColorSetARGB(24, 0, 0, 0));
+    canvas->DrawRoundRect(badge, 6, flags);
+    DrawLucideIcon(canvas, copied_ ? LucideIcon::kCheck : LucideIcon::kCopy,
+                   gfx::RectF(badge.x() + 5, badge.y() + 5, 14, 14),
+                   SkColorSetRGB(100, 100, 100));
+  }
+
+  void OnFocus() override {
+    ImageButton::OnFocus();
+    SchedulePaint();
+  }
+
+  void OnBlur() override {
+    ImageButton::OnBlur();
+    SchedulePaint();
+  }
+
+ private:
+  bool copied_ = false;
+};
+
+BEGIN_METADATA(QrCopyImageButton)
+END_METADATA
+
 BEGIN_METADATA(DaoControlCenterQrView)
 END_METADATA
 
@@ -134,25 +205,10 @@ DaoControlCenterQrView::DaoControlCenterQrView(
   qr_row_layout->set_main_axis_alignment(
       views::BoxLayout::MainAxisAlignment::kCenter);
 
-  // QR image card \u2014 white background, rounded, with a small inner padding so
-  // the QR isn't flush against the rounded corners.
-  auto qr_card = std::make_unique<views::View>();
-  qr_card->SetBackground(
-      views::CreateRoundedRectBackground(SK_ColorWHITE, kQrCornerRadius));
-  qr_card->SetBorder(views::CreateEmptyBorder(
-      gfx::Insets(kQrImageCardInset)));
-  auto* qr_card_layout =
-      qr_card->SetLayoutManager(std::make_unique<views::BoxLayout>(
-          views::BoxLayout::Orientation::kVertical, gfx::Insets(), 0));
-  qr_card_layout->set_main_axis_alignment(
-      views::BoxLayout::MainAxisAlignment::kCenter);
-  qr_card_layout->set_cross_axis_alignment(
-      views::BoxLayout::CrossAxisAlignment::kCenter);
-
-  qr_image_ = qr_card->AddChildView(std::make_unique<views::ImageView>());
-  qr_image_->SetPreferredSize(gfx::Size(kQrSize, kQrSize));
-
-  qr_row->AddChildView(std::move(qr_card));
+  copy_button_ = qr_row->AddChildView(std::make_unique<QrCopyImageButton>(
+      base::BindRepeating(&DaoControlCenterQrView::OnCopyImageClicked,
+                         base::Unretained(this))));
+  copy_button_->SetEnabled(false);
   AddChildView(std::move(qr_row));
 
   // URL label below QR. Centered, capped to two lines so a long URL doesn't
@@ -168,22 +224,14 @@ DaoControlCenterQrView::DaoControlCenterQrView(
   url_label_->SetElideBehavior(gfx::ELIDE_TAIL);
   url_label_->SetBorder(views::CreateEmptyBorder(
       gfx::Insets::VH(0, kQrCardInsetH)));
-
-  copy_button_ = AddChildView(CreateDaoDialogButton(
-      base::BindRepeating(&DaoControlCenterQrView::OnCopyImageClicked,
-                         base::Unretained(this)),
-      l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_QR_COPY_IMAGE),
-      std::nullopt, ui::ButtonStyle::kTonal));
-  copy_button_->SetEnabled(false);
 }
 
 DaoControlCenterQrView::~DaoControlCenterQrView() = default;
 
 void DaoControlCenterQrView::GenerateQrCode() {
-  qr_image_->SetImage(ui::ImageModel());
+  copy_button_->SetImageModel(views::Button::STATE_NORMAL, ui::ImageModel());
   url_label_->SetText(std::u16string());
-  copy_button_->SetText(
-      l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_QR_COPY_IMAGE));
+  copy_button_->SetCopied(false);
   copy_button_->SetEnabled(false);
 
   if (!popup_ || !popup_->browser()) {
@@ -203,13 +251,15 @@ void DaoControlCenterQrView::GenerateQrCode() {
   if (result.has_value()) {
     gfx::ImageSkia qr_image = RenderDaoQrCode(
         result.value(), kQrSize, GetFaviconForWebContents(web_contents));
-    qr_image_->SetImage(ui::ImageModel::FromImageSkia(qr_image));
+    copy_button_->SetImageModel(views::Button::STATE_NORMAL,
+                                ui::ImageModel::FromImageSkia(qr_image));
     copy_button_->SetEnabled(!qr_image.isNull());
   }
 }
 
 void DaoControlCenterQrView::OnCopyImageClicked() {
-  const gfx::ImageSkia image = qr_image_->GetImage();
+  const gfx::ImageSkia image =
+      copy_button_->GetImage(views::Button::STATE_NORMAL);
   if (image.isNull()) {
     return;
   }
@@ -217,8 +267,7 @@ void DaoControlCenterQrView::OnCopyImageClicked() {
     ui::ScopedClipboardWriter writer(ui::ClipboardBuffer::kCopyPaste);
     writer.WriteImage(image.GetRepresentation(1.0f).GetBitmap());
   }
-  copy_button_->SetText(
-      l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_QR_IMAGE_COPIED));
+  copy_button_->SetCopied(true);
 }
 
 void DaoControlCenterQrView::OnBackClicked() {

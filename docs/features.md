@@ -1250,9 +1250,11 @@ macOS-style floating control center panel bundling extensions and utilities.
   accessibility. High Performance Mode replaces the Security tile and stays in
   sync with the active tab. Compact QR Code, Mini Dao, and More tiles sit below
 - **DaoControlCenterQrView** — Generates the current page's QR code with its
-  favicon. Copy Image copies the displayed QR image to the clipboard without
-  closing the panel and confirms completion in the button label. Failed
-  generation clears the previous image and disables copying.
+  favicon. Click the QR image to copy it without closing the panel. A small
+  copy icon appears over the image only on hover or keyboard focus, then changes
+  to a checkmark with localized confirmation after copying. The clipboard image
+  excludes this overlay. Only the URL remains below the image; there is no
+  separate copy-button row. Failed generation clears the image and disables copying.
 - **DaoControlCenterMoreMenu** — Share on macOS and site data cleanup actions. High Performance Mode is available only on the main panel. A divider separates cache and cookie cleanup from the other actions; cleanup stays scoped to the active page's current site with completion toast feedback.
 - **DaoPinnedExtensionsContainer** — Pinned extension icon container
 - **Extension action badges** — Pinned and Control Center extension icons render

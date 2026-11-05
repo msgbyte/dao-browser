@@ -10936,14 +10936,14 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
 
   auto* qr_view = FindDescendantViewOfClass<DaoControlCenterQrView>(popup);
   ASSERT_NE(nullptr, qr_view);
-  auto* copy_button = FindLabelButtonWithText(
+  auto* copy_button = FindImageButtonWithAccessibleName(
       qr_view, l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_QR_COPY_IMAGE));
   ASSERT_NE(nullptr, copy_button);
   ASSERT_TRUE(copy_button->GetEnabled());
-  auto* image_view =
-      FindDescendantImageViewWithPreferredSize(qr_view, gfx::Size(240, 240));
-  ASSERT_NE(nullptr, image_view);
-  ASSERT_FALSE(image_view->GetImage().isNull());
+  const auto image = copy_button->GetImage(views::Button::STATE_NORMAL);
+  ASSERT_FALSE(image.isNull());
+  EXPECT_EQ(gfx::Size(240, 240), image.size());
+  EXPECT_EQ(gfx::Size(252, 252), copy_button->GetPreferredSize());
 
   views::test::ButtonTestApi(copy_button)
       .NotifyClick(ui::MouseEvent(ui::EventType::kMousePressed, gfx::Point(),
@@ -10958,16 +10958,19 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
   const SkBitmap copied_image = gfx::PNGCodec::Decode(png);
   ASSERT_FALSE(copied_image.isNull());
   EXPECT_TRUE(gfx::BitmapsAreEqual(
-      image_view->GetImage().GetRepresentation(1.0f).GetBitmap(), copied_image));
+      image.GetRepresentation(1.0f).GetBitmap(), copied_image));
   EXPECT_TRUE(popup->GetVisible());
   EXPECT_TRUE(qr_view->GetVisible());
   EXPECT_EQ(l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_QR_IMAGE_COPIED),
-            copy_button->GetText());
+            copy_button->GetAccessibleName());
+  EXPECT_EQ(copy_button->GetAccessibleName(), copy_button->GetTooltipText());
 
   popup->ShowMainPanel();
   popup->ShowQrView();
   EXPECT_EQ(l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_QR_COPY_IMAGE),
-            copy_button->GetText());
+            copy_button->GetAccessibleName());
+  copy_button->RequestFocus();
+  EXPECT_TRUE(copy_button->HasFocus());
   popup->Hide();
 }
 
@@ -10981,14 +10984,11 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
   popup->ShowQrView();
   auto* qr_view = FindDescendantViewOfClass<DaoControlCenterQrView>(popup);
   ASSERT_NE(nullptr, qr_view);
-  auto* image_view =
-      FindDescendantImageViewWithPreferredSize(qr_view, gfx::Size(240, 240));
-  ASSERT_NE(nullptr, image_view);
-  ASSERT_FALSE(image_view->GetImage().isNull());
-  auto* copy_button = FindLabelButtonWithText(
+  auto* copy_button = FindImageButtonWithAccessibleName(
       qr_view, l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_QR_COPY_IMAGE));
   ASSERT_NE(nullptr, copy_button);
   ASSERT_TRUE(copy_button->GetEnabled());
+  ASSERT_FALSE(copy_button->GetImage(views::Button::STATE_NORMAL).isNull());
   popup->Hide();
 
   // Exceed the QR format's capacity after successfully displaying a code.
@@ -10996,7 +10996,7 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
       browser(), GURL("data:text/html," + std::string(10000, 'a'))));
   popup->ShowAt(gfx::Point(100, 100));
   popup->ShowQrView();
-  EXPECT_TRUE(image_view->GetImage().isNull());
+  EXPECT_TRUE(copy_button->GetImage(views::Button::STATE_NORMAL).isNull());
   EXPECT_FALSE(copy_button->GetEnabled());
   popup->Hide();
 }
@@ -11040,12 +11040,10 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
 
   auto* qr_view = FindDescendantViewOfClass<DaoControlCenterQrView>(popup);
   ASSERT_NE(nullptr, qr_view);
-  auto* image_view =
-      FindDescendantImageViewWithPreferredSize(qr_view, gfx::Size(240, 240));
-  ASSERT_NE(nullptr, image_view);
-
-  ASSERT_NE(nullptr, image_view->parent());
-  EXPECT_EQ(gfx::Size(252, 252), image_view->parent()->GetPreferredSize());
+  auto* copy_button = FindImageButtonWithAccessibleName(
+      qr_view, l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_QR_COPY_IMAGE));
+  ASSERT_NE(nullptr, copy_button);
+  EXPECT_EQ(gfx::Size(252, 252), copy_button->GetPreferredSize());
 
   auto result = qr_code_generator::GenerateCode(base::as_byte_span(kPayload));
   ASSERT_TRUE(result.has_value());
