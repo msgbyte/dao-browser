@@ -53,3 +53,17 @@
 - The Settings Mocha suite is already disabled in this checkout because its
   loader assumes the upstream WebUI scheme. Its new test compiles; runtime
   execution of that suite is not claimed.
+
+## Follow-up Review Fix
+
+- Retain keyword-origin search candidates during experimental deduplication.
+  Matching edit text does not imply the same search engine or query.
+- Add a browser test using real Chromium keyword results with enhanced providers
+  both off and on. Check implicit raw-query submission and explicit site search.
+- The new test first reproduced the missing candidate, then exposed missing
+  engine identity in learned exact-input search matches on the next query.
+  Populate that identity and avoid recording search fallbacks without an engine.
+- Verification: `npm run rebuild -- -- --target chrome browser_tests` passed;
+  all six `ExperimentalRanking*` tests plus four existing exact-input search
+  tests passed with retries disabled. Documentation and diff checks also passed.
+  The full command-bar suite was not rerun for this follow-up.

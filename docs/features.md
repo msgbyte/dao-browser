@@ -421,7 +421,9 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
     browsing; Right Arrow moves the caret, while Tab explicitly accepts a
     selected suggestion. Enter submits the original query or address unless
     the user explicitly selected a suggestion. An open tab at the typed address
-    never replaces the default Open action. Disabling the experiment restores
+    never replaces the default Open action. Keyword-based site searches remain
+    selectable even when their edit text matches the original input.
+    Disabling the experiment restores
     existing ordering and completion behavior. **Enhanced command bar
     suggestions** separately enables more Chromium providers, current-page
     context, and action labels; either setting works independently. Explicit

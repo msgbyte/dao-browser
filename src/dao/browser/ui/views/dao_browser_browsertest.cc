@@ -4457,6 +4457,76 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       ExperimentalRankingPreservesKeywordSearch) {
+  auto* prefs = browser()->GetProfile()->GetPrefs();
+  prefs->SetBoolean(kExperimentalRankingPref, true);
+  ASSERT_TRUE(embedded_test_server()->Start());
+  auto* service =
+      TemplateURLServiceFactory::GetForProfile(browser()->GetProfile());
+  search_test_utils::WaitForTemplateURLServiceToLoad(service);
+
+  TemplateURLData default_data;
+  default_data.SetShortName(u"Dao Test Search");
+  default_data.SetKeyword(u"dao-test");
+  default_data.SetURL(
+      embedded_test_server()->GetURL("/title1.html?q={searchTerms}").spec());
+  service->SetUserSelectedDefaultSearchProvider(
+      service->Add(std::make_unique<TemplateURL>(default_data)));
+  TemplateURLData site_data;
+  site_data.SetShortName(u"Dao Test Site Search");
+  site_data.SetKeyword(u"w");
+  site_data.SetURL(
+      embedded_test_server()->GetURL("/title2.html?q={searchTerms}").spec());
+  site_data.is_active = TemplateURLData::ActiveStatus::kTrue;
+  service->Add(std::make_unique<TemplateURL>(site_data));
+
+  auto* bar = GetBrowserView(browser())->dao_command_bar();
+  auto* field = FindDescendantViewOfClass<views::Textfield>(bar);
+  ASSERT_NE(nullptr, field);
+  for (bool enhanced : {false, true}) {
+    SCOPED_TRACE(enhanced);
+    prefs->SetBoolean(dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled,
+                      enhanced);
+    for (bool select_site_search : {false, true}) {
+      SCOPED_TRACE(select_site_search);
+      bar->ShowForNewTab();
+      ASSERT_TRUE(EnterCommandBarText(bar, u"w cats"));
+      EXPECT_EQ(u"w cats", bar->GetVisibleSuggestionTitleForTesting(0));
+
+      // Exercise Chromium's real keyword match, including its engine metadata.
+      int keyword_index = -1;
+      for (int i = 1; i < bar->GetVisibleSuggestionCountForTesting(); ++i) {
+        if (bar->GetVisibleSuggestionTitleForTesting(i) == u"cats") {
+          keyword_index = i;
+          break;
+        }
+      }
+      ASSERT_GT(keyword_index, 0);
+      if (select_site_search) {
+        for (int i = 0; i < keyword_index; ++i) {
+          SendDialogKey(bar->GetWidget(), ui::VKEY_DOWN);
+        }
+      }
+      EXPECT_EQ(u"w cats", field->GetText());
+
+      ui_test_utils::TabAddedWaiter added(browser());
+      SendDialogKey(bar->GetWidget(), ui::VKEY_RETURN);
+      auto* contents = added.Wait();
+      ASSERT_NE(nullptr, contents);
+      ASSERT_TRUE(content::WaitForLoadStop(contents));
+      EXPECT_EQ(embedded_test_server()->GetURL(select_site_search
+                                                   ? "/title2.html?q=cats"
+                                                   : "/title1.html?q=w+cats"),
+                contents->GetLastCommittedURL());
+      // Keep earlier results from converting the next search into a tab switch.
+      auto* model = browser()->tab_strip_model();
+      model->CloseWebContentsAt(model->GetIndexOfWebContents(contents),
+                                TabCloseTypes::CLOSE_NONE);
+    }
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
                        ExperimentalRankingPreservesHistoryDeletion) {
   browser()->GetProfile()->GetPrefs()->SetBoolean(kExperimentalRankingPref,
                                                   true);

@@ -1468,7 +1468,9 @@ void DaoCommandBarView::RankExperimentalSuggestions() {
       return false;
     }
     const auto& match = visible_matches_[row.index];
-    if (is_tab(match)) {
+    // Keyword searches can share edit text while targeting a different search.
+    if (is_tab(match) || match.from_keyword ||
+        match.type == AutocompleteMatchType::SEARCH_OTHER_ENGINE) {
       return false;
     }
     const bool duplicate =
@@ -1553,6 +1555,12 @@ AutocompleteMatch DaoCommandBarView::CreateExactSearchMatch(
   match.contents = normalized_terms;
   match.contents_class = {{0, AutocompleteMatch::ACMatchClassification::NONE}};
   match.destination_url = GetSearchUrl(normalized_terms);
+  auto* service =
+      TemplateURLServiceFactory::GetForProfile(browser_->GetProfile());
+  const auto* provider = service ? service->GetDefaultSearchProvider() : nullptr;
+  if (provider && provider->SupportsReplacement(service->search_terms_data())) {
+    match.keyword = provider->keyword();
+  }
   return match;
 }
 
@@ -2246,6 +2254,10 @@ void DaoCommandBarView::SubmitAskAi(const std::u16string& prompt) {
 }
 
 void DaoCommandBarView::RecordShortcut(const AutocompleteMatch& match) {
+  // Chromium cannot replay a search shortcut without its engine identity.
+  if (AutocompleteMatch::IsSearchType(match.type) && match.keyword.empty()) {
+    return;
+  }
   // Unlike Chromium, which records after the navigation commits
   // successfully (ChromeOmniboxNavigationObserver), Dao records at
   // accept time. A shortcut for an occasionally failing navigation is

@@ -20,6 +20,8 @@ the primary checkout; no branch, worktree, or Git mutation is authorized.
   tab at the typed address must not turn the default Open action into a switch.
   Use Chromium's input parser for the experiment's typed action, including local
   addresses and non-HTTP schemes. Preserve history deletion when merging rows.
+- Retain keyword-based site searches even when their edit text equals the typed
+  input; selecting them explicitly must still execute the original search.
 - Keep `>` command mode explicit and independent. Enhanced suggestions continue
   to control Chromium providers, page context, and intent labels; all four
   combinations of enhanced suggestions and experimental ordering must work.
