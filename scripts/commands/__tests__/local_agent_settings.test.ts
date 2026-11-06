@@ -32,24 +32,34 @@ function createPage() {
   }).outputText;
   const Page = vm.runInNewContext(output + '; SettingsDaoLocalAgentPageElement', {
     PolymerElement: class {},
-    WebUiListenerMixin: (base: unknown) => base,
+    WebUiListenerMixin: (base: new () => object) => class extends base {
+      addWebUiListener = vi.fn();
+    },
     RouteObserverMixin: (base: new () => object) => class extends base {
-      currentRouteChanged() {
-        throw new Error('RouteObserverMixin callback must be overridden');
+      connectedCallback() {
+        this.currentRouteChanged(routes.BASIC);
+      }
+      currentRouteChanged(_newRoute: unknown, _oldRoute?: unknown) {
+        throw new Error('RouteObserverMixin.currentRouteChanged is abstract');
       }
     },
     routes,
-    chrome: {settingsPrivate: {PrefType: {BOOLEAN: 'BOOLEAN'}}},
     PrefsMixin: (base: unknown) => base,
     SiteSettingsBrowserProxyImpl: {getInstance: () => ({})},
     customElements: {define: () => {}},
+    chrome: {settingsPrivate: {PrefType: {BOOLEAN: 'BOOLEAN'}}},
     loadTimeData: {getString: (key: string) => key},
   });
   const page = new Page();
   page.daoLocalAgents_ = [];
   page.daoLocalAgentsBusy_ = false;
   page.daoLocalAgentsError_ = '';
+  page.daoMcpSetupOption_ = 'codex';
   page.daoMcpBrowserProxy_ = {
+    getDaoMcpStatus: vi.fn().mockResolvedValue({
+      enabled: false, state: 'disabled', canStop: false,
+    }),
+    getDaoMcpSetupContent: vi.fn().mockResolvedValue('codex mcp add dao'),
     getDaoLocalAgents: vi.fn().mockResolvedValue(status),
     setDaoLocalAgentInstalled: vi.fn().mockResolvedValue({
       ...status, success: true,
@@ -112,6 +122,25 @@ describe('local agent YOLO mode', () => {
 });
 
 describe('manual local agent integration', () => {
+  it('loads status and skills on connection and subscribes to MCP changes', async () => {
+    const page = createPage();
+    page.connectedCallback();
+    expect(page.daoMcpBrowserProxy_.getDaoMcpStatus).toHaveBeenCalledOnce();
+    await vi.waitFor(() => expect(page.daoLocalAgents_).toHaveLength(3));
+    expect(page.daoMcpStatusState_).toBe('disabled');
+
+    const [event, listener] = page.addWebUiListener.mock.calls[0];
+    expect(event).toBe('dao-mcp-status-changed');
+    listener({enabled: true, state: 'ready', canStop: false});
+    expect(page.daoMcpStatusState_).toBe('ready');
+    expect(page.daoMcpEnabledPref_.value).toBe(true);
+    expect(page.daoMcpStatusText_).toBe('daoMcpStatusReady');
+    await vi.waitFor(() => expect(page.daoMcpSetupContent_)
+        .toBe('codex mcp add dao'));
+    expect(page.daoMcpBrowserProxy_.setDaoLocalAgentInstalled)
+        .not.toHaveBeenCalled();
+  });
+
   it.each(['sidebar', 'scroll'])(
       'refreshes externally removed skills on %s return without changing route',
       async entry => {

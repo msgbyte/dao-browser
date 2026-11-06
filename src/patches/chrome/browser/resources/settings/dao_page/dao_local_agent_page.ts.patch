@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_local_agent_page.ts
-@@ -0,0 +1,537 @@
+@@ -0,0 +1,538 @@
 +// Copyright 2026 Dao Browser Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -298,6 +298,7 @@ index 0000000000..0000000001
 +  }
 +
 +  override currentRouteChanged(newRoute: Route, oldRoute?: Route) {
++    // RouteObserverMixin's default callback is abstract and asserts.
 +    if (oldRoute && newRoute !== oldRoute &&
 +        (newRoute === routes.DAO_LOCAL_AGENTS || newRoute === routes.BASIC)) {
 +      void this.refreshLocalAgents();
