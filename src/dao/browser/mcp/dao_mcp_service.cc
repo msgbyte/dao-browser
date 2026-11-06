@@ -985,6 +985,8 @@ void DaoMcpService::OnRuntimePrepared(
     return;
   }
   if (!prepared.has_value()) {
+    LOG(ERROR) << "Dao MCP runtime preparation failed: "
+               << prepared.error().message;
     listener_start_pending_ = false;
     UpdateStatus();
     return;
@@ -1019,6 +1021,7 @@ void DaoMcpService::OnTransportListening(
     return;
   }
   if (!result.has_value()) {
+    LOG(ERROR) << "Dao MCP listener startup failed: " << result.error();
     listener_start_pending_ = false;
     transport_.Reset();
     QueueRuntimeCleanup();
@@ -1050,6 +1053,8 @@ void DaoMcpService::OnRuntimePublished(
   }
   listener_start_pending_ = false;
   if (!published.has_value()) {
+    LOG(ERROR) << "Dao MCP runtime publication failed: "
+               << published.error().message;
     if (!transport_.is_null()) {
       transport_.AsyncCall(&DaoMcpTransport::Stop);
       transport_.Reset();

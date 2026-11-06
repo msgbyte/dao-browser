@@ -4,6 +4,7 @@
 
 ### [Unreleased] Unreleased
 
+- Fix the MCP server staying disabled after turning it on in Windows settings, preventing local AI agents from connecting.
 - Make Mini Dao's download progress card easier to distinguish from the page with a soft shadow.
 - Fix command bar history suggestions leaving you on the current page instead of opening the selected address when you press Enter or click Open.
 

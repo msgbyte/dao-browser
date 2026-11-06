@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 import("//dao/browser/dao_version.gni")
+import("//testing/test.gni")
 
 source_set("mcp_wire") {
   sources = [
@@ -17,6 +18,21 @@ source_set("mcp_wire") {
 }
 
 if (is_win) {
+  test("dao_mcp_unittests") {
+    sources = [
+      "//base/test/run_all_unittests.cc",
+      "dao_mcp_runtime_files_win.cc",
+      "dao_mcp_win_unittest.cc",
+    ]
+    deps = [
+      ":mcp_helper_core",
+      ":mcp_win_support",
+      "//base/test:test_support",
+      "//crypto",
+      "//testing/gtest",
+    ]
+  }
+
   source_set("mcp_win_support") {
     sources = [
       "dao_mcp_win_util.cc",

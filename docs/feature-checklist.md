@@ -151,8 +151,12 @@ These are acceptance checks, not a claim that the port has passed them.
 - [ ] Publish a Dao Home project with nested files and list its files using
   forward-slash paths. Directory junctions must make listing or publication fail
   with an invalid-path error; ordinary subdirectories must remain usable.
-- [ ] Verify MCP setup/copy-ID and native share actions are absent on Windows;
-  an unsupported MCP enable request must never start a listener.
+- [ ] Enable MCP on Windows and verify Ready status, quick setup, skill/command
+  installation entries, and Copy Tab ID. Disable and re-enable it, then connect
+  the helper again. Run `dao_mcp_unittests --gtest_filter=DaoMcpWindowsTest.*`:
+  runtime publication must succeed while permissive ACLs, replaced directories,
+  and listeners owned by another process remain rejected. Native share actions
+  stay absent on Windows.
 - [ ] The Windows sidebar update button stays hidden for the unsupported updater
   state; macOS retains its Sparkle update flow.
 - [ ] Debug/release profiles are distinct and do not touch Chrome's profile.

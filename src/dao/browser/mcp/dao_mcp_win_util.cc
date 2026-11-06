@@ -75,8 +75,11 @@ base::win::ScopedHandle OpenDaoMcpPrivatePath(const base::FilePath& path,
       GetLastError() != ERROR_ALREADY_EXISTS) {
     return {};
   }
+  // Publishing a child with MoveFileExW needs write sharing on its directory.
+  // Keep delete sharing disabled so the pinned directory cannot be replaced.
+  const DWORD share_mode = FILE_SHARE_READ | (directory ? FILE_SHARE_WRITE : 0);
   base::win::ScopedHandle handle(CreateFileW(
-      path.value().c_str(), access | READ_CONTROL, FILE_SHARE_READ, &attributes,
+      path.value().c_str(), access | READ_CONTROL, share_mode, &attributes,
       create && !directory ? CREATE_NEW : OPEN_EXISTING,
       FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS, nullptr));
   if (handle.is_valid() && !IsPrivateHandle(handle.get(), directory)) {

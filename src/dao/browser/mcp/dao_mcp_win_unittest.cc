@@ -65,7 +65,8 @@ TEST(DaoMcpWindowsTest, PublishesPrivateListenerAndConnectsHelper) {
   EXPECT_EQ(GetDaoMcpLoopbackTcpOwner(address.port()),
             base::GetCurrentProcId());
   ASSERT_TRUE(runtime->CaptureBoundSocket(address.port()).has_value());
-  ASSERT_TRUE(runtime->Publish().has_value());
+  auto published = runtime->Publish();
+  ASSERT_TRUE(published.has_value()) << published.error().message;
   {
     auto file = OpenDaoMcpPrivatePath(runtime->metadata_path(), false, false,
                                       GENERIC_READ);
@@ -85,8 +86,38 @@ TEST(DaoMcpWindowsTest, PublishesPrivateListenerAndConnectsHelper) {
   ASSERT_TRUE(client.FlushWrites()) << client.last_error();
   EXPECT_FALSE(client.wants_write());
   client.Disconnect();
+  const std::string previous_nonce = runtime->nonce();
   runtime->Cleanup();
   EXPECT_FALSE(base::PathExists(runtime->metadata_path()));
+
+  // Disabling and re-enabling MCP must publish a new endpoint nonce.
+  ASSERT_TRUE(runtime->Prepare().has_value());
+  EXPECT_NE(previous_nonce, runtime->nonce());
+  ASSERT_TRUE(runtime->CaptureBoundSocket(address.port()).has_value());
+  published = runtime->Publish();
+  ASSERT_TRUE(published.has_value()) << published.error().message;
+  ASSERT_TRUE(client.Connect("windows-test", "1")) << client.last_error();
+  client.Disconnect();
+  runtime->Cleanup();
+  EXPECT_FALSE(base::PathExists(runtime->metadata_path()));
+}
+
+TEST(DaoMcpWindowsTest, KeepsRuntimeDirectoryPinned) {
+  base::ScopedTempDir temporary;
+  ASSERT_TRUE(temporary.CreateUniqueTempDir());
+  auto runtime = base::MakeRefCounted<DaoMcpRuntimeFiles>(
+      temporary.GetPath(), base::GetCurrentProcId());
+  ASSERT_TRUE(runtime->Prepare().has_value());
+  const auto moved_path = temporary.GetPath().AppendASCII("moved");
+  const BOOL moved = MoveFileExW(runtime->runtime_dir().value().c_str(),
+                                moved_path.value().c_str(),
+                                MOVEFILE_WRITE_THROUGH);
+  const DWORD move_error = GetLastError();
+  EXPECT_FALSE(moved);
+  EXPECT_EQ(static_cast<DWORD>(ERROR_SHARING_VIOLATION), move_error);
+  EXPECT_TRUE(base::DirectoryExists(runtime->runtime_dir()));
+  EXPECT_FALSE(base::PathExists(moved_path));
+  runtime->Cleanup();
 }
 
 TEST(DaoMcpWindowsTest, RejectsListenerWithDifferentBrowserPid) {
