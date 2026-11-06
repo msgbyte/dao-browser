@@ -732,10 +732,16 @@ bool DaoMcpStdioServer::FlushStdout() {
     const base::span<const char> remaining =
         base::span(front).subspan(stdout_write_offset_);
 #if BUILDFLAG(IS_WIN)
+    // A nonblocking pipe can report a successful zero-byte write when a whole
+    // response exceeds its buffer. Send bounded chunks and retain the offset
+    // so large catalogs and tool results can drain as the client reads.
+    constexpr size_t kWriteChunkBytes = 4 * 1024;
+    const DWORD write_size =
+        static_cast<DWORD>(std::min(remaining.size(), kWriteChunkBytes));
     DWORD written = 0;
     HANDLE output = GetStdHandle(STD_OUTPUT_HANDLE);
     if (!WriteFile(output, remaining.data(),
-                   static_cast<DWORD>(remaining.size()), &written, nullptr)) {
+                   write_size, &written, nullptr)) {
       return false;
     }
     if (written == 0) {
