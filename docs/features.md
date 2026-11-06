@@ -436,6 +436,9 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
     distinguishing full URLs including fragments and same-URL tabs with different
     titles. Moving a target to another window preserves the destination;
     closing it or navigating it elsewhere makes the stale action a no-op.
+    Previously accepted tab suggestions that reappear from shortcut history
+    behave as URL suggestions: clicking or pressing Enter opens the address
+    when the original tab is no longer available.
   - **System commands** — Normal input supplements Chromium results with at
     most two whole-title or alias prefix matches; with experimental ordering off,
     an exact safe UI command is promoted to the front. The **Enable > command
