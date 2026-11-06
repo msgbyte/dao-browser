@@ -26,6 +26,7 @@ class DownloadItem;
 
 namespace views {
 class Label;
+class ViewShadow;
 }  // namespace views
 
 namespace dao {
@@ -82,6 +83,7 @@ class DaoMiniDaoDownloadCardView
 
   raw_ptr<BrowserWindowInterface> browser_;
   raw_ptr<views::View> card_ = nullptr;
+  std::unique_ptr<views::ViewShadow> card_shadow_;
   raw_ptr<views::View> rows_container_ = nullptr;
   raw_ptr<views::Label> overflow_label_ = nullptr;
   std::vector<int> active_download_ids_;

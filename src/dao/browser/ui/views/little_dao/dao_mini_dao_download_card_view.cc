@@ -31,6 +31,7 @@
 #include "ui/views/controls/button/button.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/layout/box_layout.h"
+#include "ui/views/view_shadow.h"
 #include "url/gurl.h"
 
 namespace dao {
@@ -265,6 +266,9 @@ DaoMiniDaoDownloadCardView::DaoMiniDaoDownloadCardView(
   card_->layer()->SetBackgroundBlur(30);
   card_->SetBackground(
       std::make_unique<MiniDaoDownloadGlassBackground>(kCardCornerRadius));
+  card_shadow_ =
+      std::make_unique<views::ViewShadow>(card_, /*elevation=*/4);
+  card_shadow_->SetRoundedCornerRadius(kCardCornerRadius);
 
   auto* card_layout =
       card_->SetLayoutManager(std::make_unique<views::BoxLayout>(

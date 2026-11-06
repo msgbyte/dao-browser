@@ -4,6 +4,8 @@
 
 ### [Unreleased] Unreleased
 
+- Make Mini Dao's download progress card easier to distinguish from the page with a soft shadow.
+
 ### [1.0.136] - 2026-11-06
 
 - Try experimental command bar suggestion ordering in Settings: keep your input unchanged, search or open exactly what you type, and find matching open tabs near the top. Site searches remain available in the suggestions. The option is off by default and works independently of enhanced suggestions.
