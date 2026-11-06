@@ -42,6 +42,7 @@
 #include "base/values.h"
 #include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
+#include "chrome/browser/autocomplete/shortcuts_backend_factory.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/extensions/chrome_test_extension_loader.h"
 #include "chrome/browser/extensions/extension_action_dispatcher.h"
@@ -112,6 +113,7 @@
 #include "components/javascript_dialogs/app_modal_dialog_view.h"
 #include "components/omnibox/browser/autocomplete_match.h"
 #include "components/omnibox/browser/autocomplete_provider.h"
+#include "components/omnibox/browser/shortcuts_backend.h"
 #include "components/prefs/pref_service.h"
 #include "components/qr_code_generator/qr_code_generator.h"
 #include "components/search_engines/template_url.h"
@@ -4802,6 +4804,63 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
                 tab_strip->GetWebContentsAt(0)->GetLastCommittedURL());
       EXPECT_EQ(2, tab_strip->count());
     }
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       OpenTabShortcutOpensWhenTargetIsNoLongerOpen) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  const GURL source_url = embedded_test_server()->GetURL("/title2.html");
+  const GURL target_url =
+      embedded_test_server()->GetURL("localhost", "/title1.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), source_url));
+  auto* model = browser()->tab_strip_model();
+  auto* source = model->GetActiveWebContents();
+  auto* profile = browser()->GetProfile();
+  profile->GetPrefs()->SetBoolean(
+      dao::prefs::kDaoEnhancedCommandBarSuggestionsEnabled, true);
+  auto backend = ShortcutsBackendFactory::GetForProfile(profile);
+  ASSERT_TRUE(backend);
+  ASSERT_TRUE(base::test::RunUntil([&] { return backend->initialized(); }));
+
+  // Reproduce a saved tab-switch suggestion after that tab closed or navigated.
+  AutocompleteMatch saved_match(nullptr, 1000, false,
+                                AutocompleteMatchType::OPEN_TAB);
+  saved_match.destination_url = target_url;
+  saved_match.contents = saved_match.fill_into_edit =
+      base::UTF8ToUTF16(target_url.spec());
+  saved_match.contents_class = {
+      {0, AutocompleteMatch::ACMatchClassification::URL}};
+  saved_match.description = u"Previously opened page";
+  saved_match.description_class = {
+      {0, AutocompleteMatch::ACMatchClassification::NONE}};
+  auto* command_bar = GetBrowserView(browser())->dao_command_bar();
+  for (bool use_enter : {true, false}) {
+    SCOPED_TRACE(use_enter);
+    backend->AddOrUpdateShortcut(u"local", saved_match);
+    command_bar->ShowForNewTab();
+    ASSERT_TRUE(EnterCommandBarText(command_bar, u"local"));
+    ASSERT_TRUE(base::test::RunUntil([&] {
+      return !command_bar->GetInlineAutocompletionForTesting().empty();
+    }));
+    auto* row = FindDescendantViewOfClass<DaoSuggestionItemView>(command_bar);
+    ASSERT_NE(nullptr, row);
+    EXPECT_TRUE(HasDescendantLabelText(
+        row, l10n_util::GetStringUTF16(IDS_DAO_SUGGESTION_INTENT_OPEN)));
+    if (use_enter) {
+      SendDialogKey(command_bar->GetWidget(), ui::VKEY_RETURN);
+    } else {
+      ClickSuggestion(row);
+    }
+
+    EXPECT_FALSE(command_bar->GetVisible());
+    ASSERT_EQ(2, model->count());
+    auto* opened = model->GetActiveWebContents();
+    ASSERT_TRUE(content::WaitForLoadStop(opened));
+    EXPECT_EQ(target_url, opened->GetLastCommittedURL());
+    EXPECT_EQ(source_url, source->GetLastCommittedURL());
+    model->CloseWebContentsAt(model->GetIndexOfWebContents(opened),
+                             TabCloseTypes::CLOSE_NONE);
   }
 }
 

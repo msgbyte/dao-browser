@@ -1204,7 +1204,12 @@ void DaoCommandBarView::UpdateSuggestions() {
     visible_matches_.reserve(result.size() + 1);
     for (size_t i = 0; i < result.size(); ++i) {
       visible_matches_.push_back(result.match_at(i));
-      const auto& match = visible_matches_.back();
+      auto& match = visible_matches_.back();
+      // Saved tab-switch suggestions are history, not live tab identities.
+      if (match.type == AutocompleteMatchType::OPEN_TAB && match.provider &&
+          match.provider->type() == AutocompleteProvider::TYPE_SHORTCUTS) {
+        match.type = AutocompleteMatchType::HISTORY_URL;
+      }
       if (match.type == AutocompleteMatchType::OPEN_TAB) {
         auto [target, inserted] = open_tab_targets_.try_emplace(
             std::make_pair(match.destination_url, match.description),
@@ -1646,9 +1651,10 @@ DaoCommandBarView::GetVisibleInlineAutocompletionMatch() const {
     return nullptr;
   }
 
-  const AutocompleteResult& result = autocomplete_controller_->result();
-  const AutocompleteMatch* default_match = result.default_match();
-  if (!default_match) {
+  // Enter must use the same normalized match as the displayed suggestion.
+  const AutocompleteMatch* default_match =
+      visible_matches_.empty() ? nullptr : &visible_matches_.front();
+  if (!default_match || !default_match->allowed_to_be_default_match) {
     return nullptr;
   }
 
