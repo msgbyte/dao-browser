@@ -48,10 +48,10 @@ constexpr float kTrailWidth = 8.0f;
 constexpr float kTrailAlpha = 0.38f;
 
 // Click shock waves.
-constexpr base::TimeDelta kClickDuration = base::Milliseconds(560);
-constexpr base::TimeDelta kCorePressDuration = base::Milliseconds(200);
-constexpr base::TimeDelta kWaveDuration = base::Milliseconds(460);
-constexpr base::TimeDelta kSecondWaveDelay = base::Milliseconds(100);
+constexpr base::TimeDelta kClickDuration = base::Milliseconds(1120);
+constexpr base::TimeDelta kCorePressDuration = base::Milliseconds(400);
+constexpr base::TimeDelta kWaveDuration = base::Milliseconds(920);
+constexpr base::TimeDelta kSecondWaveDelay = base::Milliseconds(200);
 constexpr float kWaveTravel = 22.0f;
 constexpr float kWaveAlpha = 0.6f;
 
@@ -67,7 +67,7 @@ constexpr float kAimBracketLength = 9.0f;
 constexpr float kAimBracketRadius = 3.0f;
 constexpr float kAimFillAlpha = 0.08f;
 constexpr base::TimeDelta kAimFadeIn = base::Milliseconds(160);
-constexpr base::TimeDelta kAimFadeOut = base::Milliseconds(260);
+constexpr base::TimeDelta kAimFadeOut = base::Milliseconds(520);
 constexpr base::TimeDelta kMinAimDuration = base::Milliseconds(220);
 
 // Appearance and idle behavior.
@@ -77,9 +77,9 @@ constexpr float kAppearOffsetY = -28.0f;
 constexpr base::TimeDelta kFadeInDuration = base::Milliseconds(120);
 constexpr base::TimeDelta kFadeOutDuration = base::Milliseconds(200);
 constexpr base::TimeDelta kBreathDuration = base::Milliseconds(700);
-constexpr base::TimeDelta kIdleDimDelay = base::Milliseconds(2500);
+constexpr base::TimeDelta kIdleDimDelay = base::Seconds(5);
 constexpr base::TimeDelta kIdleDimDuration = base::Milliseconds(400);
-constexpr base::TimeDelta kIdleHideDelay = base::Seconds(6);
+constexpr base::TimeDelta kIdleHideDelay = base::Seconds(12);
 constexpr float kIdleOpacity = 0.55f;
 
 // Animation frame interval (~60fps).

@@ -4,6 +4,8 @@
 
 ### [Unreleased] Unreleased
 
+- Keep the MCP and Agent cursor, click ripples, and target focus brackets visible twice as long, making automated actions easier to follow.
+
 ### [1.0.137] - 2026-11-07
 
 - Fix Windows MCP connections stalling when Node.js clients request a large tool list or receive large results.
