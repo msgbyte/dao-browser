@@ -4,6 +4,8 @@
 
 ### [Unreleased] Unreleased
 
+### [1.0.137] - 2026-11-07
+
 - Fix Windows MCP connections stalling when Node.js clients request a large tool list or receive large results.
 - Fix the MCP server staying disabled after turning it on in Windows settings, preventing local AI agents from connecting.
 - Make Mini Dao's download progress card easier to distinguish from the page with a soft shadow.
