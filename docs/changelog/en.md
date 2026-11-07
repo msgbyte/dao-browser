@@ -4,6 +4,8 @@
 
 ### [Unreleased] Unreleased
 
+### [1.0.138] - 2026-11-08
+
 - Keep the MCP and Agent cursor, click ripples, and target focus brackets visible twice as long, making automated actions easier to follow.
 
 ### [1.0.137] - 2026-11-07
