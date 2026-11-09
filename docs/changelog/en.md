@@ -4,6 +4,8 @@
 
 ### [Unreleased] Unreleased
 
+- Save the entire loaded webpage as a PNG from site controls > More > Full Page Screenshot, including content beyond the visible area.
+
 ### [1.0.138] - 2026-11-08
 
 - Keep the MCP and Agent cursor, click ripples, and target focus brackets visible twice as long, making automated actions easier to follow.

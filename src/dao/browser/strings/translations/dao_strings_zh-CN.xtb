@@ -1,6 +1,9 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="zh-CN">
+<translation id="6614076328842069414">整页截图</translation>
+<translation id="2623715612444735393">正在截取整个网页…</translation>
+<translation id="1025832597374372945">无法截取此网页</translation>
 <translation id="290424026864746715">允许读取已保存的网站操作说明？</translation>
 <translation id="1637688209180237019">仅允许本次读取与 <ph name="HOST"/> 匹配的已保存操作说明，其中可能包含私人笔记。此授权不允许访问网页或使用 Dao Lite 后台任务。</translation>
 <translation id="7860392304513652552">允许读取</translation>

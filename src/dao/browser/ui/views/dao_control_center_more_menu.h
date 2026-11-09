@@ -7,6 +7,9 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/timer/timer.h"
+#include "content/public/browser/web_contents_observer.h"
+#include "dao/browser/automation/dao_devtools_client.h"
 #include "ui/views/view.h"
 
 namespace views {
@@ -18,7 +21,8 @@ namespace dao {
 class DaoControlCenterPopup;
 
 // Sub-panel with additional actions.
-class DaoControlCenterMoreMenu : public views::View {
+class DaoControlCenterMoreMenu : public views::View,
+                                 public content::WebContentsObserver {
   METADATA_HEADER(DaoControlCenterMoreMenu, views::View)
 
  public:
@@ -33,6 +37,11 @@ class DaoControlCenterMoreMenu : public views::View {
  private:
   void OnBackClicked();
   void OnShareClicked();
+  void OnScreenshotClicked();
+  void OnScreenshotCaptured(DaoDevToolsClient::CommandResult result);
+  void FinishScreenshot(bool failed);
+  void PrimaryPageChanged(content::Page& page) override;
+  void WebContentsDestroyed() override;
   void OnClearCacheClicked();
   void OnClearCookiesClicked();
   void ClearActiveSiteBrowsingData(uint64_t remove_mask,
@@ -45,9 +54,13 @@ class DaoControlCenterMoreMenu : public views::View {
 
   raw_ptr<DaoControlCenterPopup> popup_;
   raw_ptr<views::LabelButton> share_button_ = nullptr;
+  raw_ptr<views::LabelButton> screenshot_button_ = nullptr;
   raw_ptr<views::LabelButton> clear_cache_button_ = nullptr;
   raw_ptr<views::LabelButton> clear_cookies_button_ = nullptr;
   raw_ptr<views::View> cleanup_separator_ = nullptr;
+
+  DaoDevToolsClient screenshot_client_;
+  base::OneShotTimer screenshot_timeout_;
 
   base::WeakPtrFactory<DaoControlCenterMoreMenu> weak_factory_{this};
 };

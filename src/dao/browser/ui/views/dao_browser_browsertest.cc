@@ -100,6 +100,7 @@
 #include "chrome/browser/ui/window_feature_controller/window_feature_controller.h"
 #include "chrome/common/chrome_isolated_world_ids.h"
 #include "chrome/common/chrome_switches.h"
+#include "chrome/common/pref_names.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/search_test_utils.h"
@@ -10528,6 +10529,96 @@ IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
 #endif
 
   popup->Hide();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
+                       FullPageScreenshotDownloadsEntireScrolledDocument) {
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  base::ScopedTempDir download_dir;
+  ASSERT_TRUE(download_dir.CreateUniqueTempDir());
+  auto* profile = browser()->GetProfile();
+  profile->GetPrefs()->SetFilePath(::prefs::kDownloadDefaultDirectory,
+                                   download_dir.GetPath());
+  profile->GetPrefs()->SetBoolean(::prefs::kPromptForDownload, false);
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), GURL("data:text/html,<body style='margin:0'>"
+                      "<div style='width:1800px;height:1800px;background:red'>"
+                      "</div><div style='width:1800px;height:1800px;"
+                      "background:blue'></div>")));
+  auto* contents = browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(content::ExecJs(contents, "window.scrollTo(200, 1200)"));
+  ASSERT_EQ(1200, content::EvalJs(contents, "scrollY"));
+  const double scale =
+      content::EvalJs(contents, "devicePixelRatio").ExtractDouble();
+  const int expected_width =
+      content::EvalJs(contents, "Math.max(innerWidth, 1800)").ExtractInt();
+  const int viewport_height =
+      content::EvalJs(contents, "innerHeight").ExtractInt();
+
+  auto* manager = profile->GetDownloadManager();
+  content::DownloadTestObserverTerminal observer(
+      manager, 1, content::DownloadTestObserver::ON_DANGEROUS_DOWNLOAD_FAIL);
+  auto* popup = GetBrowserView(browser())->dao_control_center_popup();
+  popup->ShowAt(gfx::Point(100, 100));
+  popup->ShowMoreMenu();
+  auto* button = FindLabelButtonWithText(
+      popup, l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_SCREENSHOT));
+  ASSERT_NE(nullptr, button);
+  ASSERT_TRUE(button->IsDrawn());
+  views::test::ButtonTestApi(button).NotifyClick(
+      ui::MouseEvent(ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
+                     ui::EventTimeForNow(), ui::EF_LEFT_MOUSE_BUTTON,
+                     ui::EF_LEFT_MOUSE_BUTTON));
+  EXPECT_FALSE(popup->GetVisible());
+  observer.WaitForFinished();
+
+  content::DownloadManager::DownloadVector downloads;
+  manager->GetAllDownloads(&downloads);
+  ASSERT_EQ(1u, downloads.size());
+  ASSERT_EQ(download::DownloadItem::COMPLETE, downloads[0]->GetState());
+  EXPECT_EQ(FILE_PATH_LITERAL(".png"),
+            downloads[0]->GetTargetFilePath().Extension());
+  std::string png;
+  ASSERT_TRUE(base::ReadFileToString(downloads[0]->GetTargetFilePath(), &png));
+  const SkBitmap bitmap = gfx::PNGCodec::Decode(base::as_byte_span(png));
+  ASSERT_FALSE(bitmap.isNull());
+  EXPECT_EQ(std::lround(expected_width * scale), bitmap.width());
+  EXPECT_EQ(std::lround(3600 * scale), bitmap.height());
+  EXPECT_GT(bitmap.height(), viewport_height * scale);
+  EXPECT_EQ(SK_ColorRED, bitmap.getColor(10, 10));
+  EXPECT_EQ(SK_ColorBLUE, bitmap.getColor(10, bitmap.height() - 10));
+  EXPECT_EQ(200, content::EvalJs(contents, "scrollX"));
+  EXPECT_EQ(1200, content::EvalJs(contents, "scrollY"));
+  EXPECT_EQ(viewport_height, content::EvalJs(contents, "innerHeight"));
+  EXPECT_TRUE(button->GetEnabled());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,
+                       FullPageScreenshotRespectsDisabledPolicy) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), GURL("data:text/html,screenshot-policy")));
+  auto* profile = browser()->GetProfile();
+  profile->GetPrefs()->SetBoolean(::prefs::kDisableScreenshots, true);
+  auto* popup = GetBrowserView(browser())->dao_control_center_popup();
+  popup->ShowAt(gfx::Point(100, 100));
+  popup->ShowMoreMenu();
+  auto* button = FindLabelButtonWithText(
+      popup, l10n_util::GetStringUTF16(IDS_DAO_CONTROL_CENTER_SCREENSHOT));
+  ASSERT_NE(nullptr, button);
+  views::test::ButtonTestApi(button).NotifyClick(
+      ui::MouseEvent(ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
+                     ui::EventTimeForNow(), ui::EF_LEFT_MOUSE_BUTTON,
+                     ui::EF_LEFT_MOUSE_BUTTON));
+  EXPECT_TRUE(button->GetEnabled());
+  auto* toast = GetBrowserView(browser())->dao_toast();
+  ASSERT_NE(nullptr, toast);
+  EXPECT_TRUE(toast->GetVisible());
+  EXPECT_NE(nullptr, FindDescendantLabelWithText(
+                         toast, l10n_util::GetStringUTF16(
+                                    IDS_DAO_CONTROL_CENTER_SCREENSHOT_FAILED)));
+  content::DownloadManager::DownloadVector downloads;
+  profile->GetDownloadManager()->GetAllDownloads(&downloads);
+  EXPECT_TRUE(downloads.empty());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoControlCenterPopupBrowserTest,

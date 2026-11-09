@@ -524,6 +524,15 @@
       <message name="IDS_DAO_CONTROL_CENTER_SHARE" desc="Label on the button in the Control Center 'More' submenu that opens the native share sheet for the current page.">
         Share
       </message>
+      <message name="IDS_DAO_CONTROL_CENTER_SCREENSHOT" desc="Action in the Control Center More submenu that saves a PNG of the entire loaded webpage, including content outside the visible area.">
+        Full Page Screenshot
+      </message>
+      <message name="IDS_DAO_CONTROL_CENTER_SCREENSHOT_CAPTURING" desc="Toast shown while capturing a full-page screenshot.">
+        Capturing full page...
+      </message>
+      <message name="IDS_DAO_CONTROL_CENTER_SCREENSHOT_FAILED" desc="Toast shown when a full-page screenshot cannot be captured, including when screenshots are disabled by policy.">
+        Could not capture this page
+      </message>
       <message name="IDS_DAO_CONTROL_CENTER_CLEAR_CACHE" desc="Label on the button in the Control Center 'More' submenu that clears the current site's browser cache. Idle state.">
         Clear Cache
       </message>

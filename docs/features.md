@@ -1258,7 +1258,18 @@ macOS-style floating control center panel bundling extensions and utilities.
   to a checkmark with localized confirmation after copying. The clipboard image
   excludes this overlay. Only the URL remains below the image; there is no
   separate copy-button row. Failed generation clears the image and disables copying.
-- **DaoControlCenterMoreMenu** — Share on macOS and site data cleanup actions. High Performance Mode is available only on the main panel. A divider separates cache and cookie cleanup from the other actions; cleanup stays scoped to the active page's current site with completion toast feedback.
+- **DaoControlCenterMoreMenu** — Full Page Screenshot, Share on macOS, and site data cleanup actions. High Performance Mode is available only on the main panel. A divider separates cache and cookie cleanup from the other actions; cleanup stays scoped to the active page's current site with completion toast feedback.
+- **Full-page screenshots** — More saves the current loaded document as a PNG,
+  including content beyond the viewport, through Chromium's download manager.
+  Capture uses the shared `DaoDevToolsClient` and Chromium's full-document
+  capture without scroll stitching, preserving the page's viewport and scroll
+  position afterward. The panel closes before capture, duplicate requests are
+  disabled while pending, and navigation or tab closure cancels the capture.
+  Localized Dao toasts report capture progress and failure, including blocked
+  screenshots; the `DisableScreenshots` policy remains effective. Capture has a
+  30-second timeout and a 128 MiB protocol-response limit, in addition to
+  Chromium's image-size limits. Unloaded infinite-scroll content and content
+  hidden inside independently scrolling elements are not expanded.
 - **DaoPinnedExtensionsContainer** — Pinned extension icon container
 - **Extension action badges** — Pinned and Control Center extension icons render
   the active tab's badge text and extension-defined badge colors using Chromium's
