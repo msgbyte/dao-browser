@@ -49,6 +49,7 @@
 #include "components/omnibox/browser/autocomplete_provider.h"
 #include "components/omnibox/browser/autocomplete_result.h"
 #include "components/omnibox/browser/shortcuts_backend.h"
+#include "components/omnibox/browser/url_prefix.h"
 #include "components/omnibox/browser/vector_icons.h"
 #include "components/prefs/pref_service.h"
 #include "components/search_engines/template_url.h"
@@ -915,9 +916,7 @@ bool DaoCommandBarView::HandleKeyEvent(views::Textfield* sender,
     }
   }
 
-  // Right arrow accepts either an explicit preview or the automatically
-  // highlighted row. Automatic highlighting alone must never write suggestion
-  // text into the textfield.
+  // Right arrow accepts either an explicit preview or the highlighted row.
   if (key_event.key_code() == ui::VKEY_RIGHT) {
     if (selection_preview_active_) {
       AcceptSelectionPreview();
@@ -1591,10 +1590,9 @@ std::u16string DaoCommandBarView::GetInlineAutocompletionForResult() const {
     return std::u16string();
   }
 
-  const AutocompleteResult& result = autocomplete_controller_->result();
-
-  const AutocompleteMatch* default_match = result.default_match();
-  if (!default_match) {
+  const AutocompleteMatch* default_match =
+      GetSelectedVisibleAutocompleteMatch();
+  if (!default_match || !default_match->allowed_to_be_default_match) {
     return std::u16string();
   }
 
@@ -1607,7 +1605,24 @@ std::u16string DaoCommandBarView::GetInlineAutocompletionForResult() const {
     return std::u16string();
   }
 
-  return default_match->inline_autocompletion;
+  if (!default_match->inline_autocompletion.empty()) {
+    return default_match->inline_autocompletion;
+  }
+
+  if (!rejected_selection_preview_text_.empty() ||
+      AutocompleteMatch::IsSearchType(default_match->type) ||
+      !default_match->destination_url.SchemeIsHTTPOrHTTPS()) {
+    return std::u16string();
+  }
+
+  // Some URL matches omit the provider suffix even though their edit text
+  // extends the query. Use Chromium's URL-prefix rules to expose that target.
+  const size_t offset = URLPrefix::GetInlineAutocompleteOffset(
+      user_input_text_, std::u16string(),
+      /*allow_www_prefix_without_scheme=*/true, default_match->fill_into_edit);
+  return offset == std::u16string::npos
+             ? std::u16string()
+             : default_match->fill_into_edit.substr(offset);
 }
 
 bool DaoCommandBarView::IsAutocompleteResultStableForInlineAutocompletion()
@@ -1652,15 +1667,8 @@ DaoCommandBarView::GetVisibleInlineAutocompletionMatch() const {
   }
 
   // Enter must use the same normalized match as the displayed suggestion.
-  const AutocompleteMatch* default_match =
-      visible_matches_.empty() ? nullptr : &visible_matches_.front();
-  if (!default_match || !default_match->allowed_to_be_default_match) {
-    return nullptr;
-  }
-
-  if (!default_match->inline_autocompletion.empty() &&
-      default_match->inline_autocompletion == inline_autocompletion_) {
-    return default_match;
+  if (GetInlineAutocompletionForResult() == inline_autocompletion_) {
+    return GetSelectedVisibleAutocompleteMatch();
   }
 
   return nullptr;
@@ -2127,9 +2135,8 @@ void DaoCommandBarView::SetSelectedIndex(int index, bool user_initiated) {
   if (selection_explicitly_changed_) {
     UpdateSelectionPreview();
   } else {
-    // Provider updates may automatically highlight the first row, but the
-    // user's query remains the sole textfield value until an explicit keyboard
-    // or pointer selection occurs.
+    // Automatic highlighting can supply a selected inline suffix, but only an
+    // explicit selection may replace the query with a full row preview.
     ClearSelectionPreview(true);
   }
 
@@ -2186,24 +2193,8 @@ void DaoCommandBarView::ApplySelectedSuggestion() {
       return;
     }
 
-    // Automatic highlighting is a visual default and must not mutate the
-    // textfield. Enter may still submit that highlighted action, unless the
-    // user has rejected a preview or edited under inline suppression.
-    if (!suppress_ghost_for_current_query_ &&
-        rejected_selection_preview_text_.empty()) {
-      if (selected_index_ >= 0 && selected_index_ == ask_ai_row_index_ &&
-          !user_input_text_.empty()) {
-        SubmitAskAi(user_input_text_);
-        return;
-      }
-
-      if (const AutocompleteMatch* selected_match =
-              GetSelectedVisibleAutocompleteMatch()) {
-        NavigateToMatch(*selected_match);
-        return;
-      }
-    }
-
+    // Without a visible completion, automatic highlighting cannot change the
+    // Enter destination. Explicit selection still accepts the row's action.
     Navigate(std::u16string(textfield_->GetText()));
     return;
   }

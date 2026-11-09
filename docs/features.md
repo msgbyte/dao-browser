@@ -466,10 +466,11 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
   - Asynchronous results preserve explicitly selected rows. Restore uses the
     current tab, window, or group title for display and completion; Agent
     Settings follows the browser's existing Settings availability checks.
-  - URL-vs-query detection heuristics + provider inline completion when no
+  - URL-vs-query detection heuristics + inline completion when no
     selection preview is active and experimental ordering is off; the native
     textfield contains the typed prefix
-    plus a selected completion suffix, so Select All, copy, and replacement
+    plus a selected completion suffix, derived from the default URL when its
+    provider omits the suffix, so Select All, copy, and replacement
     edits include the completed text, while long suffixes keep the typed prefix
     and caret boundary visible
   - Every non-blank query keeps one exact-input Search action alongside the
@@ -480,17 +481,21 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
     search provider; Ask AI requires an actual selected suggestion
   - With experimental ordering off, the first result is highlighted automatically
     without writing that row's
-    `fill_into_edit` value into the native textfield; provider-owned inline
+    `fill_into_edit` value into the native textfield; prefix-matching URL inline
     completion remains a distinct selected suffix, and only explicit arrow-key
     browsing previews a row while the original query remains separate and
     autocomplete is not restarted. Updates to the selected URL's display text
-    refresh its preview while preserving the selection.
+    refresh its preview while preserving the selection. Inline completion waits
+    for stable results; without a visible suffix or an explicit selection, Enter
+    opens or searches the visible input instead of accepting a different
+    automatically highlighted destination.
   - With experimental ordering off, Backspace rejects a non-identical preview
     without deleting
     the query; that exact rejected suggestion stays suppressed while the user
     continues typing, and later provider results remain highlight-only until the
     user browses or accepts them; Right Arrow or Tab accepts the highlighted or
-    previewed row without navigating, Enter submits the selected result, and
+    previewed row without navigating, Enter submits visible inline completion or
+    the explicitly selected result, and
     Esc dismisses
 - **DaoSuggestionItemView** (`dao_suggestion_item_view.{h,cc}`) — Suggestion row
   for autocomplete matches, Ask AI, and accessible enabled or disabled commands
