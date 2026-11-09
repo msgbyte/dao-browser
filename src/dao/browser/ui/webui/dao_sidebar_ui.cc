@@ -41,6 +41,7 @@
 #include "chrome/browser/tab_list/tab_removed_reason.h"
 #include "chrome/browser/ui/accelerator_utils.h"
 #include "chrome/browser/ui/browser_commands.h"
+#include "chrome/browser/ui/browser_tabrestore.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/desktop_browser_window_capabilities.h"
@@ -61,7 +62,10 @@
 #include "components/download/public/common/download_item.h"
 #include "components/favicon/content/content_favicon_util.h"
 #include "components/prefs/pref_service.h"
+#include "components/sessions/content/content_live_tab.h"
+#include "components/sessions/content/content_platform_specific_tab_data.h"
 #include "components/sessions/content/session_tab_helper.h"
+#include "components/sessions/core/tab_restore_types.h"
 #include "content/public/browser/download_item_utils.h"
 #include "content/public/browser/download_manager.h"
 #include "content/public/browser/media_player_id.h"
@@ -125,13 +129,34 @@
 
 namespace dao {
 
-class DaoSidebarUIHandler::DuplicateTabCloseObserver
+class DaoSidebarUIHandler::BatchTabCloseObserver
     : public content::WebContentsObserver {
  public:
-  DuplicateTabCloseObserver(content::WebContents* contents,
-                            base::OnceCallback<void(bool)> callback)
+  BatchTabCloseObserver(
+      content::WebContents* contents,
+      int index,
+      bool pinned,
+      base::OnceCallback<void(std::unique_ptr<sessions::tab_restore::Tab>)>
+          callback)
       : content::WebContentsObserver(contents),
-        callback_(std::move(callback)) {}
+        tab_(std::make_unique<sessions::tab_restore::Tab>()),
+        callback_(std::move(callback)) {
+    auto* live_tab = sessions::ContentLiveTab::GetOrCreateForWebContents(contents);
+    if (!live_tab->IsInitialBlankNavigation()) {
+      for (int i = 0; i < live_tab->GetEntryCount(); ++i) {
+        tab_->navigations.push_back(live_tab->GetEntryAtIndex(i));
+      }
+    }
+    if (tab_->navigations.empty() && contents->GetController().GetPendingEntry()) {
+      tab_->navigations.push_back(live_tab->GetPendingEntry());
+    }
+    tab_->current_navigation_index = live_tab->GetCurrentEntryIndex();
+    tab_->tabstrip_index = index;
+    tab_->pinned = pinned;
+    tab_->platform_data = live_tab->GetPlatformSpecificTabData();
+    tab_->user_agent_override = live_tab->GetUserAgentOverride();
+    PopulateSidebarTabIdentityExtraData(contents, &tab_->extra_data);
+  }
 
   void WebContentsDestroyed() override { Finish(true); }
 
@@ -146,10 +171,11 @@ class DaoSidebarUIHandler::DuplicateTabCloseObserver
  private:
   void Finish(bool closed) {
     Observe(nullptr);
-    std::move(callback_).Run(closed);
+    std::move(callback_).Run(closed ? std::move(tab_) : nullptr);
   }
 
-  base::OnceCallback<void(bool)> callback_;
+  std::unique_ptr<sessions::tab_restore::Tab> tab_;
+  base::OnceCallback<void(std::unique_ptr<sessions::tab_restore::Tab>)> callback_;
 };
 
 DaoSidebarUIHandler::MediaPlaybackObserver::MediaPlaybackObserver(
@@ -738,7 +764,7 @@ void DaoSidebarUIHandler::SetBrowser(BrowserWindowInterface* browser) {
     ResetMediaSessionObservers();
     UnregisterPinnedItemsProfileHandler();
     weak_factory_.InvalidateWeakPtrs();
-    duplicate_tab_close_observers_.clear();
+    batch_tab_close_observers_.clear();
     pinned_tab_model_.LoadFromJson(std::string());
     pinned_items_loaded_ = false;
     pinned_items_load_pending_ = false;
@@ -4010,7 +4036,6 @@ int DaoSidebarUIHandler::FindVisualPosition(int tab_index) const {
 }
 
 void DaoSidebarUIHandler::CloseTabsInVisualRange(int from, int to) {
-  TabStripModel* model = browser_->tab_strip_model();
   std::vector<int> to_close;
   int end = std::min(to, static_cast<int>(visual_tab_order_.size()));
   for (int i = from; i < end; ++i) {
@@ -4020,11 +4045,7 @@ void DaoSidebarUIHandler::CloseTabsInVisualRange(int from, int to) {
       to_close.push_back(idx);
     }
   }
-  // Sort descending so closing doesn't shift earlier indices.
-  std::sort(to_close.begin(), to_close.end(), std::greater<int>());
-  for (int idx : to_close) {
-    model->CloseWebContentsAt(idx, TabCloseTypes::CLOSE_USER_GESTURE);
-  }
+  CloseTabsWithUndo(std::move(to_close), IDS_DAO_CLOSED_TABS_TOAST);
 }
 
 int DaoSidebarUIHandler::CloseTabsById(const base::ListValue& tab_ids) {
@@ -4117,7 +4138,7 @@ int DaoSidebarUIHandler::CountDuplicateTabsToClose() const {
 }
 
 int DaoSidebarUIHandler::CloseDuplicateTabs() {
-  if (!browser_ || !duplicate_tab_close_observers_.empty()) {
+  if (!browser_ || !batch_tab_close_observers_.empty()) {
     return 0;
   }
 
@@ -4151,43 +4172,102 @@ int DaoSidebarUIHandler::CloseDuplicateTabs() {
     }
   }
 
-  std::vector<int> to_close(duplicate_indices.begin(), duplicate_indices.end());
-  std::sort(to_close.begin(), to_close.end(), std::greater<int>());
-  const int closing_count = static_cast<int>(to_close.size());
-  if (closing_count == 0) {
+  return CloseTabsWithUndo(
+      std::vector<int>(duplicate_indices.begin(), duplicate_indices.end()),
+      IDS_DAO_CLOSED_DUPLICATE_TABS_TOAST);
+}
+
+int DaoSidebarUIHandler::CloseTabsWithUndo(std::vector<int> indices,
+                                         int message_id) {
+  if (!browser_ || indices.empty() || !batch_tab_close_observers_.empty()) {
     return 0;
   }
+  auto* model = browser_->tab_strip_model();
+  auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser_);
+  if (browser_view && browser_view->dao_toast()) {
+    browser_view->dao_toast()->HideToast();
+  }
+  const std::string active_tab_id = GetSidebarTabId(model->GetActiveWebContents());
+  std::sort(indices.begin(), indices.end(), std::greater<int>());
 
-  // Wait for every close or cancellation, including asynchronous beforeunload
-  // dialogs. Post completion so observers outlive their notification callbacks.
-  auto on_closed = base::BarrierCallback<bool>(
-      to_close.size(), base::BindPostTaskToCurrentDefault(base::BindOnce(
-                           &DaoSidebarUIHandler::OnDuplicateTabsClosed,
-                           weak_factory_.GetWeakPtr())));
-  for (int index : to_close) {
+  // Keep in-memory session snapshots so undo also works in private windows and
+  // for batches larger than Chromium's recently-closed history limit.
+  // Post completion so observers outlive their notification callbacks.
+  auto on_closed =
+      base::BarrierCallback<std::unique_ptr<sessions::tab_restore::Tab>>(
+          indices.size(), base::BindPostTaskToCurrentDefault(base::BindOnce(
+                              &DaoSidebarUIHandler::OnBatchTabsClosed,
+                              weak_factory_.GetWeakPtr(), message_id,
+                              active_tab_id)));
+  for (int index : indices) {
     if (model->IsTabClosable(model->GetTabAtIndex(index))) {
-      duplicate_tab_close_observers_.push_back(
-          std::make_unique<DuplicateTabCloseObserver>(
-              model->GetWebContentsAt(index), on_closed));
+      batch_tab_close_observers_.push_back(
+          std::make_unique<BatchTabCloseObserver>(
+              model->GetWebContentsAt(index), index, model->IsTabPinned(index),
+              on_closed));
     } else {
-      on_closed.Run(false);
+      on_closed.Run(nullptr);
     }
     model->CloseWebContentsAt(index, TabCloseTypes::CLOSE_USER_GESTURE);
   }
-
-  return closing_count;
+  return static_cast<int>(indices.size());
 }
 
-void DaoSidebarUIHandler::OnDuplicateTabsClosed(std::vector<bool> closed) {
-  duplicate_tab_close_observers_.clear();
+void DaoSidebarUIHandler::OnBatchTabsClosed(
+    int message_id,
+    std::string active_tab_id,
+    std::vector<std::unique_ptr<sessions::tab_restore::Tab>> closed) {
+  batch_tab_close_observers_.clear();
   if (!browser_ || browser_->capabilities()->IsAttemptingToCloseBrowser()) {
     return;
   }
+  std::erase(closed, nullptr);
   auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser_);
-  if (browser_view && browser_view->dao_toast()) {
-    browser_view->dao_toast()->ShowToast(l10n_util::GetPluralStringFUTF16(
-        IDS_DAO_CLOSED_DUPLICATE_TABS_TOAST,
-        static_cast<int>(std::count(closed.begin(), closed.end(), true))));
+  if (!browser_view || !browser_view->dao_toast()) {
+    return;
+  }
+  const auto message = l10n_util::GetPluralStringFUTF16(
+      message_id, static_cast<int>(closed.size()));
+  if (closed.empty()) {
+    browser_view->dao_toast()->ShowToast(message);
+  } else {
+    browser_view->dao_toast()->ShowToast(
+        message, l10n_util::GetStringUTF16(IDS_DAO_UNDO_TAB_CLOSE),
+        base::BindOnce(&DaoSidebarUIHandler::UndoBatchTabClose,
+                       weak_factory_.GetWeakPtr(), std::move(active_tab_id),
+                       std::move(closed)));
+  }
+  browser_view->InvalidateLayout();
+}
+
+void DaoSidebarUIHandler::UndoBatchTabClose(
+    std::string active_tab_id,
+    std::vector<std::unique_ptr<sessions::tab_restore::Tab>> closed) {
+  if (!browser_ || browser_->capabilities()->IsAttemptingToCloseBrowser()) {
+    return;
+  }
+  auto* model = browser_->tab_strip_model();
+  std::set<std::string> open_ids;
+  for (int i = 0; i < model->count(); ++i) {
+    open_ids.insert(GetSidebarTabId(model->GetWebContentsAt(i)));
+  }
+  std::sort(closed.begin(), closed.end(), [](const auto& a, const auto& b) {
+    return a->tabstrip_index < b->tabstrip_index;
+  });
+  for (const auto& tab : closed) {
+    const std::string& id = tab->extra_data.at(kSidebarTabIdentitySessionKey);
+    if (open_ids.contains(id)) {
+      continue;
+    }
+    auto* platform_data = static_cast<sessions::ContentPlatformSpecificTabData*>(
+        tab->platform_data.get());
+    chrome::AddRestoredTab(
+        browser_, tab->navigations, std::min(tab->tabstrip_index, model->count()),
+        tab->normalized_navigation_index(), tab->extension_app_id, std::nullopt,
+        id == active_tab_id, tab->pinned, base::TimeTicks(), base::Time(),
+        platform_data->session_storage_namespace(), tab->user_agent_override,
+        tab->extra_data, /*from_session_restore=*/false,
+        /*is_active_browser=*/std::nullopt);
   }
 }
 
@@ -4229,9 +4309,13 @@ bool DaoSidebarUIHandler::IsCommandIdEnabled(int command_id) const {
   if (command_id == kMoveStaleTabsToFolder) {
     return true;
   }
+  if ((command_id == kCloseDuplicateTabs || command_id == kCloseOtherTabs ||
+       command_id == kCloseTabsAbove || command_id == kCloseTabsBelow) &&
+      !batch_tab_close_observers_.empty()) {
+    return false;
+  }
   if (command_id == kCloseDuplicateTabs) {
-    return duplicate_tab_close_observers_.empty() &&
-           CountDuplicateTabsToClose() > 0;
+    return CountDuplicateTabsToClose() > 0;
   }
   if (command_id == kFolderRename || command_id == kFolderUnfolder ||
       command_id == kFolderDelete) {

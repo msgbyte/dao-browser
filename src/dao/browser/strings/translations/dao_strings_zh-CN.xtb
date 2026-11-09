@@ -401,4 +401,6 @@
   <translation id="8384609973295054104">自动允许本机 Agent 控制浏览器窗口和页面（包括已登录的网站），无需询问。适用于所有个人资料。</translation>
 <translation id="743167003425417335">实验性命令栏建议排序</translation>
 <translation id="7161815979011497773">优先显示匹配的现有标签页，保留输入原文。直接回车搜索原文或打开输入的网址。</translation>
+<translation id="1785685354446668686">{COUNT, plural, other {已关闭 # 个标签页}}</translation>
+<translation id="2079545284768500474">撤销</translation>
 </translationbundle>

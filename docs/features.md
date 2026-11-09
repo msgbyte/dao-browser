@@ -227,6 +227,14 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
   active tab for each URL. After all close attempts finish, a localized native
   toast reports how many duplicate tabs actually closed. Pages retain their
   normal leave-confirmation flow; cancelled closures are excluded from the count.
+- **Undo batch tab closing** — Close Other Tabs, Close Tabs Above, Close Tabs
+  Below, and Close Duplicate Tabs show a shared Dao toast with an **Undo**
+  button for 10 seconds, extended while hovered or keyboard-focused. Undo
+  restores only the tabs actually closed by that operation, with their history,
+  session storage, pinned state, and tab-strip positions. Cancelled leave prompts
+  are excluded. Snapshots stay in memory, support private windows and batches
+  larger than recently-closed history, and are released when the toast expires
+  or is replaced. Single-tab closing and Delete Folder retain their existing flows.
 - **DaoTabTooltipView** (`sidebar/dao_tab_tooltip_view.{h,cc}`) — Hover contextual info next to the sidebar
 - **Tab hover previews** — Settings > You and Dao exposes the profile-scoped
   `dao.tab_hover_preview_enabled` preference, **off by default**, with a

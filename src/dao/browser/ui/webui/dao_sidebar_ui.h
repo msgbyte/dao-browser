@@ -47,6 +47,10 @@ namespace download {
 class DownloadItem;
 }  // namespace download
 
+namespace sessions::tab_restore {
+struct Tab;
+}  // namespace sessions::tab_restore
+
 namespace views {
 class MenuRunner;
 class Widget;
@@ -336,7 +340,14 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   void OnDeleteFolderDialogAccepted(std::string folder_id);
   int CountDuplicateTabsToClose() const;
   int CloseDuplicateTabs();
-  void OnDuplicateTabsClosed(std::vector<bool> closed);
+  int CloseTabsWithUndo(std::vector<int> indices, int message_id);
+  void OnBatchTabsClosed(
+      int message_id,
+      std::string active_tab_id,
+      std::vector<std::unique_ptr<sessions::tab_restore::Tab>> closed);
+  void UndoBatchTabClose(
+      std::string active_tab_id,
+      std::vector<std::unique_ptr<sessions::tab_restore::Tab>> closed);
   void ClearContextMenuState();
 
   void OnScanResultReady(base::ListValue file_entries,
@@ -377,9 +388,8 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
   std::map<std::string, std::string> classification_tab_urls_;
   raw_ptr<BrowserWindowInterface> browser_ = nullptr;
 
-  class DuplicateTabCloseObserver;
-  std::vector<std::unique_ptr<DuplicateTabCloseObserver>>
-      duplicate_tab_close_observers_;
+  class BatchTabCloseObserver;
+  std::vector<std::unique_ptr<BatchTabCloseObserver>> batch_tab_close_observers_;
 
   // Media widget state.
   int media_widget_tab_index_ = -1;

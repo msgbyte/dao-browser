@@ -236,9 +236,11 @@
 #include "ui/base/dragdrop/mojom/drag_drop_types.mojom.h"
 #include "ui/base/hit_test.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/resource/resource_bundle.h"
 #include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/base/test/scoped_fake_nswindow_fullscreen.h"
 #include "ui/color/color_provider.h"
+#include "ui/compositor/canvas_painter.h"
 #include "ui/compositor/layer.h"
 #include "ui/compositor/layer_animator.h"
 #include "ui/display/display.h"
@@ -280,6 +282,7 @@
 #include "ui/views/layout/layout_provider.h"
 #include "ui/views/test/button_test_api.h"
 #include "ui/views/test/widget_test.h"
+#include "ui/views/paint_info.h"
 #include "ui/views/view.h"
 #include "ui/views/view_test_api.h"
 #include "ui/views/view_utils.h"
@@ -321,6 +324,16 @@ class DaoSidebarContextMenuTestApi {
                                         .Append(std::move(folders))
                                         .Append(std::move(order)));
     return handler.tab_context_menu_model_.get();
+  }
+
+  static void CloseRange(DaoSidebarUIHandler& handler,
+                         int anchor,
+                         const std::vector<int>& visual_order,
+                         int from,
+                         int to) {
+    handler.context_menu_tab_index_ = anchor;
+    handler.visual_tab_order_ = visual_order;
+    handler.CloseTabsInVisualRange(from, to);
   }
 
   static void Classify(DaoSidebarUIHandler& handler, bool below) {
@@ -2509,6 +2522,117 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
         IDS_DAO_CLOSED_DUPLICATE_TABS_TOAST, 1));
   }));
   EXPECT_EQ(1, model->count());
+  auto* undo = FindLabelButtonWithText(
+      toast, l10n_util::GetStringUTF16(IDS_DAO_UNDO_TAB_CLOSE));
+  ASSERT_NE(nullptr, undo);
+  views::test::ButtonTestApi(undo).NotifyClick(
+      ui::KeyEvent(ui::EventType::kKeyPressed, ui::VKEY_RETURN, ui::EF_NONE));
+  EXPECT_EQ(2, model->count());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
+                       BatchCloseUndoRestoresHistoryAndOnlyItsOwnTabs) {
+  const base::FilePath screenshot_path =
+      base::CommandLine::ForCurrentProcess()->GetSwitchValuePath(
+          "dao-toast-screenshot");
+  if (!screenshot_path.empty()) {
+    base::ScopedAllowBlockingForTesting allow_blocking;
+    ui::ResourceBundle::GetSharedInstance().ReloadLocaleResources("zh-CN");
+  }
+  ASSERT_TRUE(embedded_test_server()->Start());
+  const GURL first_url = embedded_test_server()->GetURL("/title1.html");
+  const GURL second_url = embedded_test_server()->GetURL("/title2.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), first_url));
+  auto* model = browser()->tab_strip_model();
+  auto* original = model->GetActiveWebContents();
+  ASSERT_TRUE(content::ExecJs(original, "sessionStorage.setItem('undo', 'kept')"));
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), second_url));
+  const int history_count = original->GetController().GetEntryCount();
+  const std::string original_id = GetSidebarTabId(original);
+  chrome::AddTabAt(browser(), first_url, 1, true);
+  ASSERT_TRUE(content::WaitForLoadStop(model->GetActiveWebContents()));
+  const std::string kept_id = GetSidebarTabId(model->GetActiveWebContents());
+  chrome::AddTabAt(browser(), second_url, 2, true);
+  ASSERT_TRUE(content::WaitForLoadStop(model->GetActiveWebContents()));
+  const std::string last_id = GetSidebarTabId(model->GetActiveWebContents());
+
+  DaoSidebarUIHandler handler;
+  AttachSidebarHandlerForTesting(browser(), &handler);
+  // Keep the middle tab, closing both sides in a different visual order.
+  DaoSidebarContextMenuTestApi::CloseRange(handler, 1, {2, 1, 0}, 0, 3);
+  auto* toast = GetBrowserView(browser())->dao_toast();
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return toast->IsShowingToast(
+        l10n_util::GetPluralStringFUTF16(IDS_DAO_CLOSED_TABS_TOAST, 2));
+  }));
+  EXPECT_EQ(1, model->count());
+  auto* unrelated = chrome::AddAndReturnTabAt(browser(), first_url, -1, false);
+  model->CloseWebContentsAt(model->GetIndexOfWebContents(unrelated),
+                           TabCloseTypes::CLOSE_USER_GESTURE);
+
+  auto* undo = FindLabelButtonWithText(
+      toast, l10n_util::GetStringUTF16(IDS_DAO_UNDO_TAB_CLOSE));
+  ASSERT_NE(nullptr, undo);
+  ASSERT_TRUE(undo->GetVisible());
+  if (!screenshot_path.empty()) {
+    GetBrowserView(browser())->GetWidget()->LayoutRootViewIfNecessary();
+    SkBitmap bitmap;
+    {
+      ui::CanvasPainter painter(&bitmap, toast->size(), 2.f,
+                                SK_ColorTRANSPARENT, false);
+      toast->Paint(views::PaintInfo::CreateRootPaintInfo(painter.context(),
+                                                       toast->size()));
+    }
+    const auto png = gfx::PNGCodec::EncodeBGRASkBitmap(bitmap, false);
+    ASSERT_TRUE(png.has_value());
+    base::ScopedAllowBlockingForTesting allow_blocking;
+    ASSERT_TRUE(base::WriteFile(screenshot_path, *png));
+  }
+  views::test::ButtonTestApi(undo).NotifyClick(
+      ui::KeyEvent(ui::EventType::kKeyPressed, ui::VKEY_RETURN, ui::EF_NONE));
+  EXPECT_FALSE(toast->GetVisible());
+  ASSERT_EQ(3, model->count());
+  EXPECT_EQ(original_id, GetSidebarTabId(model->GetWebContentsAt(0)));
+  EXPECT_EQ(kept_id, GetSidebarTabId(model->GetWebContentsAt(1)));
+  EXPECT_EQ(last_id, GetSidebarTabId(model->GetWebContentsAt(2)));
+  auto* restored = model->GetWebContentsAt(0);
+  EXPECT_EQ(history_count, restored->GetController().GetEntryCount());
+  model->ActivateTabAt(0);
+  ASSERT_TRUE(content::WaitForLoadStop(restored));
+  EXPECT_EQ(second_url, restored->GetLastCommittedURL());
+  EXPECT_EQ("kept", content::EvalJs(restored, "sessionStorage.getItem('undo')"));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
+                       BatchCloseUndoSupportsLargePrivateBatches) {
+  auto* private_browser = CreateIncognitoBrowser();
+  auto* model = private_browser->tab_strip_model();
+  std::vector<int> order{0};
+  std::vector<std::string> ids;
+  for (int i = 1; i <= 30; ++i) {
+    chrome::AddTabAt(private_browser, GURL(url::kAboutBlankURL), i, false);
+    order.push_back(i);
+    ids.push_back(GetSidebarTabId(model->GetWebContentsAt(i)));
+  }
+  DaoSidebarUIHandler handler;
+  AttachSidebarHandlerForTesting(private_browser, &handler);
+  DaoSidebarContextMenuTestApi::CloseRange(handler, 0, order, 1, 31);
+  auto* toast = GetBrowserView(private_browser)->dao_toast();
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return toast->IsShowingToast(
+        l10n_util::GetPluralStringFUTF16(IDS_DAO_CLOSED_TABS_TOAST, 30));
+  }));
+  ASSERT_EQ(1, model->count());
+  auto* undo = FindLabelButtonWithText(
+      toast, l10n_util::GetStringUTF16(IDS_DAO_UNDO_TAB_CLOSE));
+  ASSERT_NE(nullptr, undo);
+  views::test::ButtonTestApi(undo).NotifyClick(
+      ui::KeyEvent(ui::EventType::kKeyPressed, ui::VKEY_RETURN, ui::EF_NONE));
+  ASSERT_EQ(31, model->count());
+  for (int i = 1; i <= 30; ++i) {
+    EXPECT_EQ(ids[i - 1], GetSidebarTabId(model->GetWebContentsAt(i)));
+    EXPECT_TRUE(model->GetWebContentsAt(i)->GetBrowserContext()->IsOffTheRecord());
+  }
 }
 
 IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest, CloseTabsByStableIdentity) {
@@ -10136,6 +10260,28 @@ IN_PROC_BROWSER_TEST_F(DaoToastViewBrowserTest, ShowToastMakesVisible) {
   // Non-zero preferred size after text is laid out.
   EXPECT_GT(toast->GetPreferredSize().width(), 0);
   EXPECT_GT(toast->GetPreferredSize().height(), 0);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoToastViewBrowserTest,
+                       ActionRunsOnceAndReplacementClearsIt) {
+  auto* toast = GetBrowserView(browser())->dao_toast();
+  int calls = 0;
+  toast->ShowToast(u"Closed tabs", u"Undo",
+                   base::BindLambdaForTesting([&] { ++calls; }));
+  auto* button = FindLabelButtonWithText(toast, u"Undo");
+  ASSERT_NE(nullptr, button);
+  EXPECT_TRUE(button->GetVisible());
+  views::test::ButtonTestApi(button).NotifyClick(
+      ui::KeyEvent(ui::EventType::kKeyPressed, ui::VKEY_RETURN, ui::EF_NONE));
+  EXPECT_EQ(1, calls);
+  EXPECT_FALSE(toast->GetVisible());
+  toast->ShowToast(u"Closed tabs", u"Undo",
+                   base::BindLambdaForTesting([&] { ++calls; }));
+  toast->ShowToast(u"Copied link");
+  EXPECT_FALSE(button->GetVisible());
+  views::test::ButtonTestApi(button).NotifyClick(
+      ui::KeyEvent(ui::EventType::kKeyPressed, ui::VKEY_RETURN, ui::EF_NONE));
+  EXPECT_EQ(1, calls);
 }
 
 IN_PROC_BROWSER_TEST_F(DaoToastViewBrowserTest,

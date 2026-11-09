@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 
+#include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
 #include "base/timer/timer.h"
@@ -18,6 +19,7 @@
 
 namespace views {
 class Label;
+class LabelButton;
 }
 
 namespace dao {
@@ -37,7 +39,9 @@ class DaoToastView : public views::View,
   ~DaoToastView() override;
 
   // Show a toast message. If a toast is already visible, it is replaced.
-  void ShowToast(const std::u16string& message);
+  void ShowToast(const std::u16string& message,
+                 const std::u16string& action_text = {},
+                 base::OnceClosure action = {});
 
   bool IsShowingToast(const std::u16string& message) const;
   void HideToast();
@@ -52,8 +56,11 @@ class DaoToastView : public views::View,
   void StartDismissTimer();
   void FadeOut();
   void ApplyTheme();
+  void RunAction();
 
   raw_ptr<views::Label> label_ = nullptr;
+  raw_ptr<views::LabelButton> action_button_ = nullptr;
+  base::OnceClosure action_;
   base::OneShotTimer dismiss_timer_;
   base::OneShotTimer hide_timer_;
 

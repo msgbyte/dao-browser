@@ -323,6 +323,12 @@
       <message name="IDS_DAO_CLOSED_DUPLICATE_TABS_TOAST" desc="Toast shown after closing duplicate tabs, with the number actually closed. Tabs whose closure was cancelled are not counted.">
         {COUNT, plural, =1 {Closed # duplicate tab} other {Closed # duplicate tabs}}
       </message>
+      <message name="IDS_DAO_CLOSED_TABS_TOAST" desc="Toast after a batch close, counting only tabs actually closed.">
+        {COUNT, plural, =1 {Closed # tab} other {Closed # tabs}}
+      </message>
+      <message name="IDS_DAO_UNDO_TAB_CLOSE" desc="Button that restores the tabs closed by the last batch close.">
+        Undo
+      </message>
       <message name="IDS_DAO_TAB_CONTEXT_CLOSE_OTHER_TABS" desc="Context menu item that closes all regular tabs except the selected tab in the Dao sidebar.">
         Close Other Tabs
       </message>

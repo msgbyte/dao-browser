@@ -21,7 +21,9 @@
 #include "ui/gfx/geometry/transform.h"
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/border.h"
+#include "ui/views/controls/button/label_button.h"
 #include "ui/views/controls/label.h"
+#include "ui/views/layout/box_layout.h"
 #include "ui/views/layout/fill_layout.h"
 
 namespace dao {
@@ -31,6 +33,7 @@ constexpr int kToastHeight = 36;
 constexpr int kToastPaddingHorizontal = 16;
 constexpr int kToastFontSize = 13;
 constexpr base::TimeDelta kShowDuration = base::Milliseconds(2000);
+constexpr base::TimeDelta kActionShowDuration = base::Seconds(10);
 constexpr base::TimeDelta kFadeInDuration = base::Milliseconds(200);
 constexpr base::TimeDelta kFadeOutDuration = base::Milliseconds(300);
 constexpr int kSlideOffset = 16;  // pixels to slide down from above
@@ -69,6 +72,16 @@ DaoToastView::DaoToastView()
   label_->SetBackgroundColor(SK_ColorTRANSPARENT);
   label_->SetHorizontalAlignment(gfx::ALIGN_CENTER);
 
+  SetLayoutManager(std::make_unique<views::BoxLayout>(
+      views::BoxLayout::Orientation::kHorizontal, gfx::Insets(), 12));
+  action_button_ = AddChildView(std::make_unique<views::LabelButton>(
+      base::BindRepeating(&DaoToastView::RunAction, base::Unretained(this))));
+  action_button_->SetLabelStyle(views::style::STYLE_LINK);
+  action_button_->SetTextSubpixelRenderingEnabled(false);
+  action_button_->SetBorder(views::CreateEmptyBorder(gfx::Insets::VH(0, 4)));
+  action_button_->SetFocusBehavior(FocusBehavior::ALWAYS);
+  action_button_->SetVisible(false);
+
   ApplyTheme();
 }
 
@@ -85,11 +98,17 @@ void DaoToastView::OnNativeThemeUpdated(ui::NativeTheme* observed_theme) {
   SchedulePaint();
 }
 
-void DaoToastView::ShowToast(const std::u16string& message) {
+void DaoToastView::ShowToast(const std::u16string& message,
+                            const std::u16string& action_text,
+                            base::OnceClosure action) {
   dismiss_timer_.Stop();
   hide_timer_.Stop();
 
   label_->SetText(message);
+  action_ = std::move(action);
+  action_button_->SetText(action_text);
+  action_button_->SetVisible(!!action_);
+  SetCanProcessEventsWithinSubtree(!!action_);
   SetVisible(true);
 
   views::ViewAccessibility& accessibility = GetViewAccessibility();
@@ -100,6 +119,9 @@ void DaoToastView::ShowToast(const std::u16string& message) {
   // Calculate preferred width: padding + text + padding
   int text_width = label_->GetPreferredSize().width();
   int total_width = kToastPaddingHorizontal + text_width + kToastPaddingHorizontal;
+  if (action_) {
+    total_width += 12 + action_button_->GetPreferredSize().width();
+  }
   SetPreferredSize(gfx::Size(total_width, kToastHeight));
 
   // Set initial state: transparent and shifted up
@@ -127,6 +149,18 @@ void DaoToastView::HideToast() {
   hide_timer_.Stop();
   layer()->GetAnimator()->StopAnimating();
   SetVisible(false);
+  action_.Reset();
+  if (action_button_) {
+    action_button_->SetVisible(false);
+  }
+}
+
+void DaoToastView::RunAction() {
+  auto action = std::move(action_);
+  HideToast();
+  if (action) {
+    std::move(action).Run();
+  }
 }
 
 void DaoToastView::OnPaint(gfx::Canvas* canvas) {
@@ -161,12 +195,16 @@ void DaoToastView::OnPaint(gfx::Canvas* canvas) {
 
 void DaoToastView::StartDismissTimer() {
   dismiss_timer_.Stop();
-  dismiss_timer_.Start(FROM_HERE, kShowDuration,
+  dismiss_timer_.Start(FROM_HERE, action_ ? kActionShowDuration : kShowDuration,
                        base::BindOnce(&DaoToastView::FadeOut,
                                       base::Unretained(this)));
 }
 
 void DaoToastView::FadeOut() {
+  if (action_ && (IsMouseHovered() || action_button_->HasFocus())) {
+    StartDismissTimer();
+    return;
+  }
   // Animate: fade out + slide up
   gfx::Transform end_transform;
   end_transform.Translate(0, -kSlideOffset);
