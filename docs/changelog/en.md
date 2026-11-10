@@ -4,6 +4,8 @@
 
 ### [Unreleased] Unreleased
 
+- Find examples in Settings for using Dao Browser with your open pages and Dao Lite for background tasks.
+
 - Fix command bar Enter opening an unseen suggestion: matching URL paths now appear as selected completion text, and Enter uses your typed address when no completion is shown.
 - Undo closing other, above, below, or duplicate tabs with one click in the confirmation toast.
 - Save the entire loaded webpage as a PNG from site controls > More > Full Page Screenshot, including content beyond the visible area.

@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_local_agent_page.html
-@@ -0,0 +1,397 @@
+@@ -0,0 +1,428 @@
 +<style include="settings-shared">
 +  .dao-mcp-page {
 +    margin-top: 12px;
@@ -181,6 +181,26 @@ index 0000000000..0000000001
 +  .dao-mcp-usage-count {
 +    color: var(--cr-primary-text-color);
 +    font-variant-numeric: tabular-nums;
++  }
++
++  .dao-local-agent-help {
++    border-top: var(--cr-separator-line);
++    margin-top: 16px;
++    padding-top: 16px;
++  }
++
++  .dao-local-agent-help summary {
++    color: var(--cr-primary-text-color);
++    cursor: pointer;
++    font-size: 13px;
++    font-weight: 500;
++  }
++
++  .dao-local-agent-help p {
++    color: var(--cr-secondary-text-color);
++    font-size: 12px;
++    line-height: 18px;
++    margin: 8px 0;
 +  }
 +
 +  .dao-local-agent-list {
@@ -395,6 +415,17 @@ index 0000000000..0000000001
 +          </div>
 +        </template>
 +      </div>
++      <details id="daoLocalAgentHelp" class="dao-local-agent-help">
++        <summary>$i18n{daoLocalAgentHelpTitle}</summary>
++        <p>$i18n{daoLocalAgentHelpIntro}</p>
++        <div class="dao-mcp-section-title">Dao Browser</div>
++        <p>$i18n{daoLocalAgentHelpBrowserDescription}</p>
++        <p>$i18n{daoLocalAgentHelpBrowserExample}</p>
++        <p>$i18n{daoLocalAgentHelpTabId}</p>
++        <div class="dao-mcp-section-title">Dao Lite</div>
++        <p>$i18n{daoLocalAgentHelpLiteDescription}</p>
++        <p>$i18n{daoLocalAgentHelpLiteExample}</p>
++      </details>
 +      <div role="alert" hidden$="[[!daoLocalAgentsError_]]">
 +        [[daoLocalAgentsError_]]
 +      </div>

@@ -1121,6 +1121,27 @@
       <message name="IDS_DAO_CLASSIFY_TABS_EMPTY" desc="Toast shown when no eligible tabs are available for AI classification.">No tabs to classify</message>
       <message name="IDS_DAO_CLASSIFY_TABS_FAILED" desc="Toast shown when AI tab classification fails without applying a result.">Could not classify tabs. Please try again.</message>
       <message name="IDS_DAO_CLASSIFY_TABS_CHANGED" desc="Toast shown when a stale AI classification result is discarded after tabs or folders changed.">Tabs or folders changed. Please classify again.</message>
+      <message name="IDS_DAO_LOCAL_AGENT_HELP_TITLE" desc="Local agent skill usage guide: title.">
+        How to use
+      </message>
+      <message name="IDS_DAO_LOCAL_AGENT_HELP_INTRO" desc="Local agent skill usage guide: intro.">
+        After installing the skills, enable the MCP server. For Dao Browser, use Quick setup to connect your AI client. Approve access when prompted.
+      </message>
+      <message name="IDS_DAO_LOCAL_AGENT_HELP_BROWSER_DESCRIPTION" desc="Local agent skill usage guide: browser description.">
+        Dao Browser works with your existing tabs and the page you are using. Access to each page requires approval.
+      </message>
+      <message name="IDS_DAO_LOCAL_AGENT_HELP_BROWSER_EXAMPLE" desc="Local agent skill usage guide: browser example.">
+        Codex: $dao-browser Summarize the current page. Claude Code: /dao-browser Summarize the current page.
+      </message>
+      <message name="IDS_DAO_LOCAL_AGENT_HELP_TAB_ID" desc="How to target a specific existing tab using its copied ID.">
+        To target a specific tab, enable the MCP server, right-click a regular tab in the sidebar, and select Copy Tab ID. Paste that UUID into your request: Codex: $dao-browser Summarize the tab with ID [paste tab ID]. Claude Code: /dao-browser Summarize the tab with ID [paste tab ID].
+      </message>
+      <message name="IDS_DAO_LOCAL_AGENT_HELP_LITE_DESCRIPTION" desc="Local agent skill usage guide: lite description.">
+        Dao Lite works in a separate background task space without touching your existing tabs. You can watch the task or take over at any time.
+      </message>
+      <message name="IDS_DAO_LOCAL_AGENT_HELP_LITE_EXAMPLE" desc="Local agent skill usage guide: lite example.">
+        Codex: $dao-lite Research and compare laptops in the background. Claude Code: /dao-lite Research and compare laptops in the background.
+      </message>
       <message name="IDS_DAO_MCP_YOLO_MODE_LABEL" desc="Label for automatic local agent browser access approval.">
         YOLO mode
       </message>

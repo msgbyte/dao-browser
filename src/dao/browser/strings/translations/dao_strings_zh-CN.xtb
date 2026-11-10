@@ -1,6 +1,13 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="zh-CN">
+<translation id="5398508128830071282">要让 AI 操作指定标签页，请先启用 MCP 服务器，在侧边栏右键点击普通标签页并选择“复制标签页 ID”，然后将 UUID 粘贴到请求中。Codex：$dao-browser 总结 ID 为 [粘贴标签页 ID] 的标签页。Claude Code：/dao-browser 总结 ID 为 [粘贴标签页 ID] 的标签页。</translation>
+<translation id="6574367003522591272">使用方法</translation>
+<translation id="2415910995113743925">安装技能后，先启用 MCP 服务器。使用 Dao Browser 时，请通过“快速配置”连接 AI 客户端，并在出现提示时授权。</translation>
+<translation id="1030975697709858773">Dao Browser 操作你已经打开的标签页和正在使用的页面，每个页面都需要单独授权。</translation>
+<translation id="1743442121244742416">Codex：$dao-browser 总结当前页面。Claude Code：/dao-browser 总结当前页面。</translation>
+<translation id="4331512290013197359">Dao Lite 在独立的后台任务空间中工作，不会操作你已有的标签页。你可以随时查看任务或接管操作。</translation>
+<translation id="2389060918518240107">Codex：$dao-lite 在后台搜索并比较笔记本电脑。Claude Code：/dao-lite 在后台搜索并比较笔记本电脑。</translation>
 <translation id="6614076328842069414">整页截图</translation>
 <translation id="2623715612444735393">正在截取整个网页…</translation>
 <translation id="1025832597374372945">无法截取此网页</translation>
