@@ -4,6 +4,8 @@
 
 ### [Unreleased] Unreleased
 
+- Guide external AI tools to use the tab ID you provide, including a UUID pasted on its own line, when requesting page access, reducing unnecessary page selection prompts.
+
 ### [1.0.139] - 2026-11-11
 
 - Find examples in Settings for using Dao Browser with your open pages and Dao Lite for background tasks.

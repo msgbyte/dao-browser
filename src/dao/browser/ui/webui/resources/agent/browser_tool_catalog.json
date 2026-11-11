@@ -832,7 +832,7 @@
     },
     {
       "name": "request_tab_access",
-      "description": "Request native user approval to control an existing tab in the approved window. Omit tab_id to let the user privately choose a page; unapproved page candidates are never returned. A successful grant becomes the default target. Always provide a reason.",
+      "description": "Request native user approval to control an existing tab in the approved window. Always pass a supplied target tab ID as tab_id; a single unexplained UUID in the user's existing-page request counts. Clarify multiple ambiguous UUIDs. Omit tab_id when no target ID was supplied. Unapproved page candidates are never returned. A successful grant becomes the default target. Always provide a reason.",
       "group": "tabs",
       "clients": [
         "mcp"
@@ -849,7 +849,7 @@
           },
           "tab_id": {
             "type": "string",
-            "description": "Exact existing tab ID supplied by the user; omit to open the native page picker."
+            "description": "Pass the target tab ID verbatim from the user or a previous authorized result. A single UUID in an existing-page request is the target ID, even on its own line, unless the user identifies it as something else. Omit when no target tab ID was supplied."
           }
         },
         "required": [

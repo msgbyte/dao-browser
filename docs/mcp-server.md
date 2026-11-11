@@ -139,6 +139,21 @@ pending cannot receive a grant. Denied, cancelled, expired, or stale approvals
 grant nothing and preserve all
 previous grants. A page leased by another controller remains unavailable.
 
+Clients must pass a supplied target tab ID verbatim as `tab_id`. In an
+existing-page request, a single UUID in the user's input is treated as that ID,
+even on a separate line without a label, unless the user identifies it as
+something else. Multiple ambiguous UUIDs require clarification. This is agent
+guidance: Dao receives tool arguments, not the original user prompt, and still
+validates the target and applies the configured approval rules.
+
+For a supplied target tab ID:
+
+```json
+{"name":"request_tab_access","arguments":{"tab_id":"550e8400-e29b-41d4-a716-446655440000","reason":"Read the page you specified."}}
+```
+
+When no target tab ID was supplied, let the user choose a page:
+
 ```json
 {"name":"request_tab_access","arguments":{"reason":"Read the page you want me to summarize."}}
 ```

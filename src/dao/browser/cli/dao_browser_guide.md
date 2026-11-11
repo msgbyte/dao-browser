@@ -15,9 +15,14 @@ keep that process alive for the whole task. Send a stable product name in
 MCP initialization (`clientInfo.name`).
 Read the live `tools/list` catalog for exact tool arguments and return values.
 
-1. Call `request_tab_access` with a clear task-specific `reason`. Include a
-   `tab_id` only if the user or a previous authorized result supplied it;
-   otherwise omit it so Dao lets the user pick a page.
+1. Call `request_tab_access` with a clear task-specific `reason`. If the user or
+   a previous authorized result supplied the target tab ID, you must pass it
+   verbatim as `tab_id`. For an existing-page request, treat a single UUID in
+   the user's input as the target tab ID unless they identify it as something
+   else, such as a game or session ID. This includes an unlabeled UUID on its
+   own line. If multiple UUIDs make the target unclear, ask which one to use.
+   Omit `tab_id` when no target tab ID was supplied, so Dao lets the user pick
+   a page.
 2. Use the returned tab id with `get_page_info`, `query_elements`, and the
    interaction tools listed in the catalog. Approval follows that page after
    navigation. Request access separately for any additional existing page.
@@ -25,7 +30,7 @@ Read the live `tools/list` catalog for exact tool arguments and return values.
 4. End the connection when finished so its grants and control are released.
 
 `list_tabs` lists only pages already granted to this connection; it cannot
-be used to discover the user's unapproved tabs. Do not guess tab ids.
+be used to discover the user's unapproved tabs. Do not invent tab ids.
 
 `dao-browser run` executes Dao Lite scripts in background spaces and cannot
 control the user's existing pages. Separate `dao-browser call` commands also
