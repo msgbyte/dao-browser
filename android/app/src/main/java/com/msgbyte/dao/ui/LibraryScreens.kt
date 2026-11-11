@@ -895,44 +895,38 @@ fun DownloadsScreen(
             }
             if (active.isNotEmpty()) {
                 item { SectionLabel(stringResource(R.string.dao_in_progress)) }
-                item {
-                    NovaCard {
-                        active.forEachIndexed { index, download ->
-                            RealDownloadRow(
-                                download = download,
-                                editMode = editMode,
-                                onCancel = { scope.launch { repository.cancel(download.id) } },
-                                onRetry = {
-                                    scope.launch {
-                                        // A failed re-enqueue drops the row; say so instead of crashing.
-                                        runCatching { repository.retry(download.id) }.onFailure {
-                                            Toast.makeText(context, R.string.download_failed, Toast.LENGTH_SHORT).show()
-                                        }
+                items(active, key = { it.id }) { download ->
+                    NovaCard(Modifier.padding(bottom = 8.dp)) {
+                        RealDownloadRow(
+                            download = download,
+                            editMode = editMode,
+                            onCancel = { scope.launch { repository.cancel(download.id) } },
+                            onRetry = {
+                                scope.launch {
+                                    // A failed re-enqueue drops the row; say so instead of crashing.
+                                    runCatching { repository.retry(download.id) }.onFailure {
+                                        Toast.makeText(context, R.string.download_failed, Toast.LENGTH_SHORT).show()
                                     }
-                                },
-                                onRemove = { removeDownload(download.id) },
-                                onOpen = {},
-                            )
-                            if (index != active.lastIndex) RowDivider()
-                        }
+                                }
+                            },
+                            onRemove = { removeDownload(download.id) },
+                            onOpen = {},
+                        )
                     }
                 }
             }
             if (complete.isNotEmpty()) {
                 item { SectionLabel(stringResource(R.string.completed)) }
-                item {
-                    NovaCard {
-                        complete.forEachIndexed { index, download ->
-                            RealDownloadRow(
-                                download = download,
-                                editMode = editMode,
-                                onCancel = {},
-                                onRetry = {},
-                                onRemove = { removeDownload(download.id) },
-                                onOpen = { onOpenDownload(download) },
-                            )
-                            if (index != complete.lastIndex) RowDivider()
-                        }
+                items(complete, key = { it.id }) { download ->
+                    NovaCard(Modifier.padding(bottom = 8.dp)) {
+                        RealDownloadRow(
+                            download = download,
+                            editMode = editMode,
+                            onCancel = {},
+                            onRetry = {},
+                            onRemove = { removeDownload(download.id) },
+                            onOpen = { onOpenDownload(download) },
+                        )
                     }
                 }
             }

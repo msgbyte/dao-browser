@@ -781,7 +781,7 @@
 
 ### [Unreleased] Unreleased
 
-- Completed image downloads now show image thumbnails, while APKs and other files keep their file-type icons.
+- Completed image downloads now show image thumbnails, while APKs and other files keep their file-type icons. Long download lists load previews as you scroll.
 
 ### [1.2.0] - 2026-11-04
 
