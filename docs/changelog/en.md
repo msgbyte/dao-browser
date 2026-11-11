@@ -781,6 +781,7 @@
 
 ### [Unreleased] Unreleased
 
+- Ongoing downloads now replace the top-right menu icon with a download icon and a circular progress ring that combines multiple downloads. The sidebar’s Downloads menu also shows how many downloads are still in progress.
 - Completed image downloads now show image thumbnails, while APKs and other files keep their file-type icons. Long download lists load previews as you scroll.
 
 ### [1.2.0] - 2026-11-04

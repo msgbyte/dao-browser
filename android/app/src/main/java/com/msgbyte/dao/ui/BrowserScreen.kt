@@ -65,6 +65,7 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -77,6 +78,7 @@ import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.clearText
 import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -125,6 +127,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -169,6 +172,8 @@ import com.composables.icons.lucide.X
 import com.msgbyte.dao.R
 import com.msgbyte.dao.about.readAboutAppInfo
 import com.msgbyte.dao.browser.AppConfiguration
+import com.msgbyte.dao.browser.ActiveDownloadSummary
+import com.msgbyte.dao.browser.activeDownloadSummary
 import com.msgbyte.dao.browser.AmoStoreViewModel
 import com.msgbyte.dao.browser.BrowserTabsController
 import com.msgbyte.dao.browser.BrowserLibraryRepository
@@ -188,12 +193,17 @@ import com.msgbyte.dao.ui.theme.PrivateSpaceTheme
 import com.msgbyte.dao.ui.theme.daoBrandLogoPainter
 import java.time.LocalDateTime
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import mozilla.components.concept.engine.Engine
 import mozilla.components.browser.icons.BrowserIcons
 import mozilla.components.concept.engine.EngineSession
 import mozilla.components.browser.state.state.TabSessionState
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.core.content.ContextCompat
 
 const val BROWSER_SURFACE_TEST_TAG = "browser-surface"
@@ -588,6 +598,7 @@ fun BrowserScreen(
                             tabCount = tabCount,
                             thumbnailCapture = thumbnailCapture,
                             library = library,
+                            downloads = downloads,
                             pageImages = pageImages,
                             darkTheme = darkTheme,
                             onDarkThemeChange = onDarkThemeChange,
@@ -1385,6 +1396,7 @@ private fun BrowsingScreen(
     tabCount: Int,
     thumbnailCapture: BrowserThumbnailCapture,
     library: BrowserLibraryRepository,
+    downloads: SystemDownloadRepository,
     pageImages: PageImageActions,
     darkTheme: Boolean,
     onDarkThemeChange: (Boolean) -> Unit,
@@ -1404,12 +1416,28 @@ private fun BrowsingScreen(
     // In the private space the chrome and the frame around the page share the space color.
     val chromeColor = if (privateBrowsing) colors.background else colors.surface
     val bookmarks by library.bookmarks.collectAsStateWithLifecycle()
+    val downloadItems by downloads.downloads.collectAsStateWithLifecycle()
+    val activeDownloads = remember(downloadItems) { downloadItems.activeDownloadSummary() }
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
     val isBookmarked = bookmarks.any { it.url == content?.url && it.kind == BookmarkKind.FAVORITE }
     var findOpen by remember { mutableStateOf(false) }
     var scannerOpen by remember { mutableStateOf(false) }
     var securitySheetOpen by remember { mutableStateOf(false) }
     var refreshRequested by remember { mutableStateOf(false) }
     var refreshObservedLoading by remember { mutableStateOf(false) }
+
+    LaunchedEffect(downloads, lifecycle) {
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) {
+                try {
+                    downloads.refresh()
+                } catch (error: Exception) {
+                    if (error is CancellationException) throw error
+                }
+                delay(1_000)
+            }
+        }
+    }
 
     LaunchedEffect(tab?.id) {
         refreshRequested = false
@@ -1457,6 +1485,7 @@ private fun BrowsingScreen(
                             canGoBack = content?.canGoBack == true,
                             canGoForward = content?.canGoForward == true,
                             isBookmarked = isBookmarked,
+                            activeDownloadCount = activeDownloads.count,
                             darkTheme = darkTheme,
                             onDarkThemeChange = onDarkThemeChange,
                             onToggleBookmark = {
@@ -1526,6 +1555,7 @@ private fun BrowsingScreen(
                             onAddressClick = { onEditAddress(content?.url.orEmpty()) },
                             onTabs = onOpenTabs,
                             onMenu = { scope.launch { drawerState.open() } },
+                            activeDownloads = activeDownloads,
                         )
                         if (findOpen) {
                             FindInPageBar(
@@ -1703,6 +1733,7 @@ internal fun AddressBar(
     onAddressClick: () -> Unit,
     onTabs: () -> Unit,
     onMenu: () -> Unit,
+    activeDownloads: ActiveDownloadSummary = ActiveDownloadSummary(),
 ) {
     val colors = LocalNovaColors.current
     val shape = RoundedCornerShape(12.dp)
@@ -1799,8 +1830,38 @@ internal fun AddressBar(
                 onClick = onTabs,
                 modifier = Modifier.size(32.dp),
             )
-            IconButton(onClick = onMenu, modifier = Modifier.size(32.dp)) {
-                Icon(Lucide.Ellipsis, stringResource(R.string.menu), tint = colors.muted, modifier = Modifier.size(19.dp))
+            val downloadDescription = stringResource(R.string.active_download_count, activeDownloads.count)
+            IconButton(
+                onClick = onMenu,
+                modifier = Modifier.size(32.dp).semantics {
+                    if (activeDownloads.count > 0) stateDescription = downloadDescription
+                },
+            ) {
+                if (activeDownloads.count > 0) {
+                    Box(contentAlignment = Alignment.Center) {
+                        val progressModifier = Modifier.size(30.dp)
+                        val downloadProgress = activeDownloads.progress
+                        if (downloadProgress == null) {
+                            CircularProgressIndicator(
+                                modifier = progressModifier,
+                                color = colors.brand,
+                                strokeWidth = 2.dp,
+                                trackColor = colors.brand.copy(alpha = .18f),
+                            )
+                        } else {
+                            CircularProgressIndicator(
+                                progress = { downloadProgress },
+                                modifier = progressModifier,
+                                color = colors.brand,
+                                strokeWidth = 2.dp,
+                                trackColor = colors.brand.copy(alpha = .18f),
+                            )
+                        }
+                        Icon(Lucide.Download, stringResource(R.string.menu), tint = colors.brand, modifier = Modifier.size(16.dp))
+                    }
+                } else {
+                    Icon(Lucide.Ellipsis, stringResource(R.string.menu), tint = colors.muted, modifier = Modifier.size(19.dp))
+                }
             }
         }
     }
@@ -1973,6 +2034,7 @@ private fun BrowserDrawer(
     canGoBack: Boolean,
     canGoForward: Boolean,
     isBookmarked: Boolean,
+    activeDownloadCount: Int,
     darkTheme: Boolean,
     onDarkThemeChange: (Boolean) -> Unit,
     onToggleBookmark: () -> Unit,
@@ -2003,11 +2065,13 @@ private fun BrowserDrawer(
             DrawerTile(Lucide.SearchCode, R.string.find_in_page, Modifier.weight(1f), onFind)
         }
         HorizontalDivider(Modifier.padding(horizontal = 16.dp, vertical = 14.dp), color = colors.border)
-        DrawerItem(Lucide.House, R.string.home, onHome)
-        DrawerItem(Lucide.ScanLine, R.string.scan_qr, onScan)
+        DrawerItem(Lucide.House, R.string.home, onClick = onHome)
+        DrawerItem(Lucide.ScanLine, R.string.scan_qr, onClick = onScan)
         DrawerItem(Lucide.History, R.string.history) { onOpen(BrowserDestination.History) }
         DrawerItem(Lucide.Bookmark, R.string.bookmarks) { onOpen(BrowserDestination.Bookmarks) }
-        DrawerItem(Lucide.Download, R.string.downloads) { onOpen(BrowserDestination.Downloads) }
+        DrawerItem(Lucide.Download, R.string.downloads, badgeCount = activeDownloadCount) {
+            onOpen(BrowserDestination.Downloads)
+        }
         DrawerItem(Lucide.Puzzle, R.string.extensions) { onOpen(BrowserDestination.Extensions) }
         DrawerItem(
             if (darkTheme) Lucide.Sun else Lucide.Moon,
@@ -2085,14 +2149,30 @@ private fun DrawerTile(
 }
 
 @Composable
-private fun DrawerItem(icon: ImageVector, labelRes: Int, onClick: () -> Unit) {
+internal fun DrawerItem(icon: ImageVector, labelRes: Int, badgeCount: Int = 0, onClick: () -> Unit) {
     val colors = LocalNovaColors.current
+    val downloadDescription = stringResource(R.string.active_download_count, badgeCount)
     Row(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 20.dp, vertical = 12.dp),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).semantics {
+            if (badgeCount > 0) stateDescription = downloadDescription
+        }.padding(horizontal = 20.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(icon, null, tint = colors.muted, modifier = Modifier.size(21.dp))
         Spacer(Modifier.width(13.dp))
-        Text(stringResource(labelRes), color = colors.foreground, fontSize = 14.5.sp, fontWeight = FontWeight.Medium)
+        Text(stringResource(labelRes), modifier = Modifier.weight(1f), color = colors.foreground,
+            fontSize = 14.5.sp, fontWeight = FontWeight.Medium)
+        if (badgeCount > 0) {
+            Text(
+                stringResource(R.string.download_count_badge, badgeCount),
+                modifier = Modifier.padding(start = 12.dp).widthIn(min = 24.dp)
+                    .background(colors.brand, CircleShape).padding(horizontal = 7.dp, vertical = 2.dp)
+                    .clearAndSetSemantics {},
+                color = colors.onAccent,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center,
+            )
+        }
     }
 }

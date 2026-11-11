@@ -171,6 +171,8 @@
     <string name="download_confirmation_title" tools:ignore="MissingTranslation">Download this file?</string>
     <string name="download" tools:ignore="MissingTranslation">Download</string>
     <string name="download_pending">Pending</string>
+    <string name="active_download_count" tools:ignore="MissingTranslation">Downloads in progress: %1$d</string>
+    <string name="download_count_badge" tools:ignore="MissingTranslation">%1$d</string>
     <string name="downloading">Downloading</string>
     <string name="download_speed" tools:ignore="MissingTranslation">%1$s/s</string>
     <string name="download_waiting">Waiting for network</string>

@@ -10,6 +10,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
@@ -24,6 +25,9 @@ import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.core.app.ApplicationProvider
 import com.msgbyte.dao.R
+import com.composables.icons.lucide.Download
+import com.composables.icons.lucide.Lucide
+import com.msgbyte.dao.browser.ActiveDownloadSummary
 import com.msgbyte.dao.browser.SiteSecurityDetails
 import com.msgbyte.dao.browser.SiteSecurityState
 import com.msgbyte.dao.ui.theme.DaoTheme
@@ -38,6 +42,84 @@ class BrowserChromeTest {
     @get:Rule
     val composeRule = createComposeRule()
     private val context = ApplicationProvider.getApplicationContext<Context>()
+
+    @Test
+    fun activeDownloadsUpdateTheMenuAndDrawerWithoutMovingTheAddressBar() {
+        val downloads = mutableStateOf(ActiveDownloadSummary())
+        var menuClicks = 0
+        var downloadClicks = 0
+        composeRule.setContent {
+            DaoTheme {
+                Column {
+                    AddressBar(
+                        url = "https://example.com",
+                        isSecure = true,
+                        privateBrowsing = false,
+                        tabCount = 1,
+                        loading = false,
+                        progress = 0,
+                        onSecurityClick = {},
+                        onAddressClick = {},
+                        onTabs = {},
+                        onMenu = { menuClicks++ },
+                        activeDownloads = downloads.value,
+                    )
+                    DrawerItem(Lucide.Download, R.string.downloads, badgeCount = downloads.value.count) {
+                        downloadClicks++
+                    }
+                }
+            }
+        }
+        val menu = composeRule.onNodeWithContentDescription(context.getString(R.string.menu))
+        val drawerItem = composeRule.onNodeWithText(context.getString(R.string.downloads))
+        val address = composeRule.onNodeWithTag(BROWSER_CONTROLS_TEST_TAG)
+        val idleBounds = address.fetchSemanticsNode().boundsInRoot
+        val idleImage = address.captureToImage()
+        menu.assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.StateDescription))
+        drawerItem.assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.StateDescription))
+
+        composeRule.runOnIdle { downloads.value = ActiveDownloadSummary(2, 0.25f) }
+
+        val downloading = SemanticsMatcher.expectValue(
+            SemanticsProperties.StateDescription,
+            context.getString(R.string.active_download_count, 2),
+        )
+        menu.assert(downloading)
+        drawerItem.assert(downloading)
+        composeRule.onNode(SemanticsMatcher.expectValue(
+            SemanticsProperties.ProgressBarRangeInfo,
+            ProgressBarRangeInfo(0.25f, 0f..1f),
+        )).assertIsDisplayed()
+        assertEquals(idleBounds, address.fetchSemanticsNode().boundsInRoot)
+        assertTrue(imagesDiffer(idleImage, address.captureToImage()))
+        composeRule.runOnIdle {
+            downloads.value = ActiveDownloadSummary(1)
+        }
+
+        menu.assert(SemanticsMatcher.expectValue(
+            SemanticsProperties.StateDescription,
+            context.getString(R.string.active_download_count, 1),
+        ))
+        composeRule.onNode(SemanticsMatcher.expectValue(
+            SemanticsProperties.ProgressBarRangeInfo,
+            ProgressBarRangeInfo.Indeterminate,
+        )).assertIsDisplayed()
+
+        composeRule.runOnIdle { downloads.value = ActiveDownloadSummary() }
+
+        menu.assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.StateDescription))
+        drawerItem.assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.StateDescription))
+        assertTrue(!imagesDiffer(idleImage, address.captureToImage()))
+
+        // Click after pixel checks so native ripple animations cannot change the screenshots.
+        composeRule.runOnIdle { downloads.value = ActiveDownloadSummary(2, 0.5f) }
+        menu.performClick()
+        drawerItem.performClick()
+        composeRule.runOnIdle {
+            assertEquals(1, menuClicks)
+            assertEquals(1, downloadClicks)
+        }
+    }
 
     @Test
     fun loadingProgressChangesOnlyTheAddressBackground() {
