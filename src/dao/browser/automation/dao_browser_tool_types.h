@@ -33,6 +33,7 @@ enum class DaoToolErrorCode {
   kAgentControlBusy,
   kLeaseBusy,
   kTargetGone,
+  kTabNotFound,
   kTargetForbidden,
   kInvalidArgument,
   kUnknownTool,

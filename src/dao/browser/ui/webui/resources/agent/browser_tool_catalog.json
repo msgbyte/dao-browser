@@ -832,7 +832,7 @@
     },
     {
       "name": "request_tab_access",
-      "description": "Request native user approval to control an existing tab in the approved window. Always pass a supplied target tab ID as tab_id; a single unexplained UUID in the user's existing-page request counts. Clarify multiple ambiguous UUIDs. Omit tab_id when no target ID was supplied. Unapproved page candidates are never returned. A successful grant becomes the default target. Always provide a reason.",
+      "description": "Request native user approval to control an existing tab in the approved window. Always pass a supplied target tab ID as tab_id; a single unexplained UUID in the user's existing-page request counts. Clarify multiple ambiguous UUIDs. Omit tab_id when no target ID was supplied. If an explicit-ID request returns TAB_NOT_FOUND, retry this tool once on the same connection with the same reason and no tab_id, then use the returned page. Normal approval or configured page auto-approval still applies. Stop if the retry fails or the user denies access; never retry denial or revocation. Unapproved page candidates are never returned. A successful grant becomes the default target. Always provide a reason.",
       "group": "tabs",
       "clients": [
         "mcp"
@@ -849,7 +849,7 @@
           },
           "tab_id": {
             "type": "string",
-            "description": "Pass the target tab ID verbatim from the user or a previous authorized result. A single UUID in an existing-page request is the target ID, even on its own line, unless the user identifies it as something else. Omit when no target tab ID was supplied."
+            "description": "Pass the target tab ID verbatim from the user or a previous authorized result. A single UUID in an existing-page request is the target ID, even on its own line, unless the user identifies it as something else. Omit when no target tab ID was supplied, or for one retry after TAB_NOT_FOUND."
           }
         },
         "required": [

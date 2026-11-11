@@ -128,6 +128,14 @@ DaoToolError AuthorizationDenied() {
                           "The MCP browser connection was not authorized.");
 }
 
+DaoToolError TabNotFound() {
+  return MakeDaoToolError(
+      DaoToolErrorCode::kTabNotFound,
+      "The requested tab id was not found. Retry request_tab_access once "
+      "without tab_id, keeping the same reason, to request page selection.",
+      true);
+}
+
 DaoToolError InvalidRequest(std::string message) {
   return MakeDaoToolError(DaoToolErrorCode::kInvalidArgument,
                           std::move(message));
@@ -2440,6 +2448,9 @@ DaoMcpService::PrepareApprovalSession(ConnectionState& connection,
       return base::unexpected(
           InvalidRequest("The requested tab id is ambiguous."));
     }
+    if (!active_tab) {
+      return base::unexpected(TabNotFound());
+    }
     browser = browser_window;
   }
   content::WebContents* target =
@@ -2570,9 +2581,13 @@ void DaoMcpService::RequestTabAccess(ConnectionState& connection,
   DaoMcpApprovalRequest request(*connection.client_info,
                                 *pending.call.arguments.FindString("reason"),
                                 base::Time::Now());
+  bool requested_tab_found = false;
   for (tabs::TabInterface* tab : tab_list->GetAllTabs()) {
     content::WebContents* contents = tab->GetContents();
     const std::string tab_id = GetOrCreateSidebarTabId(contents);
+    if (requested_id && *requested_id == tab_id) {
+      requested_tab_found = true;
+    }
     if ((requested_id && *requested_id != tab_id) ||
         (auto_approve && !requested_id &&
          tab != window->GetActiveTabInterface()) ||
@@ -2607,8 +2622,11 @@ void DaoMcpService::RequestTabAccess(ConnectionState& connection,
     }
   }
   if (connection.page_candidates.empty()) {
-    OnToolCallComplete(generation, request_id, false,
-                       ErrorResult(AuthorizationDenied()));
+    OnToolCallComplete(
+        generation, request_id, false,
+        ErrorResult(requested_id && !requested_tab_found
+                        ? TabNotFound()
+                        : AuthorizationDenied()));
     return;
   }
   const uint64_t serial = ++connection.page_approval_serial;

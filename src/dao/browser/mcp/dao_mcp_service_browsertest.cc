@@ -4259,6 +4259,108 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
+                       MissingInitialTabCanRetryWithPicker) {
+  FakeApprovalDelegate approval;
+  service_->SetApprovalDelegate(&approval);
+  EnableService();
+  auto client = ConnectClient();
+  ASSERT_TRUE(client);
+  ASSERT_TRUE(client->Send(HelloRequest(nonce())));
+  ASSERT_TRUE(client->Read());
+
+  ASSERT_TRUE(client->Send(ToolCall(
+      "missing-tab", "request_tab_access",
+      base::DictValue().Set("tab_id", "missing-tab"))));
+  auto response = client->Read();
+  ASSERT_TRUE(response);
+  ASSERT_TRUE(response->FindStringByDottedPath("error.code"));
+  EXPECT_EQ("TAB_NOT_FOUND", *response->FindStringByDottedPath("error.code"));
+  EXPECT_TRUE(response->FindBoolByDottedPath("error.retryable").value_or(false));
+  EXPECT_EQ(0u, approval.request_count());
+  EXPECT_EQ(0u, approval.page_request_count());
+  EXPECT_EQ(0u, service_->GetControlledTargetCount());
+
+  ASSERT_TRUE(client->Send(ToolCall("retry-with-picker", "request_tab_access")));
+  ASSERT_NO_FATAL_FAILURE(WaitForApprovalRequestCount(&approval, 1u));
+  EXPECT_FALSE(approval.request().tab_target);
+  approval.Resolve(true);
+  ASSERT_TRUE(base::test::RunUntil(
+      [&approval] { return approval.page_request_count() == 1u; }));
+  EXPECT_FALSE(approval.request().tab_target);
+  ASSERT_FALSE(approval.request().tab_choices.empty());
+  EXPECT_EQ(0u, service_->GetControlledTargetCount());
+  content::WebContents* selected =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  const std::string selected_id = GetOrCreateSidebarTabId(selected);
+  approval.ResolvePageAt(0, selected_id);
+  response = client->Read();
+  ASSERT_TRUE(response);
+  EXPECT_TRUE(response->FindBoolByDottedPath("result.ok").value_or(false));
+  ASSERT_TRUE(response->FindStringByDottedPath("result.data.tab_id"));
+  EXPECT_EQ(selected_id, *response->FindStringByDottedPath("result.data.tab_id"));
+  EXPECT_EQ(selected, service_->GetAuthorizedTarget());
+  EXPECT_TRUE(service_->IsTargetControlled(selected));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
+                       MissingTabRetryKeepsDenialAndForbiddenTargetsDistinct) {
+  FakeApprovalDelegate approval;
+  service_->SetApprovalDelegate(&approval);
+  EnableService();
+  auto client = ConnectClient();
+  ASSERT_TRUE(client);
+  ASSERT_TRUE(client->Send(HelloRequest(nonce())));
+  ASSERT_TRUE(client->Read());
+  ASSERT_NO_FATAL_FAILURE(ApproveWindow(client.get(), &approval));
+
+  ASSERT_TRUE(client->Send(ToolCall(
+      "missing-tab", "request_tab_access",
+      base::DictValue().Set("tab_id", "missing-tab"))));
+  auto response = client->Read();
+  ASSERT_TRUE(response);
+  ASSERT_TRUE(response->FindStringByDottedPath("result.error.code"));
+  EXPECT_EQ("TAB_NOT_FOUND",
+            *response->FindStringByDottedPath("result.error.code"));
+  EXPECT_TRUE(
+      response->FindBoolByDottedPath("result.error.retryable").value_or(false));
+  EXPECT_EQ(0u, approval.page_request_count());
+  EXPECT_EQ(0u, service_->GetControlledTargetCount());
+
+  ASSERT_TRUE(client->Send(ToolCall("retry-with-picker", "request_tab_access")));
+  ASSERT_TRUE(base::test::RunUntil(
+      [&approval] { return approval.page_request_count() == 1u; }));
+  EXPECT_FALSE(approval.request().tab_target);
+  ASSERT_FALSE(approval.request().tab_choices.empty());
+  approval.ResolvePageAt(0, std::nullopt);
+  response = client->Read();
+  ASSERT_TRUE(response);
+  ASSERT_TRUE(response->FindStringByDottedPath("result.error.code"));
+  EXPECT_EQ("AUTHORIZATION_DENIED",
+            *response->FindStringByDottedPath("result.error.code"));
+  EXPECT_FALSE(
+      response->FindBoolByDottedPath("result.error.retryable").value_or(true));
+  EXPECT_EQ(1u, approval.page_request_count());
+  EXPECT_EQ(0u, service_->GetControlledTargetCount());
+
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("dao://settings/")));
+  const std::string forbidden_id = GetOrCreateSidebarTabId(
+      browser()->tab_strip_model()->GetActiveWebContents());
+  ASSERT_TRUE(client->Send(ToolCall(
+      "forbidden-tab", "request_tab_access",
+      base::DictValue().Set("tab_id", forbidden_id))));
+  response = client->Read();
+  ASSERT_TRUE(response);
+  ASSERT_TRUE(response->FindStringByDottedPath("result.error.code"));
+  EXPECT_EQ("AUTHORIZATION_DENIED",
+            *response->FindStringByDottedPath("result.error.code"));
+  EXPECT_FALSE(
+      response->FindBoolByDottedPath("result.error.retryable").value_or(true));
+  EXPECT_EQ(1u, approval.request_count());
+  EXPECT_EQ(1u, approval.page_request_count());
+  EXPECT_EQ(0u, service_->GetControlledTargetCount());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
                        InvalidExplicitTabNeverFallsBackOrPrompts) {
   FakeApprovalDelegate approval;
   service_->SetApprovalDelegate(&approval);
@@ -4278,9 +4380,8 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
     auto response = client->Read();
     ASSERT_TRUE(response);
     ASSERT_TRUE(response->FindStringByDottedPath("error.code"));
-    // An unknown ID has no eligible window for initial approval.
-    EXPECT_EQ(id.is_string() && !id.GetString().empty() ? "TARGET_FORBIDDEN"
-                                                      : "INVALID_ARGUMENT",
+    EXPECT_EQ(id.is_string() && !id.GetString().empty() ? "TAB_NOT_FOUND"
+                                                     : "INVALID_ARGUMENT",
               *response->FindStringByDottedPath("error.code"));
     EXPECT_FALSE(response->FindDict("result"));
     EXPECT_EQ(0u, approval.request_count());

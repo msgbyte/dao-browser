@@ -124,6 +124,7 @@ TEST(DaoMcpTypesTest, ExposesEveryStableErrorCode) {
       std::pair{DaoToolErrorCode::kAgentControlBusy, "AGENT_CONTROL_BUSY"},
       std::pair{DaoToolErrorCode::kLeaseBusy, "LEASE_BUSY"},
       std::pair{DaoToolErrorCode::kTargetGone, "TARGET_GONE"},
+      std::pair{DaoToolErrorCode::kTabNotFound, "TAB_NOT_FOUND"},
       std::pair{DaoToolErrorCode::kTargetForbidden, "TARGET_FORBIDDEN"},
       std::pair{DaoToolErrorCode::kInvalidArgument, "INVALID_ARGUMENT"},
       std::pair{DaoToolErrorCode::kUnknownTool, "UNKNOWN_TOOL"},

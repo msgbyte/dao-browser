@@ -43,6 +43,8 @@ std::string_view DaoToolErrorCodeToString(DaoToolErrorCode code) {
       return "LEASE_BUSY";
     case DaoToolErrorCode::kTargetGone:
       return "TARGET_GONE";
+    case DaoToolErrorCode::kTabNotFound:
+      return "TAB_NOT_FOUND";
     case DaoToolErrorCode::kTargetForbidden:
       return "TARGET_FORBIDDEN";
     case DaoToolErrorCode::kInvalidArgument:

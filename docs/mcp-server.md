@@ -146,13 +146,24 @@ something else. Multiple ambiguous UUIDs require clarification. This is agent
 guidance: Dao receives tool arguments, not the original user prompt, and still
 validates the target and applies the configured approval rules.
 
+If an explicit-ID `request_tab_access` returns `TAB_NOT_FOUND`, the client must
+retry it once on the same connection with the same `reason` and no `tab_id`,
+instead of stopping at the missing tab. Continue with the returned page. This
+uses the normal approval flow, or the current eligible page when page
+auto-approval is enabled. If the retry fails or the user denies access, stop
+and report it. Never use this fallback for denial, revocation, forbidden
+targets, or a controlled page closing. The browser reports the missing ID;
+the client makes the second request explicitly.
+
 For a supplied target tab ID:
 
 ```json
 {"name":"request_tab_access","arguments":{"tab_id":"550e8400-e29b-41d4-a716-446655440000","reason":"Read the page you specified."}}
 ```
 
-When no target tab ID was supplied, let the user choose a page:
+When no target tab ID was supplied, let the user choose a page. The same request
+shape, preserving the original `reason`, is used for the single retry after
+`TAB_NOT_FOUND`:
 
 ```json
 {"name":"request_tab_access","arguments":{"reason":"Read the page you want me to summarize."}}
@@ -396,6 +407,7 @@ before allowing access.
 | `AGENT_CONTROL_BUSY` | Dao Agent attempted a browser tool while MCP held the lease. |
 | `TARGET_FORBIDDEN` | The exact window, Profile, URL, or switch candidate is ineligible. |
 | `TARGET_GONE` | The exact approved window, tab, Profile, or owner no longer exists. |
+| `TAB_NOT_FOUND` | The supplied tab ID was not found during initial approval or in the approved window. An explicit-ID `request_tab_access` may be retried once without `tab_id`, keeping the same `reason`. This is not an authorization denial. |
 | `TOOL_CANCELLED` | The call was cancelled by the client or terminal cleanup. |
 
 ## Troubleshooting
