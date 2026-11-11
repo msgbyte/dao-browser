@@ -50,6 +50,22 @@ data class BrowserDownload(
         }
 }
 
+internal data class ActiveDownloadSummary(val count: Int = 0, val progress: Float? = null)
+
+internal fun List<BrowserDownload>.activeDownloadSummary(): ActiveDownloadSummary {
+    val active = filter {
+        it.status == DownloadStatus.PENDING || it.status == DownloadStatus.RUNNING ||
+            it.status == DownloadStatus.PAUSED
+    }
+    if (active.isEmpty() || active.any { (it.totalBytes ?: 0) <= 0 }) {
+        return ActiveDownloadSummary(count = active.size)
+    }
+    // Sum as doubles so multiple large files cannot overflow a Long byte counter.
+    val total = active.sumOf { it.totalBytes!!.toDouble() }
+    val downloaded = active.sumOf { it.bytesDownloaded.coerceIn(0L, it.totalBytes!!).toDouble() }
+    return ActiveDownloadSummary(active.size, (downloaded / total).toFloat().coerceIn(0f, 1f))
+}
+
 internal enum class DownloadGatewayStatus {
     PENDING,
     RUNNING,
