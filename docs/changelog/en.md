@@ -4,6 +4,8 @@
 
 ### [Unreleased] Unreleased
 
+### [1.0.139] - 2026-11-11
+
 - Find examples in Settings for using Dao Browser with your open pages and Dao Lite for background tasks.
 
 - Fix command bar Enter opening an unseen suggestion: matching URL paths now appear as selected completion text, and Enter uses your typed address when no completion is shown.
