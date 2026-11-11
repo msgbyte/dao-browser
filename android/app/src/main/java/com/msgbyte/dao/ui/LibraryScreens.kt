@@ -978,7 +978,7 @@ private fun RealDownloadRow(
         else -> DownloadAction(Lucide.X, stringResource(R.string.cancel_download), onCancel)
     }
     DownloadRow(
-        fileIcon = downloadFileIcon(download.request.fileName, download.request.contentType),
+        download = download,
         name = download.request.fileName,
         meta = downloadMeta(download),
         speed = download.bytesPerSecond?.takeIf { download.status == DownloadStatus.RUNNING }?.let {
@@ -1047,7 +1047,7 @@ private fun downloadMeta(download: BrowserDownload): String {
 
 @Composable
 private fun DownloadRow(
-    fileIcon: ImageVector,
+    download: BrowserDownload,
     name: String,
     meta: String,
     speed: String?,
@@ -1058,12 +1058,7 @@ private fun DownloadRow(
 ) {
     val colors = LocalNovaColors.current
     Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-        Box(
-            Modifier.size(44.dp).background(colors.surfaceSecondary, RoundedCornerShape(11.dp)).border(1.dp, colors.border, RoundedCornerShape(11.dp)),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(fileIcon, contentDescription = null, modifier = Modifier.size(24.dp), tint = colors.muted)
-        }
+        DownloadFileIcon(download)
         Spacer(Modifier.width(13.dp))
         Column(Modifier.weight(1f)) {
             Text(name, color = colors.foreground, fontSize = 14.5.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
