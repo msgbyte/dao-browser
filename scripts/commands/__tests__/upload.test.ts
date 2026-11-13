@@ -106,7 +106,7 @@ describe('upload cleanup helpers', () => {
     ]);
   });
 
-  it('selects old Dao release objects while keeping the latest versions', () => {
+  it('selects old Dao release objects oldest first while keeping the latest versions', () => {
     const candidates = getCleanupCandidates([
       {key: 'dao-browser-0.3.0-mac-arm64.dmg', size: 10},
       {key: 'dao-browser-0.4.0-mac-arm64.dmg', size: 20},
@@ -121,13 +121,13 @@ describe('upload cleanup helpers', () => {
     // DMGs: keep 0.5.0 → delete 0.4.0 and 0.3.0
     // Deltas: keep Dao5.0 (latest) → delete Dao4.0
     expect(candidates.map((c) => c.key)).toEqual([
-      'dao-browser-0.4.0-mac-arm64.dmg',
       'dao-browser-0.3.0-mac-arm64.dmg',
+      'dao-browser-0.4.0-mac-arm64.dmg',
       'Dao4.0-3.0.delta',
     ]);
     expect(candidates.map((c) => c.version)).toEqual([
-      '0.4.0',
       '0.3.0',
+      '0.4.0',
       '4.0',
     ]);
   });
@@ -220,9 +220,9 @@ describe('upload cleanup helpers', () => {
     expect(getSelectableCleanupIndexes(candidates).map((i) => candidates[i].key))
         .toEqual([
           'dao-browser-1.0.1-mac-arm64.dmg',
+          'releases/dao-browser-1.0.0-windows-x64.update.json',
           'other/dao-browser-1.0.1-windows-x64.exe.sha256',
           'releases/dao-browser-1.0.1-windows-x64.exe',
-          'releases/dao-browser-1.0.0-windows-x64.update.json',
         ]);
     expect((associations.get(0) || []).map((i) => candidates[i].key))
         .toEqual(['Dao2.0-1.0.delta']);
@@ -311,18 +311,18 @@ describe('upload cleanup helpers', () => {
     ], 1);
 
     expect(candidates.map((c) => c.key)).toEqual([
-      'dao-browser-1.0.45-mac-arm64.dmg',
       'dao-browser-1.0.44-mac-arm64.dmg',
-      'Dao14.0-13.0.delta',
+      'dao-browser-1.0.45-mac-arm64.dmg',
       'Dao13.0-12.0.delta',
+      'Dao14.0-13.0.delta',
     ]);
 
     const associations = getAssociatedCleanupIndexes(candidates);
     expect((associations.get(0) || []).map((i) => candidates[i].key)).toEqual([
-      'Dao14.0-13.0.delta',
+      'Dao13.0-12.0.delta',
     ]);
     expect((associations.get(1) || []).map((i) => candidates[i].key)).toEqual([
-      'Dao13.0-12.0.delta',
+      'Dao14.0-13.0.delta',
     ]);
   });
 
@@ -338,8 +338,8 @@ describe('upload cleanup helpers', () => {
 
     expect(getSelectableCleanupIndexes(candidates).map((i) => candidates[i].key))
         .toEqual([
-          'dao-browser-1.0.45-mac-arm64.dmg',
           'dao-browser-1.0.44-mac-arm64.dmg',
+          'dao-browser-1.0.45-mac-arm64.dmg',
         ]);
   });
 

@@ -600,7 +600,7 @@ export function getCleanupCandidates(
   return candidates.sort((a, b) => {
     const byKind = releaseKindRank(a.key) - releaseKindRank(b.key);
     if (byKind !== 0) return byKind;
-    const byVersion = compareVersionsDesc(a.version, b.version);
+    const byVersion = compareVersionsDesc(b.version, a.version);
     return byVersion === 0 ? a.key.localeCompare(b.key) : byVersion;
   });
 }
