@@ -13,3 +13,44 @@ source_set("file_snapshot") {
   public_deps = [ "//base" ]
   deps = [ "//crypto" ]
 }
+
+if (is_mac || is_win) {
+  # Keep filesystem and commit checks runnable without the browser UI binary.
+  test("dao_home_store_unittests") {
+    sources = [
+      "//base/test/run_all_unittests.cc",
+      "//dao/browser/agent/dao_agent_workspace_types.cc",
+      "//dao/browser/agent/dao_agent_workspace_types.h",
+      "//dao/browser/agent/workspace/path_normalizer.cc",
+      "//dao/browser/agent/workspace/path_normalizer.h",
+      "//dao/browser/agent/workspace/text_only_filter.cc",
+      "//dao/browser/agent/workspace/text_only_filter.h",
+      "//dao/browser/agent/workspace/v4a_patch_applier.cc",
+      "//dao/browser/agent/workspace/v4a_patch_applier.h",
+      "//dao/browser/agent/workspace/v4a_patch_parser.cc",
+      "//dao/browser/agent/workspace/v4a_patch_parser.h",
+      "//dao/browser/agent/workspace/workspace_quota.cc",
+      "//dao/browser/agent/workspace/workspace_quota.h",
+      "//dao/browser/cli/dao_home_workspace_unittest.cc",
+      "dao_home_experience.cc",
+      "dao_home_experience.h",
+      "dao_home_file_snapshot_unittest.cc",
+      "dao_home_manifest.cc",
+      "dao_home_manifest.h",
+      "dao_home_project_store.cc",
+      "dao_home_project_store.h",
+      "dao_home_project_store_unittest.cc",
+      "dao_home_types.cc",
+      "dao_home_types.h",
+    ]
+    deps = [
+      ":file_snapshot",
+      "//base/test:test_support",
+      "//crypto",
+      "//dao/browser/cli:home_workspace",
+      "//net",
+      "//testing/gtest",
+      "//url",
+    ]
+  }
+}

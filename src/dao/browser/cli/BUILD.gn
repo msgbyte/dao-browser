@@ -52,6 +52,22 @@ action("dao_lite_entry_skill") {
 }
 
 if (is_mac || is_win) {
+  source_set("home_workspace") {
+    sources = [
+      "dao_home_workspace.cc",
+      "dao_home_workspace.h",
+    ]
+    public_deps = [
+      "//base",
+      "//dao/browser/home:file_snapshot",
+    ]
+    if (is_win) {
+      deps = [ "//dao/browser/local_ipc:win_support" ]
+    }
+  }
+}
+
+if (is_mac || is_win) {
   executable("dao_browser_cli") {
     output_name = "dao-browser"
     sources = [ "dao_browser_cli.cc" ]
