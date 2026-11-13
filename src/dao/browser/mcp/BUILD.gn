@@ -14,36 +14,43 @@ source_set("mcp_wire") {
   public_deps = [
     "//base",
     "//dao/browser/automation:tool_types",
+    "//dao/browser/local_ipc:wire",
   ]
+}
+
+if (is_mac || is_win) {
+  source_set("mcp_runtime_files") {
+    sources = [
+      "dao_mcp_runtime_files.cc",
+      "dao_mcp_runtime_files.h",
+    ]
+    public_deps = [
+      ":mcp_wire",
+      "//dao/browser/local_ipc:browser",
+    ]
+  }
 }
 
 if (is_win) {
   test("dao_mcp_unittests") {
     sources = [
       "//base/test/run_all_unittests.cc",
-      "dao_mcp_runtime_files_win.cc",
       "dao_mcp_win_unittest.cc",
     ]
     deps = [
       ":mcp_helper_core",
+      ":mcp_runtime_files",
       ":mcp_win_support",
       "//base/test:test_support",
       "//crypto",
+      "//dao/browser/local_ipc:browser",
       "//testing/gtest",
     ]
   }
 
   source_set("mcp_win_support") {
-    sources = [
-      "dao_mcp_win_util.cc",
-      "dao_mcp_win_util.h",
-    ]
-    public_deps = [ "//base" ]
-    libs = [
-      "advapi32.lib",
-      "iphlpapi.lib",
-      "ws2_32.lib",
-    ]
+    sources = [ "dao_mcp_win_util.h" ]
+    public_deps = [ "//dao/browser/local_ipc:win_support" ]
   }
 }
 
@@ -54,20 +61,15 @@ source_set("browser_mcp") {
     sources = [
       "dao_local_agent_integration.cc",
       "dao_local_agent_integration.h",
-      "dao_mcp_connection.cc",
       "dao_mcp_connection.h",
-      "dao_mcp_runtime_files.h",
       "dao_mcp_session_lifecycle_monitor.cc",
       "dao_mcp_session_lifecycle_monitor.h",
-      "dao_mcp_transport.cc",
       "dao_mcp_transport.h",
     ]
-
-    if (is_mac) {
-      sources += [ "dao_mcp_runtime_files.mm" ]
-    } else {
-      sources += [ "dao_mcp_runtime_files_win.cc" ]
-    }
+    public_deps += [
+      ":mcp_runtime_files",
+      "//dao/browser/local_ipc:browser",
+    ]
 
     deps = [
       "//base",
@@ -91,7 +93,6 @@ if (is_mac || is_win) {
   # Socket client and MCP stdio server shared by dao-mcp and dao-browser.
   source_set("mcp_helper_core") {
     sources = [
-      "helper/dao_mcp_browser_client.cc",
       "helper/dao_mcp_browser_client.h",
       "helper/dao_mcp_stdio_server.cc",
       "helper/dao_mcp_stdio_server.h",
@@ -100,6 +101,7 @@ if (is_mac || is_win) {
     public_deps = [
       ":mcp_wire",
       "//base",
+      "//dao/browser/local_ipc:client",
     ]
     if (is_win) {
       public_deps += [ "//net" ]

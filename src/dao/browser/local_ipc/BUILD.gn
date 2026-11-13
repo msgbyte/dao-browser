@@ -1,0 +1,90 @@
+# Copyright 2026 Dao Browser Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//testing/test.gni")
+
+source_set("wire") {
+  sources = [
+    "dao_local_ipc_config.h",
+    "dao_local_ipc_protocol.cc",
+    "dao_local_ipc_protocol.h",
+  ]
+  public_deps = [ "//base" ]
+}
+
+if (is_win) {
+  source_set("win_support") {
+    sources = [
+      "dao_local_ipc_win_util.cc",
+      "dao_local_ipc_win_util.h",
+    ]
+    public_deps = [ "//base" ]
+    libs = [
+      "advapi32.lib",
+      "iphlpapi.lib",
+      "ws2_32.lib",
+    ]
+  }
+}
+
+if (is_mac || is_win) {
+  source_set("client") {
+    sources = [
+      "dao_local_ipc_client.cc",
+      "dao_local_ipc_client.h",
+    ]
+    public_deps = [ ":wire" ]
+    if (is_win) {
+      public_deps += [ "//net" ]
+      deps = [ ":win_support" ]
+    }
+  }
+
+  source_set("browser") {
+    sources = [
+      "dao_local_ipc_connection.cc",
+      "dao_local_ipc_connection.h",
+      "dao_local_ipc_runtime_files.h",
+      "dao_local_ipc_transport.cc",
+      "dao_local_ipc_transport.h",
+    ]
+    public_deps = [ ":wire" ]
+    deps = [
+      "//crypto",
+      "//net",
+    ]
+    if (is_mac) {
+      sources += [ "dao_local_ipc_runtime_files.mm" ]
+    } else {
+      sources += [ "dao_local_ipc_runtime_files_win.cc" ]
+      deps += [ ":win_support" ]
+    }
+  }
+}
+
+source_set("test_support") {
+  testonly = true
+  sources = [ "dao_local_ipc_unittest.cc" ]
+  deps = [
+    ":wire",
+    "//base/test:test_support",
+    "//testing/gtest",
+  ]
+  if (is_mac) {
+    sources += [ "dao_local_ipc_runtime_files_unittest.cc" ]
+    deps += [
+      ":browser",
+      ":client",
+    ]
+  }
+}
+
+test("dao_local_ipc_unittests") {
+  sources = [ "//base/test/run_all_unittests.cc" ]
+  deps = [
+    ":test_support",
+    "//base/test:test_support",
+    "//testing/gtest",
+  ]
+}

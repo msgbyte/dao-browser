@@ -5,34 +5,32 @@
 #ifndef DAO_BROWSER_MCP_DAO_MCP_WIN_UTIL_H_
 #define DAO_BROWSER_MCP_DAO_MCP_WIN_UTIL_H_
 
-#include <cstddef>
-#include <cstdint>
-#include <optional>
-#include <string>
-
-#include "base/files/file_path.h"
-#include "base/process/process_handle.h"
-#include "base/win/scoped_handle.h"
+#include "dao/browser/local_ipc/dao_local_ipc_win_util.h"
 
 namespace dao {
 
-// Rejects reparse points, hard-linked files, and any ACL except a protected
-// current-user-only ACL. Handles disallow replacement while they are open.
-base::win::ScopedHandle OpenDaoMcpPrivatePath(const base::FilePath& path,
-                                              bool directory,
-                                              bool create,
-                                              DWORD access);
-bool ReadDaoMcpPrivateFile(HANDLE file,
-                           size_t max_bytes,
-                           std::string* contents);
-bool DeleteDaoMcpPrivateFile(const base::FilePath& path);
-bool IsDaoMcpCurrentUserProcess(base::ProcessId pid);
-
-// remote_port == 0 selects a listener; otherwise selects the established
-// connection with this exact loopback tuple, not merely a reused port.
-std::optional<base::ProcessId> GetDaoMcpLoopbackTcpOwner(
+inline base::win::ScopedHandle OpenDaoMcpPrivatePath(const base::FilePath& path,
+                                                     bool directory,
+                                                     bool create,
+                                                     DWORD access) {
+  return OpenDaoLocalIpcPrivatePath(path, directory, create, access);
+}
+inline bool ReadDaoMcpPrivateFile(HANDLE file,
+                                  size_t max_bytes,
+                                  std::string* contents) {
+  return ReadDaoLocalIpcPrivateFile(file, max_bytes, contents);
+}
+inline bool DeleteDaoMcpPrivateFile(const base::FilePath& path) {
+  return DeleteDaoLocalIpcPrivateFile(path);
+}
+inline bool IsDaoMcpCurrentUserProcess(base::ProcessId pid) {
+  return IsDaoLocalIpcCurrentUserProcess(pid);
+}
+inline std::optional<base::ProcessId> GetDaoMcpLoopbackTcpOwner(
     uint16_t local_port,
-    uint16_t remote_port = 0);
+    uint16_t remote_port = 0) {
+  return GetDaoLocalIpcLoopbackTcpOwner(local_port, remote_port);
+}
 
 }  // namespace dao
 

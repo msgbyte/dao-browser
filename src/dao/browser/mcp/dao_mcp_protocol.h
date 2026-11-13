@@ -13,6 +13,7 @@
 #include "base/types/expected.h"
 #include "base/values.h"
 #include "dao/browser/automation/dao_browser_tool_types.h"
+#include "dao/browser/local_ipc/dao_local_ipc_protocol.h"
 
 namespace dao {
 
@@ -32,18 +33,9 @@ struct DaoMcpProtocolError {
   DaoToolError error;
 };
 
-struct DaoMcpRequest {
-  DaoMcpRequest();
-  ~DaoMcpRequest();
-  DaoMcpRequest(const DaoMcpRequest&) = delete;
-  DaoMcpRequest& operator=(const DaoMcpRequest&) = delete;
-  DaoMcpRequest(DaoMcpRequest&&) noexcept;
-  DaoMcpRequest& operator=(DaoMcpRequest&&) noexcept;
+using DaoMcpRequest = DaoLocalIpcRequest;
 
-  std::optional<std::string> id;
-  std::string method;
-  base::DictValue params;
-};
+DaoLocalIpcError ToDaoLocalIpcError(const DaoToolError& error);
 
 base::expected<DaoMcpRequest, DaoMcpProtocolError> ParseDaoMcpRequestLine(
     std::string_view line);

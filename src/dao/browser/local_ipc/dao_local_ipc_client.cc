@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "dao/browser/mcp/helper/dao_mcp_browser_client.h"
+#include "dao/browser/local_ipc/dao_local_ipc_client.h"
 
 #include <array>
 #include <cerrno>
@@ -13,14 +13,15 @@
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/numerics/safe_conversions.h"
-#include "dao/browser/mcp/dao_mcp_protocol.h"
+#include "base/strings/string_util.h"
+#include "dao/browser/local_ipc/dao_local_ipc_protocol.h"
 
 #if BUILDFLAG(IS_WIN)
 #include <winsock2.h>
 
 #include <windows.h>
 
-#include "dao/browser/mcp/dao_mcp_win_util.h"
+#include "dao/browser/local_ipc/dao_local_ipc_win_util.h"
 #include "net/base/winsock_init.h"
 #else
 #include <fcntl.h>
@@ -34,7 +35,6 @@
 namespace dao {
 namespace {
 
-constexpr size_t kMaxQueuedWriteBytes = kDaoMcpMaxLineBytes + 1;
 constexpr size_t kMaxMetadataBytes = 64 * 1024;
 
 bool IsHexNonce(std::string_view nonce) {
@@ -52,15 +52,16 @@ bool IsHexNonce(std::string_view nonce) {
 
 }  // namespace
 
-DaoMcpBrowserClient::DaoMcpBrowserClient(base::FilePath user_data_dir)
-    : user_data_dir_(std::move(user_data_dir)) {}
+DaoLocalIpcClient::DaoLocalIpcClient(base::FilePath user_data_dir,
+                                     DaoLocalIpcConfig config)
+    : config_(config), user_data_dir_(std::move(user_data_dir)) {}
 
-DaoMcpBrowserClient::~DaoMcpBrowserClient() {
+DaoLocalIpcClient::~DaoLocalIpcClient() {
   Disconnect();
 }
 
-bool DaoMcpBrowserClient::Connect(std::string_view client_name,
-                                  std::string_view client_version) {
+bool DaoLocalIpcClient::Connect(std::string_view client_name,
+                                std::string_view client_version) {
   Disconnect();
   std::string nonce;
   if (!ReadMetadata(&nonce)) {
@@ -95,7 +96,9 @@ bool DaoMcpBrowserClient::Connect(std::string_view client_name,
   }
 #else
   const std::string socket_path =
-      user_data_dir_.AppendASCII("MCP").AppendASCII("mcp.sock").value();
+      user_data_dir_.AppendASCII(config_.runtime_directory)
+          .AppendASCII(config_.socket_name)
+          .value();
   base::ScopedFD socket_fd(socket(AF_UNIX, SOCK_STREAM, 0));
   if (!socket_fd.is_valid()) {
     return Fail("could not create the browser socket");
@@ -127,7 +130,7 @@ bool DaoMcpBrowserClient::Connect(std::string_view client_name,
 
   return QueueRequest(
       base::DictValue()
-          .Set("version", kDaoMcpIpcVersion)
+          .Set("version", config_.protocol_version)
           .Set("id", "hello")
           .Set("method", "hello")
           .Set("params",
@@ -138,7 +141,7 @@ bool DaoMcpBrowserClient::Connect(std::string_view client_name,
                                       .Set("version", client_version))));
 }
 
-bool DaoMcpBrowserClient::QueueRequest(base::DictValue request) {
+bool DaoLocalIpcClient::QueueRequest(base::DictValue request) {
   if (!is_connected()) {
     return Fail("the browser socket is not connected");
   }
@@ -147,8 +150,8 @@ bool DaoMcpBrowserClient::QueueRequest(base::DictValue request) {
     return Fail("could not serialize a browser request");
   }
   serialized.push_back('\n');
-  if (serialized.size() > kDaoMcpMaxLineBytes + 1 ||
-      serialized.size() > kMaxQueuedWriteBytes - queued_write_bytes_) {
+  if (serialized.size() > config_.max_line_bytes + 1 ||
+      serialized.size() > (config_.max_line_bytes + 1) - queued_write_bytes_) {
     return Fail("the browser write queue limit was exceeded");
   }
   queued_write_bytes_ += serialized.size();
@@ -156,7 +159,7 @@ bool DaoMcpBrowserClient::QueueRequest(base::DictValue request) {
   return true;
 }
 
-bool DaoMcpBrowserClient::FlushWrites() {
+bool DaoLocalIpcClient::FlushWrites() {
   if (connecting_) {
     if (!CompleteConnection()) {
       return false;
@@ -198,8 +201,7 @@ bool DaoMcpBrowserClient::FlushWrites() {
   return true;
 }
 
-bool DaoMcpBrowserClient::ReadResponses(
-    std::vector<base::DictValue>* responses) {
+bool DaoLocalIpcClient::ReadResponses(std::vector<base::DictValue>* responses) {
   if (!responses) {
     return Fail("the browser response destination is missing");
   }
@@ -237,9 +239,9 @@ bool DaoMcpBrowserClient::ReadResponses(
       return Fail("could not read from the browser socket");
     }
     received_.append(buffer.data(), static_cast<size_t>(bytes));
-    if (received_.size() > kDaoMcpMaxLineBytes &&
+    if (received_.size() > config_.max_line_bytes &&
         received_.find('\n') == std::string::npos) {
-      return Fail("a browser response exceeded the 8 MiB limit");
+      return Fail("a browser response exceeded the endpoint limit");
     }
   }
 
@@ -248,8 +250,8 @@ bool DaoMcpBrowserClient::ReadResponses(
     if (newline == std::string::npos) {
       break;
     }
-    if (newline > kDaoMcpMaxLineBytes) {
-      return Fail("a browser response exceeded the 8 MiB limit");
+    if (newline > config_.max_line_bytes) {
+      return Fail("a browser response exceeded the endpoint limit");
     }
     std::string line = received_.substr(0, newline);
     received_.erase(0, newline + 1);
@@ -263,8 +265,9 @@ bool DaoMcpBrowserClient::ReadResponses(
     const std::string* id = response.FindString("id");
     const bool has_result = response.FindDict("result") != nullptr;
     const bool has_error = response.FindDict("error") != nullptr;
-    if (!version || *version != kDaoMcpIpcVersion || !id || id->empty() ||
-        id->size() > kDaoMcpMaxRequestIdBytes || has_result == has_error) {
+    if (!version || *version != config_.protocol_version || !id ||
+        id->empty() || id->size() > kDaoLocalIpcMaxRequestIdBytes ||
+        has_result == has_error) {
       return Fail("the browser returned an invalid response envelope");
     }
     responses->push_back(std::move(response));
@@ -272,7 +275,7 @@ bool DaoMcpBrowserClient::ReadResponses(
   return disconnected ? Fail("the browser socket disconnected") : true;
 }
 
-void DaoMcpBrowserClient::Disconnect() {
+void DaoLocalIpcClient::Disconnect() {
 #if BUILDFLAG(IS_WIN)
   if (is_connected()) {
     closesocket(socket_);
@@ -296,9 +299,11 @@ void DaoMcpBrowserClient::Disconnect() {
 }
 
 #if !BUILDFLAG(IS_WIN)
-bool DaoMcpBrowserClient::ReadMetadata(std::string* nonce) {
-  const base::FilePath runtime_dir = user_data_dir_.AppendASCII("MCP");
-  const base::FilePath expected_socket = runtime_dir.AppendASCII("mcp.sock");
+bool DaoLocalIpcClient::ReadMetadata(std::string* nonce) {
+  const base::FilePath runtime_dir =
+      user_data_dir_.AppendASCII(config_.runtime_directory);
+  const base::FilePath expected_socket =
+      runtime_dir.AppendASCII(config_.socket_name);
   base::ScopedFD runtime_fd(
       open(runtime_dir.value().c_str(),
            O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC));
@@ -306,7 +311,7 @@ bool DaoMcpBrowserClient::ReadMetadata(std::string* nonce) {
   if (!runtime_fd.is_valid() || fstat(runtime_fd.get(), &runtime_stat) != 0 ||
       !S_ISDIR(runtime_stat.st_mode) || runtime_stat.st_uid != getuid() ||
       (runtime_stat.st_mode & 0777) != 0700) {
-    return Fail("the private MCP runtime directory is unavailable");
+    return Fail("the private local IPC runtime directory is unavailable");
   }
 
   base::ScopedFD metadata_fd(openat(runtime_fd.get(), "runtime.json",
@@ -317,7 +322,7 @@ bool DaoMcpBrowserClient::ReadMetadata(std::string* nonce) {
       !S_ISREG(metadata_stat.st_mode) || metadata_stat.st_uid != getuid() ||
       (metadata_stat.st_mode & 0777) != 0600 || metadata_stat.st_size < 0 ||
       static_cast<size_t>(metadata_stat.st_size) > kMaxMetadataBytes) {
-    return Fail("the private MCP runtime metadata is unavailable");
+    return Fail("the private local IPC runtime metadata is unavailable");
   }
 
   std::string contents;
@@ -328,7 +333,7 @@ bool DaoMcpBrowserClient::ReadMetadata(std::string* nonce) {
       continue;
     }
     if (bytes < 0) {
-      return Fail("could not read private MCP runtime metadata");
+      return Fail("could not read private local IPC runtime metadata");
     }
     if (bytes == 0) {
       break;
@@ -336,26 +341,26 @@ bool DaoMcpBrowserClient::ReadMetadata(std::string* nonce) {
     contents.append(buffer.data(), static_cast<size_t>(bytes));
   }
   if (contents.size() > kMaxMetadataBytes) {
-    return Fail("private MCP runtime metadata is too large");
+    return Fail("private local IPC runtime metadata is too large");
   }
   std::optional<base::Value> parsed =
       base::JSONReader::Read(contents, base::JSON_PARSE_RFC);
   if (!parsed || !parsed->is_dict()) {
-    return Fail("private MCP runtime metadata is invalid");
+    return Fail("private local IPC runtime metadata is invalid");
   }
   const base::DictValue& metadata = parsed->GetDict();
   const std::string* parsed_socket_path = metadata.FindString("socket_path");
   const std::string* parsed_nonce = metadata.FindString("nonce");
-  if (metadata.FindInt("version") != kDaoMcpIpcVersion ||
+  if (metadata.FindInt("version") != config_.protocol_version ||
       !metadata.FindInt("browser_pid") || !parsed_socket_path ||
       *parsed_socket_path != expected_socket.value() || !parsed_nonce ||
       !IsHexNonce(*parsed_nonce)) {
-    return Fail("private MCP runtime metadata has an unsupported shape");
+    return Fail("private local IPC runtime metadata has an unsupported shape");
   }
 
   struct stat socket_stat = {};
   struct stat current_runtime_stat = {};
-  if (fstatat(runtime_fd.get(), "mcp.sock", &socket_stat,
+  if (fstatat(runtime_fd.get(), config_.socket_name.data(), &socket_stat,
               AT_SYMLINK_NOFOLLOW) != 0 ||
       !S_ISSOCK(socket_stat.st_mode) || socket_stat.st_uid != getuid() ||
       (socket_stat.st_mode & 0777) != 0600 ||
@@ -363,7 +368,7 @@ bool DaoMcpBrowserClient::ReadMetadata(std::string* nonce) {
       !S_ISDIR(current_runtime_stat.st_mode) ||
       current_runtime_stat.st_dev != runtime_stat.st_dev ||
       current_runtime_stat.st_ino != runtime_stat.st_ino) {
-    return Fail("the private MCP browser socket is unavailable");
+    return Fail("the private local IPC browser socket is unavailable");
   }
   runtime_device_ = runtime_stat.st_dev;
   runtime_inode_ = runtime_stat.st_ino;
@@ -373,7 +378,7 @@ bool DaoMcpBrowserClient::ReadMetadata(std::string* nonce) {
   return true;
 }
 
-bool DaoMcpBrowserClient::CompleteConnection() {
+bool DaoLocalIpcClient::CompleteConnection() {
   int socket_error = 0;
   socklen_t error_size = sizeof(socket_error);
   if (getsockopt(socket_.get(), SOL_SOCKET, SO_ERROR, &socket_error,
@@ -394,9 +399,11 @@ bool DaoMcpBrowserClient::CompleteConnection() {
   return true;
 }
 
-bool DaoMcpBrowserClient::VerifySocketIdentity() {
-  const base::FilePath runtime_dir = user_data_dir_.AppendASCII("MCP");
-  const base::FilePath socket_path = runtime_dir.AppendASCII("mcp.sock");
+bool DaoLocalIpcClient::VerifySocketIdentity() {
+  const base::FilePath runtime_dir =
+      user_data_dir_.AppendASCII(config_.runtime_directory);
+  const base::FilePath socket_path =
+      runtime_dir.AppendASCII(config_.socket_name);
   struct stat runtime_stat = {};
   struct stat socket_stat = {};
   if (lstat(runtime_dir.value().c_str(), &runtime_stat) != 0 ||
@@ -409,49 +416,51 @@ bool DaoMcpBrowserClient::VerifySocketIdentity() {
       (socket_stat.st_mode & 0777) != 0600 ||
       socket_stat.st_dev != socket_device_ ||
       socket_stat.st_ino != socket_inode_) {
-    return Fail("the private MCP browser socket changed before connection");
+    return Fail(
+        "the private local IPC browser socket changed before connection");
   }
   return true;
 }
 #else
 
-bool DaoMcpBrowserClient::ReadMetadata(std::string* nonce) {
-  const base::FilePath runtime_dir = user_data_dir_.AppendASCII("MCP");
+bool DaoLocalIpcClient::ReadMetadata(std::string* nonce) {
+  const base::FilePath runtime_dir =
+      user_data_dir_.AppendASCII(config_.runtime_directory);
   runtime_dir_handle_ =
-      OpenDaoMcpPrivatePath(runtime_dir, true, false, FILE_LIST_DIRECTORY);
+      OpenDaoLocalIpcPrivatePath(runtime_dir, true, false, FILE_LIST_DIRECTORY);
   if (!runtime_dir_handle_.is_valid()) {
-    return Fail("the private MCP runtime directory is unavailable");
+    return Fail("the private local IPC runtime directory is unavailable");
   }
-  auto file = OpenDaoMcpPrivatePath(runtime_dir.AppendASCII("runtime.json"),
-                                    false, false, GENERIC_READ);
+  auto file = OpenDaoLocalIpcPrivatePath(
+      runtime_dir.AppendASCII("runtime.json"), false, false, GENERIC_READ);
   std::string contents;
   if (!file.is_valid() ||
-      !ReadDaoMcpPrivateFile(file.get(), kMaxMetadataBytes, &contents)) {
-    return Fail("the private MCP runtime metadata is unavailable");
+      !ReadDaoLocalIpcPrivateFile(file.get(), kMaxMetadataBytes, &contents)) {
+    return Fail("the private local IPC runtime metadata is unavailable");
   }
   auto metadata = base::JSONReader::ReadDict(contents, base::JSON_PARSE_RFC);
   if (!metadata) {
-    return Fail("private MCP runtime metadata is invalid");
+    return Fail("private local IPC runtime metadata is invalid");
   }
   const std::optional<int> port = metadata->FindInt("port");
   const std::optional<int> pid = metadata->FindInt("browser_pid");
   const std::string* parsed_nonce = metadata->FindString("nonce");
-  if (metadata->FindInt("version") != kDaoMcpIpcVersion || !port ||
+  if (metadata->FindInt("version") != config_.protocol_version || !port ||
       *port <= 0 || *port > 65535 || !pid || *pid <= 0 || !parsed_nonce ||
       !IsHexNonce(*parsed_nonce)) {
-    return Fail("private MCP runtime metadata has an unsupported shape");
+    return Fail("private local IPC runtime metadata has an unsupported shape");
   }
   port_ = base::checked_cast<uint16_t>(*port);
   browser_pid_ = base::checked_cast<base::ProcessId>(*pid);
-  if (GetDaoMcpLoopbackTcpOwner(port_) != browser_pid_ ||
-      !IsDaoMcpCurrentUserProcess(browser_pid_)) {
-    return Fail("the private MCP browser listener is unavailable");
+  if (GetDaoLocalIpcLoopbackTcpOwner(port_) != browser_pid_ ||
+      !IsDaoLocalIpcCurrentUserProcess(browser_pid_)) {
+    return Fail("the private local IPC browser listener is unavailable");
   }
   *nonce = *parsed_nonce;
   return true;
 }
 
-bool DaoMcpBrowserClient::CompleteConnection() {
+bool DaoLocalIpcClient::CompleteConnection() {
   int socket_error = 0;
   int error_size = sizeof(socket_error);
   if (getsockopt(socket_, SOL_SOCKET, SO_ERROR,
@@ -480,7 +489,7 @@ bool DaoMcpBrowserClient::CompleteConnection() {
   return true;
 }
 
-bool DaoMcpBrowserClient::VerifySocketIdentity() {
+bool DaoLocalIpcClient::VerifySocketIdentity() {
   sockaddr_in peer = {};
   sockaddr_in local = {};
   int peer_size = sizeof(peer);
@@ -494,18 +503,19 @@ bool DaoMcpBrowserClient::VerifySocketIdentity() {
       peer.sin_addr.s_addr != htonl(INADDR_LOOPBACK) ||
       local.sin_addr.s_addr != htonl(INADDR_LOOPBACK) ||
       peer.sin_port != htons(port_) ||
-      GetDaoMcpLoopbackTcpOwner(port_, ntohs(local.sin_port)) != browser_pid_ ||
-      !IsDaoMcpCurrentUserProcess(browser_pid_)) {
-    return Fail("the private MCP browser peer changed before connection");
+      GetDaoLocalIpcLoopbackTcpOwner(port_, ntohs(local.sin_port)) !=
+          browser_pid_ ||
+      !IsDaoLocalIpcCurrentUserProcess(browser_pid_)) {
+    return Fail("the private local IPC browser peer changed before connection");
   }
   return true;
 }
 
 #endif
 
-bool DaoMcpBrowserClient::WaitForIO(bool readable,
-                                    bool writable,
-                                    int timeout_ms) {
+bool DaoLocalIpcClient::WaitForIO(bool readable,
+                                  bool writable,
+                                  int timeout_ms) {
   if (!is_connected()) {
     return Fail("the browser socket is not connected");
   }
@@ -539,7 +549,9 @@ bool DaoMcpBrowserClient::WaitForIO(bool readable,
   return result >= 0 || Fail("could not wait for the browser socket");
 }
 
-bool DaoMcpBrowserClient::Fail(std::string message) {
+bool DaoLocalIpcClient::Fail(std::string message) {
+  base::ReplaceSubstringsAfterOffset(&message, 0, "local IPC",
+                                     config_.runtime_directory);
   last_error_ = std::move(message);
   return false;
 }

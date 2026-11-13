@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "dao/browser/mcp/dao_mcp_win_util.h"
+#include "dao/browser/local_ipc/dao_local_ipc_win_util.h"
 
 // Winsock must precede Windows networking headers.
 #include <winsock2.h>
@@ -53,10 +53,10 @@ bool IsPrivateHandle(HANDLE handle, bool directory) {
 
 }  // namespace
 
-base::win::ScopedHandle OpenDaoMcpPrivatePath(const base::FilePath& path,
-                                              bool directory,
-                                              bool create,
-                                              DWORD access) {
+base::win::ScopedHandle OpenDaoLocalIpcPrivatePath(const base::FilePath& path,
+                                                   bool directory,
+                                                   bool create,
+                                                   DWORD access) {
   auto token = base::win::AccessToken::FromCurrentProcess();
   if (!token) {
     return {};
@@ -89,9 +89,9 @@ base::win::ScopedHandle OpenDaoMcpPrivatePath(const base::FilePath& path,
   return handle;
 }
 
-bool ReadDaoMcpPrivateFile(HANDLE file,
-                           size_t max_bytes,
-                           std::string* contents) {
+bool ReadDaoLocalIpcPrivateFile(HANDLE file,
+                                size_t max_bytes,
+                                std::string* contents) {
   contents->clear();
   std::array<char, 4096> buffer;
   DWORD bytes = 0;
@@ -106,8 +106,8 @@ bool ReadDaoMcpPrivateFile(HANDLE file,
   return true;
 }
 
-bool DeleteDaoMcpPrivateFile(const base::FilePath& path) {
-  auto file = OpenDaoMcpPrivatePath(path, false, false, DELETE);
+bool DeleteDaoLocalIpcPrivateFile(const base::FilePath& path) {
+  auto file = OpenDaoLocalIpcPrivatePath(path, false, false, DELETE);
   if (!file.is_valid()) {
     return GetLastError() == ERROR_FILE_NOT_FOUND;
   }
@@ -116,7 +116,7 @@ bool DeleteDaoMcpPrivateFile(const base::FilePath& path) {
                                     &disposition, sizeof(disposition));
 }
 
-bool IsDaoMcpCurrentUserProcess(base::ProcessId pid) {
+bool IsDaoLocalIpcCurrentUserProcess(base::ProcessId pid) {
   base::win::ScopedHandle process(
       OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid));
   if (!process.is_valid()) {
@@ -127,8 +127,9 @@ bool IsDaoMcpCurrentUserProcess(base::ProcessId pid) {
   return current && peer && current->User() == peer->User();
 }
 
-std::optional<base::ProcessId> GetDaoMcpLoopbackTcpOwner(uint16_t local_port,
-                                                         uint16_t remote_port) {
+std::optional<base::ProcessId> GetDaoLocalIpcLoopbackTcpOwner(
+    uint16_t local_port,
+    uint16_t remote_port) {
   if (local_port == 0) {
     return std::nullopt;
   }

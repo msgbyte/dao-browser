@@ -5,26 +5,15 @@
 #ifndef DAO_BROWSER_MCP_DAO_MCP_RUNTIME_FILES_H_
 #define DAO_BROWSER_MCP_DAO_MCP_RUNTIME_FILES_H_
 
-#include <cstdint>
-#include <optional>
-#include <string>
+#include <utility>
 
-#include "base/files/file_path.h"
-#include "base/memory/ref_counted.h"
-#include "base/process/process_handle.h"
-#include "base/types/expected.h"
-#include "build/build_config.h"
-
-#if BUILDFLAG(IS_WIN)
-#include "base/win/scoped_handle.h"
-#else
-#include <sys/stat.h>
-#include "base/files/scoped_file.h"
-#endif
+#include "base/memory/scoped_refptr.h"
 #include "dao/browser/automation/dao_browser_tool_types.h"
+#include "dao/browser/local_ipc/dao_local_ipc_runtime_files.h"
 
 namespace dao {
 
+// Keep the existing ref-counted MCP API while sharing endpoint implementation.
 class DaoMcpRuntimeFiles
     : public base::RefCountedThreadSafe<DaoMcpRuntimeFiles> {
  public:
@@ -33,41 +22,39 @@ class DaoMcpRuntimeFiles
   DaoMcpRuntimeFiles(const DaoMcpRuntimeFiles&) = delete;
   DaoMcpRuntimeFiles& operator=(const DaoMcpRuntimeFiles&) = delete;
 
-  base::expected<void, DaoToolError> Prepare();
-  base::expected<void, DaoToolError> CaptureBoundSocket(uint16_t port = 0);
-  base::expected<void, DaoToolError> Publish();
-  void Cleanup();
+  base::expected<void, DaoToolError> Prepare() {
+    return ConvertResult(files_->Prepare());
+  }
+  base::expected<void, DaoToolError> CaptureBoundSocket(uint16_t port = 0) {
+    return ConvertResult(files_->CaptureBoundSocket(port));
+  }
+  base::expected<void, DaoToolError> Publish() {
+    return ConvertResult(files_->Publish());
+  }
+  void Cleanup() { files_->Cleanup(); }
 
-  const base::FilePath& runtime_dir() const { return runtime_dir_; }
-  const base::FilePath& socket_path() const { return socket_path_; }
-  const base::FilePath& metadata_path() const { return metadata_path_; }
-  const std::string& nonce() const { return nonce_; }
+  const base::FilePath& runtime_dir() const { return files_->runtime_dir(); }
+  const base::FilePath& socket_path() const { return files_->socket_path(); }
+  const base::FilePath& metadata_path() const {
+    return files_->metadata_path();
+  }
+  const std::string& nonce() const { return files_->nonce(); }
 
  private:
   friend class base::RefCountedThreadSafe<DaoMcpRuntimeFiles>;
-
   ~DaoMcpRuntimeFiles();
-  DaoToolError FileError(std::string message) const;
-#if !BUILDFLAG(IS_WIN)
-  bool OpenAndSecureRuntimeDirectory(bool create_if_missing);
-  bool IsPinnedRuntimeDirectoryCurrent() const;
-  bool RemoveOwnedLeaf(const char* name, bool expect_socket);
-  bool VerifySocket(struct stat* socket_stat) const;
-#endif
 
-  base::FilePath runtime_dir_;
-  base::FilePath socket_path_;
-  base::FilePath metadata_path_;
-  base::ProcessId browser_pid_;
-  std::string nonce_;
-#if BUILDFLAG(IS_WIN)
-  base::win::ScopedHandle runtime_dir_handle_;
-  uint16_t port_ = 0;
-#else
-  base::ScopedFD runtime_dir_fd_;
-  std::optional<uint64_t> socket_device_;
-  std::optional<uint64_t> socket_inode_;
-#endif
+  static base::expected<void, DaoToolError> ConvertResult(
+      base::expected<void, DaoLocalIpcError> result) {
+    if (!result.has_value()) {
+      return base::unexpected(MakeDaoToolError(
+          DaoToolErrorCode::kInternalError, std::move(result.error().message),
+          result.error().retryable));
+    }
+    return base::ok();
+  }
+
+  const scoped_refptr<DaoLocalIpcRuntimeFiles> files_;
 };
 
 }  // namespace dao

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "dao/browser/mcp/dao_mcp_transport.h"
+#include "dao/browser/local_ipc/dao_local_ipc_transport.h"
 
 #include <utility>
 
@@ -12,13 +12,13 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/timer/timer.h"
 #include "build/build_config.h"
-#include "dao/browser/mcp/dao_mcp_connection.h"
+#include "dao/browser/local_ipc/dao_local_ipc_connection.h"
 #include "net/base/net_errors.h"
 #include "net/socket/server_socket.h"
 #include "net/socket/stream_socket.h"
 
 #if BUILDFLAG(IS_WIN)
-#include "dao/browser/mcp/dao_mcp_win_util.h"
+#include "dao/browser/local_ipc/dao_local_ipc_win_util.h"
 #include "net/base/ip_address.h"
 #include "net/base/ip_endpoint.h"
 #include "net/log/net_log_source.h"
@@ -31,47 +31,45 @@
 namespace dao {
 namespace {
 
-// Hard IO-thread ceiling. Admission is enforced by DaoMcpService at hello
-// time (see kDaoMcpMaxConnections), which needs the socket accepted so it can
-// answer with an id-bound error or evict an idle peer. This only bounds
-// sockets while those evictions drain.
-constexpr size_t kMaxConnections = kDaoMcpMaxConnections * 4;
-constexpr int kListenerBacklog = static_cast<int>(kDaoMcpMaxConnections);
+// Hard IO-thread ceiling; endpoint services enforce admission at hello time.
+// Extra accepted sockets allow services to send errors while evictions drain.
+constexpr size_t kMaxConnections = kDaoLocalIpcMaxConnections * 4;
+constexpr int kListenerBacklog = static_cast<int>(kDaoLocalIpcMaxConnections);
 constexpr size_t kMaxPendingRequests = 64;
-constexpr size_t kMaxPendingRequestBytes = kDaoMcpMaxLineBytes + 1;
 // Aggregate credits stay sized for admitted clients: pre-hello sockets send a
 // single hello, so they never need the extra headroom.
 constexpr size_t kMaxTotalPendingRequests =
-    kDaoMcpMaxConnections * kMaxPendingRequests;
-constexpr size_t kMaxTotalPendingRequestBytes =
-    kDaoMcpMaxConnections * kMaxPendingRequestBytes;
+    kDaoLocalIpcMaxConnections * kMaxPendingRequests;
 constexpr base::TimeDelta kPendingRequestDrainTimeout = base::Seconds(1);
 
 }  // namespace
 
-struct DaoMcpTransport::ConnectionState {
-  std::unique_ptr<DaoMcpConnection> connection;
+struct DaoLocalIpcTransport::ConnectionState {
+  std::unique_ptr<DaoLocalIpcConnection> connection;
   size_t pending_request_count = 0;
   size_t pending_request_bytes = 0;
   bool closing = false;
   base::OneShotTimer pending_request_drain_timer;
 };
 
-DaoMcpTransport::DaoMcpTransport(AcceptedCallback accepted_callback,
-                                 RequestCallback request_callback,
-                                 DisconnectedCallback disconnected_callback)
-    : accepted_callback_(std::move(accepted_callback)),
+DaoLocalIpcTransport::DaoLocalIpcTransport(
+    AcceptedCallback accepted_callback,
+    RequestCallback request_callback,
+    DisconnectedCallback disconnected_callback,
+    DaoLocalIpcConfig config)
+    : config_(config),
+      accepted_callback_(std::move(accepted_callback)),
       request_callback_(std::move(request_callback)),
       disconnected_callback_(std::move(disconnected_callback)) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 }
 
-DaoMcpTransport::~DaoMcpTransport() {
+DaoLocalIpcTransport::~DaoLocalIpcTransport() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   Stop();
 }
 
-base::expected<uint16_t, int> DaoMcpTransport::StartListening(
+base::expected<uint16_t, int> DaoLocalIpcTransport::StartListening(
     base::FilePath socket_path) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   Stop();
@@ -89,7 +87,7 @@ base::expected<uint16_t, int> DaoMcpTransport::StartListening(
 #else
   listener_ = std::make_unique<net::UnixDomainServerSocket>(
       base::BindRepeating(
-          [](base::WeakPtr<DaoMcpTransport> transport,
+          [](base::WeakPtr<DaoLocalIpcTransport> transport,
              const net::UnixDomainServerSocket::Credentials& credentials) {
             if (!transport) {
               return false;
@@ -119,12 +117,12 @@ base::expected<uint16_t, int> DaoMcpTransport::StartListening(
 #endif
 }
 
-void DaoMcpTransport::StartAccepting() {
+void DaoLocalIpcTransport::StartAccepting() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   AcceptNext();
 }
 
-void DaoMcpTransport::Stop() {
+void DaoLocalIpcTransport::Stop() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   weak_factory_.InvalidateWeakPtrs();
   listener_.reset();
@@ -137,9 +135,9 @@ void DaoMcpTransport::Stop() {
   socket_path_.clear();
 }
 
-void DaoMcpTransport::SendSuccess(uint64_t connection_generation,
-                                  std::string id,
-                                  base::DictValue result) {
+void DaoLocalIpcTransport::SendSuccess(uint64_t connection_generation,
+                                       std::string id,
+                                       base::DictValue result) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   ConnectionState* state = FindConnection(connection_generation);
   if (state && !state->closing) {
@@ -147,9 +145,9 @@ void DaoMcpTransport::SendSuccess(uint64_t connection_generation,
   }
 }
 
-void DaoMcpTransport::SendError(uint64_t connection_generation,
-                                std::optional<std::string> id,
-                                DaoToolError error) {
+void DaoLocalIpcTransport::SendError(uint64_t connection_generation,
+                                     std::optional<std::string> id,
+                                     DaoLocalIpcError error) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   ConnectionState* state = FindConnection(connection_generation);
   if (state && !state->closing) {
@@ -157,8 +155,8 @@ void DaoMcpTransport::SendError(uint64_t connection_generation,
   }
 }
 
-void DaoMcpTransport::AcknowledgeRequest(uint64_t connection_generation,
-                                         size_t wire_bytes) {
+void DaoLocalIpcTransport::AcknowledgeRequest(uint64_t connection_generation,
+                                              size_t wire_bytes) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   ConnectionState* state = FindConnection(connection_generation);
   if (!state || state->pending_request_count == 0 ||
@@ -175,7 +173,7 @@ void DaoMcpTransport::AcknowledgeRequest(uint64_t connection_generation,
   }
 }
 
-void DaoMcpTransport::CloseAfterWrites(uint64_t connection_generation) {
+void DaoLocalIpcTransport::CloseAfterWrites(uint64_t connection_generation) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   ConnectionState* state = FindConnection(connection_generation);
   if (!state || state->closing) {
@@ -189,11 +187,11 @@ void DaoMcpTransport::CloseAfterWrites(uint64_t connection_generation) {
   }
   state->pending_request_drain_timer.Start(
       FROM_HERE, kPendingRequestDrainTimeout,
-      base::BindOnce(&DaoMcpTransport::CloseConnection,
+      base::BindOnce(&DaoLocalIpcTransport::CloseConnection,
                      weak_factory_.GetWeakPtr(), connection_generation));
 }
 
-void DaoMcpTransport::CloseConnection(uint64_t connection_generation) {
+void DaoLocalIpcTransport::CloseConnection(uint64_t connection_generation) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   ConnectionState* state = FindConnection(connection_generation);
   if (state) {
@@ -202,7 +200,7 @@ void DaoMcpTransport::CloseConnection(uint64_t connection_generation) {
 }
 
 #if !BUILDFLAG(IS_WIN)
-bool DaoMcpTransport::AuthenticatePeer(
+bool DaoLocalIpcTransport::AuthenticatePeer(
     uid_t peer_uid,
     std::optional<base::ProcessId> peer_pid) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -215,21 +213,21 @@ bool DaoMcpTransport::AuthenticatePeer(
 
 #endif
 
-void DaoMcpTransport::AcceptNext() {
+void DaoLocalIpcTransport::AcceptNext() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!listener_ || accepted_socket_) {
     return;
   }
   accepted_verified_pid_.reset();
   const int result = listener_->Accept(
-      &accepted_socket_,
-      base::BindOnce(&DaoMcpTransport::OnAccepted, weak_factory_.GetWeakPtr()));
+      &accepted_socket_, base::BindOnce(&DaoLocalIpcTransport::OnAccepted,
+                                        weak_factory_.GetWeakPtr()));
   if (result != net::ERR_IO_PENDING) {
     OnAccepted(result);
   }
 }
 
-void DaoMcpTransport::OnAccepted(int result) {
+void DaoLocalIpcTransport::OnAccepted(int result) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!listener_) {
     accepted_socket_.reset();
@@ -237,9 +235,10 @@ void DaoMcpTransport::OnAccepted(int result) {
   }
   if (result != net::OK || !accepted_socket_) {
     accepted_socket_.reset();
-    LOG(ERROR) << "Dao MCP failed to accept a local connection: " << result;
+    LOG(ERROR) << "Dao local IPC failed to accept a local connection: "
+               << result;
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce(&DaoMcpTransport::AcceptNext,
+        FROM_HERE, base::BindOnce(&DaoLocalIpcTransport::AcceptNext,
                                   weak_factory_.GetWeakPtr()));
     return;
   }
@@ -251,14 +250,14 @@ void DaoMcpTransport::OnAccepted(int result) {
       accepted_socket_->GetLocalAddress(&local) == net::OK &&
       peer.address() == net::IPAddress::IPv4Localhost()) {
     accepted_verified_pid_ =
-        GetDaoMcpLoopbackTcpOwner(peer.port(), local.port());
+        GetDaoLocalIpcLoopbackTcpOwner(peer.port(), local.port());
   }
   if (!accepted_verified_pid_ ||
-      !IsDaoMcpCurrentUserProcess(*accepted_verified_pid_)) {
+      !IsDaoLocalIpcCurrentUserProcess(*accepted_verified_pid_)) {
     accepted_socket_->Disconnect();
     accepted_socket_.reset();
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce(&DaoMcpTransport::AcceptNext,
+        FROM_HERE, base::BindOnce(&DaoLocalIpcTransport::AcceptNext,
                                   weak_factory_.GetWeakPtr()));
     return;
   }
@@ -267,7 +266,7 @@ void DaoMcpTransport::OnAccepted(int result) {
   if (connections_.size() >= kMaxConnections) {
     if (!overflow_logged_) {
       overflow_logged_ = true;
-      LOG(ERROR) << "Dao MCP dropped a local connection: "
+      LOG(ERROR) << "Dao local IPC dropped a local connection: "
                  << connections_.size() << " sockets are already open.";
     }
     accepted_socket_->Disconnect();
@@ -278,32 +277,34 @@ void DaoMcpTransport::OnAccepted(int result) {
 
   const uint64_t connection_generation = next_connection_generation_++;
   auto state = std::make_unique<ConnectionState>();
-  state->connection = std::make_unique<DaoMcpConnection>(
+  state->connection = std::make_unique<DaoLocalIpcConnection>(
       std::move(accepted_socket_), accepted_verified_pid_,
-      base::BindRepeating(&DaoMcpTransport::OnRequest,
+      base::BindRepeating(&DaoLocalIpcTransport::OnRequest,
                           weak_factory_.GetWeakPtr(), connection_generation),
-      base::BindOnce(&DaoMcpTransport::OnConnectionClosed,
-                     weak_factory_.GetWeakPtr(), connection_generation));
-  DaoMcpConnection* connection = state->connection.get();
+      base::BindOnce(&DaoLocalIpcTransport::OnConnectionClosed,
+                     weak_factory_.GetWeakPtr(), connection_generation),
+      config_);
+  DaoLocalIpcConnection* connection = state->connection.get();
   connections_.emplace(connection_generation, std::move(state));
   accepted_callback_.Run(connection_generation, accepted_verified_pid_);
   connection->Start();
   AcceptNext();
 }
 
-void DaoMcpTransport::OnRequest(uint64_t connection_generation,
-                                DaoMcpRequest request,
-                                size_t wire_bytes) {
+void DaoLocalIpcTransport::OnRequest(uint64_t connection_generation,
+                                     DaoLocalIpcRequest request,
+                                     size_t wire_bytes) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   ConnectionState* state = FindConnection(connection_generation);
   if (!state || state->closing) {
     return;
   }
   if (state->pending_request_count >= kMaxPendingRequests ||
-      wire_bytes > kMaxPendingRequestBytes - state->pending_request_bytes ||
-      total_pending_request_count_ >= kMaxTotalPendingRequests ||
       wire_bytes >
-          kMaxTotalPendingRequestBytes - total_pending_request_bytes_) {
+          (config_.max_line_bytes + 1) - state->pending_request_bytes ||
+      total_pending_request_count_ >= kMaxTotalPendingRequests ||
+      wire_bytes > (kDaoLocalIpcMaxConnections * (config_.max_line_bytes + 1)) -
+                       total_pending_request_bytes_) {
     state->connection->Close();
     return;
   }
@@ -314,7 +315,7 @@ void DaoMcpTransport::OnRequest(uint64_t connection_generation,
   request_callback_.Run(connection_generation, std::move(request), wire_bytes);
 }
 
-void DaoMcpTransport::OnConnectionClosed(uint64_t connection_generation) {
+void DaoLocalIpcTransport::OnConnectionClosed(uint64_t connection_generation) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   auto existing = connections_.find(connection_generation);
   if (existing == connections_.end()) {
@@ -322,17 +323,16 @@ void DaoMcpTransport::OnConnectionClosed(uint64_t connection_generation) {
   }
   total_pending_request_count_ -= existing->second->pending_request_count;
   total_pending_request_bytes_ -= existing->second->pending_request_bytes;
-  std::unique_ptr<DaoMcpConnection> connection =
+  std::unique_ptr<DaoLocalIpcConnection> connection =
       std::move(existing->second->connection);
   connections_.erase(existing);
   disconnected_callback_.Run(connection_generation);
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE,
-      base::BindOnce([](std::unique_ptr<DaoMcpConnection>) {},
-                     std::move(connection)));
+      FROM_HERE, base::BindOnce([](std::unique_ptr<DaoLocalIpcConnection>) {},
+                                std::move(connection)));
 }
 
-DaoMcpTransport::ConnectionState* DaoMcpTransport::FindConnection(
+DaoLocalIpcTransport::ConnectionState* DaoLocalIpcTransport::FindConnection(
     uint64_t connection_generation) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   auto existing = connections_.find(connection_generation);
