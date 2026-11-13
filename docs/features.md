@@ -899,9 +899,67 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
 ### 2.7 Dao Home Personal Web Runtime (`dao://home`)
 
 - **URL-only personal website** — `dao://home/` and its internal paths load one
-  Profile-owned project. v1 has no new-tab, startup, sidebar, Settings, or other
-  discovery entry, and regular Profile is required; Incognito/Guest are
+  Profile-owned project. The browser adds no new-tab, startup, sidebar, or
+  Settings launch entry. A regular Profile is required; Incognito/Guest are
   disabled.
+- **External Home editing** (`cli/dao_home_*`, `home/dao_home_external_service.*`,
+  `local_ipc/`) — The installed `dao-home` skill uses `dao-browser home` to
+  pull, diff, preview, publish, inspect sources and diagnostics, capture the
+  preview, list versions, and roll back. A native approval binds a fixed
+  one-hour editing session to one regular Profile. Home uses its own
+  authenticated local endpoint and works with MCP disabled; it does not start
+  the built-in Agent or make a browser-side model call. Local files live only
+  in fresh, owner-private system temporary workspaces, with an explicit
+  workspace path required for later commands. Binary assets keep their bytes;
+  complete snapshots include additions and removals and retain the existing
+  500-file/20-MiB limits. Unsafe paths, links, unexpected development artifacts,
+  local changes after preview, and stale published bases fail without replacing
+  the user's edited files. Cleanup refuses unpublished changes unless explicitly
+  discarded. Cleanup is local unless `--close-session` explicitly ends the shared
+  session, so retiring an old checkout does not stop a replacement checkout.
+  Failed project cleanup preserves recovery metadata and the exclusive workspace
+  lock until the command exits, allowing a retry. Resume reuses a live session
+  and its preview, resolves pending publication when possible, requests new
+  consent only after expiry or browser restart, and refuses a session explicitly
+  stopped by the user. Settings > Local agent collaboration > Skills and command
+  includes Home installation steps and Codex/Claude Code examples in How to use.
+- **Dedicated real-Profile preview** — External preview opens a separate visible
+  Dao window in the approved Profile and runs the actual Home app and native
+  source collectors using that Profile's signed-in state. Source approval
+  remains separate from editing consent, and cookie values never leave the
+  browser. Ordinary Home tabs keep the published project and their own runtime
+  state. Focusing another application, switching tabs in an ordinary window, or
+  closing the original consent window does not cancel the dedicated preview.
+  Native owner visibility distinguishes an occluded window from a hidden one;
+  same-document hash/history changes preserve the preview receipt. In-flight
+  source collection also survives occlusion; failed source navigation releases
+  its detached page after Chromium finishes notifying navigation observers.
+  Closing, hiding, navigating, or switching away from the preview's own document
+  invalidates its receipt. Successful previews remain visible until publication,
+  replacement, or cancellation; late runtime errors revoke publication readiness.
+  Trusted Home UI identifies the external editing session and exposes Stop.
+  The ordinary Home controls and empty state also expose the editor and Stop
+  before its first preview, without changing the published page's runtime.
+  Session expiry or Stop cancels its work and closes only an intact owned preview
+  window, leaving ordinary windows and pages the user added alone.
+- **Exact external publication and recovery** — Publication requires the same
+  immutable, successfully previewed draft, byte digest, base revision, and live
+  document authorization. Source grants and the version commit together, while
+  the final summary can change independently of project bytes (up to 500 UTF-8
+  bytes). Unchanged, still-authorized sources may report failure as a warning
+  when the page handles it; new or changed source code, schemas, permissions,
+  limits, and renewed grants must pass source tests. Render and source outcomes
+  remain separate. Publication and
+  rollback record their operation ID and exact request with the version, allowing
+  a lost response to be resolved after renewed consent without duplicating a
+  version. A changed request cannot reuse that ID, and exported/imported projects
+  never carry these browser-local operation records. A successful publication
+  advances only the temporary base copy, preserving edits made while it ran;
+  rollback creates a new version without restoring revoked source grants.
+  An unresolved operation stays pending even when no provenance is found; agents
+  can pull a fresh temporary checkout and compare/reapply local edits without
+  retrying the unknown operation. Unreferenced temporary snapshots are pruned.
+  Screenshot failures report a separate result without losing a valid preview.
 - **Existing Agent integration** — The two empty-state actions open the
   existing right-side Agent. Home-specific atomic tools are injected only for
   a turn pinned to the exact active Home tab and published revision, and native
@@ -1111,7 +1169,8 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
   browser's default `html` and `body` margins before project styles run so
   generated layouts start edge-to-edge but can still add intentional spacing.
   Unpublished preview resources are available only while
-  the trusted Home host owns an active, timed preview request. Generated code
+  the trusted Home host owns an active Agent preview request or a retained
+  external preview in its dedicated window. Generated code
   cannot submit its own preview verdict: the trusted parent reports only the
   iframe load, while the browser process binds the exact preview frame and
   rejects console errors, failed loads, or cross-document replacement before
