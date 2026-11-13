@@ -14,6 +14,7 @@
 #include "base/files/file_path.h"
 #include "base/functional/callback.h"
 #include "base/types/expected.h"
+#include "dao/browser/home/dao_home_file_snapshot.h"
 #include "dao/browser/home/dao_home_types.h"
 
 namespace dao {
@@ -33,6 +34,16 @@ class DaoHomeProjectStore {
 
   HomeSnapshot GetSnapshot() const;
   std::vector<HomeVersion> ListVersions() const;
+  std::optional<HomeOperationResult> GetOperation(
+      const std::string& operation_id) const;
+  base::expected<HomeFileSnapshot, HomeError> GetFileSnapshot(
+      const std::string& revision) const;
+  base::expected<HomeDraft, HomeError> StageSnapshot(
+      const std::string& base_revision,
+      const HomeFileSnapshot& files,
+      const std::string& summary);
+  base::expected<std::vector<std::string>, HomeError>
+  GetGrantedDraftConnectorIds(const std::string& draft_id) const;
   base::expected<std::vector<std::string>, HomeError> ListFiles(
       const std::string& revision) const;
   base::expected<std::string, HomeError> ReadFile(
@@ -85,22 +96,26 @@ class DaoHomeProjectStore {
   base::expected<HomeVersion, HomeError> Publish(
       const std::string& draft_id,
       HomeRevisionKind kind,
-      scoped_refptr<DaoHomeMutationLease> authorization);
+      scoped_refptr<DaoHomeMutationLease> authorization,
+      std::optional<HomeOperationRequest> operation = std::nullopt);
   base::expected<HomeVersion, HomeError> PublishWithGrant(
       const std::string& draft_id,
       const std::string& connector_id,
       HomeRevisionKind kind,
-      scoped_refptr<DaoHomeMutationLease> authorization);
+      scoped_refptr<DaoHomeMutationLease> authorization,
+      std::optional<HomeOperationRequest> operation = std::nullopt);
   base::expected<HomeVersion, HomeError> PublishWithGrants(
       const std::string& draft_id,
       const std::vector<std::string>& connector_ids,
       HomeRevisionKind kind,
-      scoped_refptr<DaoHomeMutationLease> authorization);
+      scoped_refptr<DaoHomeMutationLease> authorization,
+      std::optional<HomeOperationRequest> operation = std::nullopt);
   base::expected<HomeVersion, HomeError> Rollback(
       const std::string& base_revision,
       const std::string& target_revision,
       const std::string& summary,
-      scoped_refptr<DaoHomeMutationLease> authorization);
+      scoped_refptr<DaoHomeMutationLease> authorization,
+      std::optional<HomeOperationRequest> operation = std::nullopt);
   base::expected<void, HomeError> Reset(
       const std::string& base_revision,
       scoped_refptr<DaoHomeMutationLease> authorization);
@@ -160,7 +175,8 @@ class DaoHomeProjectStore {
       const std::string& draft_id,
       HomeRevisionKind kind,
       const std::vector<std::string>& connector_ids,
-      scoped_refptr<DaoHomeMutationLease> authorization);
+      scoped_refptr<DaoHomeMutationLease> authorization,
+      std::optional<HomeOperationRequest> operation = std::nullopt);
   base::FilePath RevisionPath(const std::string& revision) const;
 
   base::FilePath root_;
@@ -170,6 +186,7 @@ class DaoHomeProjectStore {
   std::vector<HomeVersion> versions_;
   std::map<std::string, std::string> grants_;
   std::map<std::string, DraftState> drafts_;
+  std::map<std::string, HomeOperationResult> operations_;
   std::optional<HomeManifest> current_manifest_;
   base::OnceClosure before_rollback_publish_for_testing_;
 };

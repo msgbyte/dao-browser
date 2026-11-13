@@ -1,0 +1,15 @@
+# Copyright 2026 Dao Browser Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//testing/test.gni")
+
+source_set("file_snapshot") {
+  sources = [
+    "dao_home_error.h",
+    "dao_home_file_snapshot.cc",
+    "dao_home_file_snapshot.h",
+  ]
+  public_deps = [ "//base" ]
+  deps = [ "//crypto" ]
+}

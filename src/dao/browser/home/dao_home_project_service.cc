@@ -150,6 +150,57 @@ void DaoHomeProjectService::ListVersions(
       .Then(std::move(callback));
 }
 
+void DaoHomeProjectService::GetFileSnapshot(
+    const std::string& revision,
+    ResultCallback<HomeFileSnapshot> callback) {
+  store_.AsyncCall(&DaoHomeProjectStore::GetFileSnapshot)
+      .WithArgs(revision)
+      .Then(std::move(callback));
+}
+
+void DaoHomeProjectService::StageSnapshot(const std::string& base_revision,
+                                          const HomeFileSnapshot& files,
+                                          const std::string& summary,
+                                          ResultCallback<HomeDraft> callback) {
+  store_.AsyncCall(&DaoHomeProjectStore::StageSnapshot)
+      .WithArgs(base_revision, files, summary)
+      .Then(std::move(callback));
+}
+
+void DaoHomeProjectService::GetOperation(
+    const std::string& operation_id,
+    base::OnceCallback<void(std::optional<HomeOperationResult>)> callback) {
+  store_.AsyncCall(&DaoHomeProjectStore::GetOperation)
+      .WithArgs(operation_id)
+      .Then(std::move(callback));
+}
+
+void DaoHomeProjectService::AuthorizeGrantedDraftConnectors(
+    const std::string& draft_id,
+    ResultCallback<void> callback) {
+  store_.AsyncCall(&DaoHomeProjectStore::GetGrantedDraftConnectorIds)
+      .WithArgs(draft_id)
+      .Then(base::BindOnce(
+          [](base::WeakPtr<DaoHomeProjectService> self, std::string draft_id,
+             ResultCallback<void> callback,
+             base::expected<std::vector<std::string>, HomeError> result) {
+            if (!self) {
+              std::move(callback).Run(base::unexpected(HomeError::kCancelled));
+              return;
+            }
+            if (!result.has_value()) {
+              std::move(callback).Run(base::unexpected(result.error()));
+              return;
+            }
+            for (const std::string& connector_id : *result) {
+              self->approved_draft_connectors_.insert(
+                  DraftConnectorKey(draft_id, connector_id));
+            }
+            std::move(callback).Run(base::ok());
+          },
+          weak_factory_.GetWeakPtr(), draft_id, std::move(callback)));
+}
+
 void DaoHomeProjectService::ListFiles(
     const std::string& revision,
     ResultCallback<std::vector<std::string>> callback) {
@@ -313,9 +364,10 @@ void DaoHomeProjectService::Publish(
     const std::string& draft_id,
     HomeRevisionKind kind,
     ResultCallback<HomeVersion> callback,
-    scoped_refptr<DaoHomeMutationLease> authorization) {
+    scoped_refptr<DaoHomeMutationLease> authorization,
+    std::optional<HomeOperationRequest> operation) {
   store_.AsyncCall(&DaoHomeProjectStore::Publish)
-      .WithArgs(draft_id, kind, std::move(authorization))
+      .WithArgs(draft_id, kind, std::move(authorization), std::move(operation))
       .Then(base::BindOnce(
           [](base::WeakPtr<DaoHomeProjectService> self,
              ResultCallback<HomeVersion> callback,
@@ -332,7 +384,8 @@ void DaoHomeProjectService::PublishPreviewedDraft(
     const HomeDraft& draft,
     HomeRevisionKind kind,
     ResultCallback<HomeVersion> callback,
-    scoped_refptr<DaoHomeMutationLease> authorization) {
+    scoped_refptr<DaoHomeMutationLease> authorization,
+    std::optional<HomeOperationRequest> operation) {
   if (authorization && !authorization->IsValid()) {
     std::move(callback).Run(base::unexpected(HomeError::kCancelled));
     return;
@@ -341,7 +394,8 @@ void DaoHomeProjectService::PublishPreviewedDraft(
     std::move(callback).Run(base::unexpected(HomeError::kPermissionRequired));
     return;
   }
-  Publish(draft.id, kind, std::move(callback), std::move(authorization));
+  Publish(draft.id, kind, std::move(callback), std::move(authorization),
+          std::move(operation));
 }
 
 void DaoHomeProjectService::ApprovePermission(const std::string& request_id,
@@ -362,7 +416,8 @@ void DaoHomeProjectService::PublishApprovedDraft(
     const HomeDraft& draft,
     HomeRevisionKind kind,
     ResultCallback<HomeVersion> callback,
-    scoped_refptr<DaoHomeMutationLease> authorization) {
+    scoped_refptr<DaoHomeMutationLease> authorization,
+    std::optional<HomeOperationRequest> operation) {
   if (authorization && !authorization->IsValid()) {
     std::move(callback).Run(base::unexpected(HomeError::kCancelled));
     return;
@@ -380,9 +435,16 @@ void DaoHomeProjectService::PublishApprovedDraft(
       return;
     }
   }
+  for (const auto& connector_id : draft.test_required_connector_ids) {
+    if (!tested_draft_connectors_.contains(
+            DraftConnectorKey(draft.id, connector_id))) {
+      std::move(callback).Run(base::unexpected(HomeError::kPermissionRequired));
+      return;
+    }
+  }
   store_.AsyncCall(&DaoHomeProjectStore::PublishWithGrants)
       .WithArgs(draft.id, draft.permission_expanded_connector_ids, kind,
-                std::move(authorization))
+                std::move(authorization), std::move(operation))
       .Then(base::BindOnce(
           [](base::WeakPtr<DaoHomeProjectService> self,
              ResultCallback<HomeVersion> callback,
@@ -400,10 +462,11 @@ void DaoHomeProjectService::Rollback(
     const std::string& target_revision,
     const std::string& summary,
     ResultCallback<HomeVersion> callback,
-    scoped_refptr<DaoHomeMutationLease> authorization) {
+    scoped_refptr<DaoHomeMutationLease> authorization,
+    std::optional<HomeOperationRequest> operation) {
   store_.AsyncCall(&DaoHomeProjectStore::Rollback)
       .WithArgs(base_revision, target_revision, summary,
-                std::move(authorization))
+                std::move(authorization), std::move(operation))
       .Then(base::BindOnce(
           [](base::WeakPtr<DaoHomeProjectService> self,
              ResultCallback<HomeVersion> callback,
@@ -580,6 +643,11 @@ void DaoHomeProjectService::EndDraftPreview(const std::string& draft_id) {
 
 void DaoHomeProjectService::MarkDraftPreviewed(const std::string& draft_id) {
   previewed_drafts_.insert(draft_id);
+}
+
+void DaoHomeProjectService::InvalidateDraftPreview(
+    const std::string& draft_id) {
+  previewed_drafts_.erase(draft_id);
 }
 
 bool DaoHomeProjectService::IsDraftPreviewed(
@@ -1228,7 +1296,7 @@ void DaoHomeProjectService::PublishBootstrapDraft(
             self->store_.AsyncCall(&DaoHomeProjectStore::PublishWithGrants)
                 .WithArgs(draft.id, connector_ids,
                           HomeRevisionKind::kHistoryBootstrap,
-                          std::move(authorization))
+                          std::move(authorization), std::nullopt)
                 .Then(base::BindOnce(
                     [](base::WeakPtr<DaoHomeProjectService> self,
                        std::string transaction_id,

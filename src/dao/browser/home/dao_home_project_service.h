@@ -43,6 +43,17 @@ class DaoHomeProjectService : public KeyedService {
   DaoHomeProjectService& operator=(const DaoHomeProjectService&) = delete;
 
   void GetSnapshot(base::OnceCallback<void(HomeSnapshot)> callback);
+  void GetFileSnapshot(const std::string& revision,
+                       ResultCallback<HomeFileSnapshot> callback);
+  void StageSnapshot(const std::string& base_revision,
+                     const HomeFileSnapshot& files,
+                     const std::string& summary,
+                     ResultCallback<HomeDraft> callback);
+  void GetOperation(
+      const std::string& operation_id,
+      base::OnceCallback<void(std::optional<HomeOperationResult>)> callback);
+  void AuthorizeGrantedDraftConnectors(const std::string& draft_id,
+                                       ResultCallback<void> callback);
   void SetBeforeSnapshotReplyCallbackForTesting(base::OnceClosure callback) {
     before_snapshot_reply_callback_for_testing_ = std::move(callback);
   }
@@ -89,22 +100,28 @@ class DaoHomeProjectService : public KeyedService {
   void Publish(const std::string& draft_id,
                HomeRevisionKind kind,
                ResultCallback<HomeVersion> callback,
-               scoped_refptr<DaoHomeMutationLease> authorization);
-  void PublishPreviewedDraft(const HomeDraft& draft,
-                             HomeRevisionKind kind,
-                             ResultCallback<HomeVersion> callback,
-                             scoped_refptr<DaoHomeMutationLease> authorization);
+               scoped_refptr<DaoHomeMutationLease> authorization,
+               std::optional<HomeOperationRequest> operation = std::nullopt);
+  void PublishPreviewedDraft(
+      const HomeDraft& draft,
+      HomeRevisionKind kind,
+      ResultCallback<HomeVersion> callback,
+      scoped_refptr<DaoHomeMutationLease> authorization,
+      std::optional<HomeOperationRequest> operation = std::nullopt);
   void ApprovePermission(const std::string& request_id,
                          ResultCallback<void> callback);
-  void PublishApprovedDraft(const HomeDraft& draft,
-                            HomeRevisionKind kind,
-                            ResultCallback<HomeVersion> callback,
-                            scoped_refptr<DaoHomeMutationLease> authorization);
+  void PublishApprovedDraft(
+      const HomeDraft& draft,
+      HomeRevisionKind kind,
+      ResultCallback<HomeVersion> callback,
+      scoped_refptr<DaoHomeMutationLease> authorization,
+      std::optional<HomeOperationRequest> operation = std::nullopt);
   void Rollback(const std::string& base_revision,
                 const std::string& target_revision,
                 const std::string& summary,
                 ResultCallback<HomeVersion> callback,
-                scoped_refptr<DaoHomeMutationLease> authorization);
+                scoped_refptr<DaoHomeMutationLease> authorization,
+                std::optional<HomeOperationRequest> operation = std::nullopt);
   void Reset(const std::string& base_revision,
              ResultCallback<void> callback,
              scoped_refptr<DaoHomeMutationLease> authorization);
@@ -132,6 +149,7 @@ class DaoHomeProjectService : public KeyedService {
   void BeginDraftPreview(const std::string& draft_id);
   void EndDraftPreview(const std::string& draft_id);
   void MarkDraftPreviewed(const std::string& draft_id);
+  void InvalidateDraftPreview(const std::string& draft_id);
   bool IsDraftPreviewed(const std::string& draft_id) const;
 
   void RecordDiagnostic(HomeDiagnostic diagnostic);

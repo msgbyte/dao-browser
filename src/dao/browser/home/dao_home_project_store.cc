@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <array>
+#include <initializer_list>
 #include <memory>
 #include <optional>
 #include <set>
@@ -31,6 +32,10 @@
 #include "dao/browser/home/dao_home_experience.h"
 #include "dao/browser/home/dao_home_manifest.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
+
+#if BUILDFLAG(IS_POSIX)
+#include <sys/stat.h>
+#endif
 
 namespace dao {
 namespace {
@@ -248,6 +253,141 @@ std::optional<HomeVersion> VersionFromValue(const base::Value& value) {
   return version;
 }
 
+bool IsValidOperation(const HomeOperationRequest& request) {
+  if (request.operation_id.empty() || request.operation_id.size() > 128 ||
+      request.summary.empty() ||
+      request.summary.size() > kMaxHomeSummaryBytes ||
+      request.base_revision.size() > 128) {
+    return false;
+  }
+  if (request.method == "draft.publish") {
+    return !request.draft_id.empty() && request.draft_id.size() <= 128 &&
+           request.target_revision.empty() && request.digest.size() == 64 &&
+           std::ranges::all_of(request.digest, [](char c) {
+             return base::IsAsciiDigit(c) || (c >= 'a' && c <= 'f');
+           });
+  }
+  return request.method == "project.rollback" && request.draft_id.empty() &&
+         request.digest.empty() && !request.target_revision.empty() &&
+         request.target_revision.size() <= 128;
+}
+
+base::DictValue OperationToValue(const HomeOperationResult& operation) {
+  const auto& request = operation.request;
+  return base::DictValue()
+      .Set("operation_id", request.operation_id)
+      .Set("method", request.method)
+      .Set("base_revision", request.base_revision)
+      .Set("draft_id", request.draft_id)
+      .Set("digest", request.digest)
+      .Set("target_revision", request.target_revision)
+      .Set("summary", request.summary)
+      .Set("version", VersionToValue(operation.version));
+}
+
+std::optional<HomeOperationResult> OperationFromValue(
+    const base::Value& value) {
+  if (!value.is_dict()) {
+    return std::nullopt;
+  }
+  const auto& dict = value.GetDict();
+  HomeOperationResult result;
+  auto& request = result.request;
+  for (const auto& [key, target] :
+       std::initializer_list<std::pair<const char*, std::string*>>{
+           {"operation_id", &request.operation_id},
+           {"method", &request.method},
+           {"base_revision", &request.base_revision},
+           {"draft_id", &request.draft_id},
+           {"digest", &request.digest},
+           {"target_revision", &request.target_revision},
+           {"summary", &request.summary}}) {
+    const std::string* source = dict.FindString(key);
+    if (!source) {
+      return std::nullopt;
+    }
+    *target = *source;
+  }
+  const base::Value* version_value = dict.Find("version");
+  if (!version_value || !IsValidOperation(request)) {
+    return std::nullopt;
+  }
+  auto version = VersionFromValue(*version_value);
+  if (!version || version->parent != request.base_revision ||
+      version->summary != request.summary ||
+      (request.method == "draft.publish" && version->id != request.draft_id) ||
+      (request.method == "project.rollback" &&
+       (version->kind != HomeRevisionKind::kRollback ||
+        version->restored_from != request.target_revision))) {
+    return std::nullopt;
+  }
+  result.version = std::move(*version);
+  return result;
+}
+
+base::expected<HomeFileSnapshot, HomeError> ReadSnapshotDirectory(
+    const base::FilePath& root) {
+  if (base::IsLink(root)) {
+    return base::unexpected(HomeError::kInvalidPath);
+  }
+  HomeFileSnapshot files;
+  size_t bytes = 0;
+  base::FileEnumerator enumerator(
+      root, true, kProjectFileTypes, base::FilePath::StringType(),
+      base::FileEnumerator::FolderSearchPolicy::ALL,
+      base::FileEnumerator::ErrorPolicy::STOP_ENUMERATION);
+  for (base::FilePath path = enumerator.Next(); !path.empty();
+       path = enumerator.Next()) {
+    if (base::IsLink(path)) {
+      return base::unexpected(HomeError::kInvalidPath);
+    }
+    if (enumerator.GetInfo().IsDirectory()) {
+      continue;
+    }
+#if BUILDFLAG(IS_POSIX)
+    struct stat info;
+    if (lstat(path.value().c_str(), &info) != 0 || !S_ISREG(info.st_mode)) {
+      return base::unexpected(HomeError::kInvalidPath);
+    }
+#endif
+    base::FilePath relative;
+    if (!root.AppendRelativePath(path, &relative)) {
+      return base::unexpected(HomeError::kInvalidPath);
+    }
+    std::string name =
+        relative.NormalizePathSeparatorsTo(FILE_PATH_LITERAL('/'))
+            .AsUTF8Unsafe();
+    if (!IsValidHomeSnapshotPath(name)) {
+      return base::unexpected(HomeError::kInvalidPath);
+    }
+    if (files.size() >= kMaxHomeSnapshotFiles) {
+      return base::unexpected(HomeError::kQuotaExceeded);
+    }
+    const auto size = base::GetFileSize(path);
+    if (!size || *size < 0) {
+      return base::unexpected(HomeError::kIoError);
+    }
+    if (static_cast<uint64_t>(*size) > kMaxHomeSnapshotBytes - bytes) {
+      return base::unexpected(HomeError::kQuotaExceeded);
+    }
+    std::string contents;
+    if (!base::ReadFileToStringWithMaxSize(path, &contents,
+                                           kMaxHomeSnapshotBytes - bytes)) {
+      return base::unexpected(HomeError::kIoError);
+    }
+    bytes += contents.size();
+    files.emplace(std::move(name), std::move(contents));
+  }
+  if (enumerator.GetError() != base::File::FILE_OK) {
+    return base::unexpected(HomeError::kIoError);
+  }
+  auto validated = ValidateHomeFileSnapshot(files);
+  if (!validated.has_value()) {
+    return base::unexpected(validated.error());
+  }
+  return files;
+}
+
 base::expected<void, HomeError> AtomicWrite(const base::FilePath& target,
                                             const std::string& contents) {
   if (!base::CreateDirectory(target.DirName())) {
@@ -334,6 +474,7 @@ base::expected<void, HomeError> DaoHomeProjectStore::LoadState() {
   versions_.clear();
   grants_.clear();
   drafts_.clear();
+  operations_.clear();
   current_manifest_.reset();
   const base::FilePath state_path = root_.AppendASCII(kStateFile);
   if (!base::PathExists(state_path)) {
@@ -361,6 +502,16 @@ base::expected<void, HomeError> DaoHomeProjectStore::LoadState() {
       return base::unexpected(HomeError::kIoError);
     }
     versions_.push_back(std::move(*version));
+  }
+  if (const base::ListValue* operations = state.FindList("operations")) {
+    for (const base::Value& value : *operations) {
+      auto operation = OperationFromValue(value);
+      if (!operation ||
+          !operations_.emplace(operation->request.operation_id, *operation)
+               .second) {
+        return base::unexpected(HomeError::kIoError);
+      }
+    }
   }
   current_revision_ = *current;
   if ((!current_revision_.empty() && !HasVersion(current_revision_)) ||
@@ -399,6 +550,11 @@ base::expected<void, HomeError> DaoHomeProjectStore::PersistState() const {
   state.Set("current_revision", current_revision_);
   state.Set("versions", std::move(versions));
   state.Set("grants", std::move(grants));
+  base::ListValue operations;
+  for (const auto& [id, operation] : operations_) {
+    operations.Append(OperationToValue(operation));
+  }
+  state.Set("operations", std::move(operations));
   std::string serialized;
   if (!base::JSONWriter::WriteWithOptions(
           state, base::JSONWriter::OPTIONS_PRETTY_PRINT, &serialized)) {
@@ -424,6 +580,148 @@ HomeSnapshot DaoHomeProjectStore::GetSnapshot() const {
 
 std::vector<HomeVersion> DaoHomeProjectStore::ListVersions() const {
   return versions_;
+}
+
+std::optional<HomeOperationResult> DaoHomeProjectStore::GetOperation(
+    const std::string& operation_id) const {
+  auto found = operations_.find(operation_id);
+  return found == operations_.end() ? std::nullopt
+                                    : std::make_optional(found->second);
+}
+
+base::expected<HomeFileSnapshot, HomeError>
+DaoHomeProjectStore::GetFileSnapshot(const std::string& revision) const {
+  if (revision.empty() && current_revision_.empty()) {
+    return HomeFileSnapshot();
+  }
+  if (!HasVersion(revision)) {
+    return base::unexpected(HomeError::kNotFound);
+  }
+  return ReadSnapshotDirectory(RevisionPath(revision));
+}
+
+base::expected<HomeDraft, HomeError> DaoHomeProjectStore::StageSnapshot(
+    const std::string& base_revision,
+    const HomeFileSnapshot& files,
+    const std::string& summary) {
+  if (base_revision != current_revision_) {
+    return base::unexpected(HomeError::kStaleRevision);
+  }
+  if (summary.empty() || summary.size() > kMaxHomeSummaryBytes) {
+    return base::unexpected(HomeError::kInvalidArgument);
+  }
+  auto valid = ValidateHomeFileSnapshot(files);
+  if (!valid.has_value()) {
+    return base::unexpected(valid.error());
+  }
+  auto previous = GetFileSnapshot(base_revision);
+  if (!previous.has_value()) {
+    return base::unexpected(previous.error());
+  }
+  std::set<std::string> changed;
+  for (const auto& [path, contents] : files) {
+    auto old = previous->find(path);
+    if (old == previous->end() || old->second != contents) {
+      changed.insert(path);
+    }
+  }
+  for (const auto& [path, contents] : *previous) {
+    if (!files.contains(path)) {
+      changed.insert(path);
+    }
+  }
+  const base::FilePath draft_path = temporary_root_.AppendASCII(
+      base::Uuid::GenerateRandomV4().AsLowercaseString());
+  if (!base::CreateDirectory(draft_path)) {
+    return base::unexpected(HomeError::kIoError);
+  }
+  for (const auto& [path, contents] : files) {
+    const base::FilePath target =
+        draft_path.Append(base::FilePath::FromUTF8Unsafe(path));
+    // Refuse filesystem aliases (including Unicode normalization aliases).
+    if (base::PathExists(target)) {
+      base::DeletePathRecursively(draft_path);
+      return base::unexpected(HomeError::kInvalidPath);
+    }
+    if (!base::CreateDirectory(target.DirName()) ||
+        !base::WriteFile(target, contents)) {
+      base::DeletePathRecursively(draft_path);
+      return base::unexpected(HomeError::kIoError);
+    }
+  }
+  auto written = ReadSnapshotDirectory(draft_path);
+  if (!written.has_value() || *written != files) {
+    base::DeletePathRecursively(draft_path);
+    return base::unexpected(written.has_value() ? HomeError::kInvalidPath
+                                                : written.error());
+  }
+  auto draft = RegisterDraft(base_revision, summary, draft_path,
+                             {changed.begin(), changed.end()}, "");
+  if (!draft.has_value()) {
+    return draft;
+  }
+  auto granted = GetGrantedDraftConnectorIds(draft->id);
+  if (!granted.has_value()) {
+    auto discarded = DiscardDraft(draft->id);
+    if (!discarded.has_value()) {
+      return base::unexpected(discarded.error());
+    }
+    return base::unexpected(granted.error());
+  }
+  for (const HomeConnector& connector : draft->manifest.connectors) {
+    if (!std::ranges::contains(*granted, connector.id) &&
+        !std::ranges::contains(draft->permission_expanded_connector_ids,
+                               connector.id)) {
+      draft->permission_expanded_connector_ids.push_back(connector.id);
+    }
+    const auto before = GetConnectorBundle(base_revision, connector.id);
+    const auto after = GetDraftConnectorBundle(draft->id, connector.id);
+    if (!std::ranges::contains(*granted, connector.id) || !before.has_value() ||
+        !after.has_value() ||
+        HomeConnectorFingerprint(before->connector, before->limits,
+                                 before->module_source,
+                                 before->schema_source) !=
+            HomeConnectorFingerprint(after->connector, after->limits,
+                                     after->module_source,
+                                     after->schema_source)) {
+      draft->test_required_connector_ids.push_back(connector.id);
+    }
+  }
+  draft->permission_expansion =
+      !draft->permission_expanded_connector_ids.empty();
+  drafts_.at(draft->id).draft = *draft;
+  return draft;
+}
+
+base::expected<std::vector<std::string>, HomeError>
+DaoHomeProjectStore::GetGrantedDraftConnectorIds(
+    const std::string& draft_id) const {
+  auto found = drafts_.find(draft_id);
+  if (found == drafts_.end()) {
+    return base::unexpected(HomeError::kInvalidDraft);
+  }
+  const HomeDraft& draft = found->second.draft;
+  if (draft.base_revision != current_revision_) {
+    return base::unexpected(HomeError::kStaleRevision);
+  }
+  std::vector<std::string> granted;
+  if (!current_manifest_ ||
+      draft.manifest.limits.max_result_bytes >
+          current_manifest_->limits.max_result_bytes ||
+      draft.manifest.limits.max_items_per_connector >
+          current_manifest_->limits.max_items_per_connector) {
+    return granted;
+  }
+  for (const HomeConnector& connector : draft.manifest.connectors) {
+    const HomeConnector* current =
+        FindConnector(*current_manifest_, connector.id);
+    if (current && HasGrant(connector.id) &&
+        HomeConnectorPermissionFingerprint(current->permissions) ==
+            HomeConnectorPermissionFingerprint(connector.permissions)) {
+      granted.push_back(connector.id);
+    }
+  }
+  return granted;
 }
 
 bool DaoHomeProjectStore::HasVersion(const std::string& revision) const {
@@ -458,7 +756,8 @@ DaoHomeProjectStore::ListFiles(const std::string& revision) const {
       return base::unexpected(HomeError::kInvalidPath);
     }
     std::string value =
-        relative.NormalizePathSeparatorsTo(FILE_PATH_LITERAL('/')).AsUTF8Unsafe();
+        relative.NormalizePathSeparatorsTo(FILE_PATH_LITERAL('/'))
+            .AsUTF8Unsafe();
     if (!IsValidHomeRelativePath(value)) {
       return base::unexpected(HomeError::kInvalidPath);
     }
@@ -930,8 +1229,10 @@ base::expected<HomeManifest, HomeError> DaoHomeProjectStore::ValidateProject(
   }
 
   auto require_file = [&](const std::string& relative) {
-    return base::PathExists(project_root.AppendASCII(relative)) &&
-           !base::IsLink(project_root.AppendASCII(relative));
+    const base::FilePath path =
+        project_root.Append(base::FilePath::FromUTF8Unsafe(relative));
+    return base::PathExists(path) && !base::DirectoryExists(path) &&
+           !base::IsLink(path);
   };
   if (!require_file(manifest->entry)) {
     return base::unexpected(HomeError::kInvalidManifest);
@@ -995,7 +1296,7 @@ base::expected<HomeDraft, HomeError> DaoHomeProjectStore::ApplyPatch(
   if (base_revision != current_revision_) {
     return base::unexpected(HomeError::kStaleRevision);
   }
-  if (summary.empty() || summary.size() > 500) {
+  if (summary.empty() || summary.size() > kMaxHomeSummaryBytes) {
     return base::unexpected(HomeError::kInvalidArgument);
   }
   auto patch = ParseV4APatch(patch_text);
@@ -1035,8 +1336,8 @@ base::expected<HomeDraft, HomeError> DaoHomeProjectStore::ReplaceFiles(
   if (current_revision_.empty()) {
     return base::unexpected(HomeError::kNotFound);
   }
-  if (summary.empty() || summary.size() > 500 || files.empty() ||
-      files.size() > 32) {
+  if (summary.empty() || summary.size() > kMaxHomeSummaryBytes ||
+      files.empty() || files.size() > 32) {
     return base::unexpected(HomeError::kInvalidArgument);
   }
   std::set<std::string> changed_paths;
@@ -1082,10 +1383,10 @@ base::expected<HomeDraft, HomeError> DaoHomeProjectStore::ReplaceFiles(
     }
     quota.InvalidateCache();
   }
-  return RegisterDraft(base_revision, summary, draft_path,
-                       std::vector<std::string>(changed_paths.begin(),
-                                                changed_paths.end()),
-                       /*restored_from=*/"");
+  return RegisterDraft(
+      base_revision, summary, draft_path,
+      std::vector<std::string>(changed_paths.begin(), changed_paths.end()),
+      /*restored_from=*/"");
 }
 
 base::expected<HomeDraft, HomeError> DaoHomeProjectStore::AddAsset(
@@ -1096,7 +1397,7 @@ base::expected<HomeDraft, HomeError> DaoHomeProjectStore::AddAsset(
   if (base_revision != current_revision_) {
     return base::unexpected(HomeError::kStaleRevision);
   }
-  if (summary.empty() || summary.size() > 500) {
+  if (summary.empty() || summary.size() > kMaxHomeSummaryBytes) {
     return base::unexpected(HomeError::kInvalidArgument);
   }
   if (!IsValidHomeRelativePath(relative_path) ||
@@ -1132,35 +1433,57 @@ base::expected<HomeDraft, HomeError> DaoHomeProjectStore::AddAsset(
 base::expected<HomeVersion, HomeError> DaoHomeProjectStore::Publish(
     const std::string& draft_id,
     HomeRevisionKind kind,
-    scoped_refptr<DaoHomeMutationLease> authorization) {
-  return PublishInternal(draft_id, kind, {}, std::move(authorization));
+    scoped_refptr<DaoHomeMutationLease> authorization,
+    std::optional<HomeOperationRequest> operation) {
+  return PublishInternal(draft_id, kind, {}, std::move(authorization),
+                         std::move(operation));
 }
 
 base::expected<HomeVersion, HomeError> DaoHomeProjectStore::PublishWithGrant(
     const std::string& draft_id,
     const std::string& connector_id,
     HomeRevisionKind kind,
-    scoped_refptr<DaoHomeMutationLease> authorization) {
+    scoped_refptr<DaoHomeMutationLease> authorization,
+    std::optional<HomeOperationRequest> operation) {
   return PublishInternal(draft_id, kind, {connector_id},
-                         std::move(authorization));
+                         std::move(authorization), std::move(operation));
 }
 
 base::expected<HomeVersion, HomeError> DaoHomeProjectStore::PublishWithGrants(
     const std::string& draft_id,
     const std::vector<std::string>& connector_ids,
     HomeRevisionKind kind,
-    scoped_refptr<DaoHomeMutationLease> authorization) {
+    scoped_refptr<DaoHomeMutationLease> authorization,
+    std::optional<HomeOperationRequest> operation) {
   return PublishInternal(draft_id, kind, connector_ids,
-                         std::move(authorization));
+                         std::move(authorization), std::move(operation));
 }
 
 base::expected<HomeVersion, HomeError> DaoHomeProjectStore::PublishInternal(
     const std::string& draft_id,
     HomeRevisionKind kind,
     const std::vector<std::string>& connector_ids,
-    scoped_refptr<DaoHomeMutationLease> authorization) {
+    scoped_refptr<DaoHomeMutationLease> authorization,
+    std::optional<HomeOperationRequest> operation) {
   if (authorization && !authorization->IsValid()) {
     return base::unexpected(HomeError::kCancelled);
+  }
+  if (operation) {
+    if (!IsValidOperation(*operation) ||
+        (operation->method == "draft.publish" &&
+         (operation->draft_id != draft_id ||
+          kind == HomeRevisionKind::kRollback ||
+          kind == HomeRevisionKind::kImport)) ||
+        (operation->method == "project.rollback" &&
+         kind != HomeRevisionKind::kRollback)) {
+      return base::unexpected(HomeError::kInvalidArgument);
+    }
+    if (auto previous = GetOperation(operation->operation_id)) {
+      if (previous->request != *operation) {
+        return base::unexpected(HomeError::kInvalidArgument);
+      }
+      return previous->version;
+    }
   }
   auto found = drafts_.find(draft_id);
   if (found == drafts_.end()) {
@@ -1168,6 +1491,22 @@ base::expected<HomeVersion, HomeError> DaoHomeProjectStore::PublishInternal(
   }
   if (found->second.draft.base_revision != current_revision_) {
     return base::unexpected(HomeError::kStaleRevision);
+  }
+  if (operation) {
+    if (operation->base_revision != found->second.draft.base_revision ||
+        (operation->method == "project.rollback" &&
+         operation->target_revision != found->second.restored_from)) {
+      return base::unexpected(HomeError::kInvalidArgument);
+    }
+    if (operation->method == "draft.publish") {
+      auto files = ReadSnapshotDirectory(found->second.path);
+      if (!files.has_value()) {
+        return base::unexpected(files.error());
+      }
+      if (HomeFileSnapshotDigest(*files) != operation->digest) {
+        return base::unexpected(HomeError::kInvalidArgument);
+      }
+    }
   }
   auto manifest = ValidateProject(found->second.path);
   if (!manifest.has_value()) {
@@ -1234,11 +1573,16 @@ base::expected<HomeVersion, HomeError> DaoHomeProjectStore::PublishInternal(
   version.id = draft_id;
   version.parent = current_revision_;
   version.restored_from = found->second.restored_from;
-  version.summary = found->second.draft.summary;
+  version.summary =
+      operation ? operation->summary : found->second.draft.summary;
   version.kind = kind;
   version.created_at_ms = base::Time::Now().InMillisecondsSinceUnixEpoch();
   version.changed_files = found->second.changed_files;
   versions_.push_back(version);
+  if (operation) {
+    operations_.emplace(operation->operation_id,
+                        HomeOperationResult{*operation, version});
+  }
   current_revision_ = version.id;
   const HomeManifest next_manifest = manifest.value();
   if (kind == HomeRevisionKind::kImport) {
@@ -1272,6 +1616,9 @@ base::expected<HomeVersion, HomeError> DaoHomeProjectStore::PublishInternal(
     current_manifest_ = previous_manifest;
     grants_ = previous_grants;
     versions_.resize(previous_version_count);
+    if (operation) {
+      operations_.erase(operation->operation_id);
+    }
     base::Move(revision_path, found->second.path);
     for (auto moved = imported_moves.rbegin(); moved != imported_moves.rend();
          ++moved) {
@@ -1300,9 +1647,25 @@ base::expected<HomeVersion, HomeError> DaoHomeProjectStore::Rollback(
     const std::string& base_revision,
     const std::string& target_revision,
     const std::string& summary,
-    scoped_refptr<DaoHomeMutationLease> authorization) {
+    scoped_refptr<DaoHomeMutationLease> authorization,
+    std::optional<HomeOperationRequest> operation) {
   if (authorization && !authorization->IsValid()) {
     return base::unexpected(HomeError::kCancelled);
+  }
+  if (operation) {
+    if (!IsValidOperation(*operation) ||
+        operation->method != "project.rollback" ||
+        operation->base_revision != base_revision ||
+        operation->target_revision != target_revision ||
+        operation->summary != summary) {
+      return base::unexpected(HomeError::kInvalidArgument);
+    }
+    if (auto previous = GetOperation(operation->operation_id)) {
+      if (previous->request != *operation) {
+        return base::unexpected(HomeError::kInvalidArgument);
+      }
+      return previous->version;
+    }
   }
   if (base_revision != current_revision_) {
     return base::unexpected(HomeError::kStaleRevision);
@@ -1329,8 +1692,8 @@ base::expected<HomeVersion, HomeError> DaoHomeProjectStore::Rollback(
   if (before_rollback_publish_for_testing_) {
     std::move(before_rollback_publish_for_testing_).Run();
   }
-  auto published =
-      Publish(draft->id, HomeRevisionKind::kRollback, std::move(authorization));
+  auto published = Publish(draft->id, HomeRevisionKind::kRollback,
+                           std::move(authorization), std::move(operation));
   if (!published.has_value()) {
     auto discarded = DiscardDraft(draft->id);
     if (!discarded.has_value()) {

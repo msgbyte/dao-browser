@@ -21,6 +21,10 @@
 #include "dao/browser/home/dao_home_manifest.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if BUILDFLAG(IS_POSIX)
+#include <sys/stat.h>
+#endif
+
 #if BUILDFLAG(IS_WIN)
 #include "base/test/file_path_reparse_point_win.h"
 #endif
@@ -245,14 +249,285 @@ TEST_F(DaoHomeProjectStoreTest, PublishesValidatedRevisionAtomically) {
             body.value());
 }
 
+TEST_F(DaoHomeProjectStoreTest,
+       StagesCompleteBinarySnapshotAndPreservesGrants) {
+  const auto initial = PublishInitialProject();
+  ASSERT_TRUE(store_->GrantConnector("fixture-feed").has_value());
+  auto files = store_->GetFileSnapshot(initial.id);
+  ASSERT_TRUE(files.has_value());
+  files->erase("dao/node-map.json");
+  (*files)["index.html"] = "<main>Updated</main>";
+  (*files)["assets/icon.bin"] = std::string("\0\xff", 2);
+  auto draft = store_->StageSnapshot(initial.id, *files, "Stage files");
+  ASSERT_TRUE(draft.has_value());
+  EXPECT_FALSE(draft->permission_expansion);
+  EXPECT_EQ(initial.id, store_->GetSnapshot().revision);
+  EXPECT_FALSE(store_->ReadFile(initial.id, "assets/icon.bin").has_value());
+  EXPECT_EQ(std::string("\0\xff", 2),
+            store_->ReadDraftFile(draft->id, "assets/icon.bin").value());
+  auto granted = store_->GetGrantedDraftConnectorIds(draft->id);
+  ASSERT_TRUE(granted.has_value());
+  EXPECT_EQ(std::vector<std::string>{"fixture-feed"}, *granted);
+  auto version =
+      store_->Publish(draft->id, HomeRevisionKind::kUserRequest, nullptr);
+  ASSERT_TRUE(version.has_value());
+  EXPECT_EQ((std::vector<std::string>{"assets/icon.bin", "dao/node-map.json",
+                                      "index.html"}),
+            version->changed_files);
+  EXPECT_EQ(*files, store_->GetFileSnapshot(version->id).value());
+  EXPECT_TRUE(store_->HasGrant("fixture-feed"));
+  EXPECT_EQ(HomeError::kStaleRevision,
+            store_->StageSnapshot(initial.id, *files, "Old base").error());
+}
+
+TEST_F(DaoHomeProjectStoreTest,
+       SnapshotDoesNotAuthorizeRevokedOrExpandedSources) {
+  const auto initial = PublishInitialProject();
+  const auto files = store_->GetFileSnapshot(initial.id);
+  ASSERT_TRUE(files.has_value());
+  auto revoked = store_->StageSnapshot(initial.id, *files, "Revoked source");
+  ASSERT_TRUE(revoked.has_value());
+  EXPECT_EQ(std::vector<std::string>{"fixture-feed"},
+            revoked->permission_expanded_connector_ids);
+  EXPECT_TRUE(store_->GetGrantedDraftConnectorIds(revoked->id)->empty());
+  ASSERT_TRUE(store_->GrantConnector("fixture-feed").has_value());
+  auto expanded = store_->ApplyPatch(initial.id, kIncreaseBudgetPatch,
+                                     "Increase source budget");
+  ASSERT_TRUE(expanded.has_value());
+  EXPECT_TRUE(store_->GetGrantedDraftConnectorIds(expanded->id)->empty());
+}
+
+TEST_F(DaoHomeProjectStoreTest, RejectsInvalidSnapshotWithoutChangingHead) {
+  const auto initial = PublishInitialProject();
+  auto files = store_->GetFileSnapshot(initial.id);
+  ASSERT_TRUE(files.has_value());
+  (*files)["../outside"] = "escape";
+  EXPECT_EQ(HomeError::kInvalidPath,
+            store_->StageSnapshot(initial.id, *files, "Invalid path").error());
+  files->erase("../outside");
+  files->erase("connectors/feed.js");
+  EXPECT_EQ(
+      HomeError::kInvalidManifest,
+      store_->StageSnapshot(initial.id, *files, "Missing source").error());
+  EXPECT_EQ(initial.id, store_->GetSnapshot().revision);
+  EXPECT_EQ(1u, store_->ListVersions().size());
+  EXPECT_FALSE(base::PathExists(profile_dir_.GetPath().AppendASCII("outside")));
+}
+
+TEST_F(DaoHomeProjectStoreTest,
+       RequiresSourceTestsForChangedSnapshotContracts) {
+  const auto initial = PublishInitialProject();
+  ASSERT_TRUE(store_->GrantConnector("fixture-feed").has_value());
+  const auto original = store_->GetFileSnapshot(initial.id);
+  ASSERT_TRUE(original.has_value());
+  auto files = *original;
+  files["index.html"] = "<main>Layout edit</main>";
+  auto layout = store_->StageSnapshot(initial.id, files, "Layout only");
+  ASSERT_TRUE(layout.has_value());
+  EXPECT_TRUE(layout->test_required_connector_ids.empty());
+
+  for (const std::string path : {"connectors/feed.js", "schemas/feed.json"}) {
+    files = *original;
+    files[path] += "\n";
+    auto changed = store_->StageSnapshot(initial.id, files, "Source edit");
+    ASSERT_TRUE(changed.has_value());
+    EXPECT_EQ(std::vector<std::string>{"fixture-feed"},
+              changed->test_required_connector_ids);
+  }
+  files = *original;
+  auto manifest =
+      base::JSONReader::ReadDict(files["manifest.json"], base::JSON_PARSE_RFC);
+  ASSERT_TRUE(manifest);
+  manifest->FindDict("limits")->Set("max_items_per_connector", 25);
+  ASSERT_TRUE(base::JSONWriter::Write(*manifest, &files["manifest.json"]));
+  auto limits = store_->StageSnapshot(initial.id, files, "Change limits");
+  ASSERT_TRUE(limits.has_value());
+  EXPECT_EQ(std::vector<std::string>{"fixture-feed"},
+            limits->test_required_connector_ids);
+  ASSERT_TRUE(store_->RevokeConnector("fixture-feed").has_value());
+  auto revoked = store_->StageSnapshot(initial.id, *original, "Revoked source");
+  ASSERT_TRUE(revoked.has_value());
+  EXPECT_EQ(std::vector<std::string>{"fixture-feed"},
+            revoked->test_required_connector_ids);
+}
+
+#if BUILDFLAG(IS_POSIX)
+TEST_F(DaoHomeProjectStoreTest, RejectsLinksAndSpecialFilesInSnapshot) {
+  const auto initial = PublishInitialProject();
+  const base::FilePath revision = store_->root_for_testing()
+                                      .AppendASCII("revisions")
+                                      .AppendASCII(initial.id);
+  const base::FilePath link = revision.AppendASCII("linked");
+  ASSERT_TRUE(base::CreateSymbolicLink(profile_dir_.GetPath(), link));
+  EXPECT_EQ(HomeError::kInvalidPath,
+            store_->GetFileSnapshot(initial.id).error());
+  ASSERT_TRUE(base::DeleteFile(link));
+  ASSERT_EQ(0, mkfifo(revision.AppendASCII("pipe").value().c_str(), 0600));
+  EXPECT_EQ(HomeError::kInvalidPath,
+            store_->GetFileSnapshot(initial.id).error());
+}
+#endif
+
+TEST_F(DaoHomeProjectStoreTest, RejectsDirectoryAsSnapshotManifestEntry) {
+  const HomeFileSnapshot files = {
+      {"manifest.json", R"({"format_version":1,"entry":"src","routes":["/"]})"},
+      {"src/index.html", "<main>Home</main>"}};
+  EXPECT_EQ(HomeError::kInvalidManifest,
+            store_->StageSnapshot("", files, "Invalid entry").error());
+  EXPECT_FALSE(store_->GetSnapshot().has_project);
+}
+
+TEST_F(DaoHomeProjectStoreTest, MissingRevisionDirectoryIsNotAnEmptySnapshot) {
+  const auto initial = PublishInitialProject();
+  ASSERT_TRUE(base::DeletePathRecursively(store_->root_for_testing()
+                                              .AppendASCII("revisions")
+                                              .AppendASCII(initial.id)));
+  EXPECT_EQ(HomeError::kIoError, store_->GetFileSnapshot(initial.id).error());
+}
+
+TEST_F(DaoHomeProjectStoreTest,
+       RecoversPublicationAfterRestartAndRejectsChangedRequest) {
+  const auto initial = PublishInitialProject();
+  auto files = store_->GetFileSnapshot(initial.id);
+  ASSERT_TRUE(files.has_value());
+  (*files)["index.html"] = "<main>Published</main>";
+  auto draft = store_->StageSnapshot(initial.id, *files, "Preview summary");
+  ASSERT_TRUE(draft.has_value());
+  HomeOperationRequest request;
+  request.operation_id = "publish-operation";
+  request.method = "draft.publish";
+  request.base_revision = initial.id;
+  request.draft_id = draft->id;
+  request.digest = HomeFileSnapshotDigest(*files);
+  request.summary = "Final publication summary";
+  auto published = store_->Publish(draft->id, HomeRevisionKind::kUserRequest,
+                                   nullptr, request);
+  ASSERT_TRUE(published.has_value());
+  EXPECT_EQ(request.summary, published->summary);
+  store_ = std::make_unique<DaoHomeProjectStore>(profile_dir_.GetPath());
+  ASSERT_TRUE(store_->Initialize().has_value());
+  auto recovered = store_->GetOperation(request.operation_id);
+  ASSERT_TRUE(recovered.has_value());
+  EXPECT_EQ(request, recovered->request);
+  EXPECT_EQ(published->id, recovered->version.id);
+  auto retry = store_->Publish(draft->id, HomeRevisionKind::kUserRequest,
+                               nullptr, request);
+  ASSERT_TRUE(retry.has_value());
+  EXPECT_EQ(published->id, retry->id);
+  EXPECT_EQ(2u, store_->ListVersions().size());
+  request.summary = "Changed request";
+  EXPECT_EQ(
+      HomeError::kInvalidArgument,
+      store_
+          ->Publish(draft->id, HomeRevisionKind::kUserRequest, nullptr, request)
+          .error());
+  auto lease = base::MakeRefCounted<DaoHomeMutationLease>();
+  lease->Invalidate();
+  EXPECT_EQ(HomeError::kCancelled,
+            store_
+                ->Publish(draft->id, HomeRevisionKind::kUserRequest, lease,
+                          recovered->request)
+                .error());
+}
+
+TEST_F(DaoHomeProjectStoreTest, RejectsPublicationDigestMismatch) {
+  const auto initial = PublishInitialProject();
+  auto files = store_->GetFileSnapshot(initial.id);
+  ASSERT_TRUE(files.has_value());
+  auto draft = store_->StageSnapshot(initial.id, *files, "Preview");
+  ASSERT_TRUE(draft.has_value());
+  HomeOperationRequest request;
+  request.operation_id = "wrong-digest";
+  request.method = "draft.publish";
+  request.base_revision = initial.id;
+  request.draft_id = draft->id;
+  request.digest = std::string(64, '0');
+  request.summary = "Publish";
+  EXPECT_EQ(
+      HomeError::kInvalidArgument,
+      store_
+          ->Publish(draft->id, HomeRevisionKind::kUserRequest, nullptr, request)
+          .error());
+  EXPECT_FALSE(store_->GetOperation(request.operation_id).has_value());
+  EXPECT_EQ(initial.id, store_->GetSnapshot().revision);
+}
+
+TEST_F(DaoHomeProjectStoreTest,
+       FailedCommitDoesNotRecordOperationOrAdvanceHead) {
+  const auto initial = PublishInitialProject();
+  auto files = store_->GetFileSnapshot(initial.id);
+  ASSERT_TRUE(files.has_value());
+  (*files)["index.html"] = "<main>Candidate</main>";
+  auto draft = store_->StageSnapshot(initial.id, *files, "Candidate");
+  ASSERT_TRUE(draft.has_value());
+  HomeOperationRequest request;
+  request.operation_id = "failed-commit";
+  request.method = "draft.publish";
+  request.base_revision = initial.id;
+  request.draft_id = draft->id;
+  request.digest = HomeFileSnapshotDigest(*files);
+  request.summary = "Publish candidate";
+  const base::FilePath state =
+      store_->root_for_testing().AppendASCII("state.json");
+  ASSERT_TRUE(base::DeleteFile(state));
+  ASSERT_TRUE(base::CreateDirectory(state));
+  auto published = store_->Publish(draft->id, HomeRevisionKind::kUserRequest,
+                                   nullptr, request);
+  ASSERT_FALSE(published.has_value());
+  EXPECT_EQ(HomeError::kIoError, published.error());
+  EXPECT_EQ(initial.id, store_->GetSnapshot().revision);
+  EXPECT_EQ(1u, store_->ListVersions().size());
+  EXPECT_FALSE(store_->GetOperation(request.operation_id).has_value());
+  EXPECT_TRUE(store_->GetDraft(draft->id).has_value());
+}
+
+TEST_F(DaoHomeProjectStoreTest,
+       RecoversRollbackAndExcludesProvenanceFromImport) {
+  const auto initial = PublishInitialProject();
+  auto draft = store_->ApplyPatch(initial.id, kStylePatch, "Style Home");
+  ASSERT_TRUE(draft.has_value());
+  auto second =
+      store_->Publish(draft->id, HomeRevisionKind::kUserRequest, nullptr);
+  ASSERT_TRUE(second.has_value());
+  HomeOperationRequest request;
+  request.operation_id = "rollback-operation";
+  request.method = "project.rollback";
+  request.base_revision = second->id;
+  request.target_revision = initial.id;
+  request.summary = "Restore Home";
+  auto restored = store_->Rollback(second->id, initial.id, request.summary,
+                                   nullptr, request);
+  ASSERT_TRUE(restored.has_value());
+  store_ = std::make_unique<DaoHomeProjectStore>(profile_dir_.GetPath());
+  ASSERT_TRUE(store_->Initialize().has_value());
+  auto retry = store_->Rollback(second->id, initial.id, request.summary,
+                                nullptr, request);
+  ASSERT_TRUE(retry.has_value());
+  EXPECT_EQ(restored->id, retry->id);
+  EXPECT_EQ(3u, store_->ListVersions().size());
+  auto package = store_->ExportProject();
+  ASSERT_TRUE(package.has_value());
+  EXPECT_EQ(std::string::npos, package->find(request.operation_id));
+  base::ScopedTempDir other_profile;
+  ASSERT_TRUE(other_profile.CreateUniqueTempDir());
+  DaoHomeProjectStore imported(other_profile.GetPath());
+  ASSERT_TRUE(imported.Initialize().has_value());
+  auto imported_draft = imported.ImportProject("", *package, "Import Home");
+  ASSERT_TRUE(imported_draft.has_value());
+  ASSERT_TRUE(
+      imported.Publish(imported_draft->id, HomeRevisionKind::kImport, nullptr)
+          .has_value());
+  EXPECT_FALSE(imported.GetOperation(request.operation_id).has_value());
+}
+
 TEST_F(DaoHomeProjectStoreTest, ListsNestedFilesWithPortableSeparators) {
   HomeVersion initial = PublishInitialProject();
   ASSERT_FALSE(initial.id.empty());
   auto files = store_->ListFiles(initial.id);
   ASSERT_TRUE(files.has_value());
   EXPECT_EQ((std::vector<std::string>{"connectors/feed.js", "dao/node-map.json",
-                                    "index.html", "manifest.json",
-                                    "schemas/feed.json"}),
+                                      "index.html", "manifest.json",
+                                      "schemas/feed.json"}),
             files.value());
 }
 
@@ -267,7 +542,8 @@ TEST_F(DaoHomeProjectStoreTest, RejectsDirectoryJunctionWhenListingFiles) {
                         .AppendASCII(initial.id)
                         .AppendASCII("link");
   ASSERT_TRUE(base::CreateDirectory(link));
-  auto junction = base::test::FilePathReparsePoint::Create(link, outside.GetPath());
+  auto junction =
+      base::test::FilePathReparsePoint::Create(link, outside.GetPath());
   ASSERT_TRUE(junction.has_value());
 
   auto files = store_->ListFiles(initial.id);
@@ -286,10 +562,12 @@ TEST_F(DaoHomeProjectStoreTest, RejectsDirectoryJunctionWhenPublishing) {
                         .AppendASCII(draft->id)
                         .AppendASCII("link");
   ASSERT_TRUE(base::CreateDirectory(link));
-  auto junction = base::test::FilePathReparsePoint::Create(link, outside.GetPath());
+  auto junction =
+      base::test::FilePathReparsePoint::Create(link, outside.GetPath());
   ASSERT_TRUE(junction.has_value());
 
-  auto version = store_->Publish(draft->id, HomeRevisionKind::kInitial, nullptr);
+  auto version =
+      store_->Publish(draft->id, HomeRevisionKind::kInitial, nullptr);
   ASSERT_FALSE(version.has_value());
   EXPECT_EQ(HomeError::kInvalidPath, version.error());
   EXPECT_FALSE(store_->GetSnapshot().has_project);
@@ -418,26 +696,24 @@ TEST_F(DaoHomeProjectStoreTest,
   constexpr char kConnectorReplacement[] =
       "export default {async collect() { return []; }};";
 
-  auto draft = store_->ReplaceFiles(
-      initial.id,
-      {{"index.html", kEntryReplacement},
-       {"connectors/feed.js", kConnectorReplacement}},
-      "Replace related Home files");
+  auto draft =
+      store_->ReplaceFiles(initial.id,
+                           {{"index.html", kEntryReplacement},
+                            {"connectors/feed.js", kConnectorReplacement}},
+                           "Replace related Home files");
 
   ASSERT_TRUE(draft.has_value());
   EXPECT_EQ(initial.id, draft->base_revision);
   auto draft_entry = store_->ReadDraftFile(draft->id, "index.html");
   ASSERT_TRUE(draft_entry.has_value());
   EXPECT_EQ(kEntryReplacement, draft_entry.value());
-  auto draft_connector =
-      store_->ReadDraftFile(draft->id, "connectors/feed.js");
+  auto draft_connector = store_->ReadDraftFile(draft->id, "connectors/feed.js");
   ASSERT_TRUE(draft_connector.has_value());
   EXPECT_EQ(kConnectorReplacement, draft_connector.value());
   auto published_entry = store_->ReadFile(initial.id, "index.html");
   ASSERT_TRUE(published_entry.has_value());
   EXPECT_NE(kEntryReplacement, published_entry.value());
-  auto published_connector =
-      store_->ReadFile(initial.id, "connectors/feed.js");
+  auto published_connector = store_->ReadFile(initial.id, "connectors/feed.js");
   ASSERT_TRUE(published_connector.has_value());
   EXPECT_NE(kConnectorReplacement, published_connector.value());
   EXPECT_EQ(initial.id, store_->GetSnapshot().revision);
@@ -446,15 +722,13 @@ TEST_F(DaoHomeProjectStoreTest,
 TEST_F(DaoHomeProjectStoreTest, ReplaceFilesRejectsMissingOrInvalidTargets) {
   HomeVersion initial = PublishInitialProject();
 
-  auto missing = store_->ReplaceFiles(initial.id,
-                                      {{"missing.html", "missing"}},
+  auto missing = store_->ReplaceFiles(initial.id, {{"missing.html", "missing"}},
                                       "Replace a missing file");
   ASSERT_FALSE(missing.has_value());
   EXPECT_EQ(HomeError::kNotFound, missing.error());
 
-  auto invalid = store_->ReplaceFiles(initial.id,
-                                      {{"../index.html", "invalid"}},
-                                      "Replace an invalid path");
+  auto invalid = store_->ReplaceFiles(
+      initial.id, {{"../index.html", "invalid"}}, "Replace an invalid path");
   ASSERT_FALSE(invalid.has_value());
   EXPECT_EQ(HomeError::kInvalidPath, invalid.error());
 

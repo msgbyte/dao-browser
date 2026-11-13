@@ -17,27 +17,12 @@
 #include "base/memory/ref_counted.h"
 #include "base/synchronization/lock.h"
 #include "base/values.h"
+#include "dao/browser/home/dao_home_error.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
 namespace dao {
 
-enum class HomeError {
-  kInvalidArgument,
-  kInvalidPath,
-  kNotFound,
-  kAlreadyExists,
-  kUnsupportedFormat,
-  kInvalidManifest,
-  kInvalidPatch,
-  kPatchContextMismatch,
-  kQuotaExceeded,
-  kStaleRevision,
-  kInvalidDraft,
-  kPermissionRequired,
-  kCancelled,
-  kIoError,
-};
 
 // A thread-safe, one-way authorization shared by the trusted Home document,
 // the owning Agent turn, and the blocking project store. Child leases inherit
@@ -262,6 +247,8 @@ struct HomeDraft {
   std::optional<HomeLimits> previous_limits;
   bool permission_expansion = false;
   std::vector<std::string> permission_expanded_connector_ids;
+  // Snapshot sources whose code, schema, permissions, limits, or grant changed.
+  std::vector<std::string> test_required_connector_ids;
 };
 
 struct HomeVersion {
@@ -279,6 +266,25 @@ struct HomeVersion {
   HomeRevisionKind kind = HomeRevisionKind::kUserRequest;
   int64_t created_at_ms = 0;
   std::vector<std::string> changed_files;
+};
+
+// Browser-local publication provenance. Session capabilities are never stored
+// here, and these records are excluded from project export/import.
+struct HomeOperationRequest {
+  std::string operation_id;
+  std::string method;
+  std::string base_revision;
+  std::string draft_id;
+  std::string digest;
+  std::string target_revision;
+  std::string summary;
+
+  bool operator==(const HomeOperationRequest&) const = default;
+};
+
+struct HomeOperationResult {
+  HomeOperationRequest request;
+  HomeVersion version;
 };
 
 struct HomeSnapshot {
