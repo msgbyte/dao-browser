@@ -36,8 +36,14 @@ import type {
 } from './home_bridge.js';
 import {
   cancelHomeSession,
+  getHomeExternalEditor,
+  getHomeExternalSession,
+  getHomeSessionActive,
+  notifyHomeExternalSessionReady,
   openHomeNavigation,
   setHomeSelection,
+  stopHomeExternalEditor,
+  stopHomeExternalSession,
 } from './home_bridge.js';
 import {ConnectorHost} from './connector_host.js';
 
@@ -51,6 +57,7 @@ interface PendingPreview {
   draftId: string;
   entry: string;
   loaded: boolean;
+  retained: boolean;
 }
 
 export function createSourceDiff(before: string, after: string): string {
@@ -95,6 +102,8 @@ export class DaoHomeApp extends CrLitElement {
       resetFailed_: {type: Boolean},
       pendingNavigation_: {type: Object},
       pendingPreview_: {type: Object},
+      externalEditor_: {type: Object},
+      externalSession_: {type: Object},
       sessionActive_: {type: Boolean},
     };
   }
@@ -168,6 +177,14 @@ export class DaoHomeApp extends CrLitElement {
       .action:hover { background: white; }
       .action.primary:hover { background: rgb(55, 103, 170); }
       .action:active { transform: scale(.98); }
+      .external-editor { align-items: center; display: flex; gap: 12px; }
+      .external-editor span:first-child {
+        max-width: 240px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .external-editor span:last-child { flex-shrink: 0; }
       .canvas {
         background: var(--mist);
         inset: 0;
@@ -184,6 +201,34 @@ export class DaoHomeApp extends CrLitElement {
         top: 0;
         width: 1024px;
       }
+      .preview-sandbox.retained {
+        height: calc(100% - 44px);
+        inset: 44px 0 0;
+        pointer-events: auto;
+        position: absolute;
+        width: 100%;
+      }
+      .external-preview-status {
+        align-items: center;
+        box-sizing: border-box;
+        display: flex;
+        gap: 12px;
+        height: 44px;
+        padding: 8px 16px;
+      }
+      .external-preview-status span:first-child { flex-shrink: 0; font-weight: 600; }
+      .external-preview-status span:nth-child(2) {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .external-preview-status button {
+        flex-shrink: 0;
+        margin-inline-start: auto;
+        white-space: nowrap;
+      }
+      .external-waiting { padding: 24px; }
       .toolbar {
         align-items: center;
         display: flex;
@@ -438,6 +483,10 @@ export class DaoHomeApp extends CrLitElement {
   declare protected resetFailed_: boolean;
   declare protected pendingNavigation_: PendingNavigation|null;
   declare protected pendingPreview_: PendingPreview|null;
+  declare protected externalEditor_: {client: string}|null;
+  declare protected externalSession_: {
+    client: string; generation: number; published?: boolean;
+  }|null;
   declare protected sessionActive_: boolean;
   private connectorHost_: ConnectorHost|null = null;
   private projectChangedListener_: WebUiListener|null = null;
@@ -445,11 +494,24 @@ export class DaoHomeApp extends CrLitElement {
   private agentConnectorListener_: WebUiListener|null = null;
   private agentPreviewListener_: WebUiListener|null = null;
   private agentPreviewEndedListener_: WebUiListener|null = null;
+  private externalSessionListener_: WebUiListener|null = null;
+  private externalEditorListener_: WebUiListener|null = null;
+  private sessionActiveListener_: WebUiListener|null = null;
+  private activityGeneration_ = 0;
+  private editorGeneration_ = 0;
+  private refreshGeneration_ = 0;
+  private loadedConnectorFrame_: EventTarget|null = null;
   private readonly onRuntimeMessage_ = (event: MessageEvent) => {
     void this.handleRuntimeMessage_(event);
   };
   private readonly onVisibilityChanged_ = () => {
-    const active = !document.hidden;
+    void this.refreshSessionActive_();
+  };
+
+  private async refreshSessionActive_(): Promise<void> {
+    const generation = ++this.activityGeneration_;
+    const active = await getHomeSessionActive();
+    if (generation !== this.activityGeneration_ || !this.isConnected) return;
     if (active === this.sessionActive_) {
       return;
     }
@@ -461,7 +523,14 @@ export class DaoHomeApp extends CrLitElement {
       cancelHomeSession();
     }
     this.sessionActive_ = active;
-  };
+    if (active && this.externalSession_) {
+      void this.updateComplete.then(() => {
+        if (this.sessionActive_ && this.externalSession_ &&
+            this.isConnectorSandboxLoaded_())
+          notifyHomeExternalSessionReady(this.externalSession_.generation);
+      });
+    }
+  }
 
   constructor() {
     super();
@@ -484,7 +553,9 @@ export class DaoHomeApp extends CrLitElement {
     this.resetFailed_ = false;
     this.pendingNavigation_ = null;
     this.pendingPreview_ = null;
-    this.sessionActive_ = !document.hidden;
+    this.externalEditor_ = null;
+    this.externalSession_ = null;
+    this.sessionActive_ = false;
   }
 
   override connectedCallback(): void {
@@ -517,6 +588,14 @@ export class DaoHomeApp extends CrLitElement {
             this.pendingPreview_ = null;
           }
         });
+    this.externalSessionListener_ = addListener(
+        'dao-home-external-session-changed', () => void this.refresh_());
+    this.externalEditorListener_ = addListener(
+        'dao-home-external-editor-changed',
+        () => void this.refreshExternalEditor_());
+    this.sessionActiveListener_ = addListener(
+        'dao-home-session-active-changed', this.onVisibilityChanged_);
+    void this.refreshExternalEditor_();
     void this.refresh_();
   }
 
@@ -538,6 +617,14 @@ export class DaoHomeApp extends CrLitElement {
       removeListener(this.agentPreviewListener_);
     if (this.agentPreviewEndedListener_)
       removeListener(this.agentPreviewEndedListener_);
+    if (this.externalSessionListener_)
+      removeListener(this.externalSessionListener_);
+    if (this.externalEditorListener_)
+      removeListener(this.externalEditorListener_);
+    if (this.sessionActiveListener_)
+      removeListener(this.sessionActiveListener_);
+    ++this.activityGeneration_;
+    ++this.editorGeneration_;
     cancelHomeSession();
   }
 
@@ -552,26 +639,57 @@ export class DaoHomeApp extends CrLitElement {
     }
   }
 
+  private async refreshExternalEditor_(): Promise<void> {
+    const generation = ++this.editorGeneration_;
+    const editor = await getHomeExternalEditor();
+    if (generation === this.editorGeneration_) this.externalEditor_ = editor;
+  }
+
   private async refresh_(): Promise<void> {
+    const generation = ++this.refreshGeneration_;
+    this.connectorHost_?.disconnect();
+    this.connectorHost_ = null;
+    this.pendingPreview_ = null;
     this.loading_ = true;
     this.runtimeFailed_ = false;
     try {
       const hadSnapshot = this.snapshot_ !== null;
       const previousRevision = this.snapshot_?.revision ?? '';
-      const [snapshot, versions, permission] = await Promise.all([
+      const [snapshot, versions, permission, externalSession] = await Promise.all([
         getHomeSnapshot(), getHomeVersions(), getHomePermission(),
+        getHomeExternalSession(),
+        this.refreshSessionActive_(),
       ]);
+      if (generation !== this.refreshGeneration_) return;
       this.snapshot_ = snapshot;
+      this.externalSession_ = externalSession;
       this.versions_ = versions;
       this.setPermission_(permission);
       if (hadSnapshot && previousRevision !== this.snapshot_.revision) {
-        this.connectorHost_?.disconnect();
-        this.connectorHost_ = null;
         cancelHomeSession();
       }
     } finally {
-      this.loading_ = false;
+      if (generation === this.refreshGeneration_) this.loading_ = false;
     }
+    await this.updateComplete;
+    if (generation === this.refreshGeneration_ && this.sessionActive_ &&
+        this.externalSession_ &&
+        this.isConnectorSandboxLoaded_())
+      notifyHomeExternalSessionReady(this.externalSession_.generation);
+  }
+
+  private isConnectorSandboxLoaded_(): boolean {
+    return this.loadedConnectorFrame_ !== null &&
+        this.loadedConnectorFrame_ === this.shadowRoot?.querySelector(
+            '[data-test="connector-sandbox"]');
+  }
+
+  private onConnectorSandboxLoaded_(event: Event): void {
+    if (event.currentTarget !== this.shadowRoot?.querySelector(
+            '[data-test="connector-sandbox"]')) return;
+    this.loadedConnectorFrame_ = event.currentTarget;
+    if (!this.loading_ && this.sessionActive_ && this.externalSession_)
+      notifyHomeExternalSessionReady(this.externalSession_.generation);
   }
 
   private frameUrl_(): string {
@@ -597,7 +715,7 @@ export class DaoHomeApp extends CrLitElement {
       }
       const result = typeof value.draftId === 'string' && value.draftId ?
           await this.connectorHost_.collectDraft(
-              value.draftId, value.connectorId, value.input ?? {}) :
+              value.draftId, value.connectorId, value.input ?? {}, true) :
           await this.connectorHost_.collect(
               value.connectorId, value.input ?? {});
       completeHomeAgentConnector(value.requestId, {ok: true, result});
@@ -616,6 +734,7 @@ export class DaoHomeApp extends CrLitElement {
       requestId?: unknown;
       draftId?: unknown;
       entry?: unknown;
+      retained?: unknown;
     }|null;
     if (!value || typeof value.requestId !== 'string' ||
         typeof value.draftId !== 'string' ||
@@ -629,7 +748,10 @@ export class DaoHomeApp extends CrLitElement {
       draftId: value.draftId,
       entry: value.entry,
       loaded: false,
+      retained: value.retained === true && this.externalSession_ !== null,
     };
+    if (this.pendingPreview_.retained && this.externalSession_)
+      this.externalSession_ = {...this.externalSession_, published: false};
   }
 
   private finishAgentPreviewLoad_(): void {
@@ -644,8 +766,9 @@ export class DaoHomeApp extends CrLitElement {
     if (await this.connectorHost_?.handleMessage(event)) {
       return;
     }
+    const preview = this.pendingPreview_?.retained ? this.pendingPreview_ : null;
     const projectFrame = this.shadowRoot?.querySelector<HTMLIFrameElement>(
-        '[data-test="project-frame"]');
+        preview ? '[data-test="preview-frame"]' : '[data-test="project-frame"]');
     const envelope = event.data as {
       daoHome?: number;
       requestId?: string;
@@ -656,7 +779,7 @@ export class DaoHomeApp extends CrLitElement {
     if (!projectFrame || event.source !== projectFrame.contentWindow ||
         event.origin !== 'null' ||
         envelope?.daoHome !== 1 ||
-        envelope.revision !== this.snapshot_?.revision ||
+        envelope.revision !== (preview?.draftId ?? this.snapshot_?.revision) ||
         typeof envelope.requestId !== 'string' ||
         typeof envelope.method !== 'string') {
       return;
@@ -675,9 +798,10 @@ export class DaoHomeApp extends CrLitElement {
         if (typeof connectorId !== 'string' || !this.connectorHost_) {
           throw new Error('Invalid Home connector request.');
         }
-        reply({result: await this.connectorHost_.collect(
-          connectorId, envelope.params?.['input'] ?? {},
-        )});
+        const input = envelope.params?.['input'] ?? {};
+        reply({result: preview ?
+          await this.connectorHost_.collectDraft(preview.draftId, connectorId, input) :
+          await this.connectorHost_.collect(connectorId, input)});
         return;
       }
       if (envelope.method === 'navigation.open') {
@@ -775,7 +899,7 @@ export class DaoHomeApp extends CrLitElement {
           throw new Error('Invalid Home runtime diagnostic.');
         }
         this.runtimeFailed_ = true;
-        recordHomeRuntimeError(this.snapshot_!.revision, kind);
+        recordHomeRuntimeError(preview?.draftId ?? this.snapshot_!.revision, kind);
         reply({result: {recorded: true}});
         return;
       }
@@ -953,11 +1077,22 @@ export class DaoHomeApp extends CrLitElement {
     return loadTimeData.getString(key);
   }
 
+  private renderExternalEditor_() {
+    return this.externalEditor_ ? html`
+      <button class="action external-editor" data-test="stop-external-editor"
+          @click=${() => stopHomeExternalEditor()}>
+        <span>${this.externalEditor_.client}</span>
+        <span>${loadTimeData.getString('daoHomeExternalStop')}</span>
+      </button>
+    ` : nothing;
+  }
+
   private renderMenu_() {
     return html`
       <details data-test="project-menu">
         <summary>${loadTimeData.getString('daoHomeMenu')}</summary>
         <div class="menu">
+          ${this.renderExternalEditor_()}
           <button @click=${() => openHomeAgent('create')}>
             ${loadTimeData.getString('daoHomeEditWithDao')}
           </button>
@@ -1281,7 +1416,8 @@ export class DaoHomeApp extends CrLitElement {
     }
     const entry = preview.entry.split('/').map(encodeURIComponent).join('/');
     return html`
-      <iframe class="preview-sandbox" data-test="preview-frame"
+      <iframe class="${preview.retained ? 'preview-sandbox retained' : 'preview-sandbox'}"
+          data-test="preview-frame"
           src=${`chrome-untrusted://dao-home-app/preview/${preview.draftId}/${entry}`}
           sandbox="allow-scripts allow-forms"
           @load=${() => this.finishAgentPreviewLoad_()}></iframe>
@@ -1291,6 +1427,39 @@ export class DaoHomeApp extends CrLitElement {
   override render() {
     if (this.loading_) {
       return html`<div class="loading">${loadTimeData.getString('daoHomeLoading')}</div>`;
+    }
+    if (this.externalSession_) {
+      return html`
+        <main class="shell external-preview">
+          <div class="external-preview-status" data-test="external-preview-status">
+            <span>${loadTimeData.getString(this.externalSession_.published ?
+                'daoHomeExternalPublished' : 'daoHomeExternalPreviewTitle')}</span>
+            <span>${this.externalSession_.client}</span>
+            <button data-test="stop-external-preview"
+                @click=${() => stopHomeExternalSession()}>
+              ${loadTimeData.getString('daoHomeExternalStop')}
+            </button>
+          </div>
+          ${this.sessionActive_ ? html`
+            <iframe class="connector-sandbox" data-test="connector-sandbox"
+                src="chrome-untrusted://dao-home-connector/"
+                @load=${(event: Event) => this.onConnectorSandboxLoaded_(event)}
+                sandbox="allow-scripts"></iframe>
+          ` : nothing}
+          ${this.renderPreview_()}
+          ${!this.pendingPreview_ && this.externalSession_.published && this.snapshot_?.hasProject &&
+                  this.sessionActive_ ? html`
+            <iframe class="preview-sandbox retained" data-test="project-frame"
+                src=${this.frameUrl_()} sandbox="allow-scripts allow-forms"
+                @error=${() => this.runtimeFailed_ = true}></iframe>
+          ` : nothing}
+          ${!this.pendingPreview_ && !this.externalSession_.published ? html`
+            <div class="external-waiting">${loadTimeData.getString('daoHomeExternalWaiting')}</div>
+          ` : nothing}
+          ${this.renderPermission_()}
+          ${this.renderNavigation_()}
+        </main>
+      `;
     }
     if (!this.snapshot_?.hasProject) {
       return html`
@@ -1312,6 +1481,7 @@ export class DaoHomeApp extends CrLitElement {
                 @click=${() => openHomeAgent('history')}>
               ${loadTimeData.getString('daoHomeCreateFromHistory')}
             </button>
+            ${this.renderExternalEditor_()}
           </div>
         </main>
         ${this.renderPreview_()}

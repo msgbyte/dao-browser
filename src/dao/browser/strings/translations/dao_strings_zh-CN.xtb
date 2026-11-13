@@ -410,4 +410,12 @@
 <translation id="7161815979011497773">优先显示匹配的现有标签页，保留输入原文。直接回车搜索原文或打开输入的网址。</translation>
 <translation id="1785685354446668686">{COUNT, plural, other {已关闭 # 个标签页}}</translation>
 <translation id="2079545284768500474">撤销</translation>
+  <translation id="4649656709007197042">Dao Home 预览</translation>
+  <translation id="6684477680792830315">等待外部 Agent 提交预览。</translation>
+  <translation id="6774444332199468427">停止外部编辑</translation>
+  <translation id="5692725136883768458">允许此 Agent 编辑 Dao Home？</translation>
+  <translation id="4871493914846145807">允许在一小时内读取 Home 源码、在独立窗口中使用此个人资料已授权的数据源预览修改、截取预览画面，以及发布或恢复 Home 版本。网站权限会单独请求。</translation>
+  <translation id="6161719749022068521">未能完成 Dao Home 操作。</translation>
+  <translation id="5811750979572395175">已发布的 Home</translation>
+<translation id="8811014768123203379">浏览器配置文件</translation>
 </translationbundle>

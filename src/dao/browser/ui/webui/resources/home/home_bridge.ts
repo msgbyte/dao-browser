@@ -120,6 +120,34 @@ export function getHomeSnapshot(): Promise<HomeSnapshot> {
   return sendAsync<HomeSnapshot>('getHomeSnapshot');
 }
 
+export function getHomeExternalSession(): Promise<{
+  client: string;
+  generation: number;
+  published?: boolean;
+}|null> {
+  return sendAsync('getHomeExternalSession');
+}
+
+export function getHomeSessionActive(): Promise<boolean> {
+  return sendAsync('getHomeSessionActive');
+}
+
+export function getHomeExternalEditor(): Promise<{client: string}|null> {
+  return sendAsync('getHomeExternalEditor');
+}
+
+export function stopHomeExternalEditor(): void {
+  chrome.send('stopHomeExternalEditor');
+}
+
+export function notifyHomeExternalSessionReady(generation: number): void {
+  chrome.send('homeExternalSessionReady', [generation]);
+}
+
+export function stopHomeExternalSession(): void {
+  chrome.send('stopHomeExternalSession');
+}
+
 export function getHomeVersions(): Promise<HomeVersion[]> {
   return sendAsync<HomeVersion[]>('getHomeVersions');
 }

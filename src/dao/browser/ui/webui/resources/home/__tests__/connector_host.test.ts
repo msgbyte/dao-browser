@@ -203,6 +203,22 @@ describe('ConnectorHost', () => {
       },
     } as unknown as MessageEvent);
     await expect(collection).resolves.toEqual({ok: true});
+
+    await expect(host.collectDraft('draft-1', 'feed', {page: 2}))
+        .resolves.toEqual({ok: true});
+    expect(bridge.startHomeDraftConnector).toHaveBeenCalledTimes(1);
+    const retest = host.collectDraft('draft-1', 'feed', {page: 2}, true);
+    await vi.waitFor(() =>
+      expect(bridge.startHomeDraftConnector).toHaveBeenCalledTimes(2));
+    bridge.finishHomeConnector.mockResolvedValue({result: {ok: 'updated'}});
+    await host.handleMessage({
+      source: contentWindow, origin: 'null',
+      data: {daoHomeConnector: 1, type: 'complete',
+        executionId: 'draft-execution-1', result: {ok: 'updated'}},
+    } as unknown as MessageEvent);
+    await expect(retest).resolves.toEqual({ok: 'updated'});
+    await expect(host.collectDraft('draft-1', 'feed', {page: 2}))
+        .resolves.toEqual({ok: 'updated'});
   });
 
   it('keeps the sandbox error when native cleanup also fails', async () => {

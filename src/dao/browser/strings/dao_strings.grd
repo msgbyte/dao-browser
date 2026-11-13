@@ -1157,6 +1157,16 @@
       <message name="IDS_DAO_MCP_PAGE_YOLO_MODE_SUB_LABEL" desc="Description of independent automatic browser page approval.">
         Allow local agents to control browser windows and pages, including signed-in sites, without asking. Applies to all profiles.
       </message>
+      <message name="IDS_DAO_HOME_EXTERNAL_PREVIEW_TITLE" desc="Dao Home external agent interface.">Dao Home Preview</message>
+      <message name="IDS_DAO_HOME_EXTERNAL_WAITING" desc="Dao Home external agent interface.">Waiting for a preview from your external agent.</message>
+      <message name="IDS_DAO_HOME_EXTERNAL_STOP" desc="Dao Home external agent interface.">Stop external editing</message>
+      <message name="IDS_DAO_HOME_EXTERNAL_APPROVAL_TITLE" desc="Dao Home external agent interface.">Allow this agent to edit Dao Home?</message>
+      <message name="IDS_DAO_HOME_EXTERNAL_APPROVAL_SCOPE" desc="Dao Home external agent interface.">Allow reading Home source, previewing changes in a separate window with this profile’s authorized sources, capturing the preview, and publishing or restoring Home versions for one hour. Website permissions are requested separately.</message>
+      <message name="IDS_DAO_HOME_EXTERNAL_ALLOW" desc="Dao Home external agent interface.">Allow for 1 hour</message>
+      <message name="IDS_DAO_HOME_EXTERNAL_DENY" desc="Dao Home external agent interface.">Deny</message>
+      <message name="IDS_DAO_HOME_EXTERNAL_ERROR" desc="Dao Home external agent interface.">The Dao Home operation could not be completed.</message>
+      <message name="IDS_DAO_HOME_EXTERNAL_PUBLISHED" desc="Dao Home external agent interface.">Published Home</message>
+      <message name="IDS_DAO_HOME_EXTERNAL_PROFILE" desc="Profile selector label for external Home editing authorization.">Browser profile</message>
     </messages>
   </release>
 </grit>

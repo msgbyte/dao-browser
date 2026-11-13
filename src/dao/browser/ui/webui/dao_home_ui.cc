@@ -41,6 +41,7 @@
 #include "content/public/browser/web_ui_data_source.h"
 #include "content/public/common/url_constants.h"
 #include "dao/browser/home/dao_home_connector_executor.h"
+#include "dao/browser/home/dao_home_external_service.h"
 #include "dao/browser/home/dao_home_history_material.h"
 #include "dao/browser/home/dao_home_manifest.h"
 #include "dao/browser/home/dao_home_project_service.h"
@@ -379,7 +380,7 @@ bool IsExpectedAgentPreviewFrame(content::RenderFrameHost* frame,
   }
   const GURL& url = frame->GetLastCommittedURL();
   if (!url.SchemeIs(content::kChromeUIUntrustedScheme) ||
-      url.host() != kHomeAppHost || url.has_query() || url.has_ref() ||
+      url.host() != kHomeAppHost ||
       url.path().size() < 2) {
     return false;
   }
@@ -442,6 +443,30 @@ void DaoHomeUIHandler::RegisterMessages() {
   web_ui()->RegisterMessageCallback(
       "getHomeSnapshot",
       base::BindRepeating(&DaoHomeUIHandler::HandleGetSnapshot,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "getHomeExternalSession",
+      base::BindRepeating(&DaoHomeUIHandler::HandleGetExternalSession,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "getHomeSessionActive",
+      base::BindRepeating(&DaoHomeUIHandler::HandleGetSessionActive,
+                         base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "getHomeExternalEditor",
+      base::BindRepeating(&DaoHomeUIHandler::HandleGetExternalEditor,
+                         base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "stopHomeExternalEditor",
+      base::BindRepeating(&DaoHomeUIHandler::HandleStopExternalEditor,
+                         base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "homeExternalSessionReady",
+      base::BindRepeating(&DaoHomeUIHandler::HandleExternalSessionReady,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "stopHomeExternalSession",
+      base::BindRepeating(&DaoHomeUIHandler::HandleStopExternalSession,
                           base::Unretained(this)));
   web_ui()->RegisterMessageCallback(
       "getHomeVersions",
@@ -543,7 +568,8 @@ void DaoHomeUIHandler::CollectConnectorForAgent(std::string draft_id,
                                                 std::string connector_id,
                                                 base::Value input,
                                                 ConnectorCallback callback) {
-  if (!IsJavascriptAllowed() || !HasActiveHomeOwner()) {
+  if (!IsJavascriptAllowed() || !HasActiveHomeOwner() ||
+      !CanAccessDraft(draft_id)) {
     std::move(callback).Run(
         ConnectorError("cancelled", "Dao Home is not active."));
     return;
@@ -576,7 +602,68 @@ void DaoHomeUIHandler::PreviewDraftForAgent(
     std::string entry,
     HomePreviewRequirements requirements,
     PreviewCallback callback) {
-  if (!IsJavascriptAllowed() || !HasActiveHomeOwner()) {
+  PreviewDraft(std::move(draft_id), std::move(entry), std::move(requirements),
+               false, std::move(callback));
+}
+
+bool DaoHomeUIHandler::IsReadyForExternal() const {
+  return external_session_ready_ && HasActiveHomeOwner() &&
+         DaoHomeExternalService::Get()->GetContext(web_contents()).is_dict();
+}
+
+void DaoHomeUIHandler::OnJavascriptDisallowed() {
+  weak_factory_.InvalidateWeakPtrs();
+  InvalidateDocumentMutationLease();
+  CancelAllSessions();
+}
+
+void DaoHomeUIHandler::PreviewDraftForExternal(std::string draft_id,
+                                               std::string entry,
+                                               PreviewCallback callback) {
+  if (!IsReadyForExternal()) {
+    std::move(callback).Run(
+        ConnectorError("cancelled", "Dao Home is not active."));
+    return;
+  }
+  PreviewDraft(std::move(draft_id), std::move(entry), HomePreviewRequirements(),
+               true, std::move(callback));
+}
+
+bool DaoHomeUIHandler::IsExternalPreviewValid(
+    const std::string& draft_id) const {
+  if (!IsReadyForExternal() || !agent_preview_retained_ ||
+      !external_preview_valid_ || agent_preview_runtime_failed_ ||
+      agent_preview_draft_id_ != draft_id || !CanAccessDraft(draft_id) ||
+      !service_->IsDraftPreviewed(draft_id)) {
+    return false;
+  }
+  auto* contents = web_contents();
+  return IsExpectedAgentPreviewFrame(contents->UnsafeFindFrameByFrameTreeNodeId(
+                                         agent_preview_frame_tree_node_id_),
+                                     contents, draft_id, agent_preview_entry_);
+}
+
+void DaoHomeUIHandler::NotifyExternalSessionChanged() {
+  external_session_ready_ = false;
+  ++external_session_generation_;
+  if (IsJavascriptAllowed()) {
+    FireWebUIListener("dao-home-external-session-changed");
+  }
+}
+
+void DaoHomeUIHandler::NotifyExternalEditorChanged() {
+  if (IsJavascriptAllowed()) {
+    FireWebUIListener("dao-home-external-editor-changed");
+  }
+}
+
+void DaoHomeUIHandler::PreviewDraft(std::string draft_id,
+                                    std::string entry,
+                                    HomePreviewRequirements requirements,
+                                    bool retained,
+                                    PreviewCallback callback) {
+  if (!IsJavascriptAllowed() || !HasActiveHomeOwner() ||
+      !CanAccessDraft(draft_id)) {
     std::move(callback).Run(
         ConnectorError("cancelled", "Dao Home is not active."));
     return;
@@ -592,6 +679,9 @@ void DaoHomeUIHandler::PreviewDraftForAgent(
         ConnectorError("invalid_draft", "The Home preview is invalid."));
     return;
   }
+  if (agent_preview_retained_) {
+    CancelAgentPreview("cancelled", "The Home preview was replaced.");
+  }
   agent_preview_request_id_ =
       base::Uuid::GenerateRandomV4().AsLowercaseString();
   agent_preview_draft_id_ = draft_id;
@@ -599,6 +689,8 @@ void DaoHomeUIHandler::PreviewDraftForAgent(
   agent_preview_requirements_ = std::move(requirements);
   agent_preview_frame_tree_node_id_ = {};
   agent_preview_runtime_failed_ = false;
+  agent_preview_retained_ = retained;
+  external_preview_valid_ = false;
   agent_preview_callback_ = std::move(callback);
   service_->BeginDraftPreview(draft_id);
   agent_preview_timeout_.Start(
@@ -606,11 +698,66 @@ void DaoHomeUIHandler::PreviewDraftForAgent(
       base::BindOnce(&DaoHomeUIHandler::CancelAgentPreview,
                      weak_factory_.GetWeakPtr(), "timed_out",
                      "The Home preview timed out."));
+  base::DictValue request = base::DictValue()
+                                .Set("requestId", agent_preview_request_id_)
+                                .Set("draftId", std::move(draft_id))
+                                .Set("entry", std::move(entry));
+  if (retained) {
+    request.Set("retained", true);
+  }
   FireWebUIListener("dao-home-agent-preview-request",
-                    base::Value(base::DictValue()
-                                    .Set("requestId", agent_preview_request_id_)
-                                    .Set("draftId", std::move(draft_id))
-                                    .Set("entry", std::move(entry))));
+                    base::Value(std::move(request)));
+}
+
+void DaoHomeUIHandler::HandleGetExternalSession(const base::ListValue& args) {
+  AllowJavascript();
+  if (args.empty() || !args[0].is_string()) {
+    return;
+  }
+  auto context =
+      DaoHomeExternalService::Get()->GetContext(web_ui()->GetWebContents());
+  if (context.is_dict()) {
+    context.GetDict().Set("generation", external_session_generation_);
+  }
+  FireWebUIListener(args[0].GetString(), std::move(context));
+}
+
+void DaoHomeUIHandler::HandleExternalSessionReady(const base::ListValue& args) {
+  if (args.size() != 1 || !args[0].is_int() ||
+      args[0].GetInt() != external_session_generation_) {
+    return;
+  }
+  external_session_ready_ = IsJavascriptAllowed() && HasActiveHomeOwner() &&
+                            DaoHomeExternalService::Get()
+                                ->GetContext(web_ui()->GetWebContents())
+                                .is_dict();
+}
+
+void DaoHomeUIHandler::HandleGetSessionActive(const base::ListValue& args) {
+  AllowJavascript();
+  if (args.size() == 1 && args[0].is_string()) {
+    FireWebUIListener(args[0].GetString(), base::Value(HasActiveHomeOwner()));
+  }
+}
+
+void DaoHomeUIHandler::HandleGetExternalEditor(const base::ListValue& args) {
+  AllowJavascript();
+  if (args.size() != 1 || !args[0].is_string()) {
+    return;
+  }
+  FireWebUIListener(
+      args[0].GetString(),
+      DaoHomeExternalService::Get()->GetEditor(Profile::FromWebUI(web_ui())));
+}
+
+void DaoHomeUIHandler::HandleStopExternalEditor(const base::ListValue& args) {
+  if (args.empty()) {
+    DaoHomeExternalService::Get()->StopForProfile(Profile::FromWebUI(web_ui()));
+  }
+}
+
+void DaoHomeUIHandler::HandleStopExternalSession(const base::ListValue& args) {
+  DaoHomeExternalService::Get()->StopForContents(web_ui()->GetWebContents());
 }
 
 void DaoHomeUIHandler::HandleGetSnapshot(const base::ListValue& args) {
@@ -707,6 +854,9 @@ void DaoHomeUIHandler::HandleGetPermission(const base::ListValue& args) {
   }
   std::optional<HomePermissionRequest> request =
       service_->GetPendingPermission();
+  if (request && !CanAccessDraft(request->draft_id)) {
+    request.reset();
+  }
   FireWebUIListener(
       args[0].GetString(),
       request ? base::Value(PermissionToValue(*request)) : base::Value());
@@ -718,7 +868,9 @@ void DaoHomeUIHandler::HandleApprovePermission(const base::ListValue& args) {
     return;
   }
   const std::string callback_event = args[0].GetString();
-  if (!HasActiveHomeOwner()) {
+  const auto request = service_->GetPendingPermission();
+  if (!HasActiveHomeOwner() || !request || request->id != args[1].GetString() ||
+      !CanAccessDraft(request->draft_id)) {
     FireWebUIListener(callback_event,
                       ConnectorError("cancelled", "Dao Home is not active."));
     return;
@@ -748,7 +900,10 @@ void DaoHomeUIHandler::HandleCancelPermission(const base::ListValue& args) {
   if (args.size() < 2 || !args[0].is_string() || !args[1].is_string()) {
     return;
   }
-  const bool cancelled = service_->CancelPermission(args[1].GetString());
+  const auto request = service_->GetPendingPermission();
+  const bool cancelled = request && request->id == args[1].GetString() &&
+                         CanAccessDraft(request->draft_id) &&
+                         service_->CancelPermission(args[1].GetString());
   FireWebUIListener(args[0].GetString(), base::Value(cancelled));
 }
 
@@ -1147,8 +1302,8 @@ void DaoHomeUIHandler::HandleImport(const base::ListValue& args) {
       service));
 }
 
-bool DaoHomeUIHandler::HasActiveHomeOwner() {
-  content::WebContents* owner = web_ui()->GetWebContents();
+bool DaoHomeUIHandler::HasActiveHomeOwner() const {
+  content::WebContents* owner = web_contents();
   BrowserWindowInterface* browser =
       owner ? GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(owner)
             : nullptr;
@@ -1157,6 +1312,11 @@ bool DaoHomeUIHandler::HasActiveHomeOwner() {
          browser->GetTabStripModel()->GetActiveWebContents() == owner &&
          owner->GetLastCommittedURL().SchemeIs(content::kChromeUIScheme) &&
          owner->GetLastCommittedURL().host() == kHomeHost;
+}
+
+bool DaoHomeUIHandler::CanAccessDraft(const std::string& draft_id) const {
+  return DaoHomeExternalService::Get()->CanAccessDraft(web_contents(),
+                                                       draft_id);
 }
 
 void DaoHomeUIHandler::HandleStartConnector(const base::ListValue& args) {
@@ -1234,7 +1394,7 @@ void DaoHomeUIHandler::HandleStartDraftConnector(const base::ListValue& args) {
   const std::string draft_id = args[1].GetString();
   const std::string connector_id = args[2].GetString();
   base::Value input = args[3].Clone();
-  if (!HasActiveHomeOwner() ||
+  if (!HasActiveHomeOwner() || !CanAccessDraft(draft_id) ||
       !service_->IsDraftConnectorApproved(draft_id, connector_id)) {
     ReplyConnectorWithDiagnostic(
         callback_event, draft_id, connector_id, "draft_start",
@@ -1256,6 +1416,7 @@ void DaoHomeUIHandler::HandleStartDraftConnector(const base::ListValue& args) {
             }
             if (!owner || !self->HasActiveHomeOwner() ||
                 self->web_ui()->GetWebContents() != owner.get() ||
+                !self->CanAccessDraft(draft_id) ||
                 !self->service_->IsDraftConnectorApproved(draft_id,
                                                           connector_id)) {
               self->ReplyConnectorWithDiagnostic(
@@ -1271,39 +1432,45 @@ void DaoHomeUIHandler::HandleStartDraftConnector(const base::ListValue& args) {
                                  "The Home draft connector is unavailable."));
               return;
             }
-            self->service_->GetSnapshot(base::BindOnce(
-                [](base::WeakPtr<DaoHomeUIHandler> self,
-                   std::string callback_event, std::string draft_id,
-                   base::WeakPtr<content::WebContents> owner, base::Value input,
-                   std::string connector_id, HomeConnectorBundle bundle,
-                   HomeSnapshot snapshot) {
-                  if (!self || !owner || !self->HasActiveHomeOwner() ||
-                      self->web_ui()->GetWebContents() != owner.get() ||
-                      !self->service_->IsDraftConnectorApproved(draft_id,
-                                                                connector_id)) {
-                    if (self) {
-                      self->ReplyConnectorWithDiagnostic(
-                          callback_event, snapshot.revision, connector_id,
-                          "draft_start",
-                          ConnectorError("cancelled",
-                                         "The Home draft approval expired."));
-                    }
-                    return;
-                  }
-                  Profile* profile = Profile::FromWebUI(self->web_ui());
-                  self->PrepareDraftConnectorExecutorForStart();
-                  self->draft_connector_executor_->Start(
-                      owner.get(), profile, std::move(snapshot.revision),
-                      std::move(bundle.connector), bundle.limits,
-                      std::move(bundle.module_source),
-                      std::move(bundle.schema_source), std::move(input),
-                      base::BindOnce(
-                          &DaoHomeUIHandler::ReplyConnectorWithDiagnostic, self,
-                          std::move(callback_event), draft_id,
-                          std::move(connector_id), "draft_start"));
-                },
-                self, callback_event, draft_id, owner, std::move(input),
-                connector_id, std::move(bundle.value())));
+            self->service_->GetDraft(
+                draft_id,
+                base::BindOnce(
+                    [](base::WeakPtr<DaoHomeUIHandler> self,
+                       std::string callback_event, std::string draft_id,
+                       base::WeakPtr<content::WebContents> owner,
+                       base::Value input, std::string connector_id,
+                       HomeConnectorBundle bundle,
+                       base::expected<HomeDraft, HomeError> draft) {
+                      if (!self || !draft.has_value() || !owner ||
+                          !self->HasActiveHomeOwner() ||
+                          self->web_ui()->GetWebContents() != owner.get() ||
+                          !self->CanAccessDraft(draft_id) ||
+                          !self->service_->IsDraftConnectorApproved(
+                              draft_id, connector_id)) {
+                        if (self) {
+                          self->ReplyConnectorWithDiagnostic(
+                              callback_event, draft_id, connector_id,
+                              "draft_start",
+                              ConnectorError(
+                                  "cancelled",
+                                  "The Home draft approval expired."));
+                        }
+                        return;
+                      }
+                      Profile* profile = Profile::FromWebUI(self->web_ui());
+                      self->PrepareDraftConnectorExecutorForStart();
+                      self->draft_connector_executor_->Start(
+                          owner.get(), profile, std::move(draft->base_revision),
+                          std::move(bundle.connector), bundle.limits,
+                          std::move(bundle.module_source),
+                          std::move(bundle.schema_source), std::move(input),
+                          base::BindOnce(
+                              &DaoHomeUIHandler::ReplyConnectorWithDiagnostic,
+                              self, std::move(callback_event), draft_id,
+                              std::move(connector_id), "draft_start"));
+                    },
+                    self, callback_event, draft_id, owner, std::move(input),
+                    connector_id, std::move(bundle.value())));
           },
           weak_factory_.GetWeakPtr(), callback_event, draft_id,
           std::move(owner), std::move(input), connector_id));
@@ -1454,8 +1621,12 @@ void DaoHomeUIHandler::HandleCompleteAgentConnector(
   }
   agent_connector_timeout_.Stop();
   agent_connector_request_id_.clear();
-  draft_connector_executor_->Cancel();
-  draft_connector_executor_ = std::make_unique<DaoHomeConnectorExecutor>();
+  if (IsReadyForExternal()) {
+    PrepareDraftConnectorExecutorForStart();
+  } else {
+    draft_connector_executor_->Cancel();
+    draft_connector_executor_ = std::make_unique<DaoHomeConnectorExecutor>();
+  }
   ConnectorCallback callback = std::move(agent_connector_callback_);
   std::move(callback).Run(args[1].Clone());
 }
@@ -1484,7 +1655,7 @@ void DaoHomeUIHandler::OnDidAddMessageToConsole(
     int32_t,
     const std::u16string&,
     const std::optional<std::u16string>&) {
-  if (!agent_preview_callback_ || !source_frame ||
+  if ((!agent_preview_callback_ && !agent_preview_retained_) || !source_frame ||
       log_level != blink::mojom::ConsoleMessageLevel::kError) {
     return;
   }
@@ -1497,12 +1668,17 @@ void DaoHomeUIHandler::OnDidAddMessageToConsole(
       ParseResourcePath(url.path().substr(1));
   if (parsed && parsed->preview && parsed->id == agent_preview_draft_id_) {
     agent_preview_runtime_failed_ = true;
+    if (external_preview_valid_) {
+      CancelAgentPreview(
+          "runtime_error",
+          "The generated Home application failed during preview.");
+    }
   }
 }
 
 void DaoHomeUIHandler::DidFinishNavigation(
     content::NavigationHandle* navigation) {
-  if (!agent_preview_callback_ || !navigation ||
+  if ((!agent_preview_callback_ && !agent_preview_retained_) || !navigation ||
       navigation->IsInPrimaryMainFrame()) {
     return;
   }
@@ -1529,8 +1705,20 @@ void DaoHomeUIHandler::DidFinishNavigation(
     return;
   }
   if (navigation->GetFrameTreeNodeId() == agent_preview_frame_tree_node_id_ &&
-      !navigation->IsSameDocument()) {
+      (!navigation->IsSameDocument() || !is_expected_preview ||
+       !navigation->HasCommitted() || navigation->IsErrorPage())) {
     agent_preview_runtime_failed_ = true;
+    if (external_preview_valid_) {
+      CancelAgentPreview("runtime_error", "The Home preview frame changed.");
+    }
+  }
+}
+
+void DaoHomeUIHandler::FrameDeleted(
+    content::FrameTreeNodeId frame_tree_node_id) {
+  if (agent_preview_retained_ &&
+      frame_tree_node_id == agent_preview_frame_tree_node_id_) {
+    CancelAgentPreview("cancelled", "The Home preview frame was removed.");
   }
 }
 
@@ -1543,6 +1731,10 @@ void DaoHomeUIHandler::OnVisibilityChanged(content::Visibility visibility) {
   if (visibility == content::Visibility::HIDDEN) {
     InvalidateDocumentMutationLease();
     CancelAllSessions();
+  }
+  if (IsJavascriptAllowed()) {
+    // Renderer visibility cannot distinguish occlusion from an inactive owner.
+    FireWebUIListener("dao-home-session-active-changed");
   }
 }
 
@@ -1559,6 +1751,17 @@ void DaoHomeUIHandler::HandleRecordRuntimeError(const base::ListValue& args) {
   const std::string revision = args[0].GetString();
   const std::string kind = args[1].GetString();
   if (kind != "error" && kind != "unhandled_rejection") {
+    return;
+  }
+  if (agent_preview_retained_ && revision == agent_preview_draft_id_) {
+    CancelAgentPreview("runtime_error",
+                       "The generated Home application failed during preview.");
+    HomeDiagnostic diagnostic;
+    diagnostic.revision = revision;
+    diagnostic.stage = "runtime";
+    diagnostic.code = kind;
+    diagnostic.detail = "The generated Home preview failed.";
+    service_->RecordDiagnostic(std::move(diagnostic));
     return;
   }
   service_->GetSnapshot(base::BindOnce(
@@ -1587,6 +1790,7 @@ void DaoHomeUIHandler::HandleCancelSession(const base::ListValue& args) {
 void DaoHomeUIHandler::CancelAgentSession() {
   CancelAgentConnector("cancelled", "The Home connector session ended.");
   CancelAgentPreview("cancelled", "The Home preview session ended.");
+  ClearRetainedExternalConnectorMedia();
 }
 
 void DaoHomeUIHandler::CancelAllSessions() {
@@ -1595,6 +1799,7 @@ void DaoHomeUIHandler::CancelAllSessions() {
     executor->Cancel();
   }
   retained_connector_executors_.clear();
+  retains_external_connector_media_ = false;
   CancelAgentSession();
 }
 
@@ -1695,6 +1900,8 @@ void DaoHomeUIHandler::DiscardDraftAndReply(std::string draft_id,
 }
 
 void DaoHomeUIHandler::OnProjectChanged() {
+  external_session_ready_ = false;
+  ++external_session_generation_;
   CancelAllSessions();
   if (IsJavascriptAllowed()) {
     FireWebUIListener("dao-home-project-changed");
@@ -1717,12 +1924,35 @@ void DaoHomeUIHandler::PrepareConnectorExecutorForStart() {
 }
 
 void DaoHomeUIHandler::PrepareDraftConnectorExecutorForStart() {
+  if (IsReadyForExternal() &&
+      draft_connector_executor_->collection_finished()) {
+    retained_connector_executors_.push_back(
+        std::move(draft_connector_executor_));
+    if (retained_connector_executors_.size() > kMaxRetainedConnectorExecutors) {
+      retained_connector_executors_.erase(
+          retained_connector_executors_.begin());
+    }
+    retains_external_connector_media_ = true;
+    draft_connector_executor_ = std::make_unique<DaoHomeConnectorExecutor>();
+    return;
+  }
   if (draft_connector_executor_->running()) {
     draft_connector_executor_->Cancel();
   }
   if (draft_connector_executor_->collection_finished()) {
     draft_connector_executor_ = std::make_unique<DaoHomeConnectorExecutor>();
   }
+}
+
+void DaoHomeUIHandler::ClearRetainedExternalConnectorMedia() {
+  if (!retains_external_connector_media_) {
+    return;
+  }
+  for (const auto& executor : retained_connector_executors_) {
+    executor->Cancel();
+  }
+  retained_connector_executors_.clear();
+  retains_external_connector_media_ = false;
 }
 
 DaoHomeConnectorExecutor* DaoHomeUIHandler::FindConnectorExecutor(
@@ -1769,12 +1999,24 @@ void DaoHomeUIHandler::CancelAgentPreview(std::string code,
   agent_preview_settle_timer_.Stop();
   const std::string request_id = agent_preview_request_id_;
   service_->EndDraftPreview(agent_preview_draft_id_);
+  if (agent_preview_retained_) {
+    if (document_mutation_lease_) {
+      document_mutation_lease_->Invalidate();
+      document_mutation_lease_.reset();
+    }
+    service_->InvalidateDraftPreview(agent_preview_draft_id_);
+    ClearRetainedExternalConnectorMedia();
+    draft_connector_executor_->Cancel();
+    draft_connector_executor_ = std::make_unique<DaoHomeConnectorExecutor>();
+  }
   agent_preview_request_id_.clear();
   agent_preview_draft_id_.clear();
   agent_preview_entry_.clear();
   agent_preview_requirements_ = HomePreviewRequirements();
   agent_preview_frame_tree_node_id_ = {};
   agent_preview_runtime_failed_ = false;
+  agent_preview_retained_ = false;
+  external_preview_valid_ = false;
   if (!request_id.empty() && IsJavascriptAllowed()) {
     FireWebUIListener("dao-home-agent-preview-ended", base::Value(request_id));
   }
@@ -1789,7 +2031,7 @@ void DaoHomeUIHandler::FinishAgentPreviewAfterLoad() {
   if (!agent_preview_callback_) {
     return;
   }
-  if (!HasActiveHomeOwner()) {
+  if (!HasActiveHomeOwner() || !CanAccessDraft(agent_preview_draft_id_)) {
     CancelAgentPreview("cancelled", "Dao Home is not active.");
     return;
   }
@@ -1797,6 +2039,16 @@ void DaoHomeUIHandler::FinishAgentPreviewAfterLoad() {
     CancelAgentPreview("runtime_error",
                        "The generated Home application failed during preview.");
     return;
+  }
+  if (agent_preview_retained_) {
+    auto* contents = web_ui()->GetWebContents();
+    if (!IsExpectedAgentPreviewFrame(contents->UnsafeFindFrameByFrameTreeNodeId(
+                                         agent_preview_frame_tree_node_id_),
+                                     contents, agent_preview_draft_id_,
+                                     agent_preview_entry_)) {
+      CancelAgentPreview("runtime_error", "The Home preview frame changed.");
+      return;
+    }
   }
   if (!agent_preview_requirements_.experience) {
     CompleteAgentPreview();
@@ -1899,9 +2151,9 @@ bool DaoHomeUIHandler::ValidateAgentPreviewSemantics(
     }
   }
   if (seen_actions.size() != agent_preview_requirements_.launch_urls.size() ||
-      !std::ranges::all_of(declared_actions, [&](const std::string& id) {
-        return seen_actions.contains(id);
-      }) ||
+      !std::ranges::all_of(
+          declared_actions,
+          [&](const std::string& id) { return seen_actions.contains(id); }) ||
       first_viewport_action_count <
           std::min<size_t>(4, experience.primary_actions.size())) {
     return false;
@@ -1930,8 +2182,14 @@ void DaoHomeUIHandler::CompleteAgentPreview() {
   agent_preview_settle_timer_.Stop();
   const std::string request_id = agent_preview_request_id_;
   const std::string draft_id = agent_preview_draft_id_;
-  service_->EndDraftPreview(draft_id);
   service_->MarkDraftPreviewed(draft_id);
+  if (agent_preview_retained_) {
+    external_preview_valid_ = true;
+    PreviewCallback callback = std::move(agent_preview_callback_);
+    std::move(callback).Run(base::Value(base::DictValue().Set("valid", true)));
+    return;
+  }
+  service_->EndDraftPreview(draft_id);
   agent_preview_request_id_.clear();
   agent_preview_draft_id_.clear();
   agent_preview_entry_.clear();
@@ -1981,6 +2239,7 @@ bool DaoHomeUIHandler::HasActiveRuntimeConnectorForTesting() const {
 }
 
 void DaoHomeUIHandler::InvalidateDocumentMutationLease() {
+  external_session_ready_ = false;
   service_->ClearHistoryBootstrapForOwner(web_ui()->GetWebContents());
   if (document_mutation_lease_) {
     document_mutation_lease_->Invalidate();
@@ -1993,9 +2252,10 @@ void DaoHomeUIHandler::OnPermissionChanged(
   if (!IsJavascriptAllowed()) {
     return;
   }
-  FireWebUIListener(
-      "dao-home-permission-changed",
-      request ? base::Value(PermissionToValue(*request)) : base::Value());
+  FireWebUIListener("dao-home-permission-changed",
+                    request && CanAccessDraft(request->draft_id)
+                        ? base::Value(PermissionToValue(*request))
+                        : base::Value());
 }
 
 void DaoHomeUIHandler::OnBootstrapPermissionChanged() {
@@ -2022,6 +2282,13 @@ DaoHomeUI::DaoHomeUI(content::WebUI* web_ui) : WebUIController(web_ui) {
   source->UseStringsJs();
   source->AddLocalizedString("daoHomePageTitle", IDS_DAO_HOME_PAGE_TITLE);
   source->AddLocalizedString("daoHomeLoading", IDS_DAO_HOME_LOADING);
+  source->AddLocalizedString("daoHomeExternalPreviewTitle",
+                             IDS_DAO_HOME_EXTERNAL_PREVIEW_TITLE);
+  source->AddLocalizedString("daoHomeExternalWaiting",
+                             IDS_DAO_HOME_EXTERNAL_WAITING);
+  source->AddLocalizedString("daoHomeExternalStop", IDS_DAO_HOME_EXTERNAL_STOP);
+  source->AddLocalizedString("daoHomeExternalPublished",
+                             IDS_DAO_HOME_EXTERNAL_PUBLISHED);
   source->AddLocalizedString("daoHomeEmptyTitle", IDS_DAO_HOME_EMPTY_TITLE);
   source->AddLocalizedString("daoHomeEmptyDescription",
                              IDS_DAO_HOME_EMPTY_DESCRIPTION);
@@ -2101,8 +2368,7 @@ DaoHomeUI::DaoHomeUI(content::WebUI* web_ui) : WebUIController(web_ui) {
                              IDS_DAO_HOME_CONFIRM_RESET_TITLE);
   source->AddLocalizedString("daoHomeConfirmResetDescription",
                              IDS_DAO_HOME_CONFIRM_RESET_DESCRIPTION);
-  source->AddLocalizedString("daoHomeResetFailed",
-                             IDS_DAO_HOME_RESET_FAILED);
+  source->AddLocalizedString("daoHomeResetFailed", IDS_DAO_HOME_RESET_FAILED);
   source->AddLocalizedString("daoHomeConfirmRestoreTitle",
                              IDS_DAO_HOME_CONFIRM_RESTORE_TITLE);
   source->AddLocalizedString("daoHomeConfirmRestoreDescription",
@@ -2160,6 +2426,38 @@ void DaoHomeUI::PreviewDraftForAgent(std::string draft_id,
 void DaoHomeUI::CancelAgentSession() {
   if (handler_) {
     handler_->CancelAgentSession();
+  }
+}
+
+bool DaoHomeUI::IsReadyForExternal() const {
+  return handler_ && handler_->IsReadyForExternal();
+}
+
+void DaoHomeUI::PreviewDraftForExternal(std::string draft_id,
+                                        std::string entry,
+                                        PreviewCallback callback) {
+  if (!handler_) {
+    std::move(callback).Run(
+        ConnectorError("cancelled", "Dao Home is unavailable."));
+    return;
+  }
+  handler_->PreviewDraftForExternal(std::move(draft_id), std::move(entry),
+                                    std::move(callback));
+}
+
+bool DaoHomeUI::IsExternalPreviewValid(const std::string& draft_id) const {
+  return handler_ && handler_->IsExternalPreviewValid(draft_id);
+}
+
+void DaoHomeUI::NotifyExternalSessionChanged() {
+  if (handler_) {
+    handler_->NotifyExternalSessionChanged();
+  }
+}
+
+void DaoHomeUI::NotifyExternalEditorChanged() {
+  if (handler_) {
+    handler_->NotifyExternalEditorChanged();
   }
 }
 

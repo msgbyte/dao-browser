@@ -12,6 +12,12 @@ const bridge = vi.hoisted(() => ({
   getHomeFiles: vi.fn(),
   readHomeFile: vi.fn(),
   getHomePermission: vi.fn(),
+  getHomeExternalEditor: vi.fn(),
+  stopHomeExternalEditor: vi.fn(),
+  getHomeExternalSession: vi.fn(),
+  getHomeSessionActive: vi.fn(),
+  stopHomeExternalSession: vi.fn(),
+  notifyHomeExternalSessionReady: vi.fn(),
   approveHomePermission: vi.fn(),
   cancelHomePermission: vi.fn(),
   resolveHomeBootstrapPermission: vi.fn(),
@@ -84,6 +90,9 @@ describe('dao-home-app', () => {
     bridge.getHomeFiles.mockResolvedValue([]);
     bridge.readHomeFile.mockResolvedValue('');
     bridge.getHomePermission.mockResolvedValue(null);
+    bridge.getHomeExternalEditor.mockResolvedValue(null);
+    bridge.getHomeExternalSession.mockResolvedValue(null);
+    bridge.getHomeSessionActive.mockResolvedValue(true);
     bridge.approveHomePermission.mockResolvedValue({});
     bridge.cancelHomePermission.mockResolvedValue(true);
     bridge.resolveHomeBootstrapPermission.mockResolvedValue({});
@@ -318,6 +327,7 @@ describe('dao-home-app', () => {
          configurable: true,
          value: true,
        });
+       bridge.getHomeSessionActive.mockResolvedValue(false);
        document.dispatchEvent(new Event('visibilitychange'));
 
        await vi.waitFor(() => {
@@ -329,6 +339,7 @@ describe('dao-home-app', () => {
          configurable: true,
          value: false,
        });
+       bridge.getHomeSessionActive.mockResolvedValue(true);
        document.dispatchEvent(new Event('visibilitychange'));
 
        await vi.waitFor(() => {
@@ -895,6 +906,260 @@ describe('dao-home-app', () => {
          expect(app.shadowRoot!.querySelector('[data-test="preview-frame"]'))
              .toBeNull();
        });
+     });
+
+  it('offers the active external editor and Stop before the first preview',
+     async () => {
+       bridge.getHomeExternalEditor.mockResolvedValue({client: 'Local editor'});
+       const app = await createApp();
+       const stop = app.shadowRoot!.querySelector<HTMLButtonElement>(
+           '.empty .actions [data-test="stop-external-editor"]');
+       expect(stop).not.toBeNull();
+       expect(stop!.textContent).toContain('Local editor');
+       expect(stop!.textContent).toContain('daoHomeExternalStop');
+       expect(app.shadowRoot!.querySelector('[data-test="external-preview-status"]'))
+           .toBeNull();
+       stop!.click();
+       expect(bridge.stopHomeExternalEditor).toHaveBeenCalledOnce();
+       expect(bridge.stopHomeExternalSession).not.toHaveBeenCalled();
+       expect(bridge.notifyHomeExternalSessionReady).not.toHaveBeenCalled();
+     });
+
+  it('updates ordinary Home editor controls without refreshing project state or readiness',
+     async () => {
+       bridge.getHomeSnapshot.mockResolvedValue({
+         hasProject: true, revision: 'published', entry: 'index.html', connectors: [],
+       });
+       const app = await createApp();
+       const snapshot = app.snapshot_;
+       const host = (app as unknown as {connectorHost_: unknown}).connectorHost_;
+       const changed = bridge.addListener.mock.calls.find(
+           ([name]) => name === 'dao-home-external-editor-changed');
+       expect(changed).toBeDefined();
+       bridge.getHomeExternalEditor.mockResolvedValue({client: 'Local editor'});
+       changed![1]();
+       const stop = await vi.waitFor(() => {
+         const button = app.shadowRoot!.querySelector<HTMLButtonElement>(
+             '[data-test="project-menu"] [data-test="stop-external-editor"]');
+         expect(button?.textContent).toContain('Local editor');
+         return button!;
+       });
+       stop.click();
+       expect(bridge.stopHomeExternalEditor).toHaveBeenCalledOnce();
+       bridge.getHomeExternalEditor.mockResolvedValue(null);
+       changed![1]();
+       await vi.waitFor(() => expect(app.shadowRoot!.querySelector(
+           '[data-test="stop-external-editor"]')).toBeNull());
+       expect(app.snapshot_).toBe(snapshot);
+       expect((app as unknown as {connectorHost_: unknown}).connectorHost_).toBe(host);
+       expect(app.loading_).toBe(false);
+       expect(bridge.getHomeSnapshot).toHaveBeenCalledOnce();
+       expect(bridge.getHomeExternalSession).toHaveBeenCalledOnce();
+       expect(bridge.cancelHomeSession).not.toHaveBeenCalled();
+       expect(bridge.notifyHomeExternalSessionReady).not.toHaveBeenCalled();
+     });
+
+  it('does not expose external editor controls through generated runtime messages',
+     async () => {
+       bridge.getHomeExternalEditor.mockResolvedValue({client: 'Local editor'});
+       bridge.getHomeSnapshot.mockResolvedValue({
+         hasProject: true, revision: 'published', entry: 'index.html', connectors: [],
+       });
+       const app = await createApp();
+       const frame = app.shadowRoot!.querySelector<HTMLIFrameElement>(
+           '[data-test="project-frame"]')!;
+       const reply = vi.fn();
+       Object.defineProperty(frame, 'contentWindow', {
+         value: {postMessage: reply},
+       });
+       for (const method of ['getHomeExternalEditor', 'stopHomeExternalEditor']) {
+         window.dispatchEvent(new MessageEvent('message', {
+           source: frame.contentWindow, origin: 'null',
+           data: {daoHome: 1, requestId: method, revision: 'published', method, params: {}},
+         }));
+       }
+       await vi.waitFor(() => expect(reply).toHaveBeenCalledTimes(2));
+       expect(reply).toHaveBeenCalledWith(expect.objectContaining({
+         error: 'Unsupported Dao Home runtime capability.',
+       }), '*');
+       expect(bridge.getHomeExternalEditor).toHaveBeenCalledOnce();
+       expect(bridge.stopHomeExternalEditor).not.toHaveBeenCalled();
+       expect(bridge.stopHomeExternalSession).not.toHaveBeenCalled();
+     });
+
+  it('renders an external draft instead of the published project and routes its sources',
+     async () => {
+       bridge.getHomeExternalSession.mockResolvedValue({
+         client: 'External editor', generation: 7,
+       });
+       bridge.getHomeSnapshot.mockResolvedValue({
+         hasProject: true, revision: 'published', entry: 'index.html', connectors: [],
+       });
+       const app = await createApp();
+       expect(app.shadowRoot!.querySelector('[data-test="external-preview-status"]'))
+           .not.toBeNull();
+       expect(app.shadowRoot!.querySelector('[data-test="project-frame"]'))
+           .toBeNull();
+       const request = bridge.addListener.mock.calls.find(
+           ([name]) => name === 'dao-home-agent-preview-request')!;
+       const draft = '11111111-1111-4111-8111-111111111111';
+       request[1]({requestId: 'external-preview', draftId: draft,
+         entry: 'index.html', retained: true});
+       const frame = await vi.waitFor(() => {
+         const frame = app.shadowRoot!.querySelector<HTMLIFrameElement>(
+             '[data-test="preview-frame"]');
+         expect(frame).not.toBeNull();
+         expect(frame!.classList.contains('retained')).toBe(true);
+         return frame!;
+       });
+       const collectDraft = vi.fn().mockResolvedValue([]);
+       (app as unknown as {connectorHost_: unknown}).connectorHost_ = {
+         handleMessage: vi.fn().mockResolvedValue(false), collectDraft,
+         disconnect: vi.fn(),
+       };
+       window.dispatchEvent(new MessageEvent('message', {
+         source: frame.contentWindow, origin: 'null',
+         data: {daoHome: 1, requestId: 'collect', revision: draft,
+           method: 'sources.collect', params: {connectorId: 'news', input: {}}},
+       }));
+       await vi.waitFor(() => expect(collectDraft).toHaveBeenCalledWith(
+           draft, 'news', {}));
+       window.dispatchEvent(new MessageEvent('message', {
+         source: frame.contentWindow, origin: 'null',
+         data: {daoHome: 1, requestId: 'late-error', revision: draft,
+           method: 'runtime.report', params: {kind: 'error'}},
+       }));
+       await vi.waitFor(() => expect(bridge.recordHomeRuntimeError)
+           .toHaveBeenCalledWith(draft, 'error'));
+       app.shadowRoot!.querySelector<HTMLButtonElement>(
+           '[data-test="stop-external-preview"]')!.click();
+       expect(bridge.stopHomeExternalSession).toHaveBeenCalledOnce();
+     });
+
+  it('renews external readiness after visibility recovery and shows a published result',
+     async () => {
+       bridge.getHomeExternalSession.mockResolvedValue({
+         client: 'External editor', generation: 7,
+       });
+       const app = await createApp();
+       expect(bridge.notifyHomeExternalSessionReady).not.toHaveBeenCalled();
+       app.shadowRoot!.querySelector('[data-test="connector-sandbox"]')!
+           .dispatchEvent(new Event('load'));
+       expect(bridge.notifyHomeExternalSessionReady).toHaveBeenCalledOnce();
+       expect(bridge.notifyHomeExternalSessionReady).toHaveBeenLastCalledWith(7);
+       Object.defineProperty(document, 'hidden', {configurable: true, value: true});
+       bridge.getHomeSessionActive.mockResolvedValue(false);
+       document.dispatchEvent(new Event('visibilitychange'));
+       await vi.waitFor(() => expect(app.shadowRoot!.querySelector(
+           '[data-test="connector-sandbox"]')).toBeNull());
+       Object.defineProperty(document, 'hidden', {configurable: true, value: false});
+       bridge.getHomeSessionActive.mockResolvedValue(true);
+       document.dispatchEvent(new Event('visibilitychange'));
+       await vi.waitFor(() => expect(app.shadowRoot!.querySelector(
+           '[data-test="connector-sandbox"]')).not.toBeNull());
+       app.shadowRoot!.querySelector('[data-test="connector-sandbox"]')!
+           .dispatchEvent(new Event('load'));
+       await vi.waitFor(() => expect(bridge.notifyHomeExternalSessionReady)
+           .toHaveBeenCalledTimes(2));
+       const oldSandbox = app.shadowRoot!.querySelector(
+           '[data-test="connector-sandbox"]')!;
+       bridge.getHomeExternalSession.mockResolvedValue({
+         client: 'External editor', generation: 8, published: true,
+       });
+       bridge.getHomeSnapshot.mockResolvedValue({
+         hasProject: true, revision: 'committed', entry: 'index.html', connectors: [],
+       });
+       const changed = bridge.addListener.mock.calls.find(
+           ([name]) => name === 'dao-home-external-session-changed')!;
+       changed[1]();
+       await vi.waitFor(() => {
+         const published = app.shadowRoot!.querySelector<HTMLIFrameElement>(
+             '[data-test="project-frame"]');
+         expect(published?.getAttribute('src')).toContain('/committed/index.html');
+         expect(app.shadowRoot!.querySelector('[data-test="preview-frame"]'))
+             .toBeNull();
+       });
+       oldSandbox.dispatchEvent(new Event('load'));
+       expect(bridge.notifyHomeExternalSessionReady).toHaveBeenCalledTimes(2);
+       app.shadowRoot!.querySelector('[data-test="connector-sandbox"]')!
+           .dispatchEvent(new Event('load'));
+       expect(bridge.notifyHomeExternalSessionReady).toHaveBeenLastCalledWith(8);
+     });
+
+  it('retains an occluded preview until the native owner becomes inactive',
+     async () => {
+       bridge.getHomeExternalSession.mockResolvedValue({
+         client: 'External editor', generation: 7,
+       });
+       const app = await createApp();
+       const request = bridge.addListener.mock.calls.find(
+           ([name]) => name === 'dao-home-agent-preview-request')!;
+       request[1]({requestId: 'external-preview',
+         draftId: '11111111-1111-4111-8111-111111111111',
+         entry: 'index.html', retained: true});
+       const frame = await vi.waitFor(() => {
+         const frame = app.shadowRoot!.querySelector('[data-test="preview-frame"]');
+         expect(frame).not.toBeNull();
+         return frame!;
+       });
+       const sandbox = app.shadowRoot!.querySelector('[data-test="connector-sandbox"]')!;
+       sandbox.dispatchEvent(new Event('load'));
+       bridge.cancelHomeSession.mockClear();
+       bridge.getHomeSessionActive.mockClear();
+       Object.defineProperty(document, 'hidden', {configurable: true, value: true});
+       document.dispatchEvent(new Event('visibilitychange'));
+       await vi.waitFor(() => expect(bridge.getHomeSessionActive).toHaveBeenCalled());
+       await app.updateComplete;
+       expect(app.shadowRoot!.querySelector('[data-test="preview-frame"]')).toBe(frame);
+       expect(app.shadowRoot!.querySelector('[data-test="connector-sandbox"]')).toBe(sandbox);
+       expect(bridge.cancelHomeSession).not.toHaveBeenCalled();
+       expect(bridge.notifyHomeExternalSessionReady).toHaveBeenCalledOnce();
+
+       // OCCLUDED -> HIDDEN does not change document.hidden again.
+       bridge.getHomeSessionActive.mockResolvedValue(false);
+       const changed = bridge.addListener.mock.calls.find(
+           ([name]) => name === 'dao-home-session-active-changed')!;
+       changed[1]();
+       await vi.waitFor(() => expect(app.shadowRoot!.querySelectorAll('iframe'))
+           .toHaveLength(0));
+       expect(bridge.cancelHomeSession).toHaveBeenCalledOnce();
+     });
+
+  it('loads an initially occluded external session using native activity',
+     async () => {
+       Object.defineProperty(document, 'hidden', {configurable: true, value: true});
+       bridge.getHomeExternalSession.mockResolvedValue({
+         client: 'External editor', generation: 7,
+       });
+       const app = await createApp();
+       const sandbox = app.shadowRoot!.querySelector('[data-test="connector-sandbox"]');
+       expect(sandbox).not.toBeNull();
+       sandbox!.dispatchEvent(new Event('load'));
+       expect(bridge.notifyHomeExternalSessionReady).toHaveBeenCalledWith(7);
+     });
+
+  it('ignores an older native activity reply after the owner becomes inactive',
+     async () => {
+       bridge.getHomeExternalSession.mockResolvedValue({
+         client: 'External editor', generation: 7,
+       });
+       const app = await createApp();
+       let resolveOldActivity!: (active: boolean) => void;
+       bridge.getHomeSessionActive.mockReturnValueOnce(new Promise(resolve => {
+         resolveOldActivity = resolve;
+       }));
+       document.dispatchEvent(new Event('visibilitychange'));
+       bridge.getHomeSessionActive.mockResolvedValue(false);
+       const changed = bridge.addListener.mock.calls.find(
+           ([name]) => name === 'dao-home-session-active-changed')!;
+       changed[1]();
+       await vi.waitFor(() => expect(app.shadowRoot!.querySelectorAll('iframe'))
+           .toHaveLength(0));
+       resolveOldActivity(true);
+       await Promise.resolve();
+       await app.updateComplete;
+       expect(app.shadowRoot!.querySelectorAll('iframe')).toHaveLength(0);
+       expect(bridge.notifyHomeExternalSessionReady).not.toHaveBeenCalled();
      });
 
   it('does not let generated runtime errors complete the preview', async () => {

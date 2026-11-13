@@ -69,6 +69,7 @@ class DaoHomeUIHandler : public content::WebUIMessageHandler,
   ~DaoHomeUIHandler() override;
 
   void RegisterMessages() override;
+  void OnJavascriptDisallowed() override;
   void OnDidAddMessageToConsole(
       content::RenderFrameHost* source_frame,
       blink::mojom::ConsoleMessageLevel log_level,
@@ -77,6 +78,7 @@ class DaoHomeUIHandler : public content::WebUIMessageHandler,
       const std::u16string& source_id,
       const std::optional<std::u16string>& untrusted_stack_trace) override;
   void DidFinishNavigation(content::NavigationHandle* navigation) override;
+  void FrameDeleted(content::FrameTreeNodeId frame_tree_node_id) override;
   void PrimaryPageChanged(content::Page& page) override;
   void OnVisibilityChanged(content::Visibility visibility) override;
   void WebContentsDestroyed() override;
@@ -88,6 +90,13 @@ class DaoHomeUIHandler : public content::WebUIMessageHandler,
                             std::string entry,
                             HomePreviewRequirements requirements,
                             PreviewCallback callback);
+  bool IsReadyForExternal() const;
+  void PreviewDraftForExternal(std::string draft_id,
+                               std::string entry,
+                               PreviewCallback callback);
+  bool IsExternalPreviewValid(const std::string& draft_id) const;
+  void NotifyExternalSessionChanged();
+  void NotifyExternalEditorChanged();
   void CancelAgentSession();
   scoped_refptr<DaoHomeMutationLease> CreateMutationLease();
   void ArmAgentConnectorForTesting(ConnectorCallback callback);
@@ -98,6 +107,12 @@ class DaoHomeUIHandler : public content::WebUIMessageHandler,
 
  private:
   void HandleGetSnapshot(const base::ListValue& args);
+  void HandleGetExternalSession(const base::ListValue& args);
+  void HandleGetSessionActive(const base::ListValue& args);
+  void HandleGetExternalEditor(const base::ListValue& args);
+  void HandleStopExternalEditor(const base::ListValue& args);
+  void HandleExternalSessionReady(const base::ListValue& args);
+  void HandleStopExternalSession(const base::ListValue& args);
   void HandleGetVersions(const base::ListValue& args);
   void HandleGetFiles(const base::ListValue& args);
   void HandleReadFile(const base::ListValue& args);
@@ -132,7 +147,13 @@ class DaoHomeUIHandler : public content::WebUIMessageHandler,
   void DiscardDraftAndReply(std::string draft_id,
                             std::string callback_event,
                             base::Value result);
-  bool HasActiveHomeOwner();
+  bool HasActiveHomeOwner() const;
+  bool CanAccessDraft(const std::string& draft_id) const;
+  void PreviewDraft(std::string draft_id,
+                    std::string entry,
+                    HomePreviewRequirements requirements,
+                    bool retained,
+                    PreviewCallback callback);
   void ReplyConnector(const std::string& callback_event, base::Value result);
   void ReplyConnectorWithDiagnostic(const std::string& callback_event,
                                     const std::string& revision,
@@ -155,6 +176,7 @@ class DaoHomeUIHandler : public content::WebUIMessageHandler,
   void CancelAllSessions();
   void PrepareConnectorExecutorForStart();
   void PrepareDraftConnectorExecutorForStart();
+  void ClearRetainedExternalConnectorMedia();
   DaoHomeConnectorExecutor* FindConnectorExecutor(
       const std::string& execution_id);
   DaoHomeConnectorExecutor* FindMediaExecutor(const std::string& handle);
@@ -180,6 +202,11 @@ class DaoHomeUIHandler : public content::WebUIMessageHandler,
   base::OneShotTimer agent_preview_timeout_;
   base::OneShotTimer agent_preview_settle_timer_;
   bool agent_preview_runtime_failed_ = false;
+  bool agent_preview_retained_ = false;
+  bool external_preview_valid_ = false;
+  bool external_session_ready_ = false;
+  int external_session_generation_ = 0;
+  bool retains_external_connector_media_ = false;
   scoped_refptr<DaoHomeMutationLease> document_mutation_lease_;
   base::WeakPtrFactory<DaoHomeUIHandler> weak_factory_{this};
 };
@@ -202,6 +229,13 @@ class DaoHomeUI : public content::WebUIController {
                             std::string entry,
                             HomePreviewRequirements requirements,
                             PreviewCallback callback);
+  bool IsReadyForExternal() const;
+  void PreviewDraftForExternal(std::string draft_id,
+                               std::string entry,
+                               PreviewCallback callback);
+  bool IsExternalPreviewValid(const std::string& draft_id) const;
+  void NotifyExternalSessionChanged();
+  void NotifyExternalEditorChanged();
   void CancelAgentSession();
   scoped_refptr<DaoHomeMutationLease> CreateMutationLease();
   void ArmAgentConnectorForTesting(ConnectorCallback callback);

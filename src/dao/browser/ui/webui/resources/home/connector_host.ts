@@ -73,12 +73,14 @@ export class ConnectorHost {
   }
 
   async collectDraft(
-      draftId: string, connectorId: string, input: unknown): Promise<unknown> {
-    return this.collectForDraft_(draftId, connectorId, input);
+      draftId: string, connectorId: string, input: unknown,
+      fresh = false): Promise<unknown> {
+    return this.collectForDraft_(draftId, connectorId, input, fresh);
   }
 
   private async collectForDraft_(
-      draftId: string, connectorId: string, input: unknown): Promise<unknown> {
+      draftId: string, connectorId: string, input: unknown,
+      fresh = false): Promise<unknown> {
     let serializedInput: string;
     try {
       serializedInput = JSON.stringify(input);
@@ -86,6 +88,7 @@ export class ConnectorHost {
       throw new Error('Home connector input must be JSON serializable.');
     }
     const key = `${draftId}\n${connectorId}\n${serializedInput}`;
+    if (fresh) this.completed_.delete(key);
     const completed = this.completed_.get(key);
     if (completed &&
         Date.now() - completed.collectedAt < COMPLETED_COLLECTION_TTL_MS) {

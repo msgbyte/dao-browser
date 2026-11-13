@@ -1,10 +1,11 @@
 diff --git a/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.h b/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.h
 --- a/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.h
 +++ b/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.h
-@@ -24,6 +24,7 @@ class ChromeBrowserMainExtraPartsProfiles : public ChromeBrowserMainExtraParts {
+@@ -24,6 +24,8 @@ class ChromeBrowserMainExtraPartsProfiles : public ChromeBrowserMainExtraParts {
  
    // Overridden from ChromeBrowserMainExtraParts:
    void PreProfileInit() override;
++  void PostBrowserStart() override;
 +  void PostMainMessageLoopRun() override;
  };
  
