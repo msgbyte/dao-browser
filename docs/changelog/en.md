@@ -5,6 +5,7 @@
 ### [Unreleased] Unreleased
 
 - Guide external AI tools to keep related research pages and steps in one Dao Lite task with multiple tabs, reducing unnecessary tasks in the sidebar.
+- Fix a crash when a Home source website fails to load.
 
 ### [1.0.140] - 2026-11-12
 

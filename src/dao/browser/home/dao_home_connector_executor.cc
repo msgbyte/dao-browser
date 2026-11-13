@@ -172,7 +172,7 @@ class DaoHomeConnectorExecutor::OwnerObserver
   void PrimaryPageChanged(content::Page& page) override { ScheduleCancel(); }
   void WebContentsDestroyed() override { ScheduleCancel(); }
   void OnVisibilityChanged(content::Visibility visibility) override {
-    if (visibility != content::Visibility::VISIBLE) {
+    if (visibility == content::Visibility::HIDDEN) {
       ScheduleCancel();
     }
   }
@@ -325,9 +325,9 @@ void DaoHomeConnectorExecutor::CallPage(const std::string& execution_id,
   if (execution_id != execution_id_ || !source_ ||
       !committed_allowed_document_ || collection_finished_ ||
       !OwnerIsActive()) {
+    Cancel();
     std::move(callback).Run(
         Error("cancelled", "The active Dao Home connector session ended."));
-    Cancel();
     return;
   }
   if (page_callback_ || finish_callback_) {
@@ -337,9 +337,9 @@ void DaoHomeConnectorExecutor::CallPage(const std::string& execution_id,
     return;
   }
   if (++operation_count_ > kMaxOperations) {
+    Cancel();
     std::move(callback).Run(Error(
         "quota_exceeded", "The connector used too many page operations."));
-    Cancel();
     return;
   }
   if (!OperationIsAllowed(operation) ||
@@ -349,9 +349,9 @@ void DaoHomeConnectorExecutor::CallPage(const std::string& execution_id,
     return;
   }
   if (operation == "scroll" && ++scroll_count_ > kMaxScrolls) {
+    Cancel();
     std::move(callback).Run(Error(
         "quota_exceeded", "The connector used too many scroll operations."));
-    Cancel();
     return;
   }
   if (operation == "navigate") {
@@ -551,9 +551,9 @@ void DaoHomeConnectorExecutor::OnPageResult(base::Value result) {
   std::string serialized;
   if (!base::JSONWriter::Write(result, &serialized) ||
       serialized.size() > static_cast<size_t>(limits_.max_result_bytes)) {
+    Cancel();
     std::move(callback).Run(
         Error("quota_exceeded", "The connector page result is too large."));
-    Cancel();
     return;
   }
   std::move(callback).Run(std::move(result));
@@ -566,9 +566,9 @@ void DaoHomeConnectorExecutor::PollWaitFor() {
   if (!source_ || !committed_allowed_document_ || collection_finished_ ||
       !OwnerIsActive()) {
     Callback callback = std::move(page_callback_);
+    Cancel();
     std::move(callback).Run(
         Error("cancelled", "The active Dao Home connector session ended."));
-    Cancel();
     return;
   }
   content::RenderFrameHost* frame = source_->GetPrimaryMainFrame();
@@ -645,24 +645,24 @@ void DaoHomeConnectorExecutor::Finish(const std::string& execution_id,
                                       Callback callback) {
   if (execution_id != execution_id_ || !OwnerIsActive() || page_callback_ ||
       finish_callback_ || collection_finished_) {
+    Cancel();
     std::move(callback).Run(
         Error("cancelled", "The active Dao Home connector session ended."));
-    Cancel();
     return;
   }
   std::string serialized;
   if (!base::JSONWriter::Write(result, &serialized) ||
       serialized.size() > static_cast<size_t>(limits_.max_result_bytes)) {
+    Cancel();
     std::move(callback).Run(Error(
         "invalid_response", "The connector result exceeds its byte budget."));
-    Cancel();
     return;
   }
   if (!ValidateSchemaValue(schema_, result, 0,
                            limits_.max_items_per_connector)) {
+    Cancel();
     std::move(callback).Run(Error(
         "invalid_response", "The connector result does not match its schema."));
-    Cancel();
     return;
   }
   finish_result_ = std::move(result);
@@ -808,7 +808,8 @@ void DaoHomeConnectorExecutor::CompleteFinish() {
   collection_finished_ = true;
   timeout_.Stop();
   Observe(nullptr);
-  source_.reset();
+  base::SequencedTaskRunner::GetCurrentDefault()->DeleteSoon(
+      FROM_HERE, std::move(source_));
   pending_media_urls_.clear();
   std::move(callback).Run(base::Value(base::DictValue()
                                           .Set("execution_id", execution_id_)
@@ -820,8 +821,12 @@ void DaoHomeConnectorExecutor::DidFinishNavigation(
   if (!handle->IsInPrimaryMainFrame() || !handle->HasCommitted()) {
     return;
   }
-  if (handle->IsErrorPage() || !UrlIsAllowed(handle->GetURL())) {
+  if (!UrlIsAllowed(handle->GetURL())) {
     FailStart("site_changed", "The connector page left its granted scope.");
+    return;
+  }
+  if (handle->IsErrorPage()) {
+    FailStart("temporarily_unavailable", "The connector page is unavailable.");
     return;
   }
   const net::HttpResponseHeaders* headers = handle->GetResponseHeaders();
@@ -876,6 +881,8 @@ void DaoHomeConnectorExecutor::OnAuthState(base::Value result) {
 }
 
 void DaoHomeConnectorExecutor::WebContentsDestroyed() {
+  // The observed contents is already being destroyed by its caller.
+  source_.release();
   Observe(nullptr);
   if (start_callback_ || page_callback_ || finish_callback_) {
     FailStart("temporarily_unavailable", "The connector page was destroyed.");
@@ -937,7 +944,11 @@ void DaoHomeConnectorExecutor::Reset() {
   weak_factory_.InvalidateWeakPtrs();
   Observe(nullptr);
   owner_observer_.reset();
-  source_.reset();
+  if (source_) {
+    // Navigation failures can reset us inside a source observer notification.
+    base::SequencedTaskRunner::GetCurrentDefault()->DeleteSoon(
+        FROM_HERE, std::move(source_));
+  }
   owner_.reset();
   profile_ = nullptr;
   execution_id_.clear();
