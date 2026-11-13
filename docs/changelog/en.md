@@ -4,6 +4,8 @@
 
 ### [Unreleased] Unreleased
 
+- Guide external AI tools to keep related research pages and steps in one Dao Lite task with multiple tabs, reducing unnecessary tasks in the sidebar.
+
 ### [1.0.140] - 2026-11-12
 
 - Guide external AI tools to use the tab ID you provide, including a UUID pasted on its own line, when requesting page access, reducing unnecessary page selection prompts.
