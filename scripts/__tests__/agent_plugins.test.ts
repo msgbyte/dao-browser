@@ -16,7 +16,7 @@ describe('agent plugins', () => {
       .sort();
     expect(packages).toEqual(['agents', 'claude-code']);
 
-    for (const skill of ['dao-browser', 'dao-lite']) {
+    for (const skill of ['dao-browser', 'dao-lite', 'dao-home']) {
       const entry = read(`src/dao/browser/cli/${skill.replace('-', '_')}_entry_skill.md`);
       for (const host of packages) {
         expect(read(`agent-plugins/${host}/skills/${skill}/SKILL.md`), `${host}/${skill}`)

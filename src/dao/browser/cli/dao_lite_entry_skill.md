@@ -1,12 +1,13 @@
 ---
 name: dao-lite
-description: Use when the user explicitly requests dao-lite, or when no Dao skill is specified and the task involves searches, research, or background browser automation, including signed-in sites and JavaScript-heavy pages. If the user specifies dao-browser, use that skill.
+description: Use when the user explicitly requests dao-lite, or when no Dao skill is specified and the task involves searches, research, or background browser automation, including signed-in sites and JavaScript-heavy pages. If the user specifies dao-browser or dao-home, use that skill.
 ---
 
 # Dao Lite
 
-When the user explicitly requests `dao-browser` or `dao-lite`, use that skill.
-Only when neither is specified, choose `dao-browser` for the user's existing
+When the user explicitly requests `dao-browser`, `dao-lite`, or `dao-home`, use that skill.
+When none is specified, choose `dao-home` for Home project creation or editing,
+then choose `dao-browser` for the user's existing
 Dao tabs or windows and `dao-lite` for searches, research, and background web
 tasks.
 

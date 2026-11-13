@@ -1,3 +1,7 @@
+For Home project creation or editing without an explicit skill choice, use
+`dao-home` and `dao-browser home guide`. Home editing has an independent native
+connection and does not require MCP. Keep an explicit user skill choice.
+
 # Dao Browser: existing pages
 
 When the user explicitly requests `dao-browser` or `dao-lite`, use that skill.

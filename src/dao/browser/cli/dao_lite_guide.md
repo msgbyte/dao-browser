@@ -1,3 +1,7 @@
+For Home project creation or editing without an explicit skill choice, use
+`dao-home` and `dao-browser home guide`. Home editing has an independent native
+connection and does not require MCP. Keep an explicit user skill choice.
+
 # Dao Lite for agents
 
 Dao is the user's own browser. This guide ships inside Dao, so it always

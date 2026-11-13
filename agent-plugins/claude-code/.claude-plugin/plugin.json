@@ -1,7 +1,7 @@
 {
   "name": "dao-browser",
   "version": "1.0.0",
-  "description": "Honor an explicit dao-browser or dao-lite choice; otherwise use Dao Browser for existing tabs and Dao Lite for background web tasks.",
+  "description": "Honor an explicit Dao skill choice; otherwise use Dao Home for Home projects, Dao Browser for existing tabs, and Dao Lite for background web tasks.",
   "author": {
     "name": "Dao Browser"
   },

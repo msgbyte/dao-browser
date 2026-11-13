@@ -2,7 +2,7 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "dao-browser",
   "version": "1.0.0",
-  "description": "Honor an explicit dao-browser or dao-lite choice; otherwise use Dao Browser for existing tabs and Dao Lite for background web tasks.",
+  "description": "Honor an explicit Dao skill choice; otherwise use Dao Home for Home projects, Dao Browser for existing tabs, and Dao Lite for background web tasks.",
   "author": {
     "name": "Dao Browser"
   },
@@ -14,7 +14,7 @@
       "interface": {
         "displayName": "Dao Browser",
         "shortDescription": "Work in the user's Dao browser",
-        "longDescription": "Honor an explicit dao-browser or dao-lite choice. Otherwise, use dao-browser for existing Dao tabs or windows and dao-lite for searches and background web tasks with your sign-ins. You can watch, take over, or stop background tasks from the sidebar.",
+        "longDescription": "Honor an explicit dao-home, dao-browser, or dao-lite choice. Otherwise, use dao-home for Home projects, dao-browser for existing Dao tabs or windows, and dao-lite for background web tasks with your sign-ins. You can watch, take over, or stop background tasks from the sidebar.",
         "developerName": "Dao Browser",
         "category": "Developer Tools",
         "capabilities": ["Interactive", "Read", "Write"],

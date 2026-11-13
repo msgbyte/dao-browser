@@ -17,15 +17,17 @@ namespace dao {
 // Entry skill with this app's CLI path as a fallback for agents without
 // ~/.local/bin on PATH.
 std::string BuildDaoEntrySkill(const base::FilePath& helper_path,
-                              bool lite = false);
+                               bool lite = false);
+
+std::string BuildDaoHomeEntrySkill(const base::FilePath& helper_path);
 
 // Explicitly installs/updates or removes one integration: shared, claude, cli.
 // Only Dao-owned files are changed. Returns false on conflicts or I/O errors.
 // Blocking; call on a MayBlock sequence.
 bool UpdateDaoLocalAgentIntegration(const base::FilePath& home,
-                                   const base::FilePath& helper_path,
-                                   std::string_view id,
-                                   bool installed);
+                                    const base::FilePath& helper_path,
+                                    std::string_view id,
+                                    bool installed);
 
 // Performs the requested operation and returns status with a success field.
 // Does not touch the developer's home in test processes.
