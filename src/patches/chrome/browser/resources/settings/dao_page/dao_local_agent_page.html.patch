@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000000..0000000001
 --- /dev/null
 +++ b/chrome/browser/resources/settings/dao_page/dao_local_agent_page.html
-@@ -0,0 +1,428 @@
+@@ -0,0 +1,434 @@
 +<style include="settings-shared">
 +  .dao-mcp-page {
 +    margin-top: 12px;
@@ -418,6 +418,12 @@ index 0000000000..0000000001
 +      <details id="daoLocalAgentHelp" class="dao-local-agent-help">
 +        <summary>$i18n{daoLocalAgentHelpTitle}</summary>
 +        <p>$i18n{daoLocalAgentHelpIntro}</p>
++        <div id="daoHomeSkillHelp">
++          <div class="dao-mcp-section-title">$i18n{daoLocalAgentHelpHomeTitle}</div>
++          <p>$i18n{daoLocalAgentHelpHomeDescription}</p>
++          <p>$i18n{daoLocalAgentHelpHomeSetup}</p>
++          <p>$i18n{daoLocalAgentHelpHomeExample}</p>
++        </div>
 +        <div class="dao-mcp-section-title">Dao Browser</div>
 +        <p>$i18n{daoLocalAgentHelpBrowserDescription}</p>
 +        <p>$i18n{daoLocalAgentHelpBrowserExample}</p>

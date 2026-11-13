@@ -1125,7 +1125,19 @@
         How to use
       </message>
       <message name="IDS_DAO_LOCAL_AGENT_HELP_INTRO" desc="Local agent skill usage guide: intro.">
-        After installing the skills, enable the MCP server. For Dao Browser, use Quick setup to connect your AI client. Approve access when prompted.
+        Install the skills to use Dao Home without MCP. For Dao Browser or Dao Lite, enable the MCP server. Dao Browser also needs Quick setup to connect your AI client. Approve access when prompted.
+      </message>
+      <message name="IDS_DAO_LOCAL_AGENT_HELP_HOME_TITLE" desc="Local agent skill usage guide: Home title.">
+        Dao Home
+      </message>
+      <message name="IDS_DAO_LOCAL_AGENT_HELP_HOME_DESCRIPTION" desc="Local agent skill usage guide: Home description.">
+        Create or edit your Home with an external AI tool, then preview it in a separate Dao window using your signed-in sources before publishing.
+      </message>
+      <message name="IDS_DAO_LOCAL_AGENT_HELP_HOME_SETUP" desc="Local agent skill usage guide: Home installation steps.">
+        Install or update Claude Code or Codex and other agents above to add the dao-home skill, then install the dao-browser command. Reopen your AI tool to load the skill. No MCP setup is needed for Dao Home.
+      </message>
+      <message name="IDS_DAO_LOCAL_AGENT_HELP_HOME_EXAMPLE" desc="Local agent skill usage guide: Home example.">
+        Codex: $dao-home Create a personal dashboard. Claude Code: /dao-home Create a personal dashboard.
       </message>
       <message name="IDS_DAO_LOCAL_AGENT_HELP_BROWSER_DESCRIPTION" desc="Local agent skill usage guide: browser description.">
         Dao Browser works with your existing tabs and the page you are using. Access to each page requires approval.

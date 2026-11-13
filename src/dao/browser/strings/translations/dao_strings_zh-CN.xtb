@@ -1,9 +1,13 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="zh-CN">
+<translation id="8607430533044191229">Codex：$dao-home 创建一个个人仪表盘。Claude Code：/dao-home 创建一个个人仪表盘。</translation>
+<translation id="1895547850842663608">先在上方安装或更新“Claude Code”或“Codex 和其他智能体”，其中包含 dao-home 技能，再安装 dao-browser 命令。重新打开 AI 工具以加载技能。Dao Home 无需配置 MCP。</translation>
+<translation id="3981535876358387051">通过外部 AI 工具创建或修改首页，发布前在独立的 Dao 窗口中使用已登录的网站来源预览效果。</translation>
+<translation id="8849712430390215068">Dao Home</translation>
 <translation id="5398508128830071282">要让 AI 操作指定标签页，请先启用 MCP 服务器，在侧边栏右键点击普通标签页并选择“复制标签页 ID”，然后将 UUID 粘贴到请求中。Codex：$dao-browser 总结 ID 为 [粘贴标签页 ID] 的标签页。Claude Code：/dao-browser 总结 ID 为 [粘贴标签页 ID] 的标签页。</translation>
 <translation id="6574367003522591272">使用方法</translation>
-<translation id="2415910995113743925">安装技能后，先启用 MCP 服务器。使用 Dao Browser 时，请通过“快速配置”连接 AI 客户端，并在出现提示时授权。</translation>
+<translation id="5797624095440769800">安装技能后即可使用 Dao Home，无需开启 MCP。使用 Dao Browser 或 Dao Lite 时，请开启 MCP 服务。Dao Browser 还需通过“快速设置”连接 AI 客户端。出现授权提示时确认。</translation>
 <translation id="1030975697709858773">Dao Browser 操作你已经打开的标签页和正在使用的页面，每个页面都需要单独授权。</translation>
 <translation id="1743442121244742416">Codex：$dao-browser 总结当前页面。Claude Code：/dao-browser 总结当前页面。</translation>
 <translation id="4331512290013197359">Dao Lite 在独立的后台任务空间中工作，不会操作你已有的标签页。你可以随时查看任务或接管操作。</translation>
