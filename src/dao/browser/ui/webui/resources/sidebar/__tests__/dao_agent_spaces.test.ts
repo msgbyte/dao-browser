@@ -162,8 +162,8 @@ describe('dao-agent-spaces', () => {
     expect(send).toHaveBeenCalledWith('stopAgentSpaceStream', []);
   });
 
-  it.each(['pointerleave', 'native exit', 'disconnect', 'removed', 'finished',
-           'stopped'])(
+  it.each(['pointerleave', 'native exit', 'disconnect', 'collapsed', 'removed',
+           'finished', 'stopped'])(
       'cancels pending and active hover capture on %s', async reason => {
         vi.useFakeTimers();
         for (const delay of [0, 300]) {
@@ -185,6 +185,8 @@ describe('dao-agent-spaces', () => {
             window.dispatchEvent(new Event(SIDEBAR_POINTER_EXITED_EVENT));
           } else if (reason === 'disconnect') {
             el.remove();
+          } else if (reason === 'collapsed') {
+            click(el.shadowRoot!.querySelector('.section-header')!);
           } else {
             push('agentSpacesChanged', {
               spaces: reason === 'removed' ? [] : [space({
@@ -218,6 +220,68 @@ describe('dao-agent-spaces', () => {
     expect(el.shadowRoot!.querySelector('.section-header .count')!
                .textContent!.trim())
         .toBe('2');
+  });
+
+  it('collapses the task list while keeping the count up to date', async () => {
+    const {el, send} = await createElement({
+      spaces: [space(), space({space_id: 's2-ef01', state: 'finished'})],
+      currentSpaceId: '',
+    });
+    const header = () =>
+        el.shadowRoot!.querySelector<HTMLButtonElement>('.section-header')!;
+    expect(header().tagName).toBe('BUTTON');
+    expect(header().getAttribute('aria-expanded')).toBe('true');
+    expect(el.shadowRoot!.querySelectorAll('.row')).toHaveLength(2);
+
+    header().click();
+    await el.updateComplete;
+
+    expect(header().getAttribute('aria-expanded')).toBe('false');
+    expect(header().textContent).toContain('[daoAgentSpacesTitle]');
+    expect(header().querySelector('.count')!.textContent!.trim()).toBe('1');
+    expect(el.shadowRoot!.querySelector('.row')).toBeNull();
+    expect(send).not.toHaveBeenCalledWith('agentSpaceAction', expect.anything());
+
+    push('agentSpacesChanged', {
+      spaces: [space({status: 'Reading the page'}), space({space_id: 's2-ef01'})],
+      currentSpaceId: '',
+    });
+    await el.updateComplete;
+    expect(header().getAttribute('aria-expanded')).toBe('false');
+    expect(header().querySelector('.count')!.textContent!.trim()).toBe('2');
+    expect(el.shadowRoot!.querySelector('.row')).toBeNull();
+
+    header().click();
+    await el.updateComplete;
+
+    expect(header().getAttribute('aria-expanded')).toBe('true');
+    expect(el.shadowRoot!.querySelectorAll('.row')).toHaveLength(2);
+    expect(el.shadowRoot!.querySelector('.detail')!.textContent!.trim())
+        .toBe('Reading the page');
+  });
+
+  it('stops the open panel stream when the section is collapsed', async () => {
+    const {el, send} =
+        await createElement({spaces: [space()], currentSpaceId: ''});
+    click(el.shadowRoot!.querySelector('.row')!);
+    await el.updateComplete;
+    expect(el.shadowRoot!.querySelector('.panel')).not.toBeNull();
+    send.mockClear();
+
+    click(el.shadowRoot!.querySelector('.section-header')!);
+    await el.updateComplete;
+    expect(send).toHaveBeenCalledWith('stopAgentSpaceStream', []);
+    expect(send).not.toHaveBeenCalledWith('agentSpaceAction', expect.anything());
+    expect(el.shadowRoot!.querySelector('.panel')).toBeNull();
+
+    send.mockClear();
+    push('agentSpaceFrame', {spaceId: 's1-abcd', dataUrl: 'data:image/jpeg;stale'});
+    click(el.shadowRoot!.querySelector('.section-header')!);
+    await el.updateComplete;
+    expect(el.shadowRoot!.querySelector('.row')).not.toBeNull();
+    expect(el.shadowRoot!.querySelector('.panel')).toBeNull();
+    expect(send).not.toHaveBeenCalledWith(
+        'startAgentSpaceStream', expect.anything());
   });
 
   it('offers to resolve a step only the user can do', async () => {
