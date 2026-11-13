@@ -136,7 +136,8 @@ By default, `--keep 2` protects the latest two versions independently for Mac
 DMGs, Sparkle delta target builds, and Windows x64 releases. Windows installers,
 their `.exe.sha256` checksums, and versioned `.update.json` manifests share the
 same protected version set. Debug installers and unversioned update feeds are
-not cleanup candidates.
+not cleanup candidates. Candidates are grouped by artifact type and listed
+oldest version first within each group.
 
 Selecting a Windows installer also selects its matching checksum and manifest
 in the same key directory when present. Metadata without a matching installer
