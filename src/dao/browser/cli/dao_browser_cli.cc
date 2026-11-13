@@ -38,6 +38,7 @@
 #include "build/build_config.h"
 #include "chrome/common/chrome_paths.h"
 #include "dao/browser/cli/dao_browser_guide.h"
+#include "dao/browser/cli/dao_home_cli.h"
 #include "dao/browser/cli/dao_lite_guide.h"
 #include "dao/browser/mcp/dao_mcp_protocol.h"
 #include "dao/browser/mcp/helper/dao_mcp_browser_client.h"
@@ -514,7 +515,9 @@ namespace {
 constexpr std::basic_string_view<base::CommandLine::CharType> kValueSwitches[] = {
     FILE_PATH_LITERAL("--space"), FILE_PATH_LITERAL("--timeout"),
     FILE_PATH_LITERAL("--client"), FILE_PATH_LITERAL("--reason"),
-    FILE_PATH_LITERAL("--user-data-dir")};
+    FILE_PATH_LITERAL("--user-data-dir"), FILE_PATH_LITERAL("--workspace"),
+    FILE_PATH_LITERAL("--profile"), FILE_PATH_LITERAL("--from"),
+    FILE_PATH_LITERAL("--summary"), FILE_PATH_LITERAL("--topic")};
 
 base::CommandLine::StringVector NormalizeArguments(
     const base::CommandLine::StringVector& argv) {
@@ -575,7 +578,7 @@ int main(int argc, char** argv) {
     std::cout << DAO_MCP_VERSION << std::endl;
     return dao::kExitOk;
   }
-  if (args.empty() || command_line.HasSwitch("help")) {
+  if (args.empty() || (command_line.HasSwitch("help") && args[0] != "home")) {
     std::cout << dao::kUsage;
     return command_line.HasSwitch("help") ? dao::kExitOk : dao::kExitUsage;
   }
@@ -590,7 +593,7 @@ int main(int argc, char** argv) {
   if (command == "skill") {
     return dao::RunSkill(options, command_line.HasSwitch("lite"));
   }
-  if (options.user_data_dir.empty()) {
+  if (options.user_data_dir.empty() && command != "home") {
     dao::PrintError("could not find the Dao profile directory.");
     return dao::kExitUnavailable;
   }
@@ -610,6 +613,11 @@ int main(int argc, char** argv) {
   }
   options.launch = !command_line.HasSwitch("no-launch");
 
+  if (command == "home") {
+    return dao::RunDaoHomeCommand(command_line, args, options.user_data_dir,
+                                   options.client_name, dao::FindBrowser(),
+                                   DAO_MCP_VERSION);
+  }
   if (command == "mcp") {
     dao::DaoMcpStdioServer server(options.user_data_dir, DAO_MCP_VERSION);
     return server.Run();

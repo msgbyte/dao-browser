@@ -51,6 +51,65 @@ action("dao_lite_entry_skill") {
   ]
 }
 
+action("dao_home_guide") {
+  script = "embed_text.py"
+  sources = [ "dao_home_guide.md" ]
+  outputs = [ "$target_gen_dir/dao_home_guide.h" ]
+  args = [
+    rebase_path(sources[0], root_build_dir),
+    rebase_path(outputs[0], root_build_dir),
+    "kDaoHomeGuide",
+  ]
+}
+
+action("dao_home_runtime_guide") {
+  script = "embed_text.py"
+  sources = [ "dao_home_runtime_guide.md" ]
+  outputs = [ "$target_gen_dir/dao_home_runtime_guide.h" ]
+  args = [
+    rebase_path(sources[0], root_build_dir),
+    rebase_path(outputs[0], root_build_dir),
+    "kDaoHomeRuntimeGuide",
+  ]
+}
+
+action("dao_home_sources_guide") {
+  script = "embed_text.py"
+  sources = [ "dao_home_sources_guide.md" ]
+  outputs = [ "$target_gen_dir/dao_home_sources_guide.h" ]
+  args = [
+    rebase_path(sources[0], root_build_dir),
+    rebase_path(outputs[0], root_build_dir),
+    "kDaoHomeSourcesGuide",
+  ]
+}
+
+action("dao_home_entry_skill") {
+  script = "embed_text.py"
+  sources = [ "dao_home_entry_skill.md" ]
+  outputs = [ "$target_gen_dir/dao_home_entry_skill.h" ]
+  args = [
+    rebase_path(sources[0], root_build_dir),
+    rebase_path(outputs[0], root_build_dir),
+    "kDaoHomeEntrySkill",
+  ]
+}
+
+action("dao_home_help") {
+  script = "embed_home_help.py"
+  sources = [
+    "//dao/browser/strings/dao_strings.grd",
+    "//dao/browser/strings/translations/dao_strings_zh-CN.xtb",
+  ]
+  outputs = [ "$target_gen_dir/dao_home_help.h" ]
+  args = [
+    rebase_path("//tools/grit", root_build_dir),
+    rebase_path(sources[0], root_build_dir),
+    rebase_path(sources[1], root_build_dir),
+    rebase_path(outputs[0], root_build_dir),
+  ]
+}
+
 if (is_mac || is_win) {
   source_set("home_workspace") {
     sources = [
@@ -70,16 +129,26 @@ if (is_mac || is_win) {
 if (is_mac || is_win) {
   executable("dao_browser_cli") {
     output_name = "dao-browser"
-    sources = [ "dao_browser_cli.cc" ]
+    sources = [
+      "dao_browser_cli.cc",
+      "dao_home_cli.cc",
+      "dao_home_cli.h",
+    ]
 
     defines = [ "DAO_MCP_VERSION=\"$dao_display_version\"" ]
     if (is_mac) {
-      frameworks = [ "Foundation.framework" ]
+      frameworks = [ "Foundation.framework", "CoreFoundation.framework" ]
     }
 
     deps = [
       ":dao_browser_guide",
       ":dao_lite_guide",
+      ":dao_home_guide",
+      ":dao_home_runtime_guide",
+      ":dao_home_sources_guide",
+      ":dao_home_help",
+      ":home_workspace",
+      "//dao/browser/local_ipc:client",
       "//base",
       "//chrome/common:constants",
       "//dao/browser/mcp:mcp_helper_core",

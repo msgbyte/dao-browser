@@ -417,5 +417,9 @@
   <translation id="4871493914846145807">允许在一小时内读取 Home 源码、在独立窗口中使用此个人资料已授权的数据源预览修改、截取预览画面，以及发布或恢复 Home 版本。网站权限会单独请求。</translation>
   <translation id="6161719749022068521">未能完成 Dao Home 操作。</translation>
   <translation id="5811750979572395175">已发布的 Home</translation>
+  <translation id="5571148408916451836">用法：dao-browser home &lt;command&gt; [options]
+命令：guide、pull、status、diff、preview、publish、diagnostics、sources、screenshot、versions、rollback、resume、clean。
+使用 --workspace 指定 pull 返回的临时工作区绝对路径。运行 dao-browser home guide 查看完整命令说明。
+clean 只删除本地工作区；添加 --close-session 会结束所有共享此会话的工作区的编辑授权。发布和回滚摘要最多允许 500 个 UTF-8 字节。</translation>
 <translation id="8811014768123203379">浏览器配置文件</translation>
 </translationbundle>
