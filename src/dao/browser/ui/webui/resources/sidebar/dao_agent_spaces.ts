@@ -145,12 +145,30 @@ export class DaoAgentSpacesElement extends CrLitElement {
         display: flex;
         align-items: center;
         gap: 6px;
+        width: calc(100% - 16px);
+        min-height: 28px;
+        margin: 0 8px;
+        padding: 4px 6px;
+        border: none;
+        border-radius: var(--radius-tab, 12px);
+        background: transparent;
+        font: inherit;
         font-size: 10px;
         font-weight: 600;
         color: var(--text-muted);
         text-transform: uppercase;
         letter-spacing: 0.5px;
-        padding: 4px 14px;
+        cursor: default;
+      }
+
+      .section-header:hover,
+      .section-header:focus-visible {
+        background: var(--ink-drop);
+        outline: none;
+      }
+
+      .section-header[aria-expanded='false'] svg {
+        transform: rotate(-90deg);
       }
 
       .count {
@@ -634,6 +652,7 @@ export class DaoAgentSpacesElement extends CrLitElement {
     return {
       spaces_: {type: Array},
       currentSpaceId_: {type: String},
+      collapsed_: {type: Boolean},
       expandedId_: {type: String},
       frameUrl_: {type: String},
       showAllSteps_: {type: Boolean},
@@ -642,6 +661,7 @@ export class DaoAgentSpacesElement extends CrLitElement {
 
   declare protected spaces_: AgentSpaceData[];
   declare protected currentSpaceId_: string;
+  declare protected collapsed_: boolean;
   declare protected expandedId_: string;
   declare protected frameUrl_: string;
   declare protected showAllSteps_: boolean;
@@ -655,6 +675,7 @@ export class DaoAgentSpacesElement extends CrLitElement {
     super();
     this.spaces_ = [];
     this.currentSpaceId_ = '';
+    this.collapsed_ = false;
     this.expandedId_ = '';
     this.frameUrl_ = '';
     this.showAllSteps_ = false;
@@ -741,6 +762,14 @@ export class DaoAgentSpacesElement extends CrLitElement {
     this.showAllSteps_ = false;
     if (!this.isClosed_(space)) {
       sendNative('startAgentSpaceStream', space.space_id);
+    }
+  }
+
+  private toggleSection_() {
+    this.collapsed_ = !this.collapsed_;
+    if (this.collapsed_) {
+      this.hidePreview_();
+      this.collapse_();
     }
   }
 
@@ -1187,11 +1216,15 @@ export class DaoAgentSpacesElement extends CrLitElement {
     }
     const active = this.spaces_.filter(s => !this.isClosed_(s)).length;
     return html`
-      <div class="section-header">
+      <button class="section-header" type="button"
+              aria-expanded=${String(!this.collapsed_)}
+              @click=${this.toggleSection_}>
+        ${this.renderIcon_('chevron-down', 12)}
         ${str('daoAgentSpacesTitle')}
         ${active ? html`<span class="count">${active}</span>` : nothing}
-      </div>
-      ${this.spaces_.map(space => this.renderSpace_(space))}
+      </button>
+      ${this.collapsed_ ? nothing :
+                          this.spaces_.map(space => this.renderSpace_(space))}
     `;
   }
 }

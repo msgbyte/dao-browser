@@ -5,6 +5,7 @@
 ### [Unreleased] Unreleased
 
 - Guide external AI tools to keep related research pages and steps in one Dao Lite task with multiple tabs, reducing unnecessary tasks in the sidebar.
+- Collapse or expand the AI tasks list from its sidebar header while keeping the active task count visible and tasks running.
 - Create and edit Dao Home with an external AI tool, preview changes in a separate Dao window using your signed-in sources, and publish or restore versions without enabling MCP.
 - Keep external Home previews ready while working in another app, and allow layout updates when an unchanged source is temporarily unavailable and the page handles the error.
 - Fix a crash when a Home source website fails to load.
