@@ -1289,8 +1289,8 @@ private fun SuggestionRow(
         ) { if (icon != null) Icon(icon, null, Modifier.size(18.dp)) }
         Spacer(Modifier.width(13.dp))
         Column(Modifier.weight(1f)) {
-            Text(title, color = colors.foreground, fontSize = 15.sp, fontWeight = FontWeight.Medium, maxLines = 1)
-            if (subtitle.isNotEmpty()) Text(subtitle, color = colors.faint, fontSize = 12.5.sp)
+            Text(title, color = colors.foreground, fontSize = 15.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (subtitle.isNotEmpty()) Text(subtitle, color = colors.faint, fontSize = 12.5.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         Icon(Lucide.ChevronRight, null, tint = colors.faint, modifier = Modifier.size(16.dp))
     }
