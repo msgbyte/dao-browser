@@ -4,6 +4,8 @@
 
 ### [Unreleased] Unreleased
 
+### [1.0.141] - 2026-11-15
+
 - Guide external AI tools to keep related research pages and steps in one Dao Lite task with multiple tabs, reducing unnecessary tasks in the sidebar.
 - Collapse or expand the AI tasks list from its sidebar header while keeping the active task count visible and tasks running.
 - Create and edit Dao Home with an external AI tool, preview changes in a separate Dao window using your signed-in sources, and publish or restore versions without enabling MCP.
