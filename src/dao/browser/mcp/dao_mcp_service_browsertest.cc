@@ -69,6 +69,7 @@
 #include "dao/browser/agent/dao_agent_lock_tab_helper.h"
 #include "dao/browser/agent/dao_agent_skill_service.h"
 #include "dao/browser/agent/dao_agent_skill_service_factory.h"
+#include "dao/browser/agent_space/dao_agent_space.h"
 #include "dao/browser/agent_space/dao_agent_space_service.h"
 #include "dao/browser/automation/dao_agent_lease_manager.h"
 #include "dao/browser/dao_pref_names.h"
@@ -1465,8 +1466,21 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
       << info->DebugString();
   EXPECT_EQ(1u, approval.request_count());
 
-  DaoAgentSpaceService::GetForProfile(browser()->GetProfile())
-      ->Stop(*space_id);
+  auto* spaces = DaoAgentSpaceService::GetForProfile(browser()->GetProfile());
+  auto* space = spaces->FindSpace(*space_id);
+  ASSERT_TRUE(space);
+  constexpr char kHelpReason[] = "Choose the delivery address.";
+  ASSERT_TRUE(client->Send(ToolCall(
+      "help", "request_user_help",
+      base::DictValue().Set("space_id", *space_id).Set("reason", kHelpReason))));
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return space->handoff_message() == kHelpReason; }));
+  ASSERT_TRUE(spaces->HandBack(*space_id));
+  auto handoff = client->Read();
+  ASSERT_TRUE(handoff);
+  EXPECT_TRUE(handoff->FindDictByDottedPath("result.data.user_changes"));
+  EXPECT_EQ(1u, approval.request_count());
+  spaces->Stop(*space_id);
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,

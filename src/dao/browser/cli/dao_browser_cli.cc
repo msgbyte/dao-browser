@@ -214,7 +214,7 @@ class SyncBrowser {
 
 struct Options {
   std::string client_name = kDefaultClientName;
-  std::string reason = kDefaultReason;
+  std::optional<std::string> reason;
   base::FilePath user_data_dir;
   bool launch = true;
 };
@@ -281,7 +281,11 @@ std::optional<base::DictValue> CallTool(SyncBrowser& browser,
                                         base::DictValue arguments,
                                         base::TimeDelta timeout,
                                         int* exit_code) {
-  arguments.Set("reason", options.reason);
+  if (tool != "request_user_help") {
+    arguments.Set("reason", options.reason.value_or(kDefaultReason));
+  } else if (!arguments.contains("reason") && options.reason) {
+    arguments.Set("reason", *options.reason);
+  }
   std::string error;
   std::optional<base::DictValue> response =
       browser.Request("tools/call",

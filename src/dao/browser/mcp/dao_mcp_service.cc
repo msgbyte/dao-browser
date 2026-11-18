@@ -1457,20 +1457,22 @@ void DaoMcpService::HandleToolsList(ConnectionState& connection,
       input_schema.Set("properties", base::DictValue());
       properties = input_schema.FindDict("properties");
     }
-    properties->Set(
-        "reason",
-        base::DictValue()
-            .Set("type", "string")
-            .Set("minLength", 1)
-            .Set("maxLength", 1024)
-            .Set("description",
-                 "Required on the first tool call and every "
-                 "request_tab_access, get_site_skills or save_skill. Explain "
-                 "why this access is needed for the user's task; Dao shows "
-                 "this reason in the permission dialog. Use non-blank text "
-                 "within 1024 UTF-8 bytes. May be omitted after requesting "
-                 "permission, except for request_tab_access, get_site_skills "
-                 "and save_skill."));
+    if (definition->name != "request_user_help") {
+      properties->Set(
+          "reason",
+          base::DictValue()
+              .Set("type", "string")
+              .Set("minLength", 1)
+              .Set("maxLength", 1024)
+              .Set("description",
+                   "Required on the first tool call and every "
+                   "request_tab_access, get_site_skills or save_skill. Explain "
+                   "why this access is needed for the user's task; Dao shows "
+                   "this reason in the permission dialog. Use non-blank text "
+                   "within 1024 UTF-8 bytes. May be omitted after requesting "
+                   "permission, except for request_tab_access, get_site_skills "
+                   "and save_skill."));
+    }
     if (definition->name == "get_site_skills" ||
         definition->name == "save_skill") {
       input_schema.FindList("required")->Append("reason");
@@ -2082,14 +2084,16 @@ void DaoMcpService::HandleSpaceToolsCall(
         allowed ? ApprovalState::kAllowed : ApprovalState::kNotRequested;
   }
   const std::string* reason = arguments.FindString("reason");
-  if ((arguments.contains("reason") ||
+  if ((definition.name == "request_user_help" || arguments.contains("reason") ||
        connection.space_approval_state == ApprovalState::kNotRequested) &&
       !IsValidApprovalReason(reason)) {
     SendError(connection, request_id, MissingReasonError());
     return;
   }
   std::string reason_text = reason ? *reason : std::string();
-  arguments.Remove("reason");
+  if (definition.name != "request_user_help") {
+    arguments.Remove("reason");
+  }
 
   PendingToolCall pending;
   pending.call.request_id = request_id;
