@@ -52,7 +52,6 @@ constexpr char kRuntimeSource[] = R"JS((() => {
   const maxFileChars = 3 * 1024 * 1024;
   let fileChars = 0;
   let nextId = 1;
-  let stopped = null;
 
   const format = (value) => {
     if (typeof value === 'string') {
@@ -101,15 +100,12 @@ constexpr char kRuntimeSource[] = R"JS((() => {
     },
   });
   Object.defineProperty(globalThis, '__daoReport', {
-    value: () => ({logs, stopped, files}),
+    value: () => ({logs, files}),
   });
 
   const call = (name, args) => {
     if (typeof name !== 'string' || !name) {
       return Promise.reject(new TypeError('dao.call(name, args) needs a tool name.'));
-    }
-    if (stopped) {
-      return Promise.reject(new DaoToolError(stopped));
     }
     const id = nextId++;
     return new Promise((resolve, reject) => {
@@ -117,10 +113,6 @@ constexpr char kRuntimeSource[] = R"JS((() => {
         if (!envelope || envelope.error) {
           const error = envelope && envelope.error ||
               {code: 'INTERNAL_ERROR', message: 'Browser tool failed.'};
-          if (error.code === 'SPACE_USER_IN_CONTROL' ||
-              error.code === 'SPACE_CLOSED') {
-            stopped = error;
-          }
           reject(new DaoToolError(error));
           return;
         }
@@ -289,7 +281,7 @@ std::string BuildScriptExpression(const std::string& code) {
     })();
     const report = globalThis.__daoReport();
     return {ok: true, value: __daoValue === undefined ? null : __daoValue,
-            logs: report.logs, stopped: report.stopped, files: report.files};
+            logs: report.logs, files: report.files};
   } catch (error) {
     const report = globalThis.__daoReport();
     return {ok: false,
@@ -299,7 +291,7 @@ std::string BuildScriptExpression(const std::string& code) {
               code: error && error.code || null,
               stack: String(error && error.stack || ''),
             },
-            logs: report.logs, stopped: report.stopped, files: report.files};
+            logs: report.logs, files: report.files};
   }
 })())JS"});
 }
@@ -514,19 +506,6 @@ void DaoAgentScriptRun::OnScriptFinished(
                             "The script result could not be read."));
     return;
   }
-  // Hard stop: once the user is in control or stopped the space, drop the
-  // script's output so the model cannot act on a half-finished run.
-  if (const base::DictValue* stopped = outcome->FindDict("stopped")) {
-    const std::string* code = stopped->FindString("code");
-    const std::string* message = stopped->FindString("message");
-    Cancel(MakeDaoToolError(
-        code && *code == "SPACE_CLOSED" ? DaoToolErrorCode::kSpaceClosed
-                                        : DaoToolErrorCode::kSpaceUserInControl,
-        message ? *message
-                : "The user is in control of this space. Stop and wait."));
-    return;
-  }
-
   base::DictValue data;
   data.Set("success", outcome->FindBool("ok").value_or(false));
   if (const base::ListValue* logs = outcome->FindList("logs")) {
@@ -600,9 +579,10 @@ void DaoAgentScriptRun::OnDevToolsEvent(content::DevToolsAgentHost* host,
   const std::string request_id =
       base::StrCat({run_id_, ":", base::NumberToString(call_id)});
   outstanding_calls_.insert(request_id);
+  const std::string* target = args->FindString("space_id");
+  const std::string space_id = target ? *target : "";
   if (*tool == "request_user_help") {
-    const std::string* target = args->FindString("space_id");
-    pending_help_.emplace(request_id, target ? *target : "");
+    pending_help_.emplace(request_id, space_id);
     if (pending_help_.size() == 1) {
       execution_remaining_ = deadline_.desired_run_time() - base::TimeTicks::Now();
       deadline_.Start(FROM_HERE, help_remaining_,
@@ -613,7 +593,7 @@ void DaoAgentScriptRun::OnDevToolsEvent(content::DevToolsAgentHost* host,
   tool_caller_.Run(
       request_id, *tool, args->Clone(),
       base::BindOnce(&DaoAgentScriptRun::OnCallComplete,
-                     weak_factory_.GetWeakPtr(), request_id, call_id));
+                     weak_factory_.GetWeakPtr(), request_id, call_id, space_id));
 }
 
 void DaoAgentScriptRun::OnHelpTimeout() {
@@ -630,8 +610,18 @@ void DaoAgentScriptRun::OnHelpTimeout() {
 
 void DaoAgentScriptRun::OnCallComplete(std::string request_id,
                                        int64_t call_id,
+                                       std::string space_id,
                                        DaoBrowserToolResult result) {
   outstanding_calls_.erase(request_id);
+  if (result.error && result.error->code == DaoToolErrorCode::kSpaceUserInControl) {
+    result.data = base::Value(std::move(space_id));
+    Finish(std::move(result));
+    return;
+  }
+  if (result.error && result.error->code == DaoToolErrorCode::kSpaceClosed) {
+    Finish(std::move(result));
+    return;
+  }
   if (pending_help_.erase(request_id)) {
     if ((result.error && result.error->code == DaoToolErrorCode::kAuthorizationDenied) ||
         (result.data.is_dict() &&

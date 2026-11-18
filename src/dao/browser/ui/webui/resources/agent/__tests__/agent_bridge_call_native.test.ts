@@ -82,6 +82,25 @@ describe('callNative', () => {
        await expect(promise).resolves.toEqual({connector_ids: []});
      });
 
+  it('delivers hand-back to the original space tool after a manual takeover', async () => {
+    vi.useFakeTimers();
+    const send = vi.fn();
+    vi.stubGlobal('chrome', {send});
+    const promise = executeTool('get_page_info', {space_id: 'task'});
+    const handoff = {
+      success: false, interrupted: true, space_id: 'task',
+      user_changes: {active_tab_id: 'tab'},
+    };
+    const delivered = expect(promise).resolves.toEqual(handoff);
+    await vi.advanceTimersByTimeAsync(5 * 60_000);
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(send).toHaveBeenCalledWith('executeSpaceTool', [
+      expect.any(String), {name: 'get_page_info', arguments: {space_id: 'task'}},
+    ]);
+    cr.webUIResponse(send.mock.calls[0]![1][0], true, handoff);
+    await delivered;
+  });
+
   it('persists soul updates canonically before updating the local cache',
      async () => {
        localStorage.removeItem('dao_agent_soul');

@@ -5,6 +5,7 @@
 #ifndef DAO_BROWSER_AGENT_SPACE_DAO_AGENT_SPACE_SERVICE_H_
 #define DAO_BROWSER_AGENT_SPACE_DAO_AGENT_SPACE_SERVICE_H_
 
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <string>
@@ -165,6 +166,18 @@ class DaoAgentSpaceService : public base::SupportsUserData::Data,
   struct PendingCall;
   struct PendingHelp;
 
+  void DispatchTool(const DaoAgentSpaceClient& client,
+                    DaoBrowserToolCall call,
+                    ResultCallback callback);
+  void OnToolResult(DaoAgentSpaceClient client,
+                    std::string request_id,
+                    std::string space_id,
+                    ResultCallback callback,
+                    DaoBrowserToolResult result);
+  void WaitForHandBack(const DaoAgentSpaceClient& client,
+                       std::string request_id,
+                       const std::string& space_id,
+                       ResultCallback callback);
   void ExecuteSpaceTool(const DaoAgentSpaceClient& client,
                         const DaoBrowserToolDefinition& definition,
                         DaoBrowserToolCall call,
@@ -201,13 +214,15 @@ class DaoAgentSpaceService : public base::SupportsUserData::Data,
                       bool waited_for_commit = false);
   void OnSpaceToolComplete(std::string internal_id,
                            DaoBrowserToolResult result);
-  void OnHelpTimeout(std::string space_id);
+  void OnHelpTimeout(int64_t id);
+  void FinishHelp(int64_t id, DaoBrowserToolResult result);
   void ResolveHelp(std::string_view space_id, DaoBrowserToolResult result);
 
   // Resolves an accessible, open space or fills `error`.
   DaoAgentSpace* ResolveSpace(const DaoAgentSpaceClient& client,
                               const base::DictValue& arguments,
                               DaoToolError* error);
+  void CancelSpaceCall(const std::string& internal_id, const DaoToolError& error);
   void CancelSpaceCalls(std::string_view space_id, const DaoToolError& error);
   void CloseSpace(DaoAgentSpace* space,
                   DaoAgentSpaceState state,
@@ -229,7 +244,8 @@ class DaoAgentSpaceService : public base::SupportsUserData::Data,
   std::map<std::string, std::unique_ptr<DaoAgentSpace>, std::less<>> spaces_;
   std::vector<std::string> space_order_;
   std::map<std::string, std::unique_ptr<PendingCall>, std::less<>> calls_;
-  std::map<std::string, std::unique_ptr<PendingHelp>, std::less<>> helps_;
+  int64_t next_help_id_ = 0;
+  std::map<int64_t, std::unique_ptr<PendingHelp>> helps_;
   // Keyed by "script:<client key>:<request id>".
   std::map<std::string, std::unique_ptr<DaoAgentScriptRun>, std::less<>>
       scripts_;

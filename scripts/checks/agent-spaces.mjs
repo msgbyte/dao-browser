@@ -227,15 +227,28 @@ try {
     }, label);
   }
 
+  const partialPath = join(profile, 'partial.txt');
+  const interrupted = runCli(['run', '--space', spaceId], `
+    console.log('partial output');
+    dao.saveFile(${JSON.stringify(partialPath)}, 'partial file');
+    const waiting = space.waitFor({role: 'button', name: 'Absent'}, {timeoutMs: 30000});
+    await space.status('Waiting for takeover');
+    await waiting;
+    return 'unexpected result';`);
+  await waitForSpace(s => s.status === 'Waiting for takeover', 'script started');
   await action('take_over');
-  const stopped = await runCli(['run', '--space', spaceId],
-                               `console.log('partial output'); return await space.info();`);
-  assert.equal(stopped.code, 2, stopped.out + stopped.err);
-  assert.match(stopped.out, /\[dao-browser:stop\]/);
-  assert.doesNotMatch(stopped.out, /partial output/);
-  console.log('PASS take over hard-stops scripts and drops their output');
-
+  await waitForSpace(s => s.state === 'user_in_control', 'user has control');
   await action('hand_back');
+  const resumed = await interrupted;
+  assert.equal(resumed.code, 0, resumed.err);
+  const handoff = JSON.parse(resumed.out);
+  assert.equal(handoff.interrupted, true);
+  assert.equal(handoff.success, false);
+  assert.equal(handoff.space_id, spaceId);
+  assert.ok(handoff.user_changes.active_tab_id);
+  assert.doesNotMatch(resumed.out, /partial output|unexpected result/);
+  await assert.rejects(readFile(partialPath), {code: 'ENOENT'});
+  console.log('PASS hand-back returns the interruption to the original CLI without partial output');
 
   const help = runCli(['run', '--space', spaceId, '--timeout', '3'], `
     await space.help('Choose the delivery address');

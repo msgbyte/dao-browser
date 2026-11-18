@@ -735,10 +735,16 @@ void DaoAgentSpace::HandOffToUser(DaoAgentSpaceHandoffReason reason,
   }
   UpdateTabControl();
   base::WeakPtr<DaoAgentSpace> weak_this = weak_factory_.GetWeakPtr();
-  if (was_running && executor_) {
-    executor_->CancelAll(MakeDaoToolError(
+  if (was_running) {
+    const auto error = MakeDaoToolError(
         DaoToolErrorCode::kSpaceUserInControl,
-        "The user took control of this space while the tool was running."));
+        "The user took control of this space while the tool was running.");
+    if (executor_) {
+      executor_->CancelAll(error);
+    }
+    if (weak_this) {
+      service_->CancelSpaceCalls(id_, error);
+    }
   }
   if (weak_this) {
     NotifyChanged();

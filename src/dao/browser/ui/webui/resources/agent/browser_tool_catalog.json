@@ -1288,7 +1288,7 @@
     },
     {
       "name": "request_user_help",
-      "description": "Hand a space to the user for a step only they should do: signing in, two-factor codes, captchas, payment or any irreversible confirmation. The user is notified and the call waits until they hand control back, then returns what they changed. Do not use other tools on the space while waiting.",
+      "description": "Hand a space to the user for sign-in, verification, payment or an irreversible confirmation. Keep this call pending while they work. Hand-back returns user_changes to the same turn. Inspect the page and continue without asking for a chat reply. Stop if the wait times out or the space closes.",
       "group": "space",
       "clients": [
         "dao_agent",
@@ -1442,7 +1442,7 @@
     },
     {
       "name": "run_browser_script",
-      "description": "Run one JavaScript snippet that drives Agent Spaces through many browser tool calls in a single round trip. The code runs in an isolated sandbox page (not in the target website) with top-level await; it can call `dao.createSpace(name, url)`, `dao.space(id)`, `dao.call(tool, args)` and Space helpers such as `find`, `click`, `fill`, `open`, `eval`, `status`, `help` and `finish`. If space_id is given, `space` is preset to it. Returns the script's return value and console output. Browser tools inside a script only act in spaces, never on the user's tabs.",
+      "description": "Run JavaScript in an isolated sandbox with top-level await and browser tools scoped to Agent Spaces. Use `dao.createSpace(name, url)`, `dao.space(id)`, `dao.call(tool, args)` or Space helpers. With space_id, `space` is preset. Use `await space.help(reason)` for manual steps, then inspect the page. Completed runs return the value and console output. An unplanned takeover returns interrupted and user_changes on hand-back. Inspect the page before continuing to avoid repeating an action. Stop on a handoff timeout or closed space.",
       "group": "space",
       "clients": [
         "dao_agent",

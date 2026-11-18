@@ -35,9 +35,9 @@ Additional sites, phases, or CLI calls do not need additional spaces.
 
 Create the space once and retain its `s.id`. Continue later calls with
 `dao-browser run --space ID` (the `space` global) or `dao.space(id)`; use
-`dao.spaces()` to find the matching active task if needed. Resuming still obeys
-the hard-stop rules below: never bypass a user takeover or restart a stopped
-task by creating another space.
+`dao.spaces()` to find the matching active task if needed. Never bypass a user
+takeover or restart a stopped task by creating another space. If a call is
+waiting for hand-back, keep it open.
 
 Use `s.open(url)` for additional tabs, `s.tabs()` to inspect them, and
 `s.switchTo(tabId)` to return to a page. These methods share the space's current
@@ -143,8 +143,8 @@ it).
 
 If a page opens a file picker, asks to connect to a device, or the browser
 shows a sign-in, security key or certificate prompt for it, the space goes to
-the user (`SPACE_USER_IN_CONTROL`) because only they can answer it. Stop and
-wait, as for any hard stop.
+the user because only they can answer it. Keep the current call open until
+they hand control back.
 
 Refs are tied to the snapshot that produced them. After a page changes, call
 `find` again instead of reusing old matches; stale refs fail rather than
@@ -157,15 +157,16 @@ clicking the wrong element.
 2. Ask before anything irreversible. Use `await s.help(reason)` for sign-ins,
    two-factor codes, captchas, payments, sending messages, deleting data or
    any confirmation that commits the user. Never type passwords or payment
-   details yourself. Keep the CLI process open while awaiting help. The script
-   resumes on hand-back, with up to 14 minutes of waiting outside its execution
-   budget. Inspect the current page before acting.
-3. **Hard stop.** If a run or call fails with `SPACE_USER_IN_CONTROL`, the
-   user has taken over. Stop immediately: do not retry, do not call other
-   tools on that space and never try to take control back. Tell the user
-   what you were doing and wait until they say to continue.
-   `SPACE_CLOSED` means the user stopped the task; do not restart it on
-   your own.
+   details yourself.
+3. Keep the current agent turn and CLI process alive during handoff. If the
+   shell returns a running session, wait for that same session. Clicking
+   **Hand back to AI** completes the pending call without another chat message.
+   After `await s.help(reason)`, inspect the current page before acting.
+   A script can spend up to 14 minutes awaiting help outside its execution
+   budget. An unplanned takeover returns `interrupted: true` on hand-back.
+   Read `user_changes` and inspect the page to decide what still needs doing.
+   An interrupted action may already have taken effect. Never replay it blindly.
+   If the handoff returns `timed_out: true` or `SPACE_CLOSED`, stop the task.
 4. Finish what you start: call `finish({keep, summary})` when the whole goal
    is done, not after each site or phase. Keep only the pages the user should
    look at.

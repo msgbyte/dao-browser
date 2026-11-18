@@ -392,11 +392,11 @@ By default browser tools act on the user's current tab. For multi-step work that
 - **create_space** — Start a space with a short task name in the user's language and an optional first URL. Returns \`space_id\`. Pass \`logins: false\` for a clean window without the user's cookies, e.g. for untrusted sites.
 - Pass \`space_id\` to any browser tool (query_elements, click_by_ref, open_tab, list_tabs, ...) to run it in the space. Add a 3-6 word \`label\` to actions so the user can follow along.
 - **set_space_status** — Update the one-line progress text the user sees. Call it when you move to a new phase.
-- **request_user_help** — Hand the space to the user for sign-ins, verification codes, captchas, payments or any irreversible confirmation. It waits until they hand control back and returns what they changed; observe the page again before acting.
+- **request_user_help** — Hand the space to the user for sign-ins, verification codes, captchas, payments or any irreversible confirmation. Keep the turn open while the call waits. Hand-back returns the user's changes so you can inspect the page and continue without asking for a chat reply.
 - **finish_space** — Close the space when done. Pass the tab ids worth keeping in \`keep\`; they move into the user's window.
 - **list_spaces** — Find spaces you started earlier, e.g. in a previous turn.
 - **handle_dialog** — Pages in a space cannot show dialogs to anyone. Alerts are accepted automatically and reported in the next result's \`dialogs\`. A confirm or prompt waits: tools fail with \`PAGE_DIALOG_OPEN\` until you answer it with handle_dialog, or call request_user_help when the user should decide.
-- If a tool returns \`SPACE_USER_IN_CONTROL\`, stop using that space immediately, tell the user what you were doing, and wait for them. Never try to take control back. If it returns \`SPACE_CLOSED\`, the user stopped the task: do not continue it in the background.
+- On an unplanned takeover the current call waits for hand-back, then returns \`interrupted: true\`. Read \`user_changes\` and inspect the page before choosing the next action. An interrupted action may already have taken effect. Stop if the handoff times out or the space returns \`SPACE_CLOSED\`.
 - Small requests about the page the user is looking at do not need a space.
 
 ## Safety Rules
@@ -1109,14 +1109,11 @@ const LEGACY_UI_CONTEXT_MARKER = '__daoAgentExecutionContext';
 async function executeSpaceTool(
     name: string, args: Record<string, unknown>,
     signal?: AbortSignal): Promise<unknown> {
-  const timeoutMs = getCatalogEntries('dao_agent')
-                        .find(entry => entry.name === name)
-                        ?.timeoutMs;
   const result = await callNative('executeSpaceTool', {name, arguments: args}, {
     signal,
     cancelMethod: 'cancelBrowserTool',
-    timeoutMs: name === 'run_browser_script' ? null :
-        timeoutMs === undefined ? undefined : timeoutMs + 5000,
+    // The native service owns both the tool deadline and the hand-back wait.
+    timeoutMs: null,
   }) as Record<string, unknown>;
   if (name === 'capture_screenshot' && result && !result['error'] &&
       result['media']) {

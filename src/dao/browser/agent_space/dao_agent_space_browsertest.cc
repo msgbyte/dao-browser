@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <algorithm>
 #include <optional>
 #include <string>
 #include <utility>
@@ -83,16 +84,26 @@ class DaoAgentSpaceBrowserTest : public InProcessBrowserTest {
     InProcessBrowserTest::TearDownOnMainThread();
   }
 
+  std::string StartCall(std::string name,
+                        base::DictValue arguments,
+                        DaoAgentSpaceService::ResultCallback callback,
+                        DaoAgentSpaceClient client = {
+                            DaoToolClient::kDaoAgent, "test-client", "Test agent"}) {
+    const std::string request_id = base::NumberToString(++next_request_id_);
+    DaoBrowserToolCall call;
+    call.request_id = request_id;
+    call.name = std::move(name);
+    call.arguments = std::move(arguments);
+    service_->ExecuteTool(client, std::move(call), std::move(callback));
+    return request_id;
+  }
+
   DaoBrowserToolResult Call(std::string name,
                             base::DictValue arguments,
                             DaoToolClient client = DaoToolClient::kDaoAgent) {
     base::test::TestFuture<DaoBrowserToolResult> future;
-    DaoBrowserToolCall call;
-    call.request_id = base::NumberToString(++next_request_id_);
-    call.name = std::move(name);
-    call.arguments = std::move(arguments);
-    service_->ExecuteTool({client, "test-client", "Test agent"},
-                          std::move(call), future.GetCallback());
+    StartCall(std::move(name), std::move(arguments), future.GetCallback(),
+              {client, "test-client", "Test agent"});
     return future.Take();
   }
 
@@ -311,9 +322,12 @@ IN_PROC_BROWSER_TEST_F(DaoAgentSpaceBrowserTest,
   EXPECT_FALSE(space_browser->GetWindow()->IsFullscreen());
   EXPECT_TRUE(space->IsWindowVisible());
   EXPECT_EQ(DaoAgentSpaceState::kUserInControl, space->state());
-  EXPECT_EQ("SPACE_USER_IN_CONTROL",
-            ErrorCode(Call("get_page_info",
-                           base::DictValue().Set("space_id", space_id))));
+  base::test::TestFuture<DaoBrowserToolResult> pending;
+  StartCall("get_page_info", base::DictValue().Set("space_id", space_id),
+            pending.GetCallback());
+  EXPECT_FALSE(pending.IsReady());
+  ASSERT_TRUE(service_->Stop(space_id));
+  EXPECT_EQ("SPACE_CLOSED", ErrorCode(pending.Take()));
 }
 #endif  // BUILDFLAG(IS_MAC)
 
@@ -724,14 +738,38 @@ IN_PROC_BROWSER_TEST_F(DaoAgentSpaceBrowserTest,
 
   ASSERT_TRUE(service_->TakeOver(space_id));
   EXPECT_EQ(DaoAgentSpaceState::kUserInControl, Space(space_id)->state());
-  DaoBrowserToolResult blocked =
-      Call("get_page_info", base::DictValue().Set("space_id", space_id));
-  EXPECT_EQ("SPACE_USER_IN_CONTROL", ErrorCode(blocked));
+  base::test::TestFuture<DaoBrowserToolResult> action;
+  StartCall("execute_script",
+            base::DictValue().Set("space_id", space_id).Set(
+                "code", "window.replayed = true"),
+            action.GetCallback());
+  EXPECT_FALSE(action.IsReady());
+
+  DaoAgentSpaceClient client{DaoToolClient::kDaoAgent, "test-client", "Test"};
+  base::test::TestFuture<DaoBrowserToolResult> cancelled;
+  const std::string request_id =
+      StartCall("get_page_info", base::DictValue().Set("space_id", space_id),
+                cancelled.GetCallback(), client);
+  service_->CancelTool(client, request_id);
+  EXPECT_EQ("TOOL_CANCELLED", ErrorCode(cancelled.Take()));
+  EXPECT_FALSE(action.IsReady());
+
+  bool allowed = true;
+  client.authorization_check =
+      base::BindRepeating([](bool* flag) { return *flag; }, &allowed);
+  base::test::TestFuture<DaoBrowserToolResult> revoked;
+  StartCall("get_page_info", base::DictValue().Set("space_id", space_id),
+            revoked.GetCallback(), client);
+  allowed = false;
 
   ASSERT_TRUE(service_->HandBack(space_id));
-  DaoBrowserToolResult allowed =
-      Call("get_page_info", base::DictValue().Set("space_id", space_id));
-  EXPECT_FALSE(allowed.error);
+  EXPECT_EQ("AUTHORIZATION_DENIED", ErrorCode(revoked.Take()));
+  auto result = action.Take();
+  ASSERT_TRUE(result.ok);
+  EXPECT_EQ(true, result.data.GetDict().FindBool("interrupted"));
+  EXPECT_EQ(false, result.data.GetDict().FindBool("success"));
+  EXPECT_TRUE(result.data.GetDict().FindDict("user_changes"));
+  EXPECT_EQ(base::Value(false), Eval(space_id, "window.replayed === true"));
 }
 
 IN_PROC_BROWSER_TEST_F(DaoAgentSpaceBrowserTest,
@@ -758,9 +796,10 @@ IN_PROC_BROWSER_TEST_F(DaoAgentSpaceBrowserTest,
     EXPECT_FALSE(help.IsReady());
     EXPECT_EQ(DaoAgentSpaceState::kUserInControl, space->state());
     EXPECT_EQ("Sign in to continue", space->handoff_message());
-    EXPECT_EQ("SPACE_USER_IN_CONTROL",
-              ErrorCode(Call("get_page_info",
-                             base::DictValue().Set("space_id", space_id))));
+    base::test::TestFuture<DaoBrowserToolResult> waiting;
+    StartCall("get_page_info", base::DictValue().Set("space_id", space_id),
+              waiting.GetCallback());
+    EXPECT_FALSE(waiting.IsReady());
 
     ASSERT_TRUE(service_->ShowWindow(space_id));
     ASSERT_TRUE(content::NavigateToURL(space->GetCurrentContents(), user_url));
@@ -779,6 +818,8 @@ IN_PROC_BROWSER_TEST_F(DaoAgentSpaceBrowserTest,
     }
     ASSERT_EQ(space_browser, space->browser());
     ASSERT_TRUE(help.IsReady());
+    ASSERT_TRUE(waiting.IsReady());
+    EXPECT_EQ(true, waiting.Get().data.GetDict().FindBool("interrupted"));
     DaoBrowserToolResult result = help.Take();
     ASSERT_FALSE(result.error);
     const base::DictValue* changes = result.data.GetDict().FindDict("user_changes");
@@ -1009,21 +1050,38 @@ IN_PROC_BROWSER_TEST_F(DaoAgentSpaceBrowserTest, ScriptSyntaxErrorsHaveLines) {
 }
 
 IN_PROC_BROWSER_TEST_F(DaoAgentSpaceBrowserTest,
-                       ScriptsHardStopWhenUserTakesOver) {
+                       ScriptsReturnInterruptionToOriginalCallerOnHandBack) {
   const std::string space_id =
       CreateSpace(embedded_test_server()->GetURL("/title1.html"));
   ASSERT_TRUE(WaitForLoad(space_id));
+  base::test::TestFuture<DaoBrowserToolResult> run;
+  StartCall("run_browser_script",
+            base::DictValue().Set("code", base::StrCat({
+                "console.log('partial output');\n",
+                "dao.saveFile('partial.txt', 'partial');\n",
+                "await dao.space('", space_id,
+                "').waitFor({role: 'button', name: 'Absent'}, {timeoutMs: 30000});\n",
+                "return 'unreachable';"})),
+            run.GetCallback());
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return std::ranges::any_of(Space(space_id)->events(), [](const auto& e) {
+      return e.tool == "wait_for_element" && e.pending;
+    });
+  }));
   ASSERT_TRUE(service_->TakeOver(space_id));
-  DaoBrowserToolResult result =
-      Call("run_browser_script",
-           base::DictValue()
-               .Set("space_id", space_id)
-               .Set("code",
-                    "console.log('secret partial output');\n"
-                    "await space.info();\nreturn 'unreachable';"));
-  ASSERT_TRUE(result.error);
-  EXPECT_EQ(DaoToolErrorCode::kSpaceUserInControl, result.error->code);
-  EXPECT_TRUE(result.data.is_none());
+  EXPECT_FALSE(run.IsReady());
+  ASSERT_TRUE(service_->HandBack(space_id));
+  auto result = run.Take();
+  ASSERT_TRUE(result.ok);
+  const auto& data = result.data.GetDict();
+  ASSERT_TRUE(data.FindString("space_id"));
+  EXPECT_EQ(space_id, *data.FindString("space_id"));
+  EXPECT_EQ(true, data.FindBool("interrupted"));
+  EXPECT_EQ(false, data.FindBool("success"));
+  EXPECT_TRUE(data.FindDict("user_changes"));
+  EXPECT_FALSE(data.contains("logs"));
+  EXPECT_FALSE(data.contains("files"));
+  EXPECT_FALSE(data.contains("result"));
 }
 
 }  // namespace

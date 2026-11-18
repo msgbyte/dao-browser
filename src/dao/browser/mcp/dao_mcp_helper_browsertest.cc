@@ -531,7 +531,8 @@ TEST_F(DaoMcpHelperBrowserTest,
   EXPECT_NE(std::string::npos, instructions->find("click_by_ref"));
   EXPECT_NE(std::string::npos, instructions->find("create_space"));
   EXPECT_NE(std::string::npos, instructions->find("request_user_help"));
-  EXPECT_NE(std::string::npos, instructions->find("SPACE_USER_IN_CONTROL"));
+  EXPECT_NE(std::string::npos, instructions->find("Hand-back resumes"));
+  EXPECT_NE(std::string::npos, instructions->find("user_changes"));
   const base::DictValue* server_info = result->FindDict("serverInfo");
   ASSERT_TRUE(server_info);
   EXPECT_EQ("dao-browser", *server_info->FindString("name"));

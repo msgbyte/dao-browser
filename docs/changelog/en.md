@@ -4,7 +4,7 @@
 
 ### [Unreleased] Unreleased
 
-- When Dao Lite asks for your help, you have up to 14 minutes to finish the manual step without using up the script’s execution time.
+- After a manual step in Dao Lite, click Hand back to AI to continue the current task without sending another chat message.
 
 ### [1.0.141] - 2026-11-15
 

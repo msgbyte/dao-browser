@@ -112,6 +112,17 @@ DaoBrowserToolResult SuccessResult(base::DictValue data) {
   return result;
 }
 
+bool HasAuthorization(const DaoAgentSpaceClient& client) {
+  return (client.authorization_deadline.is_null() ||
+          base::TimeTicks::Now() < client.authorization_deadline) &&
+         (!client.authorization_check || client.authorization_check.Run());
+}
+
+DaoToolError AccessDenied() {
+  return MakeDaoToolError(DaoToolErrorCode::kAuthorizationDenied,
+                          "Dao Lite access requires approval before continuing.");
+}
+
 DaoToolError UserInControlError(const DaoAgentSpace& space) {
   std::string why;
   switch (space.handoff_reason()) {
@@ -266,15 +277,16 @@ bool HasPendingPermissionPrompt(DaoAgentSpace* space) {
 
 struct DaoAgentSpaceService::PendingCall {
   std::string client_key;
-  std::string external_id;
   std::string space_id;
   std::string tool;
-  size_t event_serial = 0;
+  std::optional<size_t> event_serial;
   ResultCallback callback;
+  base::WeakPtrFactory<PendingCall> weak_factory{this};
 };
 
 struct DaoAgentSpaceService::PendingHelp {
-  std::string client_key;
+  DaoAgentSpaceClient client;
+  std::string space_id;
   std::string external_id;
   ResultCallback callback;
   base::OneShotTimer timer;
@@ -477,13 +489,56 @@ bool DaoAgentSpaceService::ShouldRoute(std::string_view name,
 void DaoAgentSpaceService::ExecuteTool(const DaoAgentSpaceClient& client,
                                        DaoBrowserToolCall call,
                                        ResultCallback callback) {
+  const std::string* space_id = call.arguments.FindString("space_id");
+  auto complete = base::BindOnce(&DaoAgentSpaceService::OnToolResult,
+                                 weak_factory_.GetWeakPtr(), client,
+                                 call.request_id, space_id ? *space_id : "",
+                                 std::move(callback));
+  DispatchTool(client, std::move(call), std::move(complete));
+}
+
+void DaoAgentSpaceService::OnToolResult(DaoAgentSpaceClient client,
+                                        std::string request_id,
+                                        std::string space_id,
+                                        ResultCallback callback,
+                                        DaoBrowserToolResult result) {
+  if (result.error &&
+      result.error->code == DaoToolErrorCode::kSpaceUserInControl) {
+    // Scripts can use a different space from their default.
+    if (result.data.is_string()) {
+      space_id = result.data.GetString();
+    }
+    DaoAgentSpace* space = FindSpace(space_id);
+    if (space && space->client() == client.type &&
+        space->state() == DaoAgentSpaceState::kUserInControl) {
+      WaitForHandBack(client, std::move(request_id), space_id,
+                      base::BindOnce(
+                          [](ResultCallback callback, DaoBrowserToolResult handoff) {
+                            if (handoff.ok) {
+                              auto& data = handoff.data.GetDict();
+                              data.Set("interrupted", true);
+                              data.Set("success", false);
+                              if (!data.FindBool("timed_out").value_or(false)) {
+                                data.Set("message", "The user handed control back. "
+                                         "The operation was interrupted. Observe the "
+                                         "page before continuing the task.");
+                              }
+                            }
+                            std::move(callback).Run(std::move(handoff));
+                          },
+                          std::move(callback)));
+      return;
+    }
+  }
+  std::move(callback).Run(std::move(result));
+}
+
+void DaoAgentSpaceService::DispatchTool(const DaoAgentSpaceClient& client,
+                                        DaoBrowserToolCall call,
+                                        ResultCallback callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if ((!client.authorization_deadline.is_null() &&
-       base::TimeTicks::Now() >= client.authorization_deadline) ||
-      (client.authorization_check && !client.authorization_check.Run())) {
-    std::move(callback).Run(ErrorResult(MakeDaoToolError(
-        DaoToolErrorCode::kAuthorizationDenied,
-        "Dao Lite access requires approval before continuing.")));
+  if (!HasAuthorization(client)) {
+    std::move(callback).Run(ErrorResult(AccessDenied()));
     return;
   }
   auto catalog = DaoBrowserToolCatalog::TryGet();
@@ -520,17 +575,9 @@ void DaoAgentSpaceService::CancelTool(const DaoAgentSpaceClient& client,
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   const std::string internal_id =
       base::StrCat({"space:", client.key, ":", request_id});
-  auto call = calls_.find(internal_id);
-  if (call != calls_.end()) {
-    DaoAgentSpace* space = FindSpace(call->second->space_id);
-    if (space && space->executor()) {
-      space->executor()->Cancel(internal_id);
-    } else {
-      OnSpaceToolComplete(
-          internal_id,
-          ErrorResult(MakeDaoToolError(DaoToolErrorCode::kToolCancelled,
-                                       "Browser tool call was cancelled.")));
-    }
+  if (calls_.contains(internal_id)) {
+    CancelSpaceCall(internal_id, MakeDaoToolError(
+        DaoToolErrorCode::kToolCancelled, "Browser tool call was cancelled."));
     return;
   }
   auto script =
@@ -540,11 +587,10 @@ void DaoAgentSpaceService::CancelTool(const DaoAgentSpaceClient& client,
                                             "The script was cancelled."));
     return;
   }
-  for (auto& [space_id, help] : helps_) {
-    if (help->client_key == client.key && help->external_id == request_id) {
+  for (auto& [id, help] : helps_) {
+    if (help->client.key == client.key && help->external_id == request_id) {
       // The handoff stays in place; only the waiting call ends.
-      const std::string id = space_id;
-      ResolveHelp(id, ErrorResult(MakeDaoToolError(
+      FinishHelp(id, ErrorResult(MakeDaoToolError(
                           DaoToolErrorCode::kToolCancelled,
                           "Waiting for the user was cancelled.")));
       return;
@@ -555,6 +601,7 @@ void DaoAgentSpaceService::CancelTool(const DaoAgentSpaceClient& client,
 void DaoAgentSpaceService::CancelClientTools(std::string_view client_key) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   const std::string script_prefix = base::StrCat({"script:", client_key, ":"});
+  auto weak_this = weak_factory_.GetWeakPtr();
   std::vector<std::string> scripts;
   for (const auto& [run_id, run] : scripts_) {
     if (base::StartsWith(run_id, script_prefix)) {
@@ -566,39 +613,37 @@ void DaoAgentSpaceService::CancelClientTools(std::string_view client_key) {
     if (run != scripts_.end()) {
       run->second->Cancel(MakeDaoToolError(DaoToolErrorCode::kToolCancelled,
                                            "The script was cancelled."));
+      if (!weak_this) {
+        return;
+      }
     }
   }
-  std::vector<std::pair<std::string, std::string>> calls;
+  std::vector<std::string> calls;
   for (const auto& [internal_id, call] : calls_) {
     if (call->client_key == client_key) {
-      calls.emplace_back(internal_id, call->space_id);
+      calls.push_back(internal_id);
     }
   }
-  base::WeakPtr<DaoAgentSpaceService> weak_this = weak_factory_.GetWeakPtr();
-  for (const auto& [internal_id, space_id] : calls) {
-    DaoAgentSpace* space = FindSpace(space_id);
-    if (space && space->executor()) {
-      space->executor()->Cancel(internal_id);
-    } else {
-      OnSpaceToolComplete(
-          internal_id,
-          ErrorResult(MakeDaoToolError(DaoToolErrorCode::kToolCancelled,
-                                       "Browser tool call was cancelled.")));
-    }
+  for (const std::string& internal_id : calls) {
+    CancelSpaceCall(internal_id, MakeDaoToolError(
+        DaoToolErrorCode::kToolCancelled, "Browser tool call was cancelled."));
     if (!weak_this) {
       return;
     }
   }
-  std::vector<std::string> helps;
-  for (const auto& [space_id, help] : helps_) {
-    if (help->client_key == client_key) {
-      helps.push_back(space_id);
+  std::vector<int64_t> helps;
+  for (const auto& [id, help] : helps_) {
+    if (help->client.key == client_key) {
+      helps.push_back(id);
     }
   }
-  for (const std::string& space_id : helps) {
-    ResolveHelp(space_id, ErrorResult(MakeDaoToolError(
+  for (int64_t id : helps) {
+    FinishHelp(id, ErrorResult(MakeDaoToolError(
                               DaoToolErrorCode::kToolCancelled,
                               "Waiting for the user was cancelled.")));
+    if (!weak_this) {
+      return;
+    }
   }
 }
 
@@ -1041,12 +1086,6 @@ void DaoAgentSpaceService::RequestUserHelp(const DaoAgentSpaceClient& client,
     std::move(callback).Run(ErrorResult(std::move(error)));
     return;
   }
-  if (helps_.contains(space->id())) {
-    std::move(callback).Run(ErrorResult(
-        MakeDaoToolError(DaoToolErrorCode::kInvalidArgument,
-                         "Already waiting for the user in this space.")));
-    return;
-  }
   const std::string* raw_reason = arguments.FindString("reason");
   const std::string reason =
       Clamp(raw_reason ? *raw_reason : "", kMaxReasonChars);
@@ -1055,24 +1094,15 @@ void DaoAgentSpaceService::RequestUserHelp(const DaoAgentSpaceClient& client,
         DaoToolErrorCode::kInvalidArgument, "reason must not be blank.")));
     return;
   }
+  WaitForHandBack(client, std::move(request_id), space->id(), std::move(callback));
+  if (space->state() == DaoAgentSpaceState::kUserInControl) {
+    return;
+  }
   if (const std::string* tab_id = arguments.FindString("tab_id")) {
     space->ActivateTab(*tab_id);
   }
-  CancelSpaceCalls(space->id(), UserInControlError(*space));
-  if (space->state() == DaoAgentSpaceState::kRunning) {
-    space->HandOffToUser(DaoAgentSpaceHandoffReason::kHelpRequested, reason);
-  }
+  space->HandOffToUser(DaoAgentSpaceHandoffReason::kHelpRequested, reason);
   space->AddEvent("request_user_help", reason);
-
-  auto help = std::make_unique<PendingHelp>();
-  help->client_key = client.key;
-  help->external_id = std::move(request_id);
-  help->callback = std::move(callback);
-  help->timer.Start(FROM_HERE, DaoAgentScriptRun::kHelpTimeout,
-                    base::BindOnce(&DaoAgentSpaceService::OnHelpTimeout,
-                                   weak_factory_.GetWeakPtr(), space->id()));
-  helps_.emplace(space->id(), std::move(help));
-
   AlertUser(space, l10n_util::GetStringFUTF16(IDS_DAO_AGENT_SPACE_HELP_TOAST,
                                               base::UTF8ToUTF16(space->name()),
                                               base::UTF8ToUTF16(reason)));
@@ -1321,7 +1351,7 @@ void DaoAgentSpaceService::RunScript(const DaoAgentSpaceClient& client,
             call.request_id = std::move(request_id);
             call.name = std::move(name);
             call.arguments = std::move(arguments);
-            service->ExecuteTool(client, std::move(call), std::move(callback));
+            service->DispatchTool(client, std::move(call), std::move(callback));
           },
           weak_this, client),
       base::BindRepeating(
@@ -1362,31 +1392,6 @@ void DaoAgentSpaceService::ExecuteInSpace(const DaoAgentSpaceClient& client,
     std::move(callback).Run(ErrorResult(std::move(error)));
     return;
   }
-  // A tab the agent just opened may still show its initial empty document.
-  if (!waited_for_commit && call.name != "list_tabs") {
-    space->EnsureSessionTarget();
-    content::WebContents* current = space->GetCurrentContents();
-    if (current && current->GetLastCommittedURL().is_empty()) {
-      FirstCommitWaiter::Wait(
-          current, base::BindOnce(
-                       [](base::WeakPtr<DaoAgentSpaceService> service,
-                          DaoAgentSpaceClient client, DaoBrowserToolCall call,
-                          ResultCallback callback) {
-                         if (!service) {
-                           std::move(callback).Run(ErrorResult(MakeDaoToolError(
-                               DaoToolErrorCode::kToolCancelled,
-                               "Agent Spaces are shutting down.")));
-                           return;
-                         }
-                         service->ExecuteInSpace(client, std::move(call),
-                                                 std::move(callback),
-                                                 /*waited_for_commit=*/true);
-                       },
-                       weak_factory_.GetWeakPtr(), client, std::move(call),
-                       std::move(callback)));
-      return;
-    }
-  }
   if (space->state() == DaoAgentSpaceState::kRunning &&
       HasPendingPermissionPrompt(space)) {
     HandOffForPage(space, nullptr,
@@ -1395,6 +1400,45 @@ void DaoAgentSpaceService::ExecuteInSpace(const DaoAgentSpaceClient& client,
   if (space->state() != DaoAgentSpaceState::kRunning || !space->executor() ||
       !space->session()) {
     std::move(callback).Run(ErrorResult(UserInControlError(*space)));
+    return;
+  }
+  const std::string internal_id =
+      base::StrCat({"space:", client.key, ":", call.request_id});
+  if (calls_.contains(internal_id)) {
+    std::move(callback).Run(ErrorResult(
+        MakeDaoToolError(DaoToolErrorCode::kInvalidArgument,
+                         "Browser tool request id is already active.")));
+    return;
+  }
+  space->EnsureSessionTarget();
+  // A new tab may still show its initial empty document. Register the wait
+  // so taking over or cancelling the request also cancels its queued action.
+  content::WebContents* current = space->GetCurrentContents();
+  if (!waited_for_commit && call.name != "list_tabs" && current &&
+      current->GetLastCommittedURL().is_empty()) {
+    auto pending = std::make_unique<PendingCall>();
+    pending->client_key = client.key;
+    pending->space_id = space->id();
+    pending->callback = std::move(callback);
+    auto waiting = pending->weak_factory.GetWeakPtr();
+    calls_.emplace(internal_id, std::move(pending));
+    FirstCommitWaiter::Wait(current, base::BindOnce(
+        [](base::WeakPtr<DaoAgentSpaceService> service,
+           base::WeakPtr<PendingCall> waiting, std::string internal_id,
+           DaoAgentSpaceClient client, DaoBrowserToolCall call) {
+          if (!service || !waiting) {
+            return;
+          }
+          auto callback = std::move(waiting->callback);
+          service->calls_.erase(internal_id);
+          if (!HasAuthorization(client)) {
+            std::move(callback).Run(ErrorResult(AccessDenied()));
+            return;
+          }
+          service->ExecuteInSpace(client, std::move(call), std::move(callback),
+                                  /*waited_for_commit=*/true);
+        }, weak_factory_.GetWeakPtr(), waiting, internal_id, client,
+        std::move(call)));
     return;
   }
   // The page is blocked until its dialog is answered.
@@ -1425,21 +1469,12 @@ void DaoAgentSpaceService::ExecuteInSpace(const DaoAgentSpaceClient& client,
       return;
     }
   }
-  space->EnsureSessionTarget();
   if (call.name == "open_tab" && space->GetTabCount() >= kMaxTabsPerSpace) {
     std::move(callback).Run(ErrorResult(MakeDaoToolError(
         DaoToolErrorCode::kSpaceLimitReached,
         base::StrCat({"A space can hold at most ",
                       base::NumberToString(kMaxTabsPerSpace),
                       " tabs. Close tabs you no longer need first."}))));
-    return;
-  }
-  const std::string internal_id =
-      base::StrCat({"space:", client.key, ":", call.request_id});
-  if (calls_.contains(internal_id)) {
-    std::move(callback).Run(ErrorResult(
-        MakeDaoToolError(DaoToolErrorCode::kInvalidArgument,
-                         "Browser tool request id is already active.")));
     return;
   }
   std::string label;
@@ -1451,12 +1486,11 @@ void DaoAgentSpaceService::ExecuteInSpace(const DaoAgentSpaceClient& client,
 
   auto pending = std::make_unique<PendingCall>();
   pending->client_key = client.key;
-  pending->external_id = call.request_id;
   pending->space_id = space->id();
   pending->tool = call.name;
   pending->event_serial = space->AddEvent(call.name, std::move(label));
   if (const std::string* ref_id = call.arguments.FindString("ref_id")) {
-    space->SetEventTarget(pending->event_serial, space->DescribeRef(*ref_id));
+    space->SetEventTarget(*pending->event_serial, space->DescribeRef(*ref_id));
   }
   pending->callback = std::move(callback);
   calls_.emplace(internal_id, std::move(pending));
@@ -1477,9 +1511,10 @@ void DaoAgentSpaceService::OnSpaceToolComplete(std::string internal_id,
   }
   std::unique_ptr<PendingCall> pending = std::move(it->second);
   calls_.erase(it);
-  if (DaoAgentSpace* space = FindSpace(pending->space_id)) {
+  if (DaoAgentSpace* space = FindSpace(pending->space_id);
+      space && pending->event_serial) {
     space->CompleteEvent(
-        pending->event_serial, !result.error,
+        *pending->event_serial, !result.error,
         result.error ? std::string(DaoToolErrorCodeToString(result.error->code))
                      : std::string());
     space->TouchActivity();
@@ -1504,10 +1539,27 @@ void DaoAgentSpaceService::OnSpaceToolComplete(std::string internal_id,
   std::move(pending->callback).Run(std::move(result));
 }
 
-void DaoAgentSpaceService::OnHelpTimeout(std::string space_id) {
+void DaoAgentSpaceService::WaitForHandBack(const DaoAgentSpaceClient& client,
+                                           std::string request_id,
+                                           const std::string& space_id,
+                                           ResultCallback callback) {
+  const int64_t id = ++next_help_id_;
+  auto help = std::make_unique<PendingHelp>();
+  help->client = client;
+  help->space_id = space_id;
+  help->external_id = std::move(request_id);
+  help->callback = std::move(callback);
+  help->timer.Start(FROM_HERE, DaoAgentScriptRun::kHelpTimeout,
+                    base::BindOnce(&DaoAgentSpaceService::OnHelpTimeout,
+                                   weak_factory_.GetWeakPtr(), id));
+  helps_.emplace(id, std::move(help));
+}
+
+void DaoAgentSpaceService::OnHelpTimeout(int64_t id) {
+  const std::string space_id = helps_.at(id)->space_id;
   DaoAgentSpace* space = FindSpace(space_id);
-  ResolveHelp(
-      space_id,
+  FinishHelp(
+      id,
       SuccessResult(
           base::DictValue()
               .Set("success", false)
@@ -1524,13 +1576,33 @@ void DaoAgentSpaceService::OnHelpTimeout(std::string space_id) {
 
 void DaoAgentSpaceService::ResolveHelp(std::string_view space_id,
                                        DaoBrowserToolResult result) {
-  auto it = helps_.find(space_id);
+  std::vector<int64_t> ids;
+  for (const auto& [id, help] : helps_) {
+    if (help->space_id == space_id) {
+      ids.push_back(id);
+    }
+  }
+  auto weak_this = weak_factory_.GetWeakPtr();
+  for (int64_t id : ids) {
+    FinishHelp(id, result.error ? ErrorResult(*result.error)
+                                : SuccessResult(result.data.GetDict().Clone()));
+    if (!weak_this) {
+      return;
+    }
+  }
+}
+
+void DaoAgentSpaceService::FinishHelp(int64_t id, DaoBrowserToolResult result) {
+  auto it = helps_.find(id);
   if (it == helps_.end()) {
     return;
   }
   std::unique_ptr<PendingHelp> help = std::move(it->second);
   helps_.erase(it);
   help->timer.Stop();
+  if (result.ok && !HasAuthorization(help->client)) {
+    result = ErrorResult(AccessDenied());
+  }
   std::move(help->callback).Run(std::move(result));
 }
 
@@ -1559,6 +1631,20 @@ DaoAgentSpace* DaoAgentSpaceService::ResolveSpace(
   return space;
 }
 
+void DaoAgentSpaceService::CancelSpaceCall(const std::string& internal_id,
+                                          const DaoToolError& error) {
+  auto it = calls_.find(internal_id);
+  if (it == calls_.end()) {
+    return;
+  }
+  DaoAgentSpace* space = FindSpace(it->second->space_id);
+  if (it->second->event_serial && space && space->executor()) {
+    space->executor()->Cancel(internal_id, error);
+  } else {
+    OnSpaceToolComplete(internal_id, ErrorResult(error));
+  }
+}
+
 void DaoAgentSpaceService::CancelSpaceCalls(std::string_view space_id,
                                             const DaoToolError& error) {
   std::vector<std::string> ids;
@@ -1569,12 +1655,7 @@ void DaoAgentSpaceService::CancelSpaceCalls(std::string_view space_id,
   }
   base::WeakPtr<DaoAgentSpaceService> weak_this = weak_factory_.GetWeakPtr();
   for (const std::string& internal_id : ids) {
-    DaoAgentSpace* space = FindSpace(space_id);
-    if (space && space->executor()) {
-      space->executor()->Cancel(internal_id, error);
-    } else {
-      OnSpaceToolComplete(internal_id, ErrorResult(error));
-    }
+    CancelSpaceCall(internal_id, error);
     if (!weak_this) {
       return;
     }
@@ -1591,16 +1672,17 @@ void DaoAgentSpaceService::CloseSpace(
     return;
   }
   const std::string space_id = space->id();
+  auto weak_this = weak_factory_.GetWeakPtr();
   CancelSpaceCalls(space_id, ClosedError(*space));
-  space = FindSpace(space_id);
-  if (!space) {
+  space = weak_this ? FindSpace(space_id) : nullptr;
+  if (!space || space->is_closed()) {
     return;
   }
   BrowserWindowInterface* browser = window_closing ? nullptr : space->browser();
   std::vector<std::unique_ptr<content::WebContents>> kept;
   std::vector<std::unique_ptr<content::WebContents>> discarded;
   space->MarkClosed(state, std::move(summary));
-  ResolveHelp(space_id, ErrorResult(ClosedError(*space)));
+  const DaoToolError error = ClosedError(*space);
   CloseUserAlert(space_id);
 
   // Detaching pages before closing skips beforeunload prompts, which would
@@ -1694,6 +1776,7 @@ void DaoAgentSpaceService::CloseSpace(
   PruneClosedRecords();
   SaveHistory();
   NotifySpaceChanged();
+  ResolveHelp(space_id, ErrorResult(error));
 }
 
 void DaoAgentSpaceService::PruneClosedRecords() {

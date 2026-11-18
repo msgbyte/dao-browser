@@ -90,6 +90,7 @@ class DaoAgentScriptRun : public content::WebContentsObserver {
   void OnHelpTimeout();
   void OnCallComplete(std::string request_id,
                       int64_t call_id,
+                      std::string space_id,
                       DaoBrowserToolResult result);
   void OnToolResult(int64_t call_id, DaoBrowserToolResult result);
   void Finish(DaoBrowserToolResult result);

@@ -63,8 +63,8 @@ constexpr base::TimeDelta kConnectTimeout = base::Seconds(5);
 constexpr base::TimeDelta kLaunchWait = base::Seconds(20);
 constexpr int kDefaultScriptSeconds = 120;
 constexpr int kMaxScriptSeconds = 600;
-// Allow for approval and planned user help outside the script budget.
-constexpr base::TimeDelta kScriptHandoffAllowance = base::Minutes(16);
+// Allow for approval, planned help, and an interruption after help returns.
+constexpr base::TimeDelta kScriptHandoffAllowance = base::Minutes(30);
 
 enum ExitCode {
   kExitOk = 0,
@@ -443,9 +443,10 @@ int RunScript(const Options& options,
     std::cout << PrettyJson(base::Value(std::move(*result))) << std::endl;
     return kExitOk;
   }
-  if (data->FindBool("timed_out").value_or(false)) {
+  const bool timed_out = data->FindBool("timed_out").value_or(false);
+  if (timed_out || data->FindBool("interrupted").value_or(false)) {
     std::cout << PrettyJson(base::Value(data->Clone())) << std::endl;
-    return kExitUserInControl;
+    return timed_out ? kExitUserInControl : kExitOk;
   }
   if (const base::ListValue* logs = data->FindList("logs")) {
     for (const base::Value& line : *logs) {
@@ -513,7 +514,8 @@ int RunCall(const Options& options,
   if (result) {
     const base::DictValue* data = result->FindDict("data");
     if (data && data->FindBool("timed_out").value_or(false) &&
-        (args[1] == "request_user_help" || args[1] == "run_browser_script")) {
+        (args[1] == "request_user_help" || args[1] == "run_browser_script" ||
+         data->FindBool("interrupted").value_or(false))) {
       exit_code = kExitUserInControl;
     }
     std::cout << PrettyJson(base::Value(std::move(*result))) << std::endl;

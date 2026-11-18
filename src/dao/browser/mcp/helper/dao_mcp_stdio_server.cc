@@ -452,9 +452,10 @@ void DaoMcpStdioServer::HandleInitialize(const base::DictValue& request,
                   "create_space and pass its space_id to browser tools; the "
                   "user can watch and take over. Use request_user_help for "
                   "sign-ins, codes, payments or irreversible steps, and "
-                  "finish_space when done. If a call returns "
-                  "SPACE_USER_IN_CONTROL, stop without retrying and wait for "
-                  "the user.")
+                  "finish_space when done. Keep the call pending while the "
+                  "user has control. Hand-back resumes the same turn. If "
+                  "interrupted is true, inspect user_changes and the page "
+                  "before continuing. Stop on handoff timeout or SPACE_CLOSED.")
               .Set("serverInfo", base::DictValue()
                                      .Set("name", "dao-browser")
                                      .Set("version", server_version_))));
