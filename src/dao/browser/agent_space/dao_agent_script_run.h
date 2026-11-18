@@ -7,6 +7,7 @@
 
 #include <cstdint>
 #include <deque>
+#include <map>
 #include <memory>
 #include <set>
 #include <string>
@@ -51,6 +52,8 @@ class DaoAgentScriptRun : public content::WebContentsObserver {
   static constexpr base::TimeDelta kDefaultTimeout = base::Minutes(2);
   static constexpr base::TimeDelta kMaxTimeout = base::Minutes(10);
 
+  static constexpr base::TimeDelta kHelpTimeout = base::Minutes(14);
+
   DaoAgentScriptRun(Profile* profile,
                     std::string run_id,
                     std::string code,
@@ -73,6 +76,7 @@ class DaoAgentScriptRun : public content::WebContentsObserver {
       base::TerminationStatus status) override;
 
  private:
+  void StartExecutionTimer();
   void Prepare();
   // Sends DevTools setup commands in order, then installs the runtime.
   void SendSetupCommands(
@@ -83,6 +87,10 @@ class DaoAgentScriptRun : public content::WebContentsObserver {
   void OnDevToolsEvent(content::DevToolsAgentHost* host,
                        const std::string& method,
                        const base::DictValue& params);
+  void OnHelpTimeout();
+  void OnCallComplete(std::string request_id,
+                      int64_t call_id,
+                      DaoBrowserToolResult result);
   void OnToolResult(int64_t call_id, DaoBrowserToolResult result);
   void Finish(DaoBrowserToolResult result);
 
@@ -91,7 +99,9 @@ class DaoAgentScriptRun : public content::WebContentsObserver {
   const std::string run_id_;
   const std::string code_;
   const std::string default_space_id_;
-  const base::TimeDelta timeout_;
+  base::TimeDelta execution_remaining_;
+  base::TimeDelta help_remaining_ = kHelpTimeout;
+  std::map<std::string, std::string> pending_help_;
   ToolCaller tool_caller_;
   ToolCanceller tool_canceller_;
   DoneCallback done_;

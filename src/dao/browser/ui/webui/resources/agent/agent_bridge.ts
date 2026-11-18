@@ -1115,7 +1115,8 @@ async function executeSpaceTool(
   const result = await callNative('executeSpaceTool', {name, arguments: args}, {
     signal,
     cancelMethod: 'cancelBrowserTool',
-    timeoutMs: timeoutMs === undefined ? undefined : timeoutMs + 5000,
+    timeoutMs: name === 'run_browser_script' ? null :
+        timeoutMs === undefined ? undefined : timeoutMs + 5000,
   }) as Record<string, unknown>;
   if (name === 'capture_screenshot' && result && !result['error'] &&
       result['media']) {

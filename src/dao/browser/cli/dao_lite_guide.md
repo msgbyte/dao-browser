@@ -154,10 +154,12 @@ clicking the wrong element.
 
 1. Keep the user informed: create spaces with clear names, label actions,
    and update `status` when you start a new phase.
-2. Ask before anything irreversible. Use `s.help(reason)` for sign-ins,
+2. Ask before anything irreversible. Use `await s.help(reason)` for sign-ins,
    two-factor codes, captchas, payments, sending messages, deleting data or
    any confirmation that commits the user. Never type passwords or payment
-   details yourself.
+   details yourself. Keep the CLI process open while awaiting help. The script
+   resumes on hand-back, with up to 14 minutes of waiting outside its execution
+   budget. Inspect the current page before acting.
 3. **Hard stop.** If a run or call fails with `SPACE_USER_IN_CONTROL`, the
    user has taken over. Stop immediately: do not retry, do not call other
    tools on that space and never try to take control back. Tell the user

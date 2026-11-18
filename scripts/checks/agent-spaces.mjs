@@ -1,8 +1,8 @@
 // Run after npm run rebuild: node scripts/checks/agent-spaces.mjs
 // Drives a real Dao Debug build through the dao-browser CLI in an isolated,
 // headless profile: background-space approval with "Always allow", a space
-// created by `call`, a multi-step `run` script, take over (hard stop), and
-// finish. --test-type keeps Dao from installing skills into the real home.
+// created by `call`, a multi-step `run` script, manual takeover, planned
+// help, hand-back, and finish. --test-type keeps skills out of the real home.
 import {strict as assert} from 'node:assert';
 import {spawn} from 'node:child_process';
 import {mkdir, mkdtemp, readFile, realpath, rm, writeFile} from 'node:fs/promises';
@@ -216,7 +216,18 @@ try {
       .find(target => target.url === 'dao://sidebar/');
   assert.ok(sidebar, 'sidebar WebUI target');
   const sidebarSend = await connect(sidebar.webSocketDebuggerUrl);
-  await evaluate(sidebarSend, `chrome.send('agentSpaceAction', ['take_over', ${JSON.stringify(spaceId)}])`);
+  const action = name => evaluate(sidebarSend,
+      `chrome.send('agentSpaceAction', ${JSON.stringify([name, spaceId])})`);
+  async function waitForSpace(predicate, label) {
+    await until(async () => {
+      const result = await runCli(['call', 'list_spaces']);
+      assert.equal(result.code, 0, result.err);
+      const space = JSON.parse(result.out).data.spaces.find(s => s.space_id === spaceId);
+      return space && predicate(space);
+    }, label);
+  }
+
+  await action('take_over');
   const stopped = await runCli(['run', '--space', spaceId],
                                `console.log('partial output'); return await space.info();`);
   assert.equal(stopped.code, 2, stopped.out + stopped.err);
@@ -224,12 +235,24 @@ try {
   assert.doesNotMatch(stopped.out, /partial output/);
   console.log('PASS take over hard-stops scripts and drops their output');
 
-  await evaluate(sidebarSend, `chrome.send('agentSpaceAction', ['hand_back', ${JSON.stringify(spaceId)}])`);
+  await action('hand_back');
+
+  const help = runCli(['run', '--space', spaceId, '--timeout', '3'], `
+    await space.help('Choose the delivery address');
+    return (await space.info()).title;`);
+  await waitForSpace(s => s.handoff_message === 'Choose the delivery address', 'help requested');
+  await delay(3500);
+  await action('hand_back');
+  const continued = await help;
+  assert.equal(continued.code, 0, continued.err);
+  assert.equal(JSON.parse(continued.out), 'Space check');
+  console.log('PASS hand-back continues the original script after a wait beyond its execution budget');
+
   const finished = await runCli(['call', 'finish_space',
     JSON.stringify({space_id: spaceId, keep: [], summary: 'Done'})]);
   assert.equal(finished.code, 0, finished.err);
   assert.equal(JSON.parse(finished.out).data.closed, true);
-  console.log('PASS hand back and finish_space');
+  console.log('PASS finish_space');
 } finally {
   sockets.forEach(socket => socket.close());
   if (child && child.exitCode === null && child.signalCode === null) {

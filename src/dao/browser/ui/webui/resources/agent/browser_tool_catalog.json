@@ -1465,7 +1465,7 @@
             "type": "integer",
             "minimum": 1000,
             "maximum": 600000,
-            "description": "Maximum run time; defaults to 120000."
+            "description": "Execution time in milliseconds, excluding up to 14 minutes of waiting for user help. Defaults to 120000."
           }
         },
         "required": [

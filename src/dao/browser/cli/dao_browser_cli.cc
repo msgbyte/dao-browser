@@ -63,6 +63,8 @@ constexpr base::TimeDelta kConnectTimeout = base::Seconds(5);
 constexpr base::TimeDelta kLaunchWait = base::Seconds(20);
 constexpr int kDefaultScriptSeconds = 120;
 constexpr int kMaxScriptSeconds = 600;
+// Allow for approval and planned user help outside the script budget.
+constexpr base::TimeDelta kScriptHandoffAllowance = base::Minutes(16);
 
 enum ExitCode {
   kExitOk = 0,
@@ -432,7 +434,7 @@ int RunScript(const Options& options,
   int exit_code = kExitOk;
   std::optional<base::DictValue> result =
       CallTool(*browser, options, "run_browser_script", std::move(arguments),
-               base::Seconds(seconds + 30), &exit_code);
+               base::Seconds(seconds) + kScriptHandoffAllowance, &exit_code);
   if (!result) {
     return exit_code;
   }
@@ -440,6 +442,10 @@ int RunScript(const Options& options,
   if (!data) {
     std::cout << PrettyJson(base::Value(std::move(*result))) << std::endl;
     return kExitOk;
+  }
+  if (data->FindBool("timed_out").value_or(false)) {
+    std::cout << PrettyJson(base::Value(data->Clone())) << std::endl;
+    return kExitUserInControl;
   }
   if (const base::ListValue* logs = data->FindList("logs")) {
     for (const base::Value& line : *logs) {
@@ -500,8 +506,16 @@ int RunCall(const Options& options,
   int exit_code = kExitOk;
   std::optional<base::DictValue> result =
       CallTool(*browser, options, args[1], std::move(arguments),
-               base::Minutes(16), &exit_code);
+               args[1] == "run_browser_script"
+                   ? base::Seconds(kMaxScriptSeconds) + kScriptHandoffAllowance
+                   : base::Minutes(16),
+               &exit_code);
   if (result) {
+    const base::DictValue* data = result->FindDict("data");
+    if (data && data->FindBool("timed_out").value_or(false) &&
+        (args[1] == "request_user_help" || args[1] == "run_browser_script")) {
+      exit_code = kExitUserInControl;
+    }
     std::cout << PrettyJson(base::Value(std::move(*result))) << std::endl;
     PrintNotices(options, *browser);
   }

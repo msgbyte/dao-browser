@@ -71,7 +71,6 @@ const void* const kDaoAgentSpaceServiceKey = &kDaoAgentSpaceServiceKey;
 
 constexpr base::TimeDelta kDefaultIdleTimeout = base::Minutes(30);
 constexpr base::TimeDelta kIdleCheckInterval = base::Minutes(1);
-constexpr base::TimeDelta kHelpTimeout = base::Minutes(14);
 constexpr base::TimeDelta kNotifyDelay = base::Milliseconds(120);
 constexpr size_t kMaxNameChars = 60;
 constexpr size_t kMaxStatusChars = 120;
@@ -1069,7 +1068,7 @@ void DaoAgentSpaceService::RequestUserHelp(const DaoAgentSpaceClient& client,
   help->client_key = client.key;
   help->external_id = std::move(request_id);
   help->callback = std::move(callback);
-  help->timer.Start(FROM_HERE, kHelpTimeout,
+  help->timer.Start(FROM_HERE, DaoAgentScriptRun::kHelpTimeout,
                     base::BindOnce(&DaoAgentSpaceService::OnHelpTimeout,
                                    weak_factory_.GetWeakPtr(), space->id()));
   helps_.emplace(space->id(), std::move(help));

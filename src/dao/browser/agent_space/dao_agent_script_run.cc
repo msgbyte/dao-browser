@@ -324,7 +324,7 @@ DaoAgentScriptRun::DaoAgentScriptRun(Profile* profile,
       run_id_(std::move(run_id)),
       code_(std::move(code)),
       default_space_id_(std::move(default_space_id)),
-      timeout_(timeout),
+      execution_remaining_(timeout),
       tool_caller_(std::move(tool_caller)),
       tool_canceller_(std::move(tool_canceller)),
       done_(std::move(done)) {
@@ -344,17 +344,21 @@ DaoAgentScriptRun::~DaoAgentScriptRun() {
 }
 
 void DaoAgentScriptRun::Start() {
+  StartExecutionTimer();
+  contents_->GetController().LoadURL(
+      GURL(url::kAboutBlankURL), content::Referrer(),
+      ui::PAGE_TRANSITION_AUTO_TOPLEVEL, std::string());
+}
+
+void DaoAgentScriptRun::StartExecutionTimer() {
   deadline_.Start(
-      FROM_HERE, timeout_,
+      FROM_HERE, execution_remaining_,
       base::BindOnce(&DaoAgentScriptRun::Cancel, weak_factory_.GetWeakPtr(),
                      MakeDaoToolError(DaoToolErrorCode::kToolTimeout,
                                       "The script did not finish before "
                                       "timeout_ms. Split long work into "
                                       "several runs.",
                                       true)));
-  contents_->GetController().LoadURL(
-      GURL(url::kAboutBlankURL), content::Referrer(),
-      ui::PAGE_TRANSITION_AUTO_TOPLEVEL, std::string());
 }
 
 void DaoAgentScriptRun::Cancel(DaoToolError error) {
@@ -596,18 +600,51 @@ void DaoAgentScriptRun::OnDevToolsEvent(content::DevToolsAgentHost* host,
   const std::string request_id =
       base::StrCat({run_id_, ":", base::NumberToString(call_id)});
   outstanding_calls_.insert(request_id);
+  if (*tool == "request_user_help") {
+    const std::string* target = args->FindString("space_id");
+    pending_help_.emplace(request_id, target ? *target : "");
+    if (pending_help_.size() == 1) {
+      execution_remaining_ = deadline_.desired_run_time() - base::TimeTicks::Now();
+      deadline_.Start(FROM_HERE, help_remaining_,
+                      base::BindOnce(&DaoAgentScriptRun::OnHelpTimeout,
+                                     weak_factory_.GetWeakPtr()));
+    }
+  }
   tool_caller_.Run(
       request_id, *tool, args->Clone(),
-      base::BindOnce(
-          [](base::WeakPtr<DaoAgentScriptRun> self, std::string request_id,
-             int64_t call_id, DaoBrowserToolResult result) {
-            if (!self) {
-              return;
-            }
-            self->outstanding_calls_.erase(request_id);
-            self->OnToolResult(call_id, std::move(result));
-          },
-          weak_factory_.GetWeakPtr(), request_id, call_id));
+      base::BindOnce(&DaoAgentScriptRun::OnCallComplete,
+                     weak_factory_.GetWeakPtr(), request_id, call_id));
+}
+
+void DaoAgentScriptRun::OnHelpTimeout() {
+  DaoBrowserToolResult timeout;
+  timeout.ok = true;
+  timeout.data = base::Value(
+      base::DictValue()
+          .Set("success", false)
+          .Set("space_id", pending_help_.begin()->second)
+          .Set("timed_out", true)
+          .Set("message", "The script timed out waiting for the user. Stop here."));
+  Finish(std::move(timeout));
+}
+
+void DaoAgentScriptRun::OnCallComplete(std::string request_id,
+                                       int64_t call_id,
+                                       DaoBrowserToolResult result) {
+  outstanding_calls_.erase(request_id);
+  if (pending_help_.erase(request_id)) {
+    if ((result.error && result.error->code == DaoToolErrorCode::kAuthorizationDenied) ||
+        (result.data.is_dict() &&
+         result.data.GetDict().FindBool("timed_out").value_or(false))) {
+      Finish(std::move(result));
+      return;
+    }
+    if (pending_help_.empty()) {
+      help_remaining_ = deadline_.desired_run_time() - base::TimeTicks::Now();
+      StartExecutionTimer();
+    }
+  }
+  OnToolResult(call_id, std::move(result));
 }
 
 void DaoAgentScriptRun::OnToolResult(int64_t call_id,
@@ -634,6 +671,8 @@ void DaoAgentScriptRun::Finish(DaoBrowserToolResult result) {
   if (!done_) {
     return;
   }
+  Observe(nullptr);
+  weak_factory_.InvalidateWeakPtrs();
   deadline_.Stop();
   for (const std::string& request_id : outstanding_calls_) {
     tool_canceller_.Run(request_id);

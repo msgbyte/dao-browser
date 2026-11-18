@@ -4,6 +4,8 @@
 
 ### [Unreleased] Unreleased
 
+- When Dao Lite asks for your help, you have up to 14 minutes to finish the manual step without using up the script’s execution time.
+
 ### [1.0.141] - 2026-11-15
 
 - Guide external AI tools to keep related research pages and steps in one Dao Lite task with multiple tabs, reducing unnecessary tasks in the sidebar.
