@@ -289,6 +289,7 @@ dao_browser_ui_test_sources = [
   "//dao/browser/import/dao_migration_writer_unittest.cc",
   "//dao/browser/import/dao_profile_snapshot_unittest.cc",
   "//dao/browser/import/dao_source_detector_unittest.cc",
+  "//dao/browser/performance/dao_high_performance_tab_helper_unittest.cc",
   "//dao/browser/agent/dao_dream_browsertest.cc",
   "//dao/browser/agent_space/dao_agent_space_browsertest.cc",
   "//dao/browser/automation/dao_devtools_tools_browsertest.cc",

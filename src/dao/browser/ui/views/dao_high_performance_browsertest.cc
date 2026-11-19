@@ -37,6 +37,7 @@
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/fenced_frame_test_util.h"
+#include "content/public/test/test_utils.h"
 #include "dao/browser/performance/dao_high_performance_mode.h"
 #include "dao/browser/performance/dao_high_performance_tab_helper.h"
 #include "dao/browser/strings/grit/dao_strings.h"
@@ -283,6 +284,52 @@ IN_PROC_BROWSER_TEST_F(DaoHighPerformanceBrowserTest,
       incognito->GetProfile(), url));
   EXPECT_FALSE(DaoHighPerformanceTabHelper::IsAlwaysEnabled(
       browser()->GetProfile(), url));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoHighPerformanceBrowserTest,
+                       AlwaysHighPerformanceAppliesBeforeCachedPageShow) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  const GURL protected_url =
+      embedded_test_server()->GetURL("a.test", "/title1.html");
+  const GURL normal_url =
+      embedded_test_server()->GetURL("b.test", "/title2.html");
+  DaoHighPerformanceTabHelper::SetAlwaysEnabled(browser()->GetProfile(),
+                                                protected_url, true);
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), protected_url));
+  auto* contents = browser()->tab_strip_model()->GetActiveWebContents();
+  content::RenderFrameHostWrapper protected_frame(
+      contents->GetPrimaryMainFrame());
+  const char kRecordPageShow[] = R"(
+    addEventListener('pageshow', event => {
+      window.restoredFromCache = event.persisted;
+      window.hiddenAtPageShow = document.hidden;
+    });
+  )";
+  ASSERT_TRUE(content::ExecJs(contents, kRecordPageShow));
+  chrome::NewTab(browser(), NewTabTypes::kNoUserAction);
+  ASSERT_EQ(content::Visibility::HIDDEN, contents->GetVisibility());
+
+  ASSERT_TRUE(content::NavigateToURL(contents, normal_url));
+  ASSERT_TRUE(protected_frame);
+  ASSERT_EQ(content::RenderFrameHost::LifecycleState::kInBackForwardCache,
+            protected_frame->GetLifecycleState());
+  ASSERT_TRUE(content::ExecJs(contents, kRecordPageShow));
+  content::RenderFrameHostWrapper normal_frame(contents->GetPrimaryMainFrame());
+
+  ASSERT_TRUE(content::HistoryGoBack(contents));
+  EXPECT_EQ(protected_frame.get(), contents->GetPrimaryMainFrame());
+  EXPECT_EQ(true, content::EvalJs(contents, "window.restoredFromCache"));
+  EXPECT_EQ(false, content::EvalJs(contents, "window.hiddenAtPageShow"));
+  EXPECT_TRUE(DaoHighPerformanceMode::IsEnabled(contents));
+
+  ASSERT_TRUE(normal_frame);
+  ASSERT_EQ(content::RenderFrameHost::LifecycleState::kInBackForwardCache,
+            normal_frame->GetLifecycleState());
+  ASSERT_TRUE(content::HistoryGoForward(contents));
+  EXPECT_EQ(normal_frame.get(), contents->GetPrimaryMainFrame());
+  EXPECT_EQ(true, content::EvalJs(contents, "window.restoredFromCache"));
+  EXPECT_EQ(true, content::EvalJs(contents, "window.hiddenAtPageShow"));
+  EXPECT_FALSE(DaoHighPerformanceMode::IsEnabled(contents));
 }
 
 IN_PROC_BROWSER_TEST_F(DaoHighPerformanceBrowserTest,
