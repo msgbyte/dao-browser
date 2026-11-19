@@ -222,6 +222,41 @@ describe('dao-agent-spaces', () => {
         .toBe('2');
   });
 
+  it('updates each task tab badge only when it has multiple tabs', async () => {
+    const {el} = await createElement({
+      spaces: [space(), space({space_id: 's2-ef01', tab_count: 3})],
+      currentSpaceId: '',
+    });
+    const root = el.shadowRoot!;
+    const rows = root.querySelectorAll('.row');
+    expect(rows[0]!.querySelector('.tab-count')).toBeNull();
+    expect(rows[1]!.querySelector('.tab-count')!.textContent!.trim()).toBe('3');
+
+    click(rows[0]!);
+    await el.updateComplete;
+    for (const count of [2, 8, 1, 0]) {
+      push('agentSpacesChanged', {
+        spaces: [space({tab_count: count})], currentSpaceId: '',
+      });
+      await el.updateComplete;
+
+      const badge = root.querySelector('.name-line .tab-count');
+      if (count >= 2) {
+        expect(badge!.textContent!.trim()).toBe(String(count));
+        expect(badge!.getAttribute('title'))
+            .toBe(`[daoAgentSpaceTabCount:${count}]`);
+        expect(badge!.getAttribute('aria-label'))
+            .toBe(badge!.getAttribute('title'));
+      } else {
+        expect(badge).toBeNull();
+      }
+      expect(root.querySelector('.row')!.getAttribute('aria-expanded'))
+          .toBe('true');
+      expect(root.querySelector('.section-header .count')!.textContent!.trim())
+          .toBe('1');
+    }
+  });
+
   it('collapses the task list while keeping the count up to date', async () => {
     const {el, send} = await createElement({
       spaces: [space(), space({space_id: 's2-ef01', state: 'finished'})],
@@ -335,6 +370,7 @@ describe('dao-agent-spaces', () => {
           spaces: [space({
             state,
             summary: 'Found the answer\nDetails remain readable',
+            tab_count: 2,
             tabs: [
               {tab_id: 't1', title: 'Result', url: 'https://example.com/one',
                active: false},
@@ -358,6 +394,7 @@ describe('dao-agent-spaces', () => {
             .toContain('Found the answer\nDetails remain readable');
         const pages = root.querySelectorAll('.result-tab');
         expect(pages).toHaveLength(2);
+        expect(root.querySelector('.tab-count')!.textContent!.trim()).toBe('2');
         expect(pages[1]!.textContent).toContain('https://example.com/two');
         expect(root.querySelector('.frame')).toBeNull();
         expect(root.querySelector('.card-buttons')).toBeNull();

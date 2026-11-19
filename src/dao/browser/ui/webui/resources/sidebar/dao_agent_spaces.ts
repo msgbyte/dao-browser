@@ -277,6 +277,19 @@ export class DaoAgentSpacesElement extends CrLitElement {
         text-overflow: ellipsis;
       }
 
+      .name-line {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+      }
+
+      .tab-count {
+        flex: none;
+        font-size: 10px;
+        font-weight: 600;
+      }
+
       .detail {
         font-size: 11px;
         color: var(--text-secondary);
@@ -1126,6 +1139,8 @@ export class DaoAgentSpacesElement extends CrLitElement {
     const attention = this.needsAttention_(space);
     const detail =
         expanded ? this.startedLabel_(space) : this.stateLabel_(space);
+    const tabCountLabel = space.tab_count >= 2 ?
+        loadTimeData.getStringF('daoAgentSpaceTabCount', space.tab_count) : '';
     return html`
       <div class="space ${expanded ? 'expanded' : ''}">
         <div class="row ${attention || closed ? 'tall' : ''}" role="button"
@@ -1137,7 +1152,15 @@ export class DaoAgentSpacesElement extends CrLitElement {
              @pointerleave=${() => this.hidePreview_()}>
           ${this.renderStateIcon_(space)}
           <span class="text">
-            <span class="name">${space.name}</span>
+            <span class="name-line">
+              <span class="name">${space.name}</span>
+              ${tabCountLabel ? html`
+                <span class="count tab-count" role="img"
+                      title=${tabCountLabel} aria-label=${tabCountLabel}>
+                  ${space.tab_count}
+                </span>
+              ` : nothing}
+            </span>
             <span class="detail ${attention && !expanded ? 'attention' : ''} ${
                 closed ? 'result' : ''}"
                   title=${closed ? detail : nothing}>

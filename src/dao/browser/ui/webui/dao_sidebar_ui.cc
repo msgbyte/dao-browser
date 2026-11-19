@@ -4658,6 +4658,7 @@ DaoSidebarUI::DaoSidebarUI(content::WebUI* web_ui) : WebUIController(web_ui) {
   source->AddLocalizedString("daoCloseTab", IDS_DAO_TAB_CONTEXT_CLOSE_TAB);
   static constexpr webui::LocalizedString kAgentSpaceStrings[] = {
       {"daoAgentSpacesTitle", IDS_DAO_AGENT_SPACES_TITLE},
+      {"daoAgentSpaceTabCount", IDS_DAO_AGENT_SPACE_TAB_COUNT},
       {"daoAgentSpaceStateRunning", IDS_DAO_AGENT_SPACE_STATE_RUNNING},
       {"daoAgentSpaceStateYouHaveControl",
        IDS_DAO_AGENT_SPACE_STATE_YOU_HAVE_CONTROL},

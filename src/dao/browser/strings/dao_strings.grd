@@ -752,6 +752,9 @@
       <message name="IDS_DAO_AGENT_SPACES_TITLE" desc="Sidebar section heading above the list of AI tasks running in background windows.">
         AI tasks
       </message>
+      <message name="IDS_DAO_AGENT_SPACE_TAB_COUNT" desc="Tooltip and accessible label for the tab count badge next to an AI task name. Shown only for two or more tabs; finished tasks count their saved final pages.">
+        Tabs: <ph name="COUNT">$1<ex>3</ex></ph>
+      </message>
       <message name="IDS_DAO_AGENT_SPACE_STATE_RUNNING" desc="Status shown under an AI task in the sidebar while the AI is working and has not reported progress yet.">
         Working
       </message>

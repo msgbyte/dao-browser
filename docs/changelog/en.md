@@ -6,6 +6,7 @@
 
 - After a manual step in Dao Lite, click Hand back to AI to continue the current task without sending another chat message.
 - Choose Always High Performance in site controls > More to automatically enable high performance mode whenever you visit that domain, even after restarting the browser.
+- See a tab count beside each AI task's name when it contains two or more pages.
 
 ### [1.0.141] - 2026-11-15
 
