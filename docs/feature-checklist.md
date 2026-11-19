@@ -809,11 +809,20 @@ persistent background pages, and blocking WebRequest path on every rebase.
 - [ ] Run `DaoHighPerformance*BrowserTest.*`: the main panel's High Performance
   Mode tile replaces Security, toggles its highlighted lightning badge and On /
   Off status without closing the panel, and updates the lightning indicator left
-  of the MCP icon. Switching tabs shows each tab's own state. More has no duplicate
-  toggle. Verify English/Chinese, light/dark, narrow address bars, and
+  of the MCP icon. Switching tabs shows each tab's own state. More has a separate
+  persistent Always High Performance host checkbox. Verify English/Chinese, light/dark, narrow address bars, and
   keyboard/accessibility checked state. Toggle via the tile and the mode API:
   indicators must update immediately without waiting for
   navigation or loading notifications.
+- [ ] Run `DaoHighPerformanceBrowserTest.*AlwaysHighPerformance*`: More's
+  Always High Performance checkbox enables the current HTTP(S) hostname, updates
+  existing matching tabs and the address indicator, and survives reopening the
+  menu and browser restarts. New tabs and reloads apply it; other domains and
+  subdomains do not. Check redirect destinations, cancellation across matching
+  tabs, disabled internal-page entries, incognito isolation, and retained manual
+  tab state. A temporary Turn off is reset by the next navigation, not by edits
+  to another host's preference. Verify English/Chinese, light/dark, and keyboard
+  and accessibility checked state.
 - [ ] Click the lightning indicator: a native popup explains background
   execution, freeze/discard protection, and resource usage. Its Turn off button
   disables the mode, hides the indicator, and turns off the main panel tile.
@@ -833,7 +842,8 @@ persistent background pages, and blocking WebRequest path on every rebase.
 - [ ] With Energy Saver enabled, verify protected content is exempt from its
   frame limit, including nested frames and after Viz reconnect. Turning the mode
   off restores throttling and normal process priority. Closing the tab releases
-  protection; reopening it or restarting the browser leaves the mode off.
+  protection; reopening it or restarting the browser leaves the mode off unless
+  the destination host has Always High Performance enabled.
 - [ ] Run the Viz capture/explicit-exemption regressions: capture alone still
   throttles excessive undrawn frames; turning off the explicit exemption
   restores that limit even during capture. Check inherited exemptions after
@@ -843,7 +853,7 @@ persistent background pages, and blocking WebRequest path on every rebase.
 
 | ✔ | Feature | Patch(es) / Source | Risk | Verify |
 |---|---------|--------------------|------|--------|
-| ☐ | Control Center shell + utility actions | `src/dao/browser/ui/views/dao_control_center_*`, `dao_native_share_mac.*`, `widget_delegate.h.patch` (QR dialog friend) | 🟢 | Popup opens anchored to sidebar/control button, outside click closes it, and the tiled main panel renders correctly in light and dark; Dark Mode and High Performance Mode tiles show localized On / Off status lines and highlighted badges that match their state, and Dark Mode/High Performance Mode/QR/Mini Dao/More actions execute; More has no duplicate performance toggle and clears only the current site's cache/cookies, then closes with toast feedback; while the system appearance is light, Dark stays visually unavailable but clicking it leaves the preference unchanged and shows the localized system-dark requirement through `DaoToastView` |
+| ☐ | Control Center shell + utility actions | `src/dao/browser/ui/views/dao_control_center_*`, `dao_native_share_mac.*`, `widget_delegate.h.patch` (QR dialog friend) | 🟢 | Popup opens anchored to sidebar/control button, outside click closes it, and the tiled main panel renders correctly in light and dark; Dark Mode and High Performance Mode tiles show localized On / Off status lines and highlighted badges that match their state, and Dark Mode/High Performance Mode/QR/Mini Dao/More actions execute; More remembers the Always High Performance host checkbox and clears only the current site's cache/cookies, then closes with toast feedback; while the system appearance is light, Dark stays visually unavailable but clicking it leaves the preference unchanged and shows the localized system-dark requirement through `DaoToastView` |
 | ☐ | Full-page screenshot from More | `dao_control_center_more_menu.*`, `dao_browser_browsertest.cc` | — | Run `DaoControlCenterPopupBrowserTest.FullPageScreenshot*`; on a tall and wide page scrolled away from the top, save a PNG containing both document edges and confirm scroll position and viewport are restored. Check normal download handling, repeated clicks, page navigation, tab closure, capture failure, screenshot policy, zoom, and light/dark localized feedback. Unloaded infinite-scroll content is excluded |
 | ☐ | Control Center extension grid + pinned extension strip | `dao_control_center_extensions_section.*`, `dao_pinned_extensions_container.*`, `dao_extension_action_icon.*`, `ui/extensions/icon_with_badge_image_source.*.patch` | 🟢 | Installed extensions appear with correct enabled/pinned state; in Control Center, the Extensions header keeps Add/Manage visible and more than eight icons wrap onto extra rows, and Mini Dao's site center uses the same wrapping tile and header actions; pinned icons stay visible in browser chrome and open extension popups; active-tab badge text and colors update in both surfaces with compact glyphs and a background no taller than 10px, without shrinking the 16px base icon or changing the 24px pinned hover target |
 | ☐ | Welcome page (`dao://welcome`) | `dao_welcome_ui.cc`, `resources/welcome/`, `dao_strings.grd` + first-run pref | — | Auto-opens first launch; reopenable via menu; in Simplified Chinese, verify the document title, hero, all seven shortcut descriptions, demo labels, copy toast, and GitHub link are localized; missing translations fall back to English |

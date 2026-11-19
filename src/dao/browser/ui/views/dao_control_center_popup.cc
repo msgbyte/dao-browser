@@ -280,7 +280,10 @@ void DaoControlCenterPopup::ShowMoreMenu() {
   ClearButtonHoverState(card_);
   if (main_panel_) main_panel_->SetVisible(false);
   if (qr_view_) qr_view_->SetVisible(false);
-  if (more_menu_) more_menu_->SetVisible(true);
+  if (more_menu_) {
+    more_menu_->Refresh();
+    more_menu_->SetVisible(true);
+  }
   InvalidateLayout();
   SchedulePaint();
 }
@@ -330,6 +333,12 @@ void DaoControlCenterPopup::OnTabStripModelChanged(
     const TabStripSelectionChange& selection) {
   if (selection.active_tab_changed()) {
     Hide();
+  }
+}
+
+void DaoControlCenterPopup::PrimaryPageChanged(content::Page& page) {
+  if (more_menu_) {
+    more_menu_->Refresh();
   }
 }
 

@@ -19,6 +19,8 @@ class CONTENT_EXPORT DaoHighPerformanceMode
 
   static bool IsEnabled(const content::WebContents* contents);
   static void SetEnabled(content::WebContents* contents, bool enabled);
+  // Automatic site state is separate from the manually enabled tab state.
+  static void SetSiteEnabled(content::WebContents* contents, bool enabled);
   // Reapply inherited state after an embedding or tab-mode change.
   static void Refresh(content::WebContents* contents);
   static base::CallbackListSubscription AddObserver(
@@ -30,6 +32,7 @@ class CONTENT_EXPORT DaoHighPerformanceMode
   explicit DaoHighPerformanceMode(content::WebContents* contents);
 
   bool enabled_ = false;
+  bool site_enabled_ = false;
   base::RepeatingCallbackList<void(bool)> observers_;
   WEB_CONTENTS_USER_DATA_KEY_DECL();
 };

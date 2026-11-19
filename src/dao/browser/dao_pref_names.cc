@@ -39,6 +39,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterBooleanPref(kDaoLittleDaoEnabled, true);
   registry->RegisterBooleanPref(kDaoParallelDownloadingEnabled, false);
   registry->RegisterBooleanPref(kDaoTabHoverPreviewEnabled, false);
+  registry->RegisterDictionaryPref(kDaoHighPerformanceHosts);
   registry->RegisterBooleanPref(kDaoForceDarkModeEnabled, false);
   registry->RegisterBooleanPref(kDaoEnhancedCommandBarSuggestionsEnabled,
                                 false);

@@ -134,6 +134,8 @@ dao_browser_ui_sources = [
   "//dao/browser/mcp/dao_mcp_settings_handler.h",
   "//dao/browser/mcp/dao_mcp_service.cc",
   "//dao/browser/mcp/dao_mcp_service.h",
+  "//dao/browser/performance/dao_high_performance_tab_helper.cc",
+  "//dao/browser/performance/dao_high_performance_tab_helper.h",
   "//dao/browser/pip/dao_pip_bounds_prefs.cc",
   "//dao/browser/pip/dao_pip_bounds_prefs.h",
   "//dao/browser/pip/dao_pip_interceptor.cc",

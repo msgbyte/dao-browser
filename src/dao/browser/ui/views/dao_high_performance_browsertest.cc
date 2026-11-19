@@ -11,6 +11,7 @@
 #include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/resource_coordinator/lifecycle_unit_state.mojom.h"
 #include "chrome/browser/resource_coordinator/tab_lifecycle_unit_external.h"
 #include "chrome/browser/resource_coordinator/tab_lifecycle_unit_source.h"
@@ -37,6 +38,7 @@
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/fenced_frame_test_util.h"
 #include "dao/browser/performance/dao_high_performance_mode.h"
+#include "dao/browser/performance/dao_high_performance_tab_helper.h"
 #include "dao/browser/strings/grit/dao_strings.h"
 #include "dao/browser/ui/views/dao_address_bar_view.h"
 #include "dao/browser/ui/views/dao_control_center_popup.h"
@@ -159,6 +161,146 @@ class DaoHighPerformanceBrowserTest : public InProcessBrowserTest {
     host_resolver()->AddRule("*", "127.0.0.1");
   }
 };
+
+IN_PROC_BROWSER_TEST_F(DaoHighPerformanceBrowserTest,
+                       AlwaysHighPerformanceMenuTracksHostPreference) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  const GURL url = embedded_test_server()->GetURL("a.test", "/title1.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+  auto* contents = browser()->tab_strip_model()->GetActiveWebContents();
+  auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
+  auto* popup = browser_view->dao_control_center_popup();
+  popup->ShowAt(gfx::Point(100, 100));
+  popup->ShowMoreMenu();
+  auto* button = FindModeButton(popup, IDS_DAO_ALWAYS_HIGH_PERFORMANCE);
+  ASSERT_TRUE(button);
+  EXPECT_TRUE(button->IsDrawn());
+  EXPECT_TRUE(button->GetEnabled());
+  ClickButton(button);
+  EXPECT_TRUE(button->IsDrawn());
+  EXPECT_TRUE(DaoHighPerformanceTabHelper::IsAlwaysEnabled(
+      browser()->GetProfile(), url));
+  EXPECT_TRUE(DaoHighPerformanceMode::IsEnabled(contents));
+  EXPECT_TRUE(FindHighPerformanceIndicator(browser_view->dao_address_bar())
+                  ->GetVisible());
+  ui::AXNodeData data;
+  button->GetViewAccessibility().GetAccessibleNodeData(&data);
+  EXPECT_EQ(ax::mojom::Role::kMenuItemCheckBox, data.role);
+  EXPECT_EQ(ax::mojom::CheckedState::kTrue, data.GetCheckedState());
+
+  popup->Hide();
+  popup->ShowAt(gfx::Point(100, 100));
+  popup->ShowMoreMenu();
+  button->GetViewAccessibility().GetAccessibleNodeData(&data);
+  EXPECT_EQ(ax::mojom::CheckedState::kTrue, data.GetCheckedState());
+
+  chrome::NewTab(browser(), NewTabTypes::kNoUserAction);
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+  auto* second = browser()->tab_strip_model()->GetActiveWebContents();
+  EXPECT_TRUE(DaoHighPerformanceMode::IsEnabled(second));
+  popup->ShowAt(gfx::Point(100, 100));
+  popup->ShowMoreMenu();
+  ClickButton(button);
+  EXPECT_FALSE(DaoHighPerformanceMode::IsEnabled(contents));
+  EXPECT_FALSE(DaoHighPerformanceMode::IsEnabled(second));
+  button->GetViewAccessibility().GetAccessibleNodeData(&data);
+  EXPECT_EQ(ax::mojom::CheckedState::kFalse, data.GetCheckedState());
+  EXPECT_FALSE(DaoHighPerformanceTabHelper::IsAlwaysEnabled(
+      browser()->GetProfile(), url));
+
+  ASSERT_TRUE(
+      ui_test_utils::NavigateToURL(browser(), GURL("chrome://version")));
+  EXPECT_FALSE(button->GetEnabled());
+  popup->Hide();
+}
+
+IN_PROC_BROWSER_TEST_F(DaoHighPerformanceBrowserTest,
+                       AlwaysHighPerformanceFollowsOnlyMatchingHost) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  const GURL url = embedded_test_server()->GetURL("a.test", "/title1.html");
+  DaoHighPerformanceTabHelper::SetAlwaysEnabled(browser()->GetProfile(), url,
+                                                true);
+  EXPECT_TRUE(DaoHighPerformanceTabHelper::IsAlwaysEnabled(
+      browser()->GetProfile(), GURL("https://a.test:8443/other")));
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+  auto* contents = browser()->tab_strip_model()->GetActiveWebContents();
+  EXPECT_TRUE(DaoHighPerformanceMode::IsEnabled(contents));
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), embedded_test_server()->GetURL("a.test", "/title2.html")));
+  EXPECT_TRUE(DaoHighPerformanceMode::IsEnabled(contents));
+
+  DaoHighPerformanceMode::SetEnabled(contents, false);
+  EXPECT_FALSE(DaoHighPerformanceMode::IsEnabled(contents));
+  DaoHighPerformanceTabHelper::SetAlwaysEnabled(
+      browser()->GetProfile(), GURL("https://unrelated.test"), true);
+  EXPECT_FALSE(DaoHighPerformanceMode::IsEnabled(contents));
+  chrome::Reload(browser(), WindowOpenDisposition::CURRENT_TAB);
+  ASSERT_TRUE(content::WaitForLoadStop(contents));
+  EXPECT_TRUE(DaoHighPerformanceMode::IsEnabled(contents));
+
+  for (const char* host : {"b.test", "sub.a.test", "a.test.evil.test"}) {
+    SCOPED_TRACE(host);
+    ASSERT_TRUE(ui_test_utils::NavigateToURL(
+        browser(), embedded_test_server()->GetURL(host, "/title1.html")));
+    EXPECT_FALSE(DaoHighPerformanceMode::IsEnabled(contents));
+  }
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), embedded_test_server()->GetURL(
+                     "b.test", "/server-redirect?" + url.spec())));
+  EXPECT_TRUE(DaoHighPerformanceMode::IsEnabled(contents));
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(),
+      embedded_test_server()->GetURL(
+          "a.test", "/server-redirect?" + embedded_test_server()
+                                              ->GetURL("b.test", "/title1.html")
+                                              .spec())));
+  EXPECT_FALSE(DaoHighPerformanceMode::IsEnabled(contents));
+
+  // Manually enabled tab state still survives leaving a saved host.
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+  DaoHighPerformanceMode::SetEnabled(contents, true);
+  DaoHighPerformanceTabHelper::SetAlwaysEnabled(browser()->GetProfile(), url,
+                                                false);
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), embedded_test_server()->GetURL("b.test", "/title1.html")));
+  EXPECT_TRUE(DaoHighPerformanceMode::IsEnabled(contents));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoHighPerformanceBrowserTest,
+                       AlwaysHighPerformanceRejectsInternalPages) {
+  for (const auto& url : {GURL("chrome://settings"), GURL("file:///tmp/a.html"),
+                          GURL("about:blank"), GURL()}) {
+    DaoHighPerformanceTabHelper::SetAlwaysEnabled(browser()->GetProfile(), url,
+                                                  true);
+    EXPECT_FALSE(DaoHighPerformanceTabHelper::IsAlwaysEnabled(
+        browser()->GetProfile(), url));
+  }
+  auto* incognito = CreateIncognitoBrowser();
+  const GURL url("https://private.test");
+  DaoHighPerformanceTabHelper::SetAlwaysEnabled(incognito->GetProfile(), url,
+                                                true);
+  EXPECT_TRUE(DaoHighPerformanceTabHelper::IsAlwaysEnabled(
+      incognito->GetProfile(), url));
+  EXPECT_FALSE(DaoHighPerformanceTabHelper::IsAlwaysEnabled(
+      browser()->GetProfile(), url));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoHighPerformanceBrowserTest,
+                       PRE_AlwaysHighPerformanceSurvivesRestart) {
+  DaoHighPerformanceTabHelper::SetAlwaysEnabled(browser()->GetProfile(),
+                                                GURL("https://a.test"), true);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoHighPerformanceBrowserTest,
+                       AlwaysHighPerformanceSurvivesRestart) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  const GURL url = embedded_test_server()->GetURL("a.test", "/title1.html");
+  EXPECT_TRUE(DaoHighPerformanceTabHelper::IsAlwaysEnabled(
+      browser()->GetProfile(), url));
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+  EXPECT_TRUE(DaoHighPerformanceMode::IsEnabled(
+      browser()->tab_strip_model()->GetActiveWebContents()));
+}
 
 IN_PROC_BROWSER_TEST_F(DaoHighPerformanceBrowserTest,
                        BackgroundPageKeepsTimersAndAnimationRunning) {

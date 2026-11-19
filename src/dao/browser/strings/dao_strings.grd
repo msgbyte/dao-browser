@@ -551,6 +551,9 @@
       <message name="IDS_DAO_HIGH_PERFORMANCE_MODE_ENABLED" desc="Tooltip and accessible name for the address bar lightning icon shown while the current tab has high performance mode enabled.">
         High Performance Mode is on
       </message>
+      <message name="IDS_DAO_ALWAYS_HIGH_PERFORMANCE" desc="Checkable item in site controls More that remembers to automatically enable high performance mode for the current domain on future visits.">
+        Always High Performance
+      </message>
       <message name="IDS_DAO_HIGH_PERFORMANCE_MODE_DESCRIPTION" desc="Description in the high performance mode popup explaining background execution and protection from freezing and discarding.">
         This tab keeps running and updating in the background, even when its window is minimized. The browser will not freeze or discard it.
       </message>

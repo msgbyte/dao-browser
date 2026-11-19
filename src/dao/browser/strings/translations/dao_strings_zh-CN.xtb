@@ -1,6 +1,7 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="zh-CN">
+<translation id="6471448909042520001">始终高性能</translation>
 <translation id="8607430533044191229">Codex：$dao-home 创建一个个人仪表盘。Claude Code：/dao-home 创建一个个人仪表盘。</translation>
 <translation id="1895547850842663608">先在上方安装或更新“Claude Code”或“Codex 和其他智能体”，其中包含 dao-home 技能，再安装 dao-browser 命令。重新打开 AI 工具以加载技能。Dao Home 无需配置 MCP。</translation>
 <translation id="3981535876358387051">通过外部 AI 工具创建或修改首页，发布前在独立的 Dao 窗口中使用已登录的网站来源预览效果。</translation>

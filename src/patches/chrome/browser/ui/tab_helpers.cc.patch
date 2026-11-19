@@ -1,21 +1,23 @@
 diff --git a/chrome/browser/ui/tab_helpers.cc b/chrome/browser/ui/tab_helpers.cc
 --- a/chrome/browser/ui/tab_helpers.cc
 +++ b/chrome/browser/ui/tab_helpers.cc
-@@ -6,6 +6,9 @@
+@@ -6,6 +6,10 @@
  
  #include <cstdint>
  #include <memory>
 +#include "dao/browser/dao_auto_pip_visibility_helper.h"
 +#include "dao/browser/dao_webstore_branding_tab_helper.h"
++#include "dao/browser/performance/dao_high_performance_tab_helper.h"
 +#include "dao/browser/pip/dao_pip_interceptor.h"
  #include <optional>
  #include <utility>
  
-@@ -654,6 +657,9 @@
+@@ -654,6 +658,10 @@
    vr::VrTabHelper::CreateForWebContents(web_contents);
    OneTimePermissionsTrackerHelper::CreateForWebContents(web_contents);
  
 +  dao::DaoAutoPipVisibilityHelper::CreateForWebContents(web_contents);
++  dao::DaoHighPerformanceTabHelper::CreateForWebContents(web_contents);
 +  dao::DaoPipInterceptor::CreateForWebContents(web_contents);
 +  dao::DaoWebstoreBrandingTabHelper::CreateForWebContents(web_contents);
    // NO! Do not just add your tab helper here. This is a large alphabetized

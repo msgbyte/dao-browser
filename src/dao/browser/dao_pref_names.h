@@ -84,6 +84,9 @@ inline constexpr char kDaoParallelDownloadingEnabled[] =
 inline constexpr char kDaoTabHoverPreviewEnabled[] =
     "dao.tab_hover_preview_enabled";
 
+// HTTP(S) hosts that automatically enable high performance mode.
+inline constexpr char kDaoHighPerformanceHosts[] = "dao.high_performance_hosts";
+
 // Boolean pref that controls whether external links open in Little Dao.
 // When false, external links use the regular full browser window.
 inline constexpr char kDaoLittleDaoEnabled[] = "dao.little_dao_enabled";

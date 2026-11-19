@@ -8,6 +8,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/timer/timer.h"
+#include "components/prefs/pref_change_registrar.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "dao/browser/automation/dao_devtools_client.h"
 #include "ui/views/view.h"
@@ -33,9 +34,11 @@ class DaoControlCenterMoreMenu : public views::View,
   ~DaoControlCenterMoreMenu() override;
 
   void ApplyTheme();
+  void Refresh();
 
  private:
   void OnBackClicked();
+  void OnAlwaysHighPerformanceClicked();
   void OnShareClicked();
   void OnScreenshotClicked();
   void OnScreenshotCaptured(DaoDevToolsClient::CommandResult result);
@@ -55,12 +58,14 @@ class DaoControlCenterMoreMenu : public views::View,
   raw_ptr<DaoControlCenterPopup> popup_;
   raw_ptr<views::LabelButton> share_button_ = nullptr;
   raw_ptr<views::LabelButton> screenshot_button_ = nullptr;
+  raw_ptr<views::LabelButton> always_high_performance_button_ = nullptr;
   raw_ptr<views::LabelButton> clear_cache_button_ = nullptr;
   raw_ptr<views::LabelButton> clear_cookies_button_ = nullptr;
   raw_ptr<views::View> cleanup_separator_ = nullptr;
 
   DaoDevToolsClient screenshot_client_;
   base::OneShotTimer screenshot_timeout_;
+  PrefChangeRegistrar pref_change_registrar_;
 
   base::WeakPtrFactory<DaoControlCenterMoreMenu> weak_factory_{this};
 };

@@ -22,18 +22,30 @@ bool DaoHighPerformanceMode::IsEnabled(const content::WebContents* contents) {
                                     ->GetOutermostWebContents()
                               : nullptr;
   const auto* state = root ? FromWebContents(root) : nullptr;
-  return state && state->enabled_;
+  return state && (state->enabled_ || state->site_enabled_);
 }
 
 void DaoHighPerformanceMode::SetEnabled(content::WebContents* contents,
                                         bool enabled) {
   contents = contents->GetOutermostWebContents();
   auto* state = GetOrCreateForWebContents(contents);
-  if (state->enabled_ == enabled) {
-    return;
-  }
+  const bool was_enabled = IsEnabled(contents);
   state->enabled_ = enabled;
-  Refresh(contents);
+  // Manual controls can turn the mode off until the next site navigation.
+  state->site_enabled_ = false;
+  if (was_enabled != IsEnabled(contents)) {
+    Refresh(contents);
+  }
+}
+
+void DaoHighPerformanceMode::SetSiteEnabled(content::WebContents* contents,
+                                            bool enabled) {
+  auto* state = GetOrCreateForWebContents(contents);
+  const bool was_enabled = IsEnabled(contents);
+  state->site_enabled_ = enabled;
+  if (was_enabled != IsEnabled(contents)) {
+    Refresh(contents);
+  }
 }
 
 void DaoHighPerformanceMode::Refresh(content::WebContents* contents) {

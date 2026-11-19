@@ -25,15 +25,21 @@
 #include "content/public/browser/download_manager.h"
 #include "content/public/browser/download_request_utils.h"
 #include "content/public/browser/web_contents.h"
+#include "dao/browser/dao_pref_names.h"
+#include "dao/browser/performance/dao_high_performance_tab_helper.h"
 #include "dao/browser/strings/grit/dao_strings.h"
 #include "dao/browser/ui/views/dao_colors.h"
 #include "dao/browser/ui/views/dao_control_center_popup.h"
+#include "dao/browser/ui/views/dao_lucide_icons.h"
 #include "dao/browser/ui/views/dao_toast_view.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
+#include "ui/accessibility/ax_enums.mojom.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/color/color_variant.h"
+#include "ui/gfx/geometry/rect_f.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/background.h"
 #include "ui/views/controls/button/label_button.h"
 #include "ui/views/controls/label.h"
@@ -146,6 +152,30 @@ class MenuItemButton : public views::LabelButton {
     SetBackground(nullptr);
     SchedulePaint();
   }
+
+  void SetChecked(bool checked) {
+    checked_ = checked;
+    SetBorder(views::CreateEmptyBorder(gfx::Insets::TLBR(8, 12, 8, 36)));
+    GetViewAccessibility().SetRole(ax::mojom::Role::kMenuItemCheckBox);
+    GetViewAccessibility().SetCheckedState(
+        checked ? ax::mojom::CheckedState::kTrue
+                : ax::mojom::CheckedState::kFalse);
+    SchedulePaint();
+  }
+
+  void PaintButtonContents(gfx::Canvas* canvas) override {
+    LabelButton::PaintButtonContents(canvas);
+    if (checked_) {
+      DrawLucideIcon(
+          canvas, LucideIcon::kCheck,
+          gfx::RectF(GetMirroredXForRect(gfx::Rect(width() - 28, 0, 16, 16)),
+                     (height() - 16) / 2.0f, 16, 16),
+          ControlCenterLabelColor());
+    }
+  }
+
+ private:
+  bool checked_ = false;
 };
 
 }  // namespace
@@ -194,6 +224,22 @@ DaoControlCenterMoreMenu::DaoControlCenterMoreMenu(
     AddChildView(static_cast<views::View*>(btn.release()));
   }
 
+  {
+    auto button = std::make_unique<MenuItemButton>(
+        l10n_util::GetStringUTF16(IDS_DAO_ALWAYS_HIGH_PERFORMANCE),
+        base::BindRepeating(
+            &DaoControlCenterMoreMenu::OnAlwaysHighPerformanceClicked,
+            base::Unretained(this)));
+    always_high_performance_button_ = button.get();
+    AddChildView(static_cast<views::View*>(button.release()));
+  }
+  pref_change_registrar_.Init(popup_->browser()->GetProfile()->GetPrefs());
+  pref_change_registrar_.Add(
+      prefs::kDaoHighPerformanceHosts,
+      base::BindRepeating(&DaoControlCenterMoreMenu::Refresh,
+                          base::Unretained(this)));
+  Refresh();
+
   cleanup_separator_ = AddChildView(std::make_unique<views::View>());
   cleanup_separator_->SetPreferredSize(gfx::Size(0, 1));
   cleanup_separator_->SetProperty(views::kMarginsKey, gfx::Insets::VH(6, 12));
@@ -238,6 +284,28 @@ void DaoControlCenterMoreMenu::OnBackClicked() {
   if (popup_) {
     popup_->ShowMainPanel();
   }
+}
+
+void DaoControlCenterMoreMenu::Refresh() {
+  auto* contents = popup_->browser()->tab_strip_model()->GetActiveWebContents();
+  const GURL url = contents ? contents->GetLastCommittedURL() : GURL();
+  always_high_performance_button_->SetEnabled(url.SchemeIsHTTPOrHTTPS() &&
+                                              url.has_host());
+  static_cast<MenuItemButton*>(always_high_performance_button_.get())
+      ->SetChecked(DaoHighPerformanceTabHelper::IsAlwaysEnabled(
+          popup_->browser()->GetProfile(), url));
+}
+
+void DaoControlCenterMoreMenu::OnAlwaysHighPerformanceClicked() {
+  auto* contents = popup_->browser()->tab_strip_model()->GetActiveWebContents();
+  if (!contents) {
+    return;
+  }
+  auto* profile = popup_->browser()->GetProfile();
+  const GURL url = contents->GetLastCommittedURL();
+  DaoHighPerformanceTabHelper::SetAlwaysEnabled(
+      profile, url,
+      !DaoHighPerformanceTabHelper::IsAlwaysEnabled(profile, url));
 }
 
 void DaoControlCenterMoreMenu::OnShareClicked() {

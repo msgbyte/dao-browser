@@ -1293,9 +1293,10 @@ macOS-style floating control center panel bundling extensions and utilities.
   off. The popup closes when switching tabs, closing the tab, or disabling the
   mode; dismissing the popup alone leaves the mode enabled. The mode
   follows the tab through reloads, navigation, and window moves, and ends when
-  the tab closes; it is not restored across browser restarts. Chromium treats
-  the current page as visible for scheduling and painting, rejects browser
-  discard and freeze requests, maintains foreground renderer priority, and
+  the tab closes; this manual state is not restored across browser restarts.
+  Chromium treats the current page as visible for scheduling and painting,
+  rejects browser discard and freeze requests, maintains foreground renderer
+  priority, and
   exempts its frame sinks and descendants from Energy Saver and other frame
   throttling. Turning it off restores normal policies without changing other
   tabs' settings. Fenced frames and MPArch guest pages inherit renderer
@@ -1307,6 +1308,16 @@ macOS-style floating control center panel bundling extensions and utilities.
   invalidation. Shared renderer processes may also benefit from the priority
   boost. Normal garbage collection, OS memory management, system sleep, hardware
   limits, crashes, and websites' own focus-based behavior remain unchanged.
+- **Always High Performance by domain** — Site controls > More has a checkable
+  Always High Performance item for HTTP(S) pages. The profile remembers the
+  exact hostname across browser restarts, independent of path, scheme, and port;
+  other subdomains are not included. Enabling or removing the preference updates
+  open pages for that host immediately. Navigation, reload, and restored tabs
+  apply the destination host's preference, including after redirects; leaving
+  that host removes automatic protection while preserving manually enabled tab
+  state. The main tile and indicator can temporarily turn the mode off until
+  the next navigation without removing the saved preference. Incognito changes
+  stay in the incognito profile. Internal pages cannot save a host preference.
 - **DaoControlCenterButton** — 24px trigger button with a 6px-radius hover highlight that
   follows the address bar's page background, matching neighboring action buttons
   even when the page and system themes differ
@@ -1330,7 +1341,7 @@ macOS-style floating control center panel bundling extensions and utilities.
   to a checkmark with localized confirmation after copying. The clipboard image
   excludes this overlay. Only the URL remains below the image; there is no
   separate copy-button row. Failed generation clears the image and disables copying.
-- **DaoControlCenterMoreMenu** — Full Page Screenshot, Share on macOS, and site data cleanup actions. High Performance Mode is available only on the main panel. A divider separates cache and cookie cleanup from the other actions; cleanup stays scoped to the active page's current site with completion toast feedback.
+- **DaoControlCenterMoreMenu** — Full Page Screenshot, Share on macOS, the persistent Always High Performance host checkbox, and site data cleanup actions. The temporary per-tab High Performance Mode toggle stays on the main panel. A divider separates cache and cookie cleanup from the other actions; cleanup stays scoped to the active page's current site with completion toast feedback.
 - **Full-page screenshots** — More saves the current loaded document as a PNG,
   including content beyond the viewport, through Chromium's download manager.
   Capture uses the shared `DaoDevToolsClient` and Chromium's full-document

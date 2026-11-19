@@ -76,6 +76,7 @@ class DaoControlCenterPopup : public views::View,
       const TabStripSelectionChange& selection) override;
 
   // content::WebContentsObserver:
+  void PrimaryPageChanged(content::Page& page) override;
   void DidGetUserInteraction(const blink::WebInputEvent& event) override;
 
   // ui::NativeThemeObserver:
