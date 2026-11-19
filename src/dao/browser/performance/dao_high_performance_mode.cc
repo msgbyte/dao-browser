@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "content/browser/renderer_host/render_view_host_impl.h"
 #include "content/browser/web_contents/web_contents_impl.h"
 
 namespace dao {
@@ -38,14 +39,30 @@ void DaoHighPerformanceMode::SetEnabled(content::WebContents* contents,
   }
 }
 
-void DaoHighPerformanceMode::SetSiteEnabled(content::WebContents* contents,
+bool DaoHighPerformanceMode::SetSiteEnabled(content::WebContents* contents,
                                             bool enabled) {
   auto* state = GetOrCreateForWebContents(contents);
   const bool was_enabled = IsEnabled(contents);
-  state->site_enabled_ = enabled;
+  const bool previous_site_enabled =
+      std::exchange(state->site_enabled_, enabled);
   if (was_enabled != IsEnabled(contents)) {
     Refresh(contents);
   }
+  return previous_site_enabled;
+}
+
+void DaoHighPerformanceMode::PrepareForPageActivation(
+    content::RenderFrameHost* main_frame) {
+  auto* contents = static_cast<content::WebContentsImpl*>(
+      content::WebContents::FromRenderFrameHost(main_frame));
+  const auto visibility = contents->GetPageVisibilityState();
+  // BFCache removes the destination from its entries before ReadyToCommit.
+  main_frame->ForEachRenderFrameHost([&](content::RenderFrameHost* frame) {
+    if (&frame->GetPage() == &main_frame->GetPage()) {
+      static_cast<content::RenderViewHostImpl*>(frame->GetRenderViewHost())
+          ->SetFrameTreeVisibility(visibility);
+    }
+  });
 }
 
 void DaoHighPerformanceMode::Refresh(content::WebContents* contents) {

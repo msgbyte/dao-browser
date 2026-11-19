@@ -9,6 +9,10 @@
 #include "content/common/content_export.h"
 #include "content/public/browser/web_contents_user_data.h"
 
+namespace content {
+class RenderFrameHost;
+}
+
 namespace dao {
 
 // Tab-scoped state shared by browser UI and Chromium's scheduling policies.
@@ -19,8 +23,10 @@ class CONTENT_EXPORT DaoHighPerformanceMode
 
   static bool IsEnabled(const content::WebContents* contents);
   static void SetEnabled(content::WebContents* contents, bool enabled);
-  // Automatic site state is separate from the manually enabled tab state.
-  static void SetSiteEnabled(content::WebContents* contents, bool enabled);
+  // Returns the previous automatic state, independent of the manual tab state.
+  static bool SetSiteEnabled(content::WebContents* contents, bool enabled);
+  // Sync a destination page that is not yet in the active frame tree.
+  static void PrepareForPageActivation(content::RenderFrameHost* main_frame);
   // Reapply inherited state after an embedding or tab-mode change.
   static void Refresh(content::WebContents* contents);
   static base::CallbackListSubscription AddObserver(

@@ -822,7 +822,10 @@ persistent background pages, and blocking WebRequest path on every rebase.
   tabs, disabled internal-page entries, incognito isolation, and retained manual
   tab state. A temporary Turn off is reset by the next navigation, not by edits
   to another host's preference. Verify English/Chinese, light/dark, and keyboard
-  and accessibility checked state.
+  and accessibility checked state. In a background tab, go back and forward
+  between saved and unsaved hosts: cached pages must see the correct visibility
+  inside `pageshow`. Run `DaoHighPerformanceTabHelperTest.*` to verify cancelled
+  commits restore the previous automatic state, including a temporary Turn off.
 - [ ] Click the lightning indicator: a native popup explains background
   execution, freeze/discard protection, and resource usage. Its Turn off button
   disables the mode, hides the indicator, and turns off the main panel tile.

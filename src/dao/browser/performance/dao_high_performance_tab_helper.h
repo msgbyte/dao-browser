@@ -5,6 +5,9 @@
 #ifndef DAO_BROWSER_PERFORMANCE_DAO_HIGH_PERFORMANCE_TAB_HELPER_H_
 #define DAO_BROWSER_PERFORMANCE_DAO_HIGH_PERFORMANCE_TAB_HELPER_H_
 
+#include <cstdint>
+#include <optional>
+
 #include "components/prefs/pref_change_registrar.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/browser/web_contents_user_data.h"
@@ -14,7 +17,7 @@ class Profile;
 
 namespace dao {
 
-// Applies the profile's saved host preference to each committed page.
+// Applies the profile's saved host preference before each page is activated.
 class DaoHighPerformanceTabHelper
     : public content::WebContentsObserver,
       public content::WebContentsUserData<DaoHighPerformanceTabHelper> {
@@ -28,11 +31,15 @@ class DaoHighPerformanceTabHelper
   friend class content::WebContentsUserData<DaoHighPerformanceTabHelper>;
   explicit DaoHighPerformanceTabHelper(content::WebContents* contents);
 
+  void ReadyToCommitNavigation(content::NavigationHandle* navigation) override;
+  void DidFinishNavigation(content::NavigationHandle* navigation) override;
   void PrimaryPageChanged(content::Page& page) override;
   void OnPreferenceChanged();
   void ApplySitePreference();
 
   bool site_preference_enabled_ = false;
+  std::optional<int64_t> pending_navigation_id_;
+  bool previous_site_enabled_ = false;
   PrefChangeRegistrar pref_change_registrar_;
 
   WEB_CONTENTS_USER_DATA_KEY_DECL();

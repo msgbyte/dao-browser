@@ -8,6 +8,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/scoped_user_pref_update.h"
+#include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/web_contents.h"
 #include "dao/browser/dao_pref_names.h"
 #include "dao/browser/performance/dao_high_performance_mode.h"
@@ -56,7 +57,38 @@ void DaoHighPerformanceTabHelper::SetAlwaysEnabled(Profile* profile,
   }
 }
 
+void DaoHighPerformanceTabHelper::ReadyToCommitNavigation(
+    content::NavigationHandle* navigation) {
+  if (!navigation->IsInPrimaryMainFrame() || navigation->IsSameDocument()) {
+    return;
+  }
+  // Cached pages need the destination state before their pageshow callback.
+  const bool previous_site_enabled = DaoHighPerformanceMode::SetSiteEnabled(
+      web_contents(), IsAlwaysEnabled(Profile::FromBrowserContext(
+                                          web_contents()->GetBrowserContext()),
+                                      navigation->GetURL()));
+  if (!pending_navigation_id_) {
+    previous_site_enabled_ = previous_site_enabled;
+  }
+  pending_navigation_id_ = navigation->GetNavigationId();
+  DaoHighPerformanceMode::PrepareForPageActivation(
+      navigation->GetRenderFrameHost());
+}
+
+void DaoHighPerformanceTabHelper::DidFinishNavigation(
+    content::NavigationHandle* navigation) {
+  if (pending_navigation_id_ != navigation->GetNavigationId()) {
+    return;
+  }
+  pending_navigation_id_.reset();
+  if (!navigation->HasCommitted()) {
+    DaoHighPerformanceMode::SetSiteEnabled(web_contents(),
+                                           previous_site_enabled_);
+  }
+}
+
 void DaoHighPerformanceTabHelper::PrimaryPageChanged(content::Page& page) {
+  pending_navigation_id_.reset();
   ApplySitePreference();
 }
 

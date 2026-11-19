@@ -1313,7 +1313,9 @@ macOS-style floating control center panel bundling extensions and utilities.
   exact hostname across browser restarts, independent of path, scheme, and port;
   other subdomains are not included. Enabling or removing the preference updates
   open pages for that host immediately. Navigation, reload, and restored tabs
-  apply the destination host's preference, including after redirects; leaving
+  apply the destination host's preference before page activation, including
+  after redirects and when restoring from the back/forward cache. Cancelled
+  navigations restore the previous page's automatic state. Leaving
   that host removes automatic protection while preserving manually enabled tab
   state. The main tile and indicator can temporarily turn the mode off until
   the next navigation without removing the saved preference. Incognito changes
