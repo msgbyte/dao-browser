@@ -1,0 +1,7 @@
+/windows-update.json
+  Cache-Control: no-store
+  CDN-Cache-Control: no-store
+  Cloudflare-CDN-Cache-Control: no-store
+
+/opengraph-image
+  Content-Type: image/png

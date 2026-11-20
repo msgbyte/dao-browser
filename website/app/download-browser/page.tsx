@@ -4,7 +4,8 @@ import messages from '@/locales/en/download.json';
 
 /**
  * Internal page rendered when a visitor hits `/download`.
- * The `/download` Route Handler redirects all requests here.
+ * Cloudflare Pages redirects all `/download` requests here via `public/_redirects`
+ * (mirrored in `next.config.mjs` during local development).
  * Only macOS automatically downloads; other devices choose a download link.
  *
  * The real download URLs and the current product version live in

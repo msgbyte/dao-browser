@@ -1,6 +1,8 @@
 import type { MetadataRoute } from 'next';
 import { PRODUCT_RELEASED_AT, SITE_URL } from '@/lib/version';
 
+export const dynamic = 'force-static';
+
 const lastModified = new Date(`${PRODUCT_RELEASED_AT}T00:00:00.000Z`);
 
 export default function sitemap(): MetadataRoute.Sitemap {

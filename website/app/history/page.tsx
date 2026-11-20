@@ -40,9 +40,8 @@ const HISTORY_PAGE_JSON_LD = buildWebPageJsonLd({
   type: 'CollectionPage',
 });
 
-// Resolve at request time so a redeployed appcast.xml is picked up
-// without rebuilding the page.
-export const dynamic = 'force-dynamic';
+// Prerender from public/appcast.xml at build time; appcast updates redeploy the site.
+export const dynamic = 'force-static';
 
 export default async function HistoryPage() {
   const items = await loadAppcastItems();
