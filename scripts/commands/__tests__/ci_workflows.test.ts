@@ -83,7 +83,7 @@ describe('CI workflows', () => {
     expect(workflow).not.toMatch(/npm run (?:rebuild|build(?::debug)?|test:build)/u);
   });
 
-  it('checks the website before deploying with a pinned Vercel CLI', () => {
+  it('checks the website before deploying to Cloudflare Pages with a pinned Wrangler CLI', () => {
     const workflow = read('.github/workflows/deploy-website.yml');
     const websitePackageJson = JSON.parse(read('website/package.json')) as {
       devDependencies?: Record<string, string>;
@@ -93,13 +93,15 @@ describe('CI workflows', () => {
     expect(workflow).toMatch(/\n  deploy:\n/u);
     expect(workflow).toContain('needs: check');
     expect(workflow).toContain('npm --prefix .. run release:check-windows-update');
-    expect(workflow).not.toMatch(/CLOUDFLARE_|R2_BUCKET|wrangler|sync-windows-update/u);
+    expect(workflow).not.toMatch(/R2_BUCKET|sync-windows-update|vercel/iu);
     expect(workflow).toContain('run: npm run check');
     expect(workflow).toContain('run: npm run lint');
     expect(workflow).toContain('run: npm run build');
-    expect(workflow).toContain('VERCEL_CLI_VERSION: 58.5.1');
-    expect(workflow).toContain('vercel@"${VERCEL_CLI_VERSION}"');
-    expect(workflow).not.toContain('vercel@latest');
+    expect(workflow).toContain('CLOUDFLARE_PAGES_PROJECT: dao-website');
+    expect(workflow).toContain('WRANGLER_VERSION: 4.165.0');
+    expect(workflow).toContain('uses: cloudflare/wrangler-action@v3');
+    expect(workflow).toContain('wranglerVersion: ${{ env.WRANGLER_VERSION }}');
+    expect(workflow).toContain('pages deploy website/out');
     expect(websitePackageJson.devDependencies?.vitest).toBeDefined();
   });
 

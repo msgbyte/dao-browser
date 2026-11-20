@@ -1,4 +1,4 @@
-name: Deploy Website to Vercel
+name: Deploy Website to Cloudflare Pages
 
 on:
   push:
@@ -20,10 +20,12 @@ concurrency:
   # Finish the production deployment before another main deployment starts.
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
+permissions:
+  contents: read
+
 env:
-  VERCEL_ORG_ID: team_Twwa0KDaGtEybSu6BXtGJZoD
-  VERCEL_PROJECT_ID: prj_0B3eVoAJ5vAKY5yL8CH8cJl8JULp
-  VERCEL_CLI_VERSION: 58.5.1
+  CLOUDFLARE_PAGES_PROJECT: dao-website
+  WRANGLER_VERSION: 4.165.0
 
 jobs:
   check:
@@ -61,7 +63,7 @@ jobs:
         run: npm run build
 
   deploy:
-    name: Deploy (${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'production' || 'preview' }})
+    name: Deploy (${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' && 'production' || 'preview' }})
     needs: check
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
@@ -82,29 +84,36 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Vercel CLI
-        run: npm install --global vercel@"${VERCEL_CLI_VERSION}"
+      - name: Build website
+        run: npm run build
 
-      - name: Set deployment environment
-        id: env
+      - name: Set deployment branch
+        id: target
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          GITHUB_REF_FULL: ${{ github.ref }}
+          HEAD_REF: ${{ github.head_ref }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
-          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref }}" = "refs/heads/main" ]; then
-            echo "target=production" >> "$GITHUB_OUTPUT"
-            echo "prod_flag=--prod" >> "$GITHUB_OUTPUT"
+          if [ "$GITHUB_REF_FULL" = "refs/heads/main" ] && { [ "$EVENT_NAME" = "push" ] || [ "$EVENT_NAME" = "workflow_dispatch" ]; }; then
+            branch="main"
           else
-            echo "target=preview" >> "$GITHUB_OUTPUT"
-            echo "prod_flag=" >> "$GITHUB_OUTPUT"
+            branch="${HEAD_REF:-$REF_NAME}"
+            branch="${branch:-preview}"
           fi
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
 
-      - name: Pull Vercel environment
-        run: vercel pull --yes --environment=${{ steps.env.outputs.target }} --token=${{ secrets.VERCEL_TOKEN }}
-
-      - name: Build with Vercel
-        run: vercel build ${{ steps.env.outputs.prod_flag }} --token=${{ secrets.VERCEL_TOKEN }}
-
-      - name: Deploy to Vercel
+      - name: Deploy to Cloudflare Pages
         id: deploy
-        run: |
-          url=$(vercel deploy --prebuilt ${{ steps.env.outputs.prod_flag }} --token=${{ secrets.VERCEL_TOKEN }})
-          echo "url=$url" >> "$GITHUB_OUTPUT"
-          echo "Deployed to: $url" >> "$GITHUB_STEP_SUMMARY"
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: ${{ env.WRANGLER_VERSION }}
+          command: pages deploy website/out --project-name=${{ env.CLOUDFLARE_PAGES_PROJECT }} --branch=${{ steps.target.outputs.branch }} --commit-dirty=true
+
+      - name: Write deployment summary
+        if: steps.deploy.outputs.deployment-url != ''
+        env:
+          DEPLOY_URL: ${{ steps.deploy.outputs.deployment-url }}
+        run: printf 'Deployed to: %s\n' "$DEPLOY_URL" >> "$GITHUB_STEP_SUMMARY"
