@@ -122,7 +122,8 @@ the release command does not download them for verification. Existing objects
 are checked with HEAD for uncompressed size when provided and skipped on retry; local Windows signatures
 and checksums remain verified. Website deployment verifies the signed feed against
 its immutable R2 manifest and available installer before publishing. Deployment
-does not write to R2 or require Cloudflare Actions secrets.
+publishes the static website to Cloudflare Pages and does not write to R2 or
+require R2 credentials.
 `release:mac` retains the Mac-only workflow;
 `release:windows` retains the existing tag attachment workflow without advancing
 the Windows feed. Windows does not use Apple signing, notarization, or Sparkle

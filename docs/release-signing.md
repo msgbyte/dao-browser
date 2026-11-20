@@ -509,4 +509,4 @@ writes diagnostic info there). The two most common failure modes are:
   Always sign in this order: codesign → notarize → staple →
   generate_appcast.
 - **`SUFeedURL` 404**: the deployed website is missing `public/appcast.xml`,
-  or the Vercel deployment did not complete.
+  or the Cloudflare Pages deployment did not complete.

@@ -45,8 +45,9 @@ requirements, not claims that this target has compiled or passed runtime tests.
   before edits; per-platform Windows versions are preserved. Commit failure restores
   metadata. App versions and Mac appcast remain unchanged.
 - [ ] Website deployment validates staged signatures and artifact availability
-  without Cloudflare Actions secrets or writes to the legacy R2 feed. Verify
-  no-store headers and website-feed Windows clients after a withdrawal.
+  without R2 credentials or writes to the legacy R2 feed, and publishes the
+  static export to Cloudflare Pages. Verify no-store headers and website-feed
+  Windows clients after a withdrawal.
 - [ ] Visit `/download` on macOS and confirm the configured Mac download starts,
   with manual links still available. Windows, Linux, mobile, and unknown devices
   must show manual platform links without starting a download, including iPads

@@ -30,8 +30,9 @@ New Windows clients read `https://dao.msgbyte.com/windows-update.json` while
 installers stay on R2. The website feed has explicit browser/CDN `no-store` headers.
 
 The workflow validates the staged signature, immutable manifest, and installer
-availability/size before deploying the website. It does not write to R2 and needs
-no Cloudflare Actions secrets or Sparkle private key: the feed is signed locally.
+availability/size before deploying the website. It deploys the static website to
+Cloudflare Pages using a Pages-scoped token, does not write to R2, and needs no
+R2 credentials or Sparkle private key: the feed is signed locally.
 The legacy R2 update feed is no longer synchronized; clients using that address
 need a manual upgrade to receive future updates from the website.
 
@@ -69,7 +70,7 @@ Every selected installer must pass an HTTPS HEAD availability check. The command
 commits only `info.json` and `windows-update.json` locally. It never reads or
 writes Git remotes. A rejected commit restores local metadata; the committed
 parent, file list, and snapshot are checked before reporting success.
-Push manually when ready to trigger **Deploy Website to Vercel**, then check
+Push manually when ready to trigger **Deploy Website to Cloudflare Pages**, then check
 that workflow and the public download page before considering the change live.
 Selecting matching downloads and a matching feed does nothing; a changed feed
 is restored even when the download version is already selected.

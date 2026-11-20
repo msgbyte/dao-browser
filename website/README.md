@@ -4,8 +4,8 @@ Official landing page for [Dao Browser](https://github.com/moonrailgun/dao-brows
 
 ## Stack
 
-- Next.js 15 App Router (`/download` redirects to a page that detects the device)
-- React 19 RSC only — zero client JavaScript beyond Next.js runtime
+- Next.js 15 App Router static export (`output: 'export'`, output in `./out`)
+- React 19 RSC + lightweight client download detector on `/download-browser`
 - CSS Modules + design tokens mirrored from main repo `DESIGN.md`
 - Lucide icons inlined as SVG (path data fetched verbatim from upstream)
 - OG image generated at build time via `next/og` (no external image tools needed)
@@ -15,8 +15,7 @@ Official landing page for [Dao Browser](https://github.com/moonrailgun/dao-brows
 ```bash
 npm install        # first-time setup
 npm run dev        # http://localhost:3000
-npm run build      # produces ./.next (server build)
-npm run start      # serve the production build locally
+npm run build      # produces ./out (static export)
 npm run check      # tsc --noEmit
 npm run lint
 ```
@@ -51,32 +50,39 @@ minimatch 3 is safe. `npm audit --omit=dev` checks the deployed dependency tree.
 - Download page translations → `locales/en/download.json` and `locales/zh-CN/download.json`
 - OG image → `app/opengraph-image.tsx` (rebuilt on every `npm run build`)
 
-## Deploy (Vercel)
+## Deploy (Cloudflare Pages)
 
-The site needs a Node runtime — `/download` is a server Route Handler that sends
-all requests to the download page. Only macOS automatically
-downloads the configured Mac build; other devices choose from the platform links
-in `public/info.json`. iPhones and iPads, including iPads with a desktop Mac user
-agent, use the manual page. A missing Mac build never falls back to another
-platform's installer. Cloudflare Pages
-static hosting does NOT work for this; deploy to Vercel (or any host that runs
-Next.js's Node/Edge server).
+The site builds as a static Next.js export (`website/out`) and deploys to
+Cloudflare Pages via `.github/workflows/deploy-website.yml`
+(`cloudflare/wrangler-action@v3`).
+
+- `public/_redirects` redirects `/download` (`302`) to `/download-browser` and
+  `/changelog/zh-CN` (`308`) to `/changelog`. Local `next dev` mirrors these
+  redirects in `next.config.mjs`.
+- `public/_headers` sets `Cache-Control: no-store`,
+  `CDN-Cache-Control: no-store`, and `Cloudflare-CDN-Cache-Control: no-store`
+  on `/windows-update.json`, and `Content-Type: image/png` on `/opengraph-image`.
+- Only macOS automatically downloads the configured Mac build; other devices
+  choose from the platform links in `public/info.json`. iPhones and iPads,
+  including iPads with a desktop Mac user agent, use the manual page. A missing
+  Mac build never falls back to another platform's installer.
 
 | Setting | Value |
 |---|---|
-| Framework preset | Next.js (auto-detected) |
+| Cloudflare Pages project | `dao-website` |
+| Production branch | `main` |
 | Root directory | `website` |
-| Build command | `npm run build` (default) |
-| Output directory | `.next` (default) |
-| Install command | `npm install` (default) |
-| Node version | 20 |
+| Build command | `npm run build` |
+| Output directory | `website/out` |
+| Node version | 24 |
 | Custom domain | `dao.msgbyte.com` |
 
-Local `website/vercel.json` only carries the `$schema` reference — all
-deploy settings live in the Vercel project dashboard.
+Required GitHub Actions secrets: `CLOUDFLARE_API_TOKEN` (scoped to
+`Account -> Cloudflare Pages: Edit`) and `CLOUDFLARE_ACCOUNT_ID`.
 
-To publish a new release: edit `public/info.json` (version + platform URLs).
-The download page fetches it at runtime; no rebuild required.
+To publish a new release: edit `public/info.json` (version + platform URLs)
+and push to `main` to trigger deployment. The download page also fetches
+`/info.json` at runtime.
 
 The newest row on `/history` uses its R2 enclosure URL. Older rows use the
 matching GitHub Release asset URL. Before deleting historical DMGs from R2,
