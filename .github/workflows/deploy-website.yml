@@ -116,4 +116,5 @@ jobs:
         if: steps.deploy.outputs.deployment-url != ''
         env:
           DEPLOY_URL: ${{ steps.deploy.outputs.deployment-url }}
-        run: printf 'Deployed to: %s\n' "$DEPLOY_URL" >> "$GITHUB_STEP_SUMMARY"
+        run: |
+          printf 'Deployed to: %s\n' "$DEPLOY_URL" >> "$GITHUB_STEP_SUMMARY"
