@@ -1454,8 +1454,8 @@ void DaoAgentSpaceService::ExecuteInSpace(const DaoAgentSpaceClient& client,
   } else if (call.name != "list_tabs" && call.name != "open_tab") {
     std::string tab_id = target_tab ? *target_tab : std::string();
     if (tab_id.empty()) {
-      if (content::WebContents* current = space->GetCurrentContents()) {
-        tab_id = GetOrCreateSidebarTabId(current);
+      if (content::WebContents* current_contents = space->GetCurrentContents()) {
+        tab_id = GetOrCreateSidebarTabId(current_contents);
       }
     }
     if (space->IsUnclaimedUserTab(tab_id)) {
