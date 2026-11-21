@@ -23,6 +23,7 @@
 #include "components/omnibox/browser/autocomplete_match.h"
 #include "components/tabs/public/tab_interface.h"
 #include "dao/browser/ui/views/dao_lucide_icons.h"
+#include "ui/gfx/range/range.h"
 #include "ui/native_theme/native_theme.h"
 #include "ui/native_theme/native_theme_observer.h"
 #include "ui/views/controls/image_view.h"
@@ -84,6 +85,9 @@ class DaoCommandBarView : public views::View,
                       const ui::KeyEvent& key_event) override;
   void ContentsChanged(views::Textfield* sender,
                        const std::u16string& new_contents) override;
+  void OnBeforeUserAction(views::Textfield* sender) override;
+  void OnAfterUserAction(views::Textfield* sender) override;
+  void OnAfterPaste() override;
 
   // AutocompleteController::Observer:
   void OnResultChanged(AutocompleteController* controller,
@@ -187,9 +191,6 @@ class DaoCommandBarView : public views::View,
   // or suggested text is suppressed for the current query.
   std::u16string GetInlineAutocompletionForResult() const;
   bool IsAutocompleteResultStableForInlineAutocompletion() const;
-  bool HasSubmittableInlineAutocompletion() const;
-  std::u16string GetInlineAutocompletedInputText() const;
-  const AutocompleteMatch* GetVisibleInlineAutocompletionMatch() const;
   void OnInputFaviconFetched(const GURL& page_url,
                              const favicon_base::FaviconImageResult& result);
   void ApplySelectedSuggestion();
@@ -237,9 +238,9 @@ class DaoCommandBarView : public views::View,
   bool selection_explicitly_changed_ = false;
   std::u16string user_input_text_;
   std::u16string selection_preview_text_;
-  // The last explicitly previewed value rejected with Backspace. Keep it
-  // across subsequent edits so a late result cannot restore that exact value.
-  std::u16string rejected_selection_preview_text_;
+  // Keep suggestions unselected after rejection until explicit selection,
+  // a new query, or a new command bar session.
+  bool suggestion_rejected_ = false;
   bool selection_preview_active_ = false;
   std::u16string inline_autocompletion_;
   bool updating_textfield_ = false;
@@ -254,10 +255,12 @@ class DaoCommandBarView : public views::View,
   // unchanged for the new query.
   bool suppress_ghost_for_current_query_ = false;
 
-  // Length of |user_input_text_| at the previous ContentsChanged tick. Used
-  // to distinguish growth (typing) from shrinkage (deletion) without having
-  // to inspect the textfield state directly.
-  size_t last_text_length_ = 0;
+  struct TextEditState {
+    size_t text_length;
+    gfx::Range selection;
+    bool has_suggestion;
+  };
+  std::optional<TextEditState> text_before_edit_;
 
   // Index inside suggestion_views_ of the synthetic "Ask AI" row, or -1
   // when the current input does not qualify (empty / looks like a URL). The

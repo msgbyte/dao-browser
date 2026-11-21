@@ -476,12 +476,13 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
     provider omits the suffix, so Select All, copy, and replacement
     edits include the completed text, while long suffixes keep the typed prefix
     and caret boundary visible
-  - Every non-blank query keeps one exact-input Search action alongside the
-    full Chromium autocomplete result. The dropdown remains five rows tall and
-    scrolls by pointer or keyboard when more results are available; empty and
-    whitespace-only input shows no suggestions
-  - Enter before suggestions arrive submits the typed query through the default
-    search provider; Ask AI requires an actual selected suggestion
+  - Every non-blank query keeps one exact-input Search action through the default
+    search provider alongside the full Chromium autocomplete result, including
+    URL-like input and keyword-based site searches. The dropdown remains five
+    rows tall and scrolls by pointer or keyboard when more results are available;
+    empty and whitespace-only input shows no suggestions
+  - Enter executes the highlighted suggestion. Without a highlighted row, it
+    searches or opens the current input; Ask AI requires a selected suggestion
   - With experimental ordering off, the first result is highlighted automatically
     without writing that row's
     `fill_into_edit` value into the native textfield; prefix-matching URL inline
@@ -489,17 +490,21 @@ An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the singl
     browsing previews a row while the original query remains separate and
     autocomplete is not restarted. Updates to the selected URL's display text
     refresh its preview while preserving the selection. Inline completion waits
-    for stable results; without a visible suffix or an explicit selection, Enter
-    opens or searches the visible input instead of accepting a different
-    automatically highlighted destination.
-  - With experimental ordering off, Backspace rejects a non-identical preview
-    without deleting
-    the query; that exact rejected suggestion stays suppressed while the user
-    continues typing, and later provider results remain highlight-only until the
-    user browses or accepts them; Right Arrow or Tab accepts the highlighted or
-    previewed row without navigating, Enter submits visible inline completion or
-    the explicitly selected result, and
-    Esc dismisses
+    for stable results; Enter accepts the first highlighted suggestion even
+    without a visible suffix or arrow-key selection, including while providers
+    are still updating. Explicit arrow-key selection accepts that selected row.
+  - With experimental ordering off, deleting or cutting completion text,
+    including part of a suffix, cancels automatic highlighting and completion.
+    Plain Backspace on an untouched non-identical selection preview restores
+    the original query. Changed selections and deletion shortcuts use native
+    editing; Select All followed by Backspace clears the entire preview.
+    Further edits and asynchronous results keep suggestions unselected, so Enter
+    follows the edited input. Typing over a selected suffix remains normal input.
+    Explicit selection, clearing the input, replacing all text by typing or
+    pasting, or reopening the bar restores normal suggestion acceptance. With
+    no selection, Down selects the first row and Up selects the last enabled row.
+    Right Arrow or Tab accepts a highlighted or previewed row without navigating;
+    neither restores a rejected suggestion when no row is selected. Esc dismisses
 - **DaoSuggestionItemView** (`dao_suggestion_item_view.{h,cc}`) — Suggestion row
   for autocomplete matches, Ask AI, and accessible enabled or disabled commands
 - **DaoNewTabButton** also routes through `ShowForNewTab()` without creating a
