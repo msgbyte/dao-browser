@@ -36,9 +36,9 @@ class StdioSmokeTest(unittest.TestCase):
     def command(self, executable, *args):
         return [executable, *args, f"--user-data-dir={self.profile}"]
 
-    def exchange(self, executable, data, *args):
+    def exchange(self, command, data):
         completed = subprocess.run(
-            self.command(executable, *args), input=data,
+            command, input=data,
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=10,
         )
         self.assertEqual(completed.returncode, 0, completed.stderr)
@@ -55,7 +55,7 @@ class StdioSmokeTest(unittest.TestCase):
         for executable, args in [(HELPER, ()), (CLI, ("mcp",))]:
             with self.subTest(executable=executable):
                 responses = self.exchange(
-                    executable, data.replace(b"\n", b"\r\n"), *args)
+                    self.command(executable, *args), data.replace(b"\n", b"\r\n"))
                 self.assertEqual([item["id"] for item in responses],
                                  ["初始化", "你好"])
                 self.assertEqual(responses[0]["result"]["protocolVersion"],
@@ -63,8 +63,17 @@ class StdioSmokeTest(unittest.TestCase):
                 self.assertEqual(responses[1]["result"], {})
 
     def test_unterminated_input(self):
-        response, = self.exchange(HELPER, message("ping", 1).rstrip(b"\n"))
+        response, = self.exchange(
+            self.command(HELPER), message("ping", 1).rstrip(b"\n"))
         self.assertEqual(response["error"]["code"], -32600)
+
+    @unittest.skipUnless(sys.platform == "win32", "Windows profile startup")
+    def test_default_profile_startup(self):
+        # Ping is handled locally without connecting to the browser.
+        for command in [[HELPER], [CLI, "mcp"]]:
+            with self.subTest(executable=command[0]):
+                response, = self.exchange(command, message("ping", 1))
+                self.assertEqual(response, {"jsonrpc": "2.0", "id": 1, "result": {}})
 
     def test_full_output_pipe_does_not_block_input_or_exit(self):
         # Never drain stdout: a blocking WriteFile would hang before queue limits.
