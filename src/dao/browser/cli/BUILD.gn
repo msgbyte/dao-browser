@@ -153,6 +153,9 @@ if (is_mac || is_win) {
       "//chrome/common:constants",
       "//dao/browser/mcp:mcp_helper_core",
     ]
+    if (is_win) {
+      deps += [ "//chrome/install_static:install_static_util" ]
+    }
   }
 }
 

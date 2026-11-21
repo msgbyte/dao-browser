@@ -78,7 +78,9 @@ WebUI configuration, including when opened with Ctrl+Shift+A on Windows.
 
 Windows supports the local MCP server, existing-tab grants, Dao Lite background
 tasks, and manual installation of local-agent skills and the CLI. The Windows
-port excludes native share pickers, AppKit drag-to-new-window completion
+`dao-browser.exe` and `dao-mcp.exe` helpers initialize Chromium's installation
+details so they can find the default Dao profile without `--user-data-dir`. The
+Windows port excludes native share pickers, AppKit drag-to-new-window completion
 detection, ImageIO thumbnails, the external-URL Little Dao launcher, and Sparkle
 updates.
 Windows reuses Chromium's `mini_installer` for unsigned x64 installation,

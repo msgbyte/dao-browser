@@ -47,6 +47,8 @@
 #if BUILDFLAG(IS_WIN)
 #include <fcntl.h>
 #include <io.h>
+
+#include "chrome/install_static/product_install_details.h"
 #endif
 
 #ifndef DAO_MCP_VERSION
@@ -607,6 +609,9 @@ int main(int argc, char** argv) {
   if (command_line.HasSwitch("user-data-dir")) {
     options.user_data_dir = command_line.GetSwitchValuePath("user-data-dir");
   } else {
+#if BUILDFLAG(IS_WIN)
+    install_static::InitializeProductDetailsForPrimaryModule();
+#endif
     chrome::RegisterPathProvider();
     base::PathService::Get(chrome::DIR_USER_DATA, &options.user_data_dir);
   }

@@ -124,6 +124,9 @@ if (is_mac || is_win) {
       "//base",
       "//chrome/common:constants",
     ]
+    if (is_win) {
+      deps += [ "//chrome/install_static:install_static_util" ]
+    }
   }
 }
 

@@ -8,8 +8,13 @@
 #include "base/command_line.h"
 #include "base/files/file_path.h"
 #include "base/path_service.h"
+#include "build/build_config.h"
 #include "chrome/common/chrome_paths.h"
 #include "dao/browser/mcp/helper/dao_mcp_stdio_server.h"
+
+#if BUILDFLAG(IS_WIN)
+#include "chrome/install_static/product_install_details.h"
+#endif
 
 #ifndef DAO_MCP_VERSION
 #define DAO_MCP_VERSION "0.0.0.0"
@@ -25,6 +30,9 @@ int main(int argc, char** argv) {
   if (command_line->HasSwitch("user-data-dir")) {
     user_data_dir = command_line->GetSwitchValuePath("user-data-dir");
   } else {
+#if BUILDFLAG(IS_WIN)
+    install_static::InitializeProductDetailsForPrimaryModule();
+#endif
     chrome::RegisterPathProvider();
     if (!base::PathService::Get(chrome::DIR_USER_DATA, &user_data_dir)) {
       return 1;

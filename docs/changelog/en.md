@@ -4,6 +4,7 @@
 
 ### [Unreleased] Unreleased
 
+- Fix a crash when Windows local AI tools connect to Dao without specifying a user data directory.
 - After a manual step in Dao Lite, click Hand back to AI to continue the current task without sending another chat message.
 - Choose Always High Performance in site controls > More to automatically enable high performance mode whenever you visit that domain, even after restarting the browser.
 - Apply saved high performance settings as soon as pages resume when going back or forward in a background tab.
