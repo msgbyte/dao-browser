@@ -36,11 +36,16 @@
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
 #include "base/uuid.h"
+#include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
+#include "chrome/browser/ui/browser_window/public/create_browser_window.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
+#include "chrome/browser/ui/navigator/browser_navigator.h"
+#include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/common/chrome_paths.h"
 #include "components/prefs/pref_service.h"
@@ -52,6 +57,7 @@
 #include "dao/browser/agent/dao_agent_plugins.h"
 #include "dao/browser/agent/dao_agent_skill_service.h"
 #include "dao/browser/agent/dao_agent_skill_service_factory.h"
+#include "dao/browser/agent_space/dao_agent_space.h"
 #include "dao/browser/agent_space/dao_agent_space_service.h"
 #include "dao/browser/automation/dao_browser_automation_session.h"
 #include "dao/browser/automation/dao_browser_target_policy.h"
@@ -67,7 +73,9 @@
 #include "dao/browser/ui/views/dao_mcp_approval_dialog.h"
 #include "dao/browser/ui/views/dao_tab_identity.h"
 #include "net/base/net_errors.h"
+#include "ui/base/base_window.h"
 #include "url/gurl.h"
+#include "url/url_constants.h"
 #endif
 
 namespace dao {
@@ -176,6 +184,120 @@ DaoToolError MissingReasonError() {
 
 std::string SpaceApprovalId(std::string_view connection_id) {
   return base::StrCat({connection_id, "/space"});
+}
+
+bool IsEligibleSpaceProfile(Profile* profile) {
+  return profile && profile->IsRegularProfile() &&
+         !profile->IsOffTheRecord() && !profile->IsGuestSession();
+}
+
+BrowserWindowInterface* FindRegularBrowserForProfile(Profile* profile) {
+  if (!IsEligibleSpaceProfile(profile)) {
+    return nullptr;
+  }
+  BrowserWindowInterface* match = nullptr;
+  ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
+      [&](BrowserWindowInterface* candidate) {
+        if (!candidate || candidate->IsDeleteScheduled() ||
+            candidate->GetProfile() != profile ||
+            candidate->GetType() != BrowserWindowInterface::TYPE_NORMAL ||
+            DaoAgentSpaceService::IsAgentSpaceBrowser(candidate) ||
+            !candidate->GetWindow()) {
+          return true;
+        }
+        match = candidate;
+        return false;
+      });
+  return match;
+}
+
+BrowserWindowInterface* EnsureRegularBrowserForProfile(Profile* profile) {
+  if (BrowserWindowInterface* existing =
+          FindRegularBrowserForProfile(profile)) {
+    return existing;
+  }
+  if (!IsEligibleSpaceProfile(profile) ||
+      GetBrowserWindowCreationStatusForProfile(*profile) !=
+          BrowserWindowInterface::CreationStatus::kOk) {
+    return nullptr;
+  }
+  BrowserWindowInterface* browser = CreateBrowserWindow(
+      BrowserWindowCreateParams(BrowserWindowInterface::TYPE_NORMAL, *profile,
+                                /*from_user_gesture=*/false));
+  if (!browser) {
+    return nullptr;
+  }
+  NavigateParams navigation(browser, GURL(url::kAboutBlankURL),
+                            ui::PAGE_TRANSITION_AUTO_TOPLEVEL);
+  navigation.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+  Navigate(&navigation);
+  if (!browser->GetActiveTabInterface() || !browser->GetWindow()) {
+    if (browser->GetWindow()) {
+      browser->GetWindow()->Close();
+    }
+    return nullptr;
+  }
+  browser->GetWindow()->Show();
+  return browser;
+}
+
+Profile* ResolveSpaceProfile(const base::DictValue& arguments) {
+  // Prefer the most recently active non-Agent-Space window that belongs to a
+  // regular profile (including normal windows and Mini Dao / popup windows).
+  Profile* active_profile = nullptr;
+  ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
+      [&](BrowserWindowInterface* candidate) {
+        if (!candidate || candidate->IsDeleteScheduled() ||
+            DaoAgentSpaceService::IsAgentSpaceBrowser(candidate)) {
+          return true;
+        }
+        Profile* profile = candidate->GetProfile();
+        if (!IsEligibleSpaceProfile(profile)) {
+          return true;
+        }
+        active_profile = profile;
+        return false;
+      });
+  if (active_profile) {
+    return active_profile;
+  }
+
+  // When no regular-profile user window is open (e.g. macOS with all windows
+  // closed or only off-the-record windows open), fall back to the sole loaded
+  // regular profile, or to the unique profile owning an explicit space_id.
+  ProfileManager* profile_manager =
+      g_browser_process ? g_browser_process->profile_manager() : nullptr;
+  if (!profile_manager) {
+    return nullptr;
+  }
+  std::vector<Profile*> regular_profiles;
+  for (Profile* candidate : profile_manager->GetLoadedProfiles()) {
+    if (IsEligibleSpaceProfile(candidate)) {
+      regular_profiles.push_back(candidate);
+    }
+  }
+  if (regular_profiles.size() == 1) {
+    return regular_profiles.front();
+  }
+  if (const std::string* space_id = arguments.FindString("space_id");
+      space_id && !space_id->empty()) {
+    Profile* matched = nullptr;
+    for (Profile* candidate : regular_profiles) {
+      DaoAgentSpaceService* spaces =
+          DaoAgentSpaceService::GetForProfile(candidate);
+      DaoAgentSpace* space = spaces ? spaces->FindSpace(*space_id) : nullptr;
+      if (space && space->client() == DaoToolClient::kMcp) {
+        if (matched) {
+          return nullptr;
+        }
+        matched = candidate;
+      }
+    }
+    if (matched) {
+      return matched;
+    }
+  }
+  return nullptr;
 }
 
 std::string SideEffectName(DaoBrowserToolSideEffect side_effect) {
@@ -2067,11 +2189,7 @@ void DaoMcpService::HandleSpaceToolsCall(
   if (connection.space_approval_state != ApprovalState::kPending) {
     Profile* profile = connection.space_profile.get();
     if (!profile) {
-      BrowserWindowInterface* browser =
-          GlobalBrowserCollection::GetInstance()->GetLastActiveBrowser();
-      if (browser && browser->GetType() == BrowserWindowInterface::TYPE_NORMAL) {
-        profile = browser->GetProfile();
-      }
+      profile = ResolveSpaceProfile(arguments);
     }
     bool allowed = false;
     if (profile && DaoAgentSpaceService::GetForProfile(profile)) {
@@ -2123,50 +2241,64 @@ void DaoMcpService::HandleSpaceToolsCall(
 void DaoMcpService::RequestSpaceApproval(ConnectionState& connection,
                                          std::string reason) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  BrowserWindowInterface* browser = nullptr;
-  if (connection.space_profile) {
-    ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
-        [&](BrowserWindowInterface* candidate) {
-          if (candidate->GetProfile() != connection.space_profile.get() ||
-              candidate->GetType() != BrowserWindowInterface::TYPE_NORMAL) {
-            return true;
-          }
-          browser = candidate;
-          return false;
-        });
-  } else {
-    browser = GlobalBrowserCollection::GetInstance()->GetLastActiveBrowser();
+  Profile* profile = connection.space_profile.get();
+  if (!profile) {
+    const base::DictValue empty_args;
+    const base::DictValue& first_args =
+        connection.queued_space_calls.empty()
+            ? empty_args
+            : connection.queued_space_calls.front().call.arguments;
+    profile = ResolveSpaceProfile(first_args);
   }
-  Profile* profile = browser ? browser->GetProfile() : nullptr;
-  if (!browser || !profile ||
-      browser->GetType() != BrowserWindowInterface::TYPE_NORMAL ||
+  if (!IsEligibleSpaceProfile(profile) ||
       !DaoAgentSpaceService::GetForProfile(profile)) {
     FailQueuedSpaceCalls(
         connection,
+        MakeDaoToolError(
+            DaoToolErrorCode::kTargetGone,
+            "Open a regular Dao browser window for the profile you want to "
+            "use, then retry. Background spaces use that window's profile.",
+            true));
+    return;
+  }
+  const uint64_t connection_generation = connection.generation;
+  const std::string connection_id = connection.connection_id;
+  if (!approval_delegate_) {
+    connection.space_profile = profile->GetWeakPtr();
+    connection.space_approval_state = ApprovalState::kPending;
+    const uint64_t approval_serial = ++connection.space_approval_serial;
+    OnSpaceApprovalResult(connection_generation, connection_id, approval_serial,
+                          false);
+    return;
+  }
+  base::WeakPtr<Profile> weak_profile = profile->GetWeakPtr();
+  BrowserWindowInterface* browser = EnsureRegularBrowserForProfile(profile);
+  ConnectionState* current = FindConnection(connection_generation);
+  if (!current || current->closing ||
+      current->connection_id != connection_id || !current->client_info ||
+      current->space_approval_state != ApprovalState::kNotRequested) {
+    return;
+  }
+  if (!browser || !weak_profile) {
+    FailQueuedSpaceCalls(
+        *current,
         MakeDaoToolError(DaoToolErrorCode::kTargetGone,
                          "Open a regular Dao browser window, then retry. "
                          "Background spaces use that window's profile.",
                          true));
     return;
   }
-  connection.space_profile = profile->GetWeakPtr();
-  connection.space_approval_state = ApprovalState::kPending;
-  const uint64_t approval_serial = ++connection.space_approval_serial;
-  DaoMcpApprovalRequest request(*connection.client_info, std::move(reason),
+  current->space_profile = weak_profile;
+  current->space_approval_state = ApprovalState::kPending;
+  const uint64_t approval_serial = ++current->space_approval_serial;
+  DaoMcpApprovalRequest request(*current->client_info, std::move(reason),
                                 base::Time::Now());
   request.background_space = true;
-  const uint64_t connection_generation = connection.generation;
-  const std::string connection_id = connection.connection_id;
-  connection.space_approval_timer.Start(
+  current->space_approval_timer.Start(
       FROM_HERE, approval_timeout_,
       base::BindOnce(&DaoMcpService::OnSpaceApprovalTimeout,
                      weak_factory_.GetWeakPtr(), connection_generation,
                      connection_id));
-  if (!approval_delegate_) {
-    OnSpaceApprovalResult(connection_generation, connection_id, approval_serial,
-                          false);
-    return;
-  }
   approval_delegate_->RequestApproval(
       request, browser, SpaceApprovalId(connection_id),
       base::BindOnce(&DaoMcpService::OnSpaceApprovalResult,

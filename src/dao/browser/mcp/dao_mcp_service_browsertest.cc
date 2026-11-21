@@ -57,6 +57,8 @@
 #include "chrome/browser/profiles/profiles_state.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/common/chrome_paths.h"
@@ -80,6 +82,7 @@
 #include "dao/browser/ui/views/dao_agent_cursor_view.h"
 #include "dao/browser/ui/views/dao_mcp_control_banner_view.h"
 #include "dao/browser/ui/views/dao_tab_identity.h"
+#include "dao/browser/ui/views/little_dao/dao_little_dao_controller.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/base_window.h"
 #include "ui/base/hit_test.h"
@@ -2110,6 +2113,274 @@ IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
   approval.Resolve(false);
   ASSERT_TRUE(replacement->Read());
   service_->SetSpaceApprovalClockForTesting(nullptr);
+}
+
+IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,
+                       SpaceCallsWorkWhileLittleDaoIsActiveAndReuseRegularWindow) {
+  FakeApprovalDelegate approval;
+  service_->SetApprovalDelegate(&approval);
+  EnableService();
+
+  BrowserWindowInterface* little_dao = DaoLittleDaoController::OpenInLittleDao(
+      browser()->GetProfile(), embedded_test_server()->GetURL("/title1.html"));
+  ASSERT_NE(nullptr, little_dao);
+  ASSERT_EQ(BrowserWindowInterface::TYPE_POPUP, little_dao->GetType());
+  little_dao->GetWindow()->Activate();
+  ui_test_utils::WaitForBrowserSetLastActive(little_dao);
+  ASSERT_EQ(little_dao,
+            GlobalBrowserCollection::GetInstance()->GetLastActiveBrowser());
+
+  auto count_user_normal_windows = []() {
+    size_t count = 0;
+    ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
+        [&](BrowserWindowInterface* candidate) {
+          if (candidate->GetType() == BrowserWindowInterface::TYPE_NORMAL &&
+              !DaoAgentSpaceService::IsAgentSpaceBrowser(candidate)) {
+            ++count;
+          }
+          return true;
+        });
+    return count;
+  };
+  ASSERT_EQ(1u, count_user_normal_windows());
+
+  auto client = ConnectClient();
+  ASSERT_TRUE(client->Send(HelloRequest(nonce())));
+  ASSERT_TRUE(client->Read());
+  ASSERT_TRUE(client->Send(ToolCall(
+      "create-from-little-dao", "create_space",
+      base::DictValue().Set("name", "Mini Dao background task"))));
+  WaitForApprovalRequestCount(&approval, 1u);
+  EXPECT_TRUE(approval.request().background_space);
+  EXPECT_EQ(browser(), approval.browser());
+  EXPECT_EQ(1u, count_user_normal_windows());
+  approval.Resolve(true);
+
+  auto response = client->Read();
+  ASSERT_TRUE(response);
+  const std::string* space_id =
+      response->FindStringByDottedPath("result.data.space_id");
+  ASSERT_TRUE(space_id) << response->DebugString();
+
+  // Re-activate Mini Dao and verify a new connection reuses the one-hour grant
+  // without opening another window or prompting again.
+  little_dao->GetWindow()->Activate();
+  ui_test_utils::WaitForBrowserSetLastActive(little_dao);
+  auto followup = ConnectClient();
+  ASSERT_TRUE(followup->Send(HelloRequest(nonce())));
+  ASSERT_TRUE(followup->Read());
+  ASSERT_TRUE(followup->Send(ToolCall(
+      "info-from-little-dao", "get_page_info",
+      base::DictValue().Set("space_id", *space_id))));
+  response = followup->Read();
+  ASSERT_TRUE(response);
+  EXPECT_EQ(true, response->FindBoolByDottedPath("result.ok"))
+      << response->DebugString();
+  EXPECT_EQ(1u, approval.request_count());
+  EXPECT_EQ(1u, count_user_normal_windows());
+
+  // Existing-window Dao Browser calls remain restricted to regular windows.
+  auto page_client = ConnectClient();
+  ASSERT_TRUE(page_client->Send(HelloRequest(nonce())));
+  ASSERT_TRUE(page_client->Read());
+  ASSERT_TRUE(page_client->Send(ToolCall("page-list", "list_tabs")));
+  response = page_client->Read();
+  ASSERT_TRUE(response);
+  ASSERT_TRUE(response->FindStringByDottedPath("error.code"))
+      << response->DebugString();
+  EXPECT_EQ("TARGET_FORBIDDEN", *response->FindStringByDottedPath("error.code"));
+  EXPECT_EQ(1u, approval.request_count());
+
+  DaoAgentSpaceService::GetForProfile(browser()->GetProfile())->Stop(*space_id);
+  CloseBrowserSynchronously(little_dao);
+}
+
+IN_PROC_BROWSER_TEST_F(
+    DaoMcpServiceBrowserTest,
+    SpaceCallsWorkWithoutRegularWindowWhenOnlyLittleDaoIsOpen) {
+  EnableService();
+
+  Profile* profile = browser()->GetProfile();
+  BrowserWindowInterface* little_dao = DaoLittleDaoController::OpenInLittleDao(
+      profile, embedded_test_server()->GetURL("/title1.html"));
+  ASSERT_NE(nullptr, little_dao);
+  CloseBrowserSynchronously(browser());
+
+  auto count_user_normal_windows = []() {
+    size_t count = 0;
+    ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
+        [&](BrowserWindowInterface* candidate) {
+          if (candidate->GetType() == BrowserWindowInterface::TYPE_NORMAL &&
+              !DaoAgentSpaceService::IsAgentSpaceBrowser(candidate)) {
+            ++count;
+          }
+          return true;
+        });
+    return count;
+  };
+  ASSERT_EQ(0u, count_user_normal_windows());
+
+  BrowserWindowInterface* approval_browser = nullptr;
+  {
+    FakeApprovalDelegate approval;
+    service_->SetApprovalDelegate(&approval);
+
+    // Already-authorized calls run silently without creating a regular window.
+    service_->SetSpaceYoloModeEnabled(true);
+    auto yolo_client = ConnectClient();
+    ASSERT_TRUE(yolo_client->Send(HelloRequest(nonce())));
+    ASSERT_TRUE(yolo_client->Read());
+    ASSERT_TRUE(yolo_client->Send(ToolCall(
+        "yolo-create", "create_space",
+        base::DictValue().Set("name", "Silent background task"))));
+    auto response = yolo_client->Read();
+    ASSERT_TRUE(response);
+    const std::string* space_id =
+        response->FindStringByDottedPath("result.data.space_id");
+    ASSERT_TRUE(space_id) << response->DebugString();
+    EXPECT_EQ(0u, approval.request_count());
+    EXPECT_EQ(0u, count_user_normal_windows());
+    DaoAgentSpaceService::GetForProfile(profile)->Stop(*space_id);
+
+    // When approval is required and no regular window exists, Dao opens one for
+    // that profile to host the approval dialog.
+    service_->SetSpaceYoloModeEnabled(false);
+    auto approval_client = ConnectClient();
+    ASSERT_TRUE(approval_client->Send(HelloRequest(nonce())));
+    ASSERT_TRUE(approval_client->Read());
+    ASSERT_TRUE(
+        approval_client->Send(ToolCall("needs-approval", "list_spaces")));
+    WaitForApprovalRequestCount(&approval, 1u);
+    EXPECT_TRUE(approval.request().background_space);
+    approval_browser = approval.browser();
+    ASSERT_NE(nullptr, approval_browser);
+    EXPECT_EQ(BrowserWindowInterface::TYPE_NORMAL, approval_browser->GetType());
+    EXPECT_EQ(profile, approval_browser->GetProfile());
+    EXPECT_FALSE(DaoAgentSpaceService::IsAgentSpaceBrowser(approval_browser));
+    EXPECT_EQ(1u, count_user_normal_windows());
+    approval.Resolve(true);
+    response = approval_client->Read();
+    ASSERT_TRUE(response);
+    EXPECT_EQ(true, response->FindBoolByDottedPath("result.ok"))
+        << response->DebugString();
+
+    service_->SetApprovalDelegate(nullptr);
+  }
+
+  SetBrowser(CreateBrowser(profile));
+  CloseBrowserSynchronously(approval_browser);
+  CloseBrowserSynchronously(little_dao);
+}
+
+IN_PROC_BROWSER_TEST_F(
+    DaoMcpServiceBrowserTest,
+    SpaceCallsFallBackToSoleLoadedProfileAndFailClosedWhenAmbiguous) {
+  EnableService();
+
+  Profile* profile = browser()->GetProfile();
+  BrowserWindowInterface* incognito = CreateIncognitoBrowser(profile);
+  ASSERT_NE(nullptr, incognito);
+  CloseBrowserSynchronously(browser());
+
+  auto count_user_normal_windows = []() {
+    size_t count = 0;
+    ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
+        [&](BrowserWindowInterface* candidate) {
+          if (candidate->GetType() == BrowserWindowInterface::TYPE_NORMAL &&
+              !candidate->GetProfile()->IsOffTheRecord() &&
+              !DaoAgentSpaceService::IsAgentSpaceBrowser(candidate)) {
+            ++count;
+          }
+          return true;
+        });
+    return count;
+  };
+  ASSERT_EQ(0u, count_user_normal_windows());
+
+  BrowserWindowInterface* secondary_little_dao = nullptr;
+  BrowserWindowInterface* secondary_approval_browser = nullptr;
+  {
+    FakeApprovalDelegate approval;
+    service_->SetApprovalDelegate(&approval);
+
+    // With only an Incognito window open and a single loaded regular profile,
+    // authorized Dao Lite calls use that regular profile without opening a
+    // window.
+    service_->SetSpaceYoloModeEnabled(true);
+    auto single_profile_client = ConnectClient();
+    ASSERT_TRUE(single_profile_client->Send(HelloRequest(nonce())));
+    ASSERT_TRUE(single_profile_client->Read());
+    ASSERT_TRUE(
+        single_profile_client->Send(ToolCall("single-profile", "list_spaces")));
+    auto response = single_profile_client->Read();
+    ASSERT_TRUE(response);
+    EXPECT_EQ(true, response->FindBoolByDottedPath("result.ok"))
+        << response->DebugString();
+    EXPECT_EQ(0u, approval.request_count());
+    EXPECT_EQ(0u, count_user_normal_windows());
+
+    // With multiple loaded regular profiles and no open regular-profile window,
+    // Dao Lite fails closed instead of guessing a profile.
+    ProfileManager* profile_manager = g_browser_process->profile_manager();
+    ASSERT_NE(nullptr, profile_manager);
+    Profile& secondary = profiles::testing::CreateProfileSync(
+        profile_manager, profile_manager->GenerateNextProfileDirectoryPath());
+    size_t regular_profile_count = 0;
+    for (Profile* loaded : profile_manager->GetLoadedProfiles()) {
+      if (loaded->IsRegularProfile()) {
+        ++regular_profile_count;
+      }
+    }
+    ASSERT_GE(regular_profile_count, 2u);
+
+    auto ambiguous_client = ConnectClient();
+    ASSERT_TRUE(ambiguous_client->Send(HelloRequest(nonce())));
+    ASSERT_TRUE(ambiguous_client->Read());
+    ASSERT_TRUE(ambiguous_client->Send(ToolCall("ambiguous", "list_spaces")));
+    response = ambiguous_client->Read();
+    ASSERT_TRUE(response);
+    ASSERT_TRUE(response->FindStringByDottedPath("error.code"))
+        << response->DebugString();
+    EXPECT_EQ("TARGET_GONE", *response->FindStringByDottedPath("error.code"));
+    EXPECT_EQ(0u, approval.request_count());
+    EXPECT_EQ(0u, count_user_normal_windows());
+
+    // Opening Mini Dao in the secondary profile disambiguates the profile and
+    // creates a regular approval window for that exact profile when approval is
+    // needed.
+    service_->SetSpaceYoloModeEnabled(false);
+    secondary_little_dao = DaoLittleDaoController::OpenInLittleDao(
+        &secondary, embedded_test_server()->GetURL("/title1.html"));
+    ASSERT_NE(nullptr, secondary_little_dao);
+    secondary_little_dao->GetWindow()->Activate();
+    ui_test_utils::WaitForBrowserSetLastActive(secondary_little_dao);
+
+    auto secondary_client = ConnectClient();
+    ASSERT_TRUE(secondary_client->Send(HelloRequest(nonce())));
+    ASSERT_TRUE(secondary_client->Read());
+    ASSERT_TRUE(
+        secondary_client->Send(ToolCall("secondary-lite", "list_spaces")));
+    WaitForApprovalRequestCount(&approval, 1u);
+    secondary_approval_browser = approval.browser();
+    ASSERT_NE(nullptr, secondary_approval_browser);
+    EXPECT_EQ(&secondary, secondary_approval_browser->GetProfile());
+    EXPECT_EQ(BrowserWindowInterface::TYPE_NORMAL,
+              secondary_approval_browser->GetType());
+    approval.Resolve(false);
+    response = secondary_client->Read();
+    ASSERT_TRUE(response);
+    ASSERT_TRUE(response->FindStringByDottedPath("error.code"))
+        << response->DebugString();
+    EXPECT_EQ("AUTHORIZATION_DENIED",
+              *response->FindStringByDottedPath("error.code"));
+
+    service_->SetApprovalDelegate(nullptr);
+  }
+
+  SetBrowser(CreateBrowser(profile));
+  CloseBrowserSynchronously(secondary_approval_browser);
+  CloseBrowserSynchronously(secondary_little_dao);
+  CloseBrowserSynchronously(incognito);
 }
 
 IN_PROC_BROWSER_TEST_F(DaoMcpServiceBrowserTest,

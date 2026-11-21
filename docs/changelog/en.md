@@ -4,6 +4,7 @@
 
 ### [Unreleased] Unreleased
 
+- Run Dao Lite background tasks even when Mini Dao or another non-regular window is active, or when no regular Dao window is open; already-authorized tasks stay in the background without opening a window, and a regular window opens only when an approval prompt is needed.
 - Fix a crash when Windows local AI tools connect to Dao without specifying a user data directory.
 - After a manual step in Dao Lite, click Hand back to AI to continue the current task without sending another chat message.
 - Choose Always High Performance in site controls > More to automatically enable high performance mode whenever you visit that domain, even after restarting the browser.
