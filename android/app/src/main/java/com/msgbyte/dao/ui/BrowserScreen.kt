@@ -77,6 +77,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.clearText
+import androidx.compose.material3.DrawerState
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
@@ -573,7 +574,10 @@ fun BrowserScreen(
                             privateBrowsing = privateBrowsing,
                             tabCount = tabCount,
                             onTabs = openTabsFromComposePage,
-                            onSettings = { openUtility(BrowserDestination.Settings) },
+                            downloads = downloads,
+                            darkTheme = darkTheme,
+                            onDarkThemeChange = onDarkThemeChange,
+                            onOpen = openUtility,
                             onNavigate = navigate,
                         )
                         BrowserDestination.AddressEdit -> NewTabScreen(
@@ -585,7 +589,10 @@ fun BrowserScreen(
                             startExpanded = true,
                             tabCount = tabCount,
                             onTabs = openTabsFromComposePage,
-                            onSettings = { openUtility(BrowserDestination.Settings) },
+                            downloads = downloads,
+                            darkTheme = darkTheme,
+                            onDarkThemeChange = onDarkThemeChange,
+                            onOpen = openUtility,
                             onExitExpanded = {
                                 navigateTo(BrowserDestination.Browsing, BrowserNavigationDirection.Immediate)
                             },
@@ -813,12 +820,18 @@ private fun NewTabScreen(
     privateBrowsing: Boolean,
     tabCount: Int,
     onTabs: () -> Unit,
-    onSettings: () -> Unit,
+    downloads: SystemDownloadRepository,
+    darkTheme: Boolean,
+    onDarkThemeChange: (Boolean) -> Unit,
+    onOpen: (BrowserDestination) -> Unit,
     initialQuery: String = "",
     startExpanded: Boolean = false,
     onExitExpanded: (() -> Unit)? = null,
     onNavigate: (String) -> Unit,
 ) {
+    val drawerState = rememberDrawerState(DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
+    val activeDownloads = rememberActiveDownloads(downloads)
     val colors = LocalNovaColors.current
     val context = LocalContext.current
     val focusRequester = remember { FocusRequester() }
@@ -868,186 +881,213 @@ private fun NewTabScreen(
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(colors.background)
-            .windowInsetsPadding(WindowInsets.safeDrawing)
-            .testTag(NEW_TAB_SCREEN_TEST_TAG),
-    ) {
-        AnimatedVisibility(
-            visible = !searchExpanded,
-            modifier = Modifier.align(Alignment.TopEnd).padding(12.dp),
-            enter = fadeIn(tween(180)),
-            exit = fadeOut(tween(140)),
-        ) {
-            IconButton(onClick = onSettings) {
-                Icon(
-                    Lucide.Settings,
-                    contentDescription = stringResource(R.string.settings),
-                    tint = colors.muted,
-                    modifier = Modifier.size(20.dp),
-                )
-            }
-        }
-
-        AnimatedVisibility(
-            visible = !searchExpanded,
-            modifier = Modifier.align(Alignment.Center).offset(y = (-150).dp),
-            exit = fadeOut(tween(280)) + slideOutVertically { -14 },
-            enter = fadeIn(tween(280)) + slideInVertically { -14 },
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Image(
-                    painter = daoBrandLogoPainter(),
-                    contentDescription = stringResource(R.string.dao_logo_content_description),
-                    modifier = Modifier
-                        .size(64.dp)
-                        .padding(3.dp),
-                )
-                Spacer(Modifier.height(22.dp))
-                Text(
-                    formatNewTabDate(now.toLocalDate(), datePattern),
-                    color = colors.muted,
-                    fontSize = 11.sp,
-                    letterSpacing = 1.5.sp,
-                    fontFamily = FontFamily.Monospace,
-                )
-                Spacer(Modifier.height(9.dp))
-                Text(
-                    stringResource(
-                        when {
-                            privateBrowsing -> R.string.private_space
-                            else -> when (greetingPeriod(now.hour)) {
-                                GreetingPeriod.MORNING -> R.string.new_tab_greeting_morning
-                                GreetingPeriod.AFTERNOON -> R.string.new_tab_greeting_afternoon
-                                GreetingPeriod.EVENING -> R.string.new_tab_greeting_evening
-                            }
-                        },
-                    ),
-                    color = colors.foreground,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    stringResource(R.string.new_tab_question),
-                    color = colors.muted,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
-            }
-        }
-
-        SearchField(
-            state = queryState,
-            expanded = searchExpanded,
-            onActivate = {
-                if (searchExpanded) {
-                    // The input only covers part of the pill. Taps elsewhere on it must still
-                    // reopen a keyboard the user dismissed while the input kept focus.
-                    focusRequester.requestFocus()
-                    keyboardController?.show()
-                } else {
-                    searchExpanded = true
-                }
-            },
-            onTrailingClick = {
-                if (searchExpanded) {
-                    if (query.isNotBlank()) {
-                        queryState.clearText()
-                    } else if (onExitExpanded != null) {
-                        onExitExpanded()
-                    } else {
-                        searchExpanded = false
-                    }
-                } else {
-                    scannerOpen = true
-                }
-            },
-            onSubmit = { if (query.isNotBlank()) onNavigate(query) },
-            tabCount = tabCount,
-            privateBrowsing = privateBrowsing,
-            onTabs = onTabs,
-            focusRequester = focusRequester,
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .offset(y = topOffset)
-                .padding(horizontal = 20.dp),
-        )
-
-        AnimatedVisibility(
-            visible = privateBrowsing && !searchExpanded,
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .offset(y = topOffset + 70.dp)
-                .padding(horizontal = 32.dp),
-            enter = fadeIn(tween(280)),
-            exit = fadeOut(tween(140)),
-        ) {
-            Text(
-                stringResource(R.string.private_new_tab_hint),
-                color = colors.muted,
-                fontSize = 12.sp,
-                lineHeight = 18.sp,
-                textAlign = TextAlign.Center,
-            )
-        }
-
-        AnimatedVisibility(
-            visible = searchExpanded,
-            modifier = Modifier.padding(top = 88.dp),
-            enter = fadeIn(tween(260, delayMillis = 40)) + slideInVertically { 8 },
-            exit = fadeOut(tween(160)),
-        ) {
-            Column {
-                if (initialQuery.isNotBlank()) {
-                    val copyLabel = stringResource(R.string.copy_url)
-                    Row(
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        AddressActionButton(Lucide.ScanLine, R.string.scan_qr, Modifier.weight(1f)) {
-                            keyboardController?.hide()
+    BrowserDrawerLayout(
+        drawerState = drawerState,
+        drawerContent = {
+            Column(
+                Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).padding(top = 16.dp),
+            ) {
+                BrowserMenuItems(
+                    activeDownloadCount = activeDownloads.count,
+                    darkTheme = darkTheme,
+                    onDarkThemeChange = onDarkThemeChange,
+                    onScan = {
+                        scope.launch {
+                            drawerState.close()
                             scannerOpen = true
                         }
-                        AddressActionButton(Lucide.Copy, R.string.copy_url, Modifier.weight(1f)) {
-                            context.getSystemService(ClipboardManager::class.java).setPrimaryClip(
-                                ClipData.newPlainText(copyLabel, initialQuery),
-                            )
-                            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-                                Toast.makeText(context, R.string.url_copied, Toast.LENGTH_SHORT).show()
-                            }
+                    },
+                    onOpen = { target ->
+                        scope.launch {
+                            drawerState.close()
+                            onOpen(target)
                         }
-                        AddressActionButton(Lucide.Share, R.string.share_link, Modifier.weight(1f)) {
-                            keyboardController?.hide()
-                            val intent = Intent(Intent.ACTION_SEND).apply {
-                                type = "text/plain"
-                                putExtra(Intent.EXTRA_TEXT, initialQuery)
-                            }
-                            context.startActivity(Intent.createChooser(intent, null))
-                        }
-                    }
-                }
-                SuggestionList(
-                    browserIcons = browserIcons,
-                    privateBrowsing = privateBrowsing,
-                    query = query,
-                    results = results,
-                    onNavigate = { suggestion ->
-                        onNavigate(if (suggestion.type == SuggestionType.Search) suggestion.title else suggestion.target)
                     },
                 )
             }
-        }
+        },
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(colors.background)
+                .windowInsetsPadding(WindowInsets.safeDrawing)
+                .testTag(NEW_TAB_SCREEN_TEST_TAG),
+        ) {
+            AnimatedVisibility(
+                visible = !searchExpanded,
+                modifier = Modifier.align(Alignment.TopEnd).padding(12.dp),
+                enter = fadeIn(tween(180)),
+                exit = fadeOut(tween(140)),
+            ) {
+                IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                    Icon(
+                        Lucide.Ellipsis,
+                        contentDescription = stringResource(R.string.menu),
+                        tint = colors.muted,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+            }
 
-        if (scannerOpen) {
-            ScannerOverlay(
-                onClose = { scannerOpen = false },
-                onResult = { content ->
-                    scannerOpen = false
-                    onNavigate(content)
+            AnimatedVisibility(
+                visible = !searchExpanded,
+                modifier = Modifier.align(Alignment.Center).offset(y = (-150).dp),
+                exit = fadeOut(tween(280)) + slideOutVertically { -14 },
+                enter = fadeIn(tween(280)) + slideInVertically { -14 },
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Image(
+                        painter = daoBrandLogoPainter(),
+                        contentDescription = stringResource(R.string.dao_logo_content_description),
+                        modifier = Modifier
+                            .size(64.dp)
+                            .padding(3.dp),
+                    )
+                    Spacer(Modifier.height(22.dp))
+                    Text(
+                        formatNewTabDate(now.toLocalDate(), datePattern),
+                        color = colors.muted,
+                        fontSize = 11.sp,
+                        letterSpacing = 1.5.sp,
+                        fontFamily = FontFamily.Monospace,
+                    )
+                    Spacer(Modifier.height(9.dp))
+                    Text(
+                        stringResource(
+                            when {
+                                privateBrowsing -> R.string.private_space
+                                else -> when (greetingPeriod(now.hour)) {
+                                    GreetingPeriod.MORNING -> R.string.new_tab_greeting_morning
+                                    GreetingPeriod.AFTERNOON -> R.string.new_tab_greeting_afternoon
+                                    GreetingPeriod.EVENING -> R.string.new_tab_greeting_evening
+                                }
+                            },
+                        ),
+                        color = colors.foreground,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        stringResource(R.string.new_tab_question),
+                        color = colors.muted,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+            }
+
+            SearchField(
+                state = queryState,
+                expanded = searchExpanded,
+                onActivate = {
+                    if (searchExpanded) {
+                        // The input only covers part of the pill. Taps elsewhere on it must still
+                        // reopen a keyboard the user dismissed while the input kept focus.
+                        focusRequester.requestFocus()
+                        keyboardController?.show()
+                    } else {
+                        searchExpanded = true
+                    }
                 },
+                onTrailingClick = {
+                    if (searchExpanded) {
+                        if (query.isNotBlank()) {
+                            queryState.clearText()
+                        } else if (onExitExpanded != null) {
+                            onExitExpanded()
+                        } else {
+                            searchExpanded = false
+                        }
+                    } else {
+                        scannerOpen = true
+                    }
+                },
+                onSubmit = { if (query.isNotBlank()) onNavigate(query) },
+                tabCount = tabCount,
+                privateBrowsing = privateBrowsing,
+                onTabs = onTabs,
+                focusRequester = focusRequester,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .offset(y = topOffset)
+                    .padding(horizontal = 20.dp),
             )
+
+            AnimatedVisibility(
+                visible = privateBrowsing && !searchExpanded,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .offset(y = topOffset + 70.dp)
+                    .padding(horizontal = 32.dp),
+                enter = fadeIn(tween(280)),
+                exit = fadeOut(tween(140)),
+            ) {
+                Text(
+                    stringResource(R.string.private_new_tab_hint),
+                    color = colors.muted,
+                    fontSize = 12.sp,
+                    lineHeight = 18.sp,
+                    textAlign = TextAlign.Center,
+                )
+            }
+
+            AnimatedVisibility(
+                visible = searchExpanded,
+                modifier = Modifier.padding(top = 88.dp),
+                enter = fadeIn(tween(260, delayMillis = 40)) + slideInVertically { 8 },
+                exit = fadeOut(tween(160)),
+            ) {
+                Column {
+                    if (initialQuery.isNotBlank()) {
+                        val copyLabel = stringResource(R.string.copy_url)
+                        Row(
+                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            AddressActionButton(Lucide.ScanLine, R.string.scan_qr, Modifier.weight(1f)) {
+                                keyboardController?.hide()
+                                scannerOpen = true
+                            }
+                            AddressActionButton(Lucide.Copy, R.string.copy_url, Modifier.weight(1f)) {
+                                context.getSystemService(ClipboardManager::class.java).setPrimaryClip(
+                                    ClipData.newPlainText(copyLabel, initialQuery),
+                                )
+                                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                                    Toast.makeText(context, R.string.url_copied, Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                            AddressActionButton(Lucide.Share, R.string.share_link, Modifier.weight(1f)) {
+                                keyboardController?.hide()
+                                val intent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_TEXT, initialQuery)
+                                }
+                                context.startActivity(Intent.createChooser(intent, null))
+                            }
+                        }
+                    }
+                    SuggestionList(
+                        browserIcons = browserIcons,
+                        privateBrowsing = privateBrowsing,
+                        query = query,
+                        results = results,
+                        onNavigate = { suggestion ->
+                            onNavigate(if (suggestion.type == SuggestionType.Search) suggestion.title else suggestion.target)
+                        },
+                    )
+                }
+            }
+
+            if (scannerOpen) {
+                ScannerOverlay(
+                    onClose = { scannerOpen = false },
+                    onResult = { content ->
+                        scannerOpen = false
+                        onNavigate(content)
+                    },
+                )
+            }
         }
     }
 }
@@ -1389,6 +1429,27 @@ private fun ScannerOverlay(
 }
 
 @Composable
+private fun rememberActiveDownloads(downloads: SystemDownloadRepository): ActiveDownloadSummary {
+    val downloadItems by downloads.downloads.collectAsStateWithLifecycle()
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+
+    LaunchedEffect(downloads, lifecycle) {
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) {
+                try {
+                    downloads.refresh()
+                } catch (error: Exception) {
+                    if (error is CancellationException) throw error
+                }
+                delay(1_000)
+            }
+        }
+    }
+
+    return remember(downloadItems) { downloadItems.activeDownloadSummary() }
+}
+
+@Composable
 private fun BrowsingScreen(
     engine: Engine,
     controller: BrowserTabsController,
@@ -1410,34 +1471,18 @@ private fun BrowsingScreen(
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    val outerDirection = LocalLayoutDirection.current
     val content = tab?.content
     val privateBrowsing = content?.private == true
     // In the private space the chrome and the frame around the page share the space color.
     val chromeColor = if (privateBrowsing) colors.background else colors.surface
     val bookmarks by library.bookmarks.collectAsStateWithLifecycle()
-    val downloadItems by downloads.downloads.collectAsStateWithLifecycle()
-    val activeDownloads = remember(downloadItems) { downloadItems.activeDownloadSummary() }
-    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    val activeDownloads = rememberActiveDownloads(downloads)
     val isBookmarked = bookmarks.any { it.url == content?.url && it.kind == BookmarkKind.FAVORITE }
     var findOpen by remember { mutableStateOf(false) }
     var scannerOpen by remember { mutableStateOf(false) }
     var securitySheetOpen by remember { mutableStateOf(false) }
     var refreshRequested by remember { mutableStateOf(false) }
     var refreshObservedLoading by remember { mutableStateOf(false) }
-
-    LaunchedEffect(downloads, lifecycle) {
-        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
-            while (true) {
-                try {
-                    downloads.refresh()
-                } catch (error: Exception) {
-                    if (error is CancellationException) throw error
-                }
-                delay(1_000)
-            }
-        }
-    }
 
     LaunchedEffect(tab?.id) {
         refreshRequested = false
@@ -1467,159 +1512,144 @@ private fun BrowsingScreen(
         controller.goBack()
     }
 
-    androidx.compose.runtime.CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-        ModalNavigationDrawer(
-            drawerState = drawerState,
-            gesturesEnabled = drawerState.isOpen,
-            drawerContent = {
-                // The sheet stays in the RTL wrapper so predictive back and its insets match its
-                // right-side position; only the drawer content uses the app's layout direction.
-                ModalDrawerSheet(
-                    drawerState = drawerState,
-                    modifier = Modifier.fillMaxHeight().width(300.dp),
-                    drawerContainerColor = colors.surface,
-                ) {
-                    androidx.compose.runtime.CompositionLocalProvider(LocalLayoutDirection provides outerDirection) {
-                        BrowserDrawer(
-                            controller = controller,
-                            canGoBack = content?.canGoBack == true,
-                            canGoForward = content?.canGoForward == true,
-                            isBookmarked = isBookmarked,
-                            activeDownloadCount = activeDownloads.count,
-                            darkTheme = darkTheme,
-                            onDarkThemeChange = onDarkThemeChange,
-                            onToggleBookmark = {
-                                scope.launch {
-                                    runCatching {
-                                        library.toggleBookmark(
-                                            content?.url.orEmpty(),
-                                            content?.let { it.title.ifBlank { it.url } }.orEmpty(),
-                                        )
-                                    }
-                                }
-                            },
-                            onFind = {
-                                scope.launch { drawerState.close() }
-                                findOpen = true
-                            },
-                            onReload = {
-                                scope.launch {
-                                    drawerState.close()
-                                    controller.reload()
-                                }
-                            },
-                            onShare = {
-                                val intent = Intent(Intent.ACTION_SEND).apply {
-                                    type = "text/plain"
-                                    putExtra(Intent.EXTRA_TEXT, content?.url.orEmpty())
-                                }
-                                context.startActivity(Intent.createChooser(intent, null))
-                            },
-                            onHome = {
-                                scope.launch {
-                                    drawerState.close()
-                                    onHome()
-                                }
-                            },
-                            onScan = {
-                                scope.launch {
-                                    drawerState.close()
-                                    scannerOpen = true
-                                }
-                            },
-                            onOpen = { target ->
-                                scope.launch { drawerState.close() }
-                                onOpen(target)
-                            },
-                        )
-                    }
-                }
-            },
-        ) {
-            androidx.compose.runtime.CompositionLocalProvider(LocalLayoutDirection provides outerDirection) {
-                Box(Modifier.fillMaxSize().background(colors.background)) {
-                    Column(
-                        Modifier
-                            .fillMaxSize()
-                            .windowInsetsPadding(WindowInsets.engineSafeDrawing)
-                            .background(chromeColor),
-                    ) {
-                        AddressBar(
-                            url = content?.url.orEmpty(),
-                            isSecure = content?.securityInfo?.isSecure == true,
-                            privateBrowsing = privateBrowsing,
-                            tabCount = tabCount,
-                            loading = content?.loading == true,
-                            progress = content?.progress ?: 0,
-                            onSecurityClick = { securitySheetOpen = true },
-                            onAddressClick = { onEditAddress(content?.url.orEmpty()) },
-                            onTabs = onOpenTabs,
-                            onMenu = { scope.launch { drawerState.open() } },
-                            activeDownloads = activeDownloads,
-                        )
-                        if (findOpen) {
-                            FindInPageBar(
-                                result = content?.findResults?.lastOrNull(),
-                                onQueryChange = { query ->
-                                    if (query.isBlank()) controller.clearFindMatches() else controller.findAll(query)
-                                },
-                                onPrevious = { controller.findNext(false) },
-                                onNext = { controller.findNext(true) },
-                                onClose = {
-                                    findOpen = false
-                                    controller.clearFindMatches()
-                                },
+    BrowserDrawerLayout(
+        drawerState = drawerState,
+        drawerContent = {
+            BrowserDrawer(
+                controller = controller,
+                canGoBack = content?.canGoBack == true,
+                canGoForward = content?.canGoForward == true,
+                isBookmarked = isBookmarked,
+                activeDownloadCount = activeDownloads.count,
+                darkTheme = darkTheme,
+                onDarkThemeChange = onDarkThemeChange,
+                onToggleBookmark = {
+                    scope.launch {
+                        runCatching {
+                            library.toggleBookmark(
+                                content?.url.orEmpty(),
+                                content?.let { it.title.ifBlank { it.url } }.orEmpty(),
                             )
                         }
-                        val session = tab?.engineState?.engineSession
-                        if (session != null) {
-                            Box(
-                                Modifier
-                                    .weight(1f)
-                                    .fillMaxWidth()
-                                    .then(
-                                        if (privateBrowsing) {
-                                            Modifier.padding(start = 6.dp, end = 6.dp, bottom = 6.dp)
-                                        } else {
-                                            Modifier
-                                        },
-                                    ),
-                            ) {
-                                BrowserSurface(
-                                    engine = engine,
-                                    session = session,
-                                    modifier = Modifier.fillMaxSize().testTag(BROWSER_SURFACE_TEST_TAG),
-                                    thumbnailCapture = thumbnailCapture,
-                                    refreshing = refreshRequested,
-                                    onRefresh = {
-                                        refreshRequested = true
-                                        refreshObservedLoading = false
-                                        controller.reload()
-                                    },
-                                )
-                                if (privateBrowsing) {
-                                    PageCornerMask(color = chromeColor, radius = 14.dp)
-                                }
-                                EdgeBackGesture(
-                                    enabled = content?.canGoBack == true && drawerState.isClosed,
-                                    onBack = controller::goBack,
-                                    modifier = Modifier.align(Alignment.CenterStart),
-                                )
-                            }
-                        } else {
-                            Box(Modifier.weight(1f).fillMaxWidth())
-                        }
                     }
-                    if (scannerOpen) {
-                        ScannerOverlay(
-                            onClose = { scannerOpen = false },
-                            onResult = { result ->
-                                scannerOpen = false
-                                onNavigate(result)
+                },
+                onFind = {
+                    scope.launch { drawerState.close() }
+                    findOpen = true
+                },
+                onReload = {
+                    scope.launch {
+                        drawerState.close()
+                        controller.reload()
+                    }
+                },
+                onShare = {
+                    val intent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, content?.url.orEmpty())
+                    }
+                    context.startActivity(Intent.createChooser(intent, null))
+                },
+                onHome = {
+                    scope.launch {
+                        drawerState.close()
+                        onHome()
+                    }
+                },
+                onScan = {
+                    scope.launch {
+                        drawerState.close()
+                        scannerOpen = true
+                    }
+                },
+                onOpen = { target ->
+                    scope.launch { drawerState.close() }
+                    onOpen(target)
+                },
+            )
+        },
+    ) {
+        Box(Modifier.fillMaxSize().background(colors.background)) {
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .windowInsetsPadding(WindowInsets.engineSafeDrawing)
+                    .background(chromeColor),
+            ) {
+                AddressBar(
+                    url = content?.url.orEmpty(),
+                    isSecure = content?.securityInfo?.isSecure == true,
+                    privateBrowsing = privateBrowsing,
+                    tabCount = tabCount,
+                    loading = content?.loading == true,
+                    progress = content?.progress ?: 0,
+                    onSecurityClick = { securitySheetOpen = true },
+                    onAddressClick = { onEditAddress(content?.url.orEmpty()) },
+                    onTabs = onOpenTabs,
+                    onMenu = { scope.launch { drawerState.open() } },
+                    activeDownloads = activeDownloads,
+                )
+                if (findOpen) {
+                    FindInPageBar(
+                        result = content?.findResults?.lastOrNull(),
+                        onQueryChange = { query ->
+                            if (query.isBlank()) controller.clearFindMatches() else controller.findAll(query)
+                        },
+                        onPrevious = { controller.findNext(false) },
+                        onNext = { controller.findNext(true) },
+                        onClose = {
+                            findOpen = false
+                            controller.clearFindMatches()
+                        },
+                    )
+                }
+                val session = tab?.engineState?.engineSession
+                if (session != null) {
+                    Box(
+                        Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                            .then(
+                                if (privateBrowsing) {
+                                    Modifier.padding(start = 6.dp, end = 6.dp, bottom = 6.dp)
+                                } else {
+                                    Modifier
+                                },
+                            ),
+                    ) {
+                        BrowserSurface(
+                            engine = engine,
+                            session = session,
+                            modifier = Modifier.fillMaxSize().testTag(BROWSER_SURFACE_TEST_TAG),
+                            thumbnailCapture = thumbnailCapture,
+                            refreshing = refreshRequested,
+                            onRefresh = {
+                                refreshRequested = true
+                                refreshObservedLoading = false
+                                controller.reload()
                             },
                         )
+                        if (privateBrowsing) {
+                            PageCornerMask(color = chromeColor, radius = 14.dp)
+                        }
+                        EdgeBackGesture(
+                            enabled = content?.canGoBack == true && drawerState.isClosed,
+                            onBack = controller::goBack,
+                            modifier = Modifier.align(Alignment.CenterStart),
+                        )
                     }
+                } else {
+                    Box(Modifier.weight(1f).fillMaxWidth())
                 }
+            }
+            if (scannerOpen) {
+                ScannerOverlay(
+                    onClose = { scannerOpen = false },
+                    onResult = { result ->
+                        scannerOpen = false
+                        onNavigate(result)
+                    },
+                )
             }
         }
     }
@@ -2029,6 +2059,60 @@ private fun TabCountButton(
 }
 
 @Composable
+private fun BrowserDrawerLayout(
+    drawerState: DrawerState,
+    drawerContent: @Composable () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    val colors = LocalNovaColors.current
+    val outerDirection = LocalLayoutDirection.current
+    androidx.compose.runtime.CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+        ModalNavigationDrawer(
+            drawerState = drawerState,
+            gesturesEnabled = drawerState.isOpen,
+            drawerContent = {
+                // Keep the sheet RTL so predictive back matches its right-side position.
+                ModalDrawerSheet(
+                    drawerState = drawerState,
+                    modifier = Modifier.fillMaxHeight().width(300.dp),
+                    drawerContainerColor = colors.surface,
+                ) {
+                    androidx.compose.runtime.CompositionLocalProvider(LocalLayoutDirection provides outerDirection) {
+                        drawerContent()
+                    }
+                }
+            },
+        ) {
+            androidx.compose.runtime.CompositionLocalProvider(LocalLayoutDirection provides outerDirection) {
+                content()
+            }
+        }
+    }
+}
+
+@Composable
+private fun BrowserMenuItems(
+    activeDownloadCount: Int,
+    darkTheme: Boolean,
+    onDarkThemeChange: (Boolean) -> Unit,
+    onScan: () -> Unit,
+    onOpen: (BrowserDestination) -> Unit,
+) {
+    DrawerItem(Lucide.ScanLine, R.string.scan_qr, onClick = onScan)
+    DrawerItem(Lucide.History, R.string.history) { onOpen(BrowserDestination.History) }
+    DrawerItem(Lucide.Bookmark, R.string.bookmarks) { onOpen(BrowserDestination.Bookmarks) }
+    DrawerItem(Lucide.Download, R.string.downloads, badgeCount = activeDownloadCount) {
+        onOpen(BrowserDestination.Downloads)
+    }
+    DrawerItem(Lucide.Puzzle, R.string.extensions) { onOpen(BrowserDestination.Extensions) }
+    DrawerItem(
+        if (darkTheme) Lucide.Sun else Lucide.Moon,
+        R.string.dark_mode,
+    ) { onDarkThemeChange(!darkTheme) }
+    DrawerItem(Lucide.Settings, R.string.settings) { onOpen(BrowserDestination.Settings) }
+}
+
+@Composable
 private fun BrowserDrawer(
     controller: BrowserTabsController,
     canGoBack: Boolean,
@@ -2066,18 +2150,7 @@ private fun BrowserDrawer(
         }
         HorizontalDivider(Modifier.padding(horizontal = 16.dp, vertical = 14.dp), color = colors.border)
         DrawerItem(Lucide.House, R.string.home, onClick = onHome)
-        DrawerItem(Lucide.ScanLine, R.string.scan_qr, onClick = onScan)
-        DrawerItem(Lucide.History, R.string.history) { onOpen(BrowserDestination.History) }
-        DrawerItem(Lucide.Bookmark, R.string.bookmarks) { onOpen(BrowserDestination.Bookmarks) }
-        DrawerItem(Lucide.Download, R.string.downloads, badgeCount = activeDownloadCount) {
-            onOpen(BrowserDestination.Downloads)
-        }
-        DrawerItem(Lucide.Puzzle, R.string.extensions) { onOpen(BrowserDestination.Extensions) }
-        DrawerItem(
-            if (darkTheme) Lucide.Sun else Lucide.Moon,
-            R.string.dark_mode,
-        ) { onDarkThemeChange(!darkTheme) }
-        DrawerItem(Lucide.Settings, R.string.settings) { onOpen(BrowserDestination.Settings) }
+        BrowserMenuItems(activeDownloadCount, darkTheme, onDarkThemeChange, onScan, onOpen)
     }
 }
 

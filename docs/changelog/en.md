@@ -808,6 +808,8 @@
 
 ### [Unreleased] Unreleased
 
+- Open History, Bookmarks, Downloads, Extensions, and Settings from the home page's menu, and return to the home page when you go back.
+
 ### [1.3.0] - 2026-11-16
 
 - Ongoing downloads now replace the top-right menu icon with a download icon and a circular progress ring that combines multiple downloads. The sidebar’s Downloads menu also shows how many downloads are still in progress.

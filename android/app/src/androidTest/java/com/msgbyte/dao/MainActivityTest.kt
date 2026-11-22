@@ -127,28 +127,63 @@ class MainActivityTest {
     }
 
     @Test
-    fun homepageSettingsButtonOpensSettingsAndReturnsHome() {
-        val settings = composeRule.activity.getString(R.string.settings)
+    fun homepageMenuOpensUtilitiesAndReturnsHome() {
+        val menu = composeRule.activity.getString(R.string.menu)
+        val tabs = composeRule.activity.getString(R.string.tab_switcher)
 
-        composeRule.onNodeWithContentDescription(settings).assertIsDisplayed().performClick()
-        composeRule.onNodeWithText(settings).assertIsDisplayed()
-        composeRule.onNodeWithContentDescription(
-            composeRule.activity.getString(R.string.navigate_back),
-        ).performClick()
+        listOf(R.string.history, R.string.bookmarks, R.string.downloads, R.string.extensions, R.string.settings)
+            .forEach { destination ->
+                composeRule.onNodeWithContentDescription(menu).assertIsDisplayed().performClick()
+                composeRule.onNodeWithText(composeRule.activity.getString(destination)).performClick()
+                composeRule.onNodeWithContentDescription(
+                    composeRule.activity.getString(R.string.navigate_back),
+                ).assertIsDisplayed()
+                pressSystemBack()
 
-        composeRule.onNodeWithTag(NEW_TAB_SCREEN_TEST_TAG).assertIsDisplayed()
-        composeRule.onNodeWithContentDescription(settings).assertIsDisplayed()
+                composeRule.onNodeWithTag(NEW_TAB_SCREEN_TEST_TAG).assertIsDisplayed()
+                composeRule.onNodeWithContentDescription(tabs).assertTextEquals("1")
+            }
     }
 
     @Test
-    fun homepageSettingsButtonHidesWhileSearchIsExpanded() {
-        val settings = composeRule.activity.getString(R.string.settings)
+    fun homepageMenuOmitsPageActionsAndBackClosesOnlyDrawer() {
+        val menu = composeRule.activity.getString(R.string.menu)
+        composeRule.onNodeWithContentDescription(menu).performClick()
+
+        listOf(R.string.back, R.string.forward, R.string.reload, R.string.share).forEach { action ->
+            composeRule.onAllNodesWithContentDescription(composeRule.activity.getString(action))
+                .assertCountEquals(0)
+        }
+        listOf(R.string.add_bookmark, R.string.find_in_page, R.string.home).forEach { action ->
+            composeRule.onAllNodesWithText(composeRule.activity.getString(action)).assertCountEquals(0)
+        }
+        composeRule.onNodeWithText(composeRule.activity.getString(R.string.dark_mode)).assertIsDisplayed()
+        pressSystemBack()
+
+        composeRule.onNodeWithTag(NEW_TAB_SCREEN_TEST_TAG).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(menu).assertIsDisplayed()
+        composeRule.onNodeWithText(composeRule.activity.getString(R.string.history)).assertIsNotDisplayed()
+    }
+
+    @Test
+    fun homepageMenuOpensScannerAndReturnsHome() {
+        composeRule.onNodeWithContentDescription(composeRule.activity.getString(R.string.menu)).performClick()
+        composeRule.onNodeWithText(composeRule.activity.getString(R.string.scan_qr)).performClick()
+        composeRule.onNodeWithContentDescription(composeRule.activity.getString(R.string.close_scanner))
+            .assertIsDisplayed().performClick()
+        composeRule.onNodeWithTag(NEW_TAB_SCREEN_TEST_TAG).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(composeRule.activity.getString(R.string.menu)).assertIsDisplayed()
+    }
+
+    @Test
+    fun homepageMenuButtonHidesWhileSearchIsExpanded() {
+        val menu = composeRule.activity.getString(R.string.menu)
         val addressHint = composeRule.activity.getString(R.string.address_hint)
 
-        composeRule.onNodeWithContentDescription(settings).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(menu).assertIsDisplayed()
         composeRule.onNodeWithText(addressHint).performClick()
 
-        composeRule.onAllNodesWithContentDescription(settings).assertCountEquals(0)
+        composeRule.onAllNodesWithContentDescription(menu).assertCountEquals(0)
     }
 
     @Test
@@ -238,7 +273,8 @@ class MainActivityTest {
         val settings = composeRule.activity.getString(R.string.settings)
         val menu = composeRule.activity.getString(R.string.menu)
 
-        composeRule.onNodeWithContentDescription(settings).performClick()
+        composeRule.onNodeWithContentDescription(menu).performClick()
+        composeRule.onNodeWithText(settings).performClick()
         assertAboutVersionIsTrailing()
         openAbout()
         composeRule.onNodeWithTag("about-screen").assertIsDisplayed()
@@ -298,8 +334,9 @@ class MainActivityTest {
     @Test
     fun settingsShowsLiveFontSizePreview() {
         composeRule.onNodeWithContentDescription(
-            composeRule.activity.getString(R.string.settings),
+            composeRule.activity.getString(R.string.menu),
         ).performClick()
+        composeRule.onNodeWithText(composeRule.activity.getString(R.string.settings)).performClick()
 
         composeRule.onNodeWithText(composeRule.activity.getString(R.string.font_preview_title))
             .assertIsDisplayed()
@@ -379,6 +416,12 @@ class MainActivityTest {
         openTabGrid()
         composeRule.onNodeWithText(activity.getString(R.string.private_tabs, 0)).performClick()
         pressSystemBack()
+        composeRule.onNodeWithContentDescription(privateMode).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(tabs).assertTextEquals("1")
+        composeRule.onNodeWithContentDescription(activity.getString(R.string.menu)).performClick()
+        composeRule.onNodeWithText(activity.getString(R.string.bookmarks)).performClick()
+        pressSystemBack()
+        composeRule.onNodeWithTag(NEW_TAB_SCREEN_TEST_TAG).assertIsDisplayed()
         composeRule.onNodeWithContentDescription(privateMode).assertIsDisplayed()
         composeRule.onNodeWithContentDescription(tabs).assertTextEquals("1")
         openTabGrid()
@@ -658,6 +701,14 @@ class MainActivityTest {
 
         composeRule.onNodeWithTag(NEW_TAB_SCREEN_TEST_TAG).assertIsDisplayed()
         composeRule.onNodeWithContentDescription(tabs).assertTextEquals("1")
+
+        composeRule.onNodeWithContentDescription(menu).performClick()
+        pressSystemBack()
+        composeRule.onNodeWithTag(NEW_TAB_SCREEN_TEST_TAG).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(menu).performClick()
+        composeRule.onNodeWithText(composeRule.activity.getString(R.string.history)).performClick()
+        pressSystemBack()
+        composeRule.onNodeWithTag(NEW_TAB_SCREEN_TEST_TAG).assertIsDisplayed()
 
         composeRule.runOnIdle {
             composeRule.activity.onBackPressedDispatcher.onBackPressed()
