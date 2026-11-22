@@ -4,6 +4,8 @@
 
 ### [Unreleased] Unreleased
 
+### [1.0.142] - 2026-11-23
+
 - See which tabs keep using a lot of CPU or memory, with sidebar indicators and persistent reminders that group affected background tabs; when Dao is in the background, receive one system notification and keep the reminder on return. Dismiss reminders or turn off the default-on checks in Settings > Performance. Copy feedback temporarily replaces the reminder, and long tab titles fit within the page.
 - Press Enter in the command bar to use the highlighted suggestion, with a separate option to search exactly what you typed. Deleting or cutting all or part of a completion clears the highlight, so Enter searches or opens your edited input. Selecting a suggestion, clearing or replacing all input by typing or pasting, or reopening the bar restores normal suggestion selection. Select All and deletion shortcuts work normally while previewing suggestions.
 - Run Dao Lite background tasks even when Mini Dao or another non-regular window is active, or when no regular Dao window is open; already-authorized tasks stay in the background without opening a window, and a regular window opens only when an approval prompt is needed.
