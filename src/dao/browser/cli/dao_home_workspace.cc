@@ -127,8 +127,7 @@ Result<std::vector<std::string>> Children(const Directory& dir) {
 #if BUILDFLAG(IS_WIN)
   base::FileEnumerator entries(dir.path, false,
                                base::FileEnumerator::FILES |
-                                   base::FileEnumerator::DIRECTORIES |
-                                   base::FileEnumerator::SHOW_SYM_LINKS);
+                                   base::FileEnumerator::DIRECTORIES);
   for (auto path = entries.Next(); !path.empty(); path = entries.Next()) {
     if (names.size() >= 2000)
       return base::unexpected("QUOTA_EXCEEDED");
