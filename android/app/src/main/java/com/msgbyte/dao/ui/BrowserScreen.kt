@@ -153,7 +153,7 @@ import com.composables.icons.lucide.ChevronDown
 import com.composables.icons.lucide.ChevronUp
 import com.composables.icons.lucide.Copy
 import com.composables.icons.lucide.Download
-import com.composables.icons.lucide.Ellipsis
+import com.composables.icons.lucide.EllipsisVertical
 import com.composables.icons.lucide.History
 import com.composables.icons.lucide.Lock
 import com.composables.icons.lucide.Globe
@@ -922,7 +922,7 @@ private fun NewTabScreen(
             ) {
                 IconButton(onClick = { scope.launch { drawerState.open() } }) {
                     Icon(
-                        Lucide.Ellipsis,
+                        Lucide.EllipsisVertical,
                         contentDescription = stringResource(R.string.menu),
                         tint = colors.muted,
                         modifier = Modifier.size(20.dp),
@@ -1890,7 +1890,7 @@ internal fun AddressBar(
                         Icon(Lucide.Download, stringResource(R.string.menu), tint = colors.brand, modifier = Modifier.size(16.dp))
                     }
                 } else {
-                    Icon(Lucide.Ellipsis, stringResource(R.string.menu), tint = colors.muted, modifier = Modifier.size(19.dp))
+                    Icon(Lucide.EllipsisVertical, stringResource(R.string.menu), tint = colors.muted, modifier = Modifier.size(19.dp))
                 }
             }
         }
