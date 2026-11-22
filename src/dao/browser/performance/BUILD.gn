@@ -1,0 +1,38 @@
+# Copyright 2026 Dao Browser Authors. All rights reserved.
+import("//testing/test.gni")
+
+source_set("resource_usage_state") {
+  sources = [
+    "dao_resource_usage_state.cc",
+    "dao_resource_usage_state.h",
+  ]
+  public_deps = [ "//base" ]
+}
+
+if (is_mac || is_win) {
+  # Reuse the existing Chrome test runner without unrelated browser test cases.
+  test("dao_resource_usage_tests") {
+    defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+    sources = [ "dao_resource_usage_unittest.cc" ]
+    deps = [
+      ":resource_usage_state",
+      "//base",
+      "//base/test:test_support",
+      "//chrome/browser/ui:ui",
+      "//chrome/test:test_support",
+      "//chrome/test:test_support_ui",
+      "//chrome/test/base:browser_tests_runner",
+      "//dao/browser/strings:dao_strings",
+      "//testing/gtest",
+      "//ui/views",
+      "//ui/views:test_support",
+    ]
+    data_deps = [ "//chrome:browser_tests_pak" ]
+    if (is_mac) {
+      sources += [ "//dao/browser/ui/views/dao_test_init_mac.mm" ]
+      data_deps += [ "//chrome", "//chrome:chrome_framework" ]
+    } else {
+      data_deps += [ "//chrome:packed_resources" ]
+    }
+  }
+}

@@ -750,6 +750,7 @@ DaoSidebarUIHandler::DaoSidebarUIHandler() {
 }
 
 DaoSidebarUIHandler::~DaoSidebarUIHandler() {
+  if (browser_) DaoResourceUsageMonitor::Get()->RemoveObserver(this);
   DaoUpdaterService::GetInstance()->RemoveObserver(this);
   download_notifier_.reset();
   UnregisterPinnedItemsProfileHandler();
@@ -782,12 +783,14 @@ void DaoSidebarUIHandler::SetBrowser(BrowserWindowInterface* browser) {
   }
 
   if (browser_) {
+    DaoResourceUsageMonitor::Get()->RemoveObserver(this);
     browser_->tab_strip_model()->RemoveObserver(this);
   }
   download_notifier_.reset();
   browser_ = browser;
   if (browser_) {
     browser_->tab_strip_model()->AddObserver(this);
+    DaoResourceUsageMonitor::Get()->AddObserver(this);
     if (browser_changed) {
       RegisterPinnedItemsProfileHandler();
     }
@@ -1181,6 +1184,7 @@ void DaoSidebarUIHandler::OnJavascriptAllowed() {
     PushFullState();
   }
   PushUpdateState();
+  RefreshResourceReminder();
 }
 
 void DaoSidebarUIHandler::OnJavascriptDisallowed() {
@@ -1189,6 +1193,79 @@ void DaoSidebarUIHandler::OnJavascriptDisallowed() {
   ++classification_generation_;
   classification_tab_urls_.clear();
   pending_download_animation_.reset();
+}
+
+namespace {
+const char* ResourceAlertName(content::WebContents* contents) {
+  if (!contents) return "";
+  switch (DaoResourceUsageMonitor::Get()->GetAlerts(contents)) {
+    case 1: return "cpu";
+    case 2: return "memory";
+    case 3: return "both";
+    default: return "";
+  }
+}
+}  // namespace
+
+void DaoSidebarUIHandler::OnResourceUsageChanged(content::WebContents* contents) {
+  if (!browser_) return;
+  if (IsJavascriptAllowed()) PushFullState();
+  RefreshResourceReminder();
+}
+
+bool DaoSidebarUIHandler::IsResourceAlertMediaPlaying(
+    content::WebContents* contents) const {
+  const auto media = media_tabs_.find(GetSidebarTabId(contents));
+  if (media == media_tabs_.end())
+    return false;
+  const auto& state = media->second;
+  return (state.playback_observer &&
+          state.playback_observer->HasPlayingPlayers()) ||
+         (!state.ended &&
+          state.muted_playback.value_or(
+              state.info ? state.info->playback_state
+                         : media_session::mojom::MediaPlaybackState::kPaused) ==
+              media_session::mojom::MediaPlaybackState::kPlaying);
+}
+
+void DaoSidebarUIHandler::RefreshResourceReminder() {
+  if (!browser_)
+    return;
+  auto* view = BrowserView::GetBrowserViewForBrowser(browser_);
+  if (!view || !view->dao_toast())
+    return;
+  auto* toast = view->dao_toast();
+  auto* monitor = DaoResourceUsageMonitor::Get();
+  auto tabs = monitor->GetReminderTabs(browser_);
+  if (tabs.empty()) {
+    toast->ClearPersistentToast();
+    return;
+  }
+  const bool single = tabs.size() == 1;
+  const int flags = monitor->GetAlerts(tabs.front());
+  const int message = flags == 1   ? IDS_DAO_RESOURCE_CPU_REMINDER
+                      : flags == 2 ? IDS_DAO_RESOURCE_MEMORY_REMINDER
+                                   : IDS_DAO_RESOURCE_BOTH_REMINDER;
+  auto profile = browser_->GetProfile()->GetWeakPtr();
+  toast->SetPersistentToast(
+      single ? l10n_util::GetStringFUTF16(
+                   message, tabs.front()->GetTitle().substr(0, 100))
+             : l10n_util::GetStringFUTF16(IDS_DAO_RESOURCE_SUMMARY,
+                                          base::NumberToString16(tabs.size())),
+      l10n_util::GetStringUTF16(single ? IDS_DAO_RESOURCE_VIEW_TAB
+                                       : IDS_DAO_RESOURCE_VIEW_USAGE),
+      base::BindRepeating(
+          [](base::WeakPtr<Profile> profile) {
+            if (profile)
+              DaoResourceUsageMonitor::Get()->InspectReminder(profile.get());
+          },
+          profile),
+      base::BindRepeating(
+          [](base::WeakPtr<Profile> profile) {
+            if (profile)
+              DaoResourceUsageMonitor::Get()->DismissReminder(profile.get());
+          },
+          profile));
 }
 
 void DaoSidebarUIHandler::OnDaoUpdateStatusChanged(const DaoUpdateStatus&) {
@@ -1206,6 +1283,7 @@ void DaoSidebarUIHandler::OnTabStripModelChanged(
     TabStripModel* tab_strip_model,
     const TabStripModelChange& change,
     const TabStripSelectionChange& selection) {
+  RefreshResourceReminder();
   bool pinned_state_changed = false;
   std::string stale_tab_selected_after_close;
   if (change.type() == TabStripModelChange::kReplaced) {
@@ -1322,6 +1400,7 @@ void DaoSidebarUIHandler::SelectNonStaleTab(
 
 void DaoSidebarUIHandler::OnTabChangedAt(tabs::TabInterface* tab,
                                          TabChangeType change_type) {
+  RefreshResourceReminder();
   if (!IsJavascriptAllowed() || !browser_) {
     return;
   }
@@ -1337,6 +1416,7 @@ void DaoSidebarUIHandler::OnTabPinnedStateChanged(tabs::TabInterface* tab,
 }
 
 void DaoSidebarUIHandler::OnSplitStateChanged() {
+  RefreshResourceReminder();
   ConsolidateSplitGroupTabs();
   PushFullState();
 }
@@ -1441,6 +1521,7 @@ base::DictValue DaoSidebarUIHandler::BuildSidebarState() {
     tab.Set("isPinned", model->IsTabPinned(i));
     tab.Set("isAudible", IsTabAudible(contents));
     tab.Set("isMuted", contents->IsAudioMuted());
+    tab.Set("resourceAlert", ResourceAlertName(contents));
     tab.Set("isAgentLocked", DaoAgentLockTabHelper::IsLocked(contents));
     tab.Set("isMcpControlled",
             DaoMcpService::Get()->IsTargetControlled(contents));
@@ -1497,6 +1578,7 @@ base::ListValue DaoSidebarUIHandler::BuildPinnedItems() {
     dict.Set("isActive",
              open_model && open_tab_index == open_model->active_index());
     dict.Set("isFaviconLight", contents ? IsFaviconLight(contents) : false);
+    dict.Set("resourceAlert", ResourceAlertName(contents));
     pinned_items.Append(std::move(dict));
   }
 
@@ -2214,6 +2296,7 @@ base::DictValue DaoSidebarUIHandler::BuildTabUpdate(int index) {
   tab.Set("isPinned", model->IsTabPinned(index));
   tab.Set("isAudible", IsTabAudible(contents));
   tab.Set("isMuted", contents->IsAudioMuted());
+  tab.Set("resourceAlert", ResourceAlertName(contents));
   tab.Set("isAgentLocked", DaoAgentLockTabHelper::IsLocked(contents));
   tab.Set("isMcpControlled",
           DaoMcpService::Get()->IsTargetControlled(contents));
@@ -3694,6 +3777,8 @@ void DaoSidebarUIHandler::UpdateMediaSessionPosition(
 }
 
 void DaoSidebarUIHandler::PushMediaPlaybackState() {
+  DaoResourceUsageMonitor::Get()->RefreshReminders();
+  RefreshResourceReminder();
   if (!browser_ || !IsJavascriptAllowed()) {
     return;
   }
@@ -4646,6 +4731,9 @@ DaoSidebarUI::DaoSidebarUI(content::WebUI* web_ui) : WebUIController(web_ui) {
   source->SetDefaultResource(IDR_DAO_SIDEBAR_SIDEBAR_HTML);
   source->AddLocalizedString("daoClassifyTabsStarted",
                              IDS_DAO_CLASSIFY_TABS_STARTED);
+  source->AddLocalizedString("daoResourceHighCpu", IDS_DAO_RESOURCE_HIGH_CPU);
+  source->AddLocalizedString("daoResourceHighMemory", IDS_DAO_RESOURCE_HIGH_MEMORY);
+  source->AddLocalizedString("daoResourceHighBoth", IDS_DAO_RESOURCE_HIGH_BOTH);
   source->AddLocalizedString("daoSidebarStaleTabsArchivedToast",
                              IDS_DAO_SIDEBAR_STALE_TABS_ARCHIVED_TOAST);
   source->AddLocalizedString(

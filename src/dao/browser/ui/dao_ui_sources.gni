@@ -134,6 +134,9 @@ dao_browser_ui_sources = [
   "//dao/browser/mcp/dao_mcp_settings_handler.h",
   "//dao/browser/mcp/dao_mcp_service.cc",
   "//dao/browser/mcp/dao_mcp_service.h",
+  "//dao/browser/performance/dao_resource_usage_monitor.cc",
+  "//dao/browser/performance/dao_resource_usage_monitor.h",
+  "//dao/browser/performance/dao_resource_usage_notification.h",
   "//dao/browser/performance/dao_high_performance_tab_helper.cc",
   "//dao/browser/performance/dao_high_performance_tab_helper.h",
   "//dao/browser/pip/dao_pip_bounds_prefs.cc",
@@ -246,6 +249,7 @@ dao_browser_ui_sources = [
 ]
 
 dao_browser_ui_deps = [
+  "//dao/browser/performance:resource_usage_state",
   "//components/favicon/content",
   "//components/password_manager/core/browser:password_form",
   "//components/password_manager/core/browser/password_store:password_store_interface",
@@ -289,6 +293,7 @@ dao_browser_ui_test_sources = [
   "//dao/browser/import/dao_migration_writer_unittest.cc",
   "//dao/browser/import/dao_profile_snapshot_unittest.cc",
   "//dao/browser/import/dao_source_detector_unittest.cc",
+  "//dao/browser/performance/dao_resource_usage_unittest.cc",
   "//dao/browser/performance/dao_high_performance_tab_helper_unittest.cc",
   "//dao/browser/agent/dao_dream_browsertest.cc",
   "//dao/browser/agent_space/dao_agent_space_browsertest.cc",

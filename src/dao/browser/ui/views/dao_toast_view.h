@@ -43,6 +43,16 @@ class DaoToastView : public views::View,
                  const std::u16string& action_text = {},
                  base::OnceClosure action = {});
 
+  // Retained beneath transient feedback until cleared or explicitly dismissed.
+  void SetPersistentToast(const std::u16string& message,
+                          const std::u16string& action_text,
+                          base::RepeatingClosure action,
+                          base::RepeatingClosure dismiss);
+  void ClearPersistentToast();
+  // Chromium transient toasts use a separate widget on the same surface.
+  void SetPersistentToastSuppressed(bool suppressed);
+  bool IsShowingPersistentToast() const { return showing_persistent_; }
+
   bool IsShowingToast(const std::u16string& message) const;
   void HideToast();
 
@@ -53,6 +63,10 @@ class DaoToastView : public views::View,
   void OnNativeThemeUpdated(ui::NativeTheme* observed_theme) override;
 
  private:
+  void PresentToast(const std::u16string& message,
+                    const std::u16string& action_text);
+  void RestorePersistentToast();
+  void DismissPersistentToast();
   void StartDismissTimer();
   void FadeOut();
   void ApplyTheme();
@@ -60,7 +74,14 @@ class DaoToastView : public views::View,
 
   raw_ptr<views::Label> label_ = nullptr;
   raw_ptr<views::LabelButton> action_button_ = nullptr;
+  raw_ptr<views::LabelButton> close_button_ = nullptr;
   base::OnceClosure action_;
+  std::u16string persistent_message_;
+  std::u16string persistent_action_text_;
+  base::RepeatingClosure persistent_action_;
+  base::RepeatingClosure persistent_dismiss_;
+  bool showing_persistent_ = false;
+  bool persistent_suppressed_ = false;
   base::OneShotTimer dismiss_timer_;
   base::OneShotTimer hide_timer_;
 

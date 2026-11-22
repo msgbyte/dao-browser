@@ -1,7 +1,51 @@
 diff --git a/chrome/browser/ui/toasts/toast_controller.cc b/chrome/browser/ui/toasts/toast_controller.cc
 --- a/chrome/browser/ui/toasts/toast_controller.cc
 +++ b/chrome/browser/ui/toasts/toast_controller.cc
-@@ -435,25 +435,17 @@
+@@ -35,6 +35,7 @@
+ #include "chrome/browser/ui/toasts/toast_features.h"
+ #include "chrome/browser/ui/toasts/toast_metrics.h"
+ #include "chrome/browser/ui/toasts/toast_view.h"
++#include "chrome/browser/ui/views/frame/browser_view.h"
+ #include "chrome/browser/ui/views/frame/multi_contents_view.h"
+ #include "chrome/browser/ui/views/interaction/browser_elements_views.h"
+ #include "chrome/browser/ui/webui_browser/webui_browser.h"
+@@ -43,6 +44,7 @@
+ #include "components/prefs/pref_service.h"
+ #include "components/tabs/public/tab_interface.h"
+ #include "content/public/browser/web_contents.h"
++#include "dao/browser/ui/views/dao_toast_view.h"
+ #include "ui/base/l10n/l10n_util.h"
+ #include "ui/base/unowned_user_data/unowned_user_data_host.h"
+ #include "ui/views/bubble/bubble_dialog_delegate_view.h"
+@@ -200,6 +202,15 @@
+   if (next_toast_params_.has_value()) {
+     ShowToast(std::move(next_toast_params_.value()));
+     next_toast_params_ = std::nullopt;
++  }
++  // Keep the retained reminder hidden across queued Chromium toasts.
++  if (!toast_widget_ && browser_window_interface_ &&
++      !browser_window_interface_->capabilities()->IsAttemptingToCloseBrowser()) {
++    if (auto* browser_view =
++            BrowserView::GetBrowserViewForBrowser(browser_window_interface_);
++        browser_view && browser_view->dao_toast()) {
++      browser_view->dao_toast()->SetPersistentToastSuppressed(false);
++    }
+   }
+ }
+ 
+@@ -384,6 +395,11 @@
+           ->RegisterOnFullscreenStateChanged(
+               base::BindRepeating(&ToastController::OnFullscreenStateChanged,
+                                   base::Unretained(this)));
++  if (auto* browser_view =
++          BrowserView::GetBrowserViewForBrowser(browser_window_interface_);
++      browser_view && browser_view->dao_toast()) {
++    browser_view->dao_toast()->SetPersistentToastSuppressed(true);
++  }
+   toast_widget_->SetVisibilityChangedAnimationsEnabled(false);
+   UpdateToastWidgetFocusTraversableParent(anchor_view);
+ 
+@@ -435,25 +451,17 @@
    UpdateToastWidgetFocusTraversableParent(anchor_view);
  }
  

@@ -54,7 +54,7 @@ diff --git a/chrome/browser/ui/webui/settings/settings_localized_strings_provide
  
    std::u16string license = l10n_util::GetStringFUTF16(
        IDS_VERSION_UI_LICENSE, chrome::kChromiumProjectURL,
-@@ -4451,6 +4461,350 @@
+@@ -4451,6 +4461,353 @@
                                    IDS_SETTINGS_EXTENSIONS_CHECKBOX_LABEL);
  }
  
@@ -62,6 +62,9 @@ diff --git a/chrome/browser/ui/webui/settings/settings_localized_strings_provide
 +  html_source->AddBoolean("daoMcpSupported", BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN));
 +  static constexpr webui::LocalizedString kLocalizedStrings[] = {
 +      {"daoPageTitle", IDS_SETTINGS_DAO_PAGE_TITLE},
++      {"daoResourceUsageAlertsLabel", IDS_DAO_RESOURCE_ALERTS_SETTING},
++      {"daoResourceUsageAlertsDescription",
++       IDS_DAO_RESOURCE_ALERTS_SETTING_DESCRIPTION},
 +      {"daoTabCategoriesTitle", IDS_DAO_TAB_CATEGORIES_TITLE},
 +      {"daoTabCategoriesDescription", IDS_DAO_TAB_CATEGORIES_DESCRIPTION},
 +      {"daoTabCategoriesName", IDS_DAO_TAB_CATEGORIES_NAME},

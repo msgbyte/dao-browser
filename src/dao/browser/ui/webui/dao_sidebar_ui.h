@@ -29,6 +29,7 @@
 #include "content/public/browser/web_ui_message_handler.h"
 #include "content/public/browser/webui_config.h"
 #include "dao/browser/updater/dao_updater_service.h"
+#include "dao/browser/performance/dao_resource_usage_monitor.h"
 #include "dao/browser/ui/webui/dao_pinned_tab_model.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
 #include "services/media_session/public/mojom/media_session.mojom.h"
@@ -84,7 +85,8 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
                             public download::AllDownloadItemNotifier::Observer,
                             public ui::SimpleMenuModel::Delegate,
                             public media_session::mojom::MediaSessionObserver,
-                            public DaoUpdaterServiceObserver {
+                            public DaoUpdaterServiceObserver,
+                            public DaoResourceUsageMonitor::Observer {
  public:
   DaoSidebarUIHandler();
   ~DaoSidebarUIHandler() override;
@@ -148,6 +150,8 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
 
   // DaoUpdaterServiceObserver:
   void OnDaoUpdateStatusChanged(const DaoUpdateStatus& status) override;
+  void OnResourceUsageChanged(content::WebContents* contents) override;
+  bool IsResourceAlertMediaPlaying(content::WebContents* contents) const override;
 
   base::ListValue GetPinnedItemsForTesting();
   base::DictValue GetSidebarStateForTesting();
@@ -187,6 +191,7 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
       content::WebContents* anchor);
 
   void PushFullState();
+  void RefreshResourceReminder();
   base::DictValue BuildSidebarState();
   base::ListValue BuildPinnedItems();
   bool ReconcilePinnedItems(bool restore_complete);
@@ -233,6 +238,7 @@ class DaoSidebarUIHandler : public content::WebUIMessageHandler,
    public:
     MediaPlaybackObserver(DaoSidebarUIHandler* handler, MediaTabState* tab);
     ~MediaPlaybackObserver() override;
+    bool HasPlayingPlayers() const { return !playing_players_.empty(); }
 
     void DidUpdateAudioMutingState(bool muted) override;
     void MediaStartedPlaying(const MediaPlayerInfo& info,

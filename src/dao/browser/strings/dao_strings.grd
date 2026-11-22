@@ -1189,6 +1189,19 @@ Commands: guide, pull, status, diff, preview, publish, diagnostics, sources, scr
 Use --workspace with the absolute temporary workspace returned by pull. Run dao-browser home guide for the complete command reference.
 Clean removes only the local workspace; add --close-session to end editing for all workspaces sharing its session. Publish and rollback summaries allow up to 500 UTF-8 bytes.</message>
       <message name="IDS_DAO_HOME_EXTERNAL_PROFILE" desc="Profile selector label for external Home editing authorization.">Browser profile</message>
+      <message name="IDS_DAO_RESOURCE_HIGH_CPU" desc="Sustained tab resource usage warning">Sustained high CPU usage</message>
+      <message name="IDS_DAO_RESOURCE_HIGH_MEMORY" desc="Sustained tab resource usage warning">Sustained high memory usage</message>
+      <message name="IDS_DAO_RESOURCE_HIGH_BOTH" desc="Sustained tab resource usage warning">Sustained high CPU and memory usage</message>
+      <message name="IDS_DAO_RESOURCE_CPU_REMINDER" desc="Sustained tab resource usage warning">High CPU usage: <ph name="TITLE">$1<ex>Example tab</ex></ph></message>
+      <message name="IDS_DAO_RESOURCE_MEMORY_REMINDER" desc="Sustained tab resource usage warning">High memory usage: <ph name="TITLE">$1<ex>Example tab</ex></ph></message>
+      <message name="IDS_DAO_RESOURCE_BOTH_REMINDER" desc="Sustained tab resource usage warning">High CPU and memory usage: <ph name="TITLE">$1<ex>Example tab</ex></ph></message>
+      <message name="IDS_DAO_RESOURCE_VIEW_TAB" desc="Sustained tab resource usage warning">View tab</message>
+      <message name="IDS_DAO_RESOURCE_DISMISS" desc="Sustained tab resource usage warning">Dismiss</message>
+      <message name="IDS_DAO_RESOURCE_ALERTS_SETTING" desc="Background resource alert setting">Background resource alerts</message>
+      <message name="IDS_DAO_RESOURCE_ALERTS_SETTING_DESCRIPTION" desc="Background resource alert setting">Warns about sustained high CPU or memory use when Dao or a tab is in the background. Turning this off also stops these resource checks.</message>
+      <message name="IDS_DAO_RESOURCE_SUMMARY" desc="Number of tabs with sustained high resource usage">Tabs with sustained high resource usage: <ph name="COUNT">$1<ex>3</ex></ph></message>
+      <message name="IDS_DAO_RESOURCE_VIEW_USAGE" desc="Open the browser task manager from a resource reminder">View usage</message>
+      <message name="IDS_DAO_RESOURCE_NOTIFICATION_TITLE" desc="System notification for background resource usage">Dao background resource alert</message>
     </messages>
   </release>
 </grit>

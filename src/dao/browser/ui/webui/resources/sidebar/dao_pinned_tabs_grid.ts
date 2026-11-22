@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {loadTimeData} from '//resources/js/load_time_data.js';
+
 import {CrLitElement, html, css} from '//resources/lit/v3_0/lit.rollup.js';
 
 import {
@@ -29,6 +31,15 @@ export class DaoPinnedTabsGrid extends CrLitElement {
 
   static override get styles() {
     return css`
+      .resource-alert {
+        display: inline-flex;
+        flex-shrink: 0;
+        color: var(--text-secondary);
+      }
+      .tile { position: relative; }
+      .resource-alert { position: absolute; right: 0; bottom: 0;
+        background: var(--surface); border-radius: 4px; }
+
       :host {
         display: block;
       }
@@ -252,6 +263,17 @@ export class DaoPinnedTabsGrid extends CrLitElement {
               @mouseenter=${(e: MouseEvent) => this.onShowTooltip_(e, item)}
               @mousemove=${(e: MouseEvent) => this.onTrackMouse_(e, item)}
               @mouseleave=${() => this.onHideTooltip_()}>
+        ${item.resourceAlert ? html`
+          <span class="resource-alert" role="img" aria-label=${loadTimeData.getString(item.resourceAlert === 'cpu' ? 'daoResourceHighCpu' : item.resourceAlert === 'memory' ? 'daoResourceHighMemory' : 'daoResourceHighBoth')}
+                title=${loadTimeData.getString(item.resourceAlert === 'cpu' ? 'daoResourceHighCpu' : item.resourceAlert === 'memory' ? 'daoResourceHighMemory' : 'daoResourceHighBoth')}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                 stroke-linejoin="round" aria-hidden="true">
+  <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" />
+  <path d="M12 9v4" />
+  <path d="M12 17h.01" />
+            </svg>
+          </span>` : ''}
         ${item.faviconUrl
             ? html`<img class="favicon ${item.isFaviconLight ? 'light-icon' : ''}"
                         src=${item.faviconUrl} alt="" draggable="false">`

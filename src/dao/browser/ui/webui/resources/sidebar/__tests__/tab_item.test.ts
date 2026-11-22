@@ -99,6 +99,23 @@ describe('dao-tab-item', () => {
     delete (globalThis as unknown as {chrome?: unknown}).chrome;
   });
 
+  it('keeps an accessible resource warning until the tab recovers', async () => {
+    const el = document.createElement('dao-tab-item') as TestTabItem;
+    el.tabData = tab({resourceAlert: 'cpu'});
+    document.body.appendChild(el);
+    await el.updateComplete;
+    const warning = el.shadowRoot!.querySelector('.resource-alert');
+    expect(warning).not.toBeNull();
+    expect(warning!.getAttribute('aria-label')).toBe('daoResourceHighCpu');
+    el.tabData = tab({resourceAlert: 'memory'});
+    await el.updateComplete;
+    expect(el.shadowRoot!.querySelector('.resource-alert')!
+        .getAttribute('aria-label')).toBe('daoResourceHighMemory');
+    el.tabData = tab();
+    await el.updateComplete;
+    expect(el.shadowRoot!.querySelector('.resource-alert')).toBeNull();
+  });
+
   it('shows MCP control status in the close button slot', async () => {
     const el = document.createElement('dao-tab-item') as TestTabItem;
     el.tabData = tab({isMcpControlled: true});

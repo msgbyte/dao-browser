@@ -191,6 +191,50 @@ Existing Windows versions without this updater need one manual upgrade first.
 
 An Arc-inspired vertical sidebar replaces Chromium's top tab strip — the single biggest UI change in Dao Browser. The sidebar is a hybrid: a C++ Views container hosts a Lit/TypeScript WebUI that renders the actual tab list, favorites, and controls.
 
+### Sustained resource usage alerts
+
+`performance/dao_resource_usage_monitor.*` shares Chromium Resource Attribution
+measurements across browser windows, with a single 30-second fallback timer. Its
+own memory queries run at most once every two minutes and reuse fresher existing
+measurements. CPU alerts require 90 seconds at 80% of one core; two fresh,
+separated memory samples must reach 2 GiB (1 GiB
+on machines with at most 8 GiB RAM). Recovery uses lower thresholds. Navigation,
+stale measurements, and suspend/resume reset the applicable sampling history.
+Ordinary and pinned tabs show localized static warning indicators. Tabs and split
+panes visible in the active Dao window only initiate indicators. A selected tab
+in an inactive or minimized window also counts as background; reminders require
+one minute in the background. Retained incidents are grouped per profile into
+one persistent, dismissible `DaoToastView` reminder in its most recently active
+normal window, including across macOS workspaces. A single tab offers View tab;
+multiple tabs show a count and View usage opens the existing Task Manager.
+When all Dao windows are inactive, one generic system notification is sent per
+ongoing profile incident, using a dedicated Chromium notification handler
+supported by the macOS system bridge. A ten-second app grace period prevents window-switch
+notifications; existing samples drive delivery without another timer. Notification
+arrival never changes focus. Explicit inspection restores the window and
+acknowledges the incident; returning alone retains the reminder. OS dismissal
+does not remove the in-browser reminder or cause another system notification.
+Pages playing media (including muted playback), being captured, using High
+Performance Mode, or belonging to hidden Agent Space task windows suppress both
+reminder surfaces. Excluded pages that never raised a reminder cannot prolong
+another tab's notification incident. Temporary media suppression of a previously
+retained incident does not re-arm its system notification. Profiles remain isolated.
+Transient feedback, including Chromium Copy Link and queued toasts, temporarily
+covers the retained reminder and restores it after closing. Long reminder text
+elides within the content width while its action and dismiss controls remain
+visible; normal and Mini Dao windows also keep the entry animation inside the
+content area. Dismissal suppresses the current episode while keeping the indicator.
+No tabs are automatically closed, reloaded, frozen, or discarded by this feature.
+Settings > Performance exposes a default-on Background resource alerts switch,
+reusing Chromium's global performance-alert preference. Disabling it immediately
+clears markers, native reminders and system notifications in every window and releases Dao's timer, queries,
+and per-page state. Re-enabling starts fresh detection; the choice survives
+restart, and an existing disabled preference is preserved.
+The `DaoResourceUsageAlerts` feature can be disabled for process-tree A/B checks
+with `scripts/checks/resource-usage.mjs`; measurement targets are not guarantees.
+See the [sampling report](superpowers/specs/2026-11-20-resource-usage-validation.md)
+for measured overhead and the unvalidated 5 MiB memory target.
+
 ### 1.1 Sidebar Core (C++ Views)
 - **DaoSidebarView** (`sidebar/dao_sidebar_view.{h,cc}`) — Main container, 240px default, collapsible to 4px with animation
 - **Drag-to-resize** — Mouse drag, 150–400px range, ignored while collapsed; width preserved across collapse/expand cycles

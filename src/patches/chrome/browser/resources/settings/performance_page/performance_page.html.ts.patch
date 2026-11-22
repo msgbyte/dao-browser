@@ -1,0 +1,15 @@
+diff --git a/chrome/browser/resources/settings/performance_page/performance_page.html.ts b/chrome/browser/resources/settings/performance_page/performance_page.html.ts
+--- a/chrome/browser/resources/settings/performance_page/performance_page.html.ts
++++ b/chrome/browser/resources/settings/performance_page/performance_page.html.ts
+@@ -13,9 +13,8 @@
+   <settings-toggle-button id="performanceInterventionToggleButton"
+       @change="${this.onPerformanceInterventionToggleButtonChange_}"
+       pref-key="performance_tuning.intervention_notification.enabled"
+-      label="$i18n{performanceInterventionEnabledLabel}"
+-      sub-label-with-link="$i18n{performanceInterventionEnabledDescription}"
+-      @sub-label-link-clicked="${this.onPerformanceInterventionSubLabelLinkClicked_}">
++      label="$i18n{daoResourceUsageAlertsLabel}"
++      sub-label="$i18n{daoResourceUsageAlertsDescription}">
+   </settings-toggle-button>
+   <settings-toggle-button id="discardRingTreatmentToggleButton"
+       @change="${this.onDiscardRingChange_}"

@@ -428,4 +428,18 @@
 使用 --workspace 指定 pull 返回的临时工作区绝对路径。运行 dao-browser home guide 查看完整命令说明。
 clean 只删除本地工作区；添加 --close-session 会结束所有共享此会话的工作区的编辑授权。发布和回滚摘要最多允许 500 个 UTF-8 字节。</translation>
 <translation id="8811014768123203379">浏览器配置文件</translation>
+<translation id="6623010067980574489">CPU 持续高占用</translation>
+<translation id="4823859023738142145">内存持续高占用</translation>
+<translation id="4747742195821887762">CPU 和内存持续高占用</translation>
+<translation id="2569637751373595543">CPU 持续高占用：<ph name="TITLE"/></translation>
+<translation id="6461571612255813759">内存持续高占用：<ph name="TITLE"/></translation>
+<translation id="2797062999419340292">CPU 和内存持续高占用：<ph name="TITLE"/></translation>
+<translation id="14129130541450990">查看标签页</translation>
+<translation id="5234764350956374838">关闭提醒</translation>
+<translation id="848223548229813664">后台资源占用提醒</translation>
+<translation id="1366769814941679479">提醒后台标签页持续偏高的 CPU 或内存占用。关闭后也会停止本功能的资源检查。</translation>
+  <translation id="488273668245921135">持续高占用的标签页：<ph name="COUNT" /> 个</translation>
+  <translation id="5721409245182907475">查看占用</translation>
+  <translation id="8143796600868909156">Dao 后台资源占用提醒</translation>
+  <translation id="2335114262883178622">当 Dao 或标签页位于后台时，提醒持续偏高的 CPU 或内存占用。关闭后也会停止本功能的资源检查。</translation>
 </translationbundle>

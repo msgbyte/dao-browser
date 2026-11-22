@@ -16,6 +16,10 @@ vi.mock('//resources/lit/v3_0/lit.rollup.js', async () => {
   return await import('./lit_test_shim.js');
 });
 
+vi.mock('//resources/js/load_time_data.js', () => ({
+  loadTimeData: {getString: (key: string) => key},
+}));
+
 const originalAnimateDescriptor =
     Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'animate');
 
@@ -167,6 +171,17 @@ describe('dao-pinned-tabs-grid', () => {
     restoreDescriptor(
         HTMLElement.prototype, 'animate', originalAnimateDescriptor);
     delete (globalThis as unknown as {chrome?: unknown}).chrome;
+  });
+
+  it('shows a persistent accessible warning on a high-usage pinned tab', async () => {
+    const {el} = await loadGrid();
+    el.items = [item({resourceAlert: 'both'})];
+    await el.updateComplete;
+    expect(el.shadowRoot!.querySelector('.resource-alert')!
+        .getAttribute('aria-label')).toBe('daoResourceHighBoth');
+    el.items = [item()];
+    await el.updateComplete;
+    expect(el.shadowRoot!.querySelector('.resource-alert')).toBeNull();
   });
 
   it('renders active, open, and dormant tile states', async () => {

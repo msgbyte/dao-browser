@@ -8,8 +8,10 @@
 
 #include "base/functional/bind.h"
 #include "cc/paint/paint_flags.h"
+#include "dao/browser/strings/grit/dao_strings.h"
 #include "dao/browser/ui/views/dao_colors.h"
 #include "ui/accessibility/ax_enums.mojom.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/compositor/layer.h"
 #include "ui/compositor/layer_animator.h"
@@ -82,6 +84,16 @@ DaoToastView::DaoToastView()
   action_button_->SetFocusBehavior(FocusBehavior::ALWAYS);
   action_button_->SetVisible(false);
 
+  close_button_ = AddChildView(std::make_unique<views::LabelButton>(
+      base::BindRepeating(&DaoToastView::DismissPersistentToast,
+                          base::Unretained(this)),
+      l10n_util::GetStringUTF16(IDS_DAO_RESOURCE_DISMISS)));
+  close_button_->SetLabelStyle(views::style::STYLE_LINK);
+  close_button_->SetTextSubpixelRenderingEnabled(false);
+  close_button_->SetFocusBehavior(FocusBehavior::ALWAYS);
+  close_button_->SetVisible(false);
+  static_cast<views::BoxLayout*>(GetLayoutManager())->SetFlexForView(label_, 1);
+  label_->SetElideBehavior(gfx::ELIDE_TAIL);
   ApplyTheme();
 }
 
@@ -101,14 +113,72 @@ void DaoToastView::OnNativeThemeUpdated(ui::NativeTheme* observed_theme) {
 void DaoToastView::ShowToast(const std::u16string& message,
                             const std::u16string& action_text,
                             base::OnceClosure action) {
+  showing_persistent_ = false;
+  action_ = std::move(action);
+  PresentToast(message, action_text);
+  StartDismissTimer();
+}
+
+void DaoToastView::SetPersistentToast(const std::u16string& message,
+                                     const std::u16string& action_text,
+                                     base::RepeatingClosure action,
+                                     base::RepeatingClosure dismiss) {
+  const bool unchanged = persistent_message_ == message &&
+                         persistent_action_text_ == action_text;
+  persistent_message_ = message;
+  persistent_action_text_ = action_text;
+  persistent_action_ = std::move(action);
+  persistent_dismiss_ = std::move(dismiss);
+  if ((!GetVisible() || showing_persistent_) &&
+      (!unchanged || !showing_persistent_)) {
+    RestorePersistentToast();
+  }
+}
+
+void DaoToastView::ClearPersistentToast() {
+  persistent_message_.clear();
+  persistent_action_.Reset();
+  persistent_dismiss_.Reset();
+  if (showing_persistent_) {
+    HideToast();
+  }
+}
+
+void DaoToastView::RestorePersistentToast() {
+  if (persistent_message_.empty() || persistent_suppressed_) {
+    return;
+  }
+  showing_persistent_ = true;
+  PresentToast(persistent_message_, persistent_action_text_);
+}
+
+void DaoToastView::SetPersistentToastSuppressed(bool suppressed) {
+  persistent_suppressed_ = suppressed;
+  if (suppressed && showing_persistent_) {
+    HideToast();
+  } else if (!suppressed && !GetVisible()) {
+    RestorePersistentToast();
+  }
+}
+
+void DaoToastView::DismissPersistentToast() {
+  auto dismiss = persistent_dismiss_;
+  ClearPersistentToast();
+  if (dismiss) {
+    dismiss.Run();
+  }
+}
+
+void DaoToastView::PresentToast(const std::u16string& message,
+                               const std::u16string& action_text) {
   dismiss_timer_.Stop();
   hide_timer_.Stop();
-
+  layer()->GetAnimator()->StopAnimating();
   label_->SetText(message);
-  action_ = std::move(action);
   action_button_->SetText(action_text);
-  action_button_->SetVisible(!!action_);
-  SetCanProcessEventsWithinSubtree(!!action_);
+  action_button_->SetVisible(showing_persistent_ ? !!persistent_action_ : !!action_);
+  close_button_->SetVisible(showing_persistent_);
+  SetCanProcessEventsWithinSubtree(showing_persistent_ || !!action_);
   SetVisible(true);
 
   views::ViewAccessibility& accessibility = GetViewAccessibility();
@@ -119,8 +189,11 @@ void DaoToastView::ShowToast(const std::u16string& message,
   // Calculate preferred width: padding + text + padding
   int text_width = label_->GetPreferredSize().width();
   int total_width = kToastPaddingHorizontal + text_width + kToastPaddingHorizontal;
-  if (action_) {
+  if (action_button_->GetVisible()) {
     total_width += 12 + action_button_->GetPreferredSize().width();
+  }
+  if (close_button_->GetVisible()) {
+    total_width += 12 + close_button_->GetPreferredSize().width();
   }
   SetPreferredSize(gfx::Size(total_width, kToastHeight));
 
@@ -136,8 +209,6 @@ void DaoToastView::ShowToast(const std::u16string& message,
   settings.SetTweenType(gfx::Tween::EASE_OUT);
   layer()->SetOpacity(1.0f);
   layer()->SetTransform(gfx::Transform());
-
-  StartDismissTimer();
 }
 
 bool DaoToastView::IsShowingToast(const std::u16string& message) const {
@@ -150,12 +221,24 @@ void DaoToastView::HideToast() {
   layer()->GetAnimator()->StopAnimating();
   SetVisible(false);
   action_.Reset();
+  showing_persistent_ = false;
   if (action_button_) {
     action_button_->SetVisible(false);
   }
+  if (close_button_) {
+    close_button_->SetVisible(false);
+  }
+  RestorePersistentToast();
 }
 
 void DaoToastView::RunAction() {
+  if (showing_persistent_) {
+    auto action = persistent_action_;
+    if (action) {
+      action.Run();
+    }
+    return;
+  }
   auto action = std::move(action_);
   HideToast();
   if (action) {

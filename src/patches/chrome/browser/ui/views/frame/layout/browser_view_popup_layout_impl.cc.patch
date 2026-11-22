@@ -65,7 +65,7 @@ diff --git a/chrome/browser/ui/views/frame/layout/browser_view_popup_layout_impl
    }
  
    // Lay out infobar container if present.
-@@ -97,6 +118,61 @@
+@@ -97,6 +118,63 @@
      layout.AddChild(views().infobar_container, infobar_bounds, infobar_visible);
    }
  
@@ -79,16 +79,18 @@ diff --git a/chrome/browser/ui/views/frame/layout/browser_view_popup_layout_impl
 +        true);
 +    params.SetTop(params.visual_client_area.y() + bar_height);
 +
-+    // Toast in the top-right of the Little Dao content area.
++    // Keep the toast's 16 px slide-in inside the Little Dao content area.
 +    if (auto* const toast = dao_bv->dao_toast();
 +        toast && toast->GetVisible()) {
 +      constexpr int kToastMargin = 12;
-+      const gfx::Size toast_size = toast->GetPreferredSize();
++      gfx::Size toast_size = toast->GetPreferredSize();
++      toast_size.set_width(std::min(
++          toast_size.width(), std::max(0, params.visual_client_area.width() - 24)));
 +      layout.AddChild(
 +          toast,
 +          gfx::Rect(params.visual_client_area.right() - toast_size.width() -
 +                        kToastMargin,
-+                    params.visual_client_area.y() + 4, toast_size.width(),
++                    params.visual_client_area.y() + 20, toast_size.width(),
 +                    toast_size.height()));
 +    }
 +

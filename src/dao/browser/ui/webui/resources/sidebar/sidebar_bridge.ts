@@ -83,6 +83,7 @@ export interface TabData {
   isMcpControlled?: boolean;
   isInSplit?: boolean;
   isFaviconLight?: boolean;
+  resourceAlert?: '' | 'cpu' | 'memory' | 'both';
   lastActiveTimeMs?: number;
   // Only session-restored tabs may claim legacy folder refs without a tabId.
   isSessionRestored?: boolean;
@@ -101,6 +102,7 @@ export interface PinnedItemData {
   openTabId?: string;
   isActive: boolean;
   isFaviconLight?: boolean;
+  resourceAlert?: '' | 'cpu' | 'memory' | 'both';
 }
 
 export interface SidebarState {
