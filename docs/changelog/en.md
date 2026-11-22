@@ -808,6 +808,8 @@
 
 ### [Unreleased] Unreleased
 
+### [1.3.2] - 2026-11-23
+
 - Open History, Bookmarks, Downloads, Extensions, and Settings from the home page's vertical three-dot menu, and return to the home page when you go back.
 
 ### [1.3.0] - 2026-11-16

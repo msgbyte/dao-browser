@@ -28,8 +28,8 @@ android {
         applicationId = "com.msgbyte.dao"
         minSdk = 26
         targetSdk = 36
-        versionCode = 19
-        versionName = "1.3.1"
+        versionCode = 20
+        versionName = "1.3.2"
         resValue(
             "string",
             "mozilla_components_version",
