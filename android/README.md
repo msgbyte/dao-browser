@@ -6,7 +6,7 @@ Dao Browser Android is a Kotlin application built with Mozilla Android Component
 
 - macOS on the existing development Mac
 - JDK 17
-- Android SDK 37
+- Android SDK 37.0 (`platforms;android-37.0`)
 - An Android API 26+ emulator or physical device
 
 Set the local SDK location before running Gradle, for example:
@@ -62,7 +62,7 @@ The `Build Android APK` workflow runs for pull requests and pushes to `main`
 that change `android/**` or the workflow itself. It can also be started manually
 from **Actions > Build Android APK > Run workflow**.
 
-The workflow uses JDK 17, Android SDK 37, and the checked-in Gradle wrapper,
+The workflow uses JDK 17, Android SDK 37.0, and the checked-in Gradle wrapper,
 including the existing pre-build asset checks:
 
 - Pull requests run `:app:assembleDebug` without secrets and upload
@@ -179,6 +179,11 @@ All architectures share the committed version name, version code, application
 ID, and signing key. A newer matching-ABI release can update an existing
 universal release installation without resetting its data.
 
+The version commit and tag do not make an update available. The app checks
+published GitHub Releases and requires the matching APK and `SHA256SUMS`, so
+confirm that **Publish Android GitHub Release** succeeds before announcing an
+update.
+
 The release uses the pushed tag, title `Dao Browser Android v<version>`, and
 `--latest=false`. Android releases do not replace desktop Latest. The workflow
 uses its built-in `GITHUB_TOKEN`; it does not upload to R2 or need R2 credentials.
@@ -192,7 +197,9 @@ bumping the version again:
 git push --atomic --no-follow-tags origin refs/heads/main:refs/heads/main refs/tags/android-v0.1.1:refs/tags/android-v0.1.1
 ```
 
-If the workflow fails, rerun it in GitHub Actions. Uploads finish in a draft
+For a transient workflow failure, rerun it in GitHub Actions. A rerun uses the
+original tag's workflow and source; fixes committed later on `main` require a
+new version and tag. Uploads finish in a draft
 before publication; reruns rebuild and replace draft assets, including empty
 assets left by failed uploads. Already published releases are skipped so their
 APK bytes are preserved. Keep the same signing key for every release.
