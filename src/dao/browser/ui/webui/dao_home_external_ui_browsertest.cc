@@ -4,6 +4,7 @@
 
 #include "dao/browser/ui/webui/dao_home_ui.h"
 
+#include <algorithm>
 #include <array>
 #include <atomic>
 #include <memory>
@@ -1542,6 +1543,9 @@ IN_PROC_BROWSER_TEST_F(DaoHomeExternalUIBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DaoHomeExternalUIBrowserTest,
                        ParallelCardsReuseOnlyAuthorizedProfileResults) {
+  static constexpr std::array kSourceIds{"first", "second", "third", "fourth",
+                                         "fifth", "sixth", "seventh", "eighth",
+                                         "ninth"};
   auto hits = std::make_shared<std::atomic_int>(0);
   embedded_test_server()->RegisterRequestHandler(base::BindRepeating(
       [](std::shared_ptr<std::atomic_int> hits,
@@ -1557,10 +1561,8 @@ IN_PROC_BROWSER_TEST_F(DaoHomeExternalUIBrowserTest,
               "<svg xmlns='http://www.w3.org/2000/svg' width='1' height='1'/>");
           return icon;
         }
-        if (request.relative_url != "/first" &&
-            request.relative_url != "/second" &&
-            request.relative_url != "/third" &&
-            request.relative_url != "/fourth") {
+        if (!std::ranges::contains(
+                kSourceIds, std::string_view(request.relative_url).substr(1))) {
           return nullptr;
         }
         ++*hits;
@@ -1569,8 +1571,10 @@ IN_PROC_BROWSER_TEST_F(DaoHomeExternalUIBrowserTest,
         response->AddCustomHeader("Cache-Control", "no-store");
         response->set_content("<main>" + request.relative_url +
                               "</main><section><div>A</div><div>B</div></"
-                              "section><img id=icon src=/icon.svg>"
-                              "<img src='/never.png'>");
+                              "section><img id=icon src=/icon.svg>" +
+                              (request.relative_url == "/first"
+                                   ? "<img src='/never.png'>"
+                                   : ""));
         return response;
       },
       hits));
@@ -1579,7 +1583,11 @@ IN_PROC_BROWSER_TEST_F(DaoHomeExternalUIBrowserTest,
   auto manifest = base::JSONReader::ReadDict(files.at("manifest.json"),
                                              base::JSON_PARSE_RFC);
   ASSERT_TRUE(manifest);
-  for (const std::string id : {"first", "second", "third", "fourth"}) {
+  base::ListValue ids;
+  base::ListValue expected_paths;
+  for (const std::string id : kSourceIds) {
+    ids.Append(id);
+    expected_paths.Append("/" + id);
     const auto module = "connectors/" + id + ".js";
     manifest->FindList("connectors")
         ->Append(
@@ -1615,7 +1623,7 @@ IN_PROC_BROWSER_TEST_F(DaoHomeExternalUIBrowserTest,
   service->Publish(staged.Get()->id, HomeRevisionKind::kInitial,
                    published.GetCallback(), nullptr);
   ASSERT_TRUE(published.Get().has_value());
-  for (const std::string id : {"first", "second", "third", "fourth"}) {
+  for (const std::string id : kSourceIds) {
     base::test::TestFuture<base::expected<void, HomeError>> grant;
     service->GrantConnector(id, grant.GetCallback());
     ASSERT_TRUE(grant.Get().has_value());
@@ -1639,52 +1647,51 @@ IN_PROC_BROWSER_TEST_F(DaoHomeExternalUIBrowserTest,
     });
     return project;
   };
-  constexpr char kReadCards[] = R"(
-    Promise.all(['first','second','third','fourth'].map(id => dao.sources.collect(id))).then(v => v.join(','))
-  )";
+  const std::string read_cards = content::JsReplace(
+      "Promise.all($1.map(id => dao.sources.collect(id)))", std::move(ids));
   auto* first = open();
   ASSERT_TRUE(first);
   auto start = base::TimeTicks::Now();
-  EXPECT_EQ("/first,/second,/third,/fourth",
-            content::EvalJs(first, kReadCards));
+  EXPECT_EQ(expected_paths, content::EvalJs(first, read_cards));
   base::AddTagToTestResult(
       "cold_collect_ms",
       base::NumberToString((base::TimeTicks::Now() - start).InMilliseconds()));
-  EXPECT_EQ(4, hits->load());
+  EXPECT_EQ(9, hits->load());
   EXPECT_EQ(true, content::EvalJs(first, R"(
     Promise.all(['first','second'].map(async id => {
       const handle = await dao.sources.collect(id, {media:true});
       return handle.startsWith('dao-media:') && (await dao.media.resolve(handle)).startsWith('blob:');
     })).then(v => v.every(Boolean))
   )"));
-  EXPECT_EQ(6, hits->load());
+  EXPECT_EQ(11, hits->load());
   auto* second = open();
   ASSERT_TRUE(second);
   start = base::TimeTicks::Now();
-  EXPECT_EQ("/first,/second,/third,/fourth",
-            content::EvalJs(second, kReadCards));
+  EXPECT_EQ(expected_paths, content::EvalJs(second, read_cards));
   base::AddTagToTestResult(
       "warm_collect_ms",
       base::NumberToString((base::TimeTicks::Now() - start).InMilliseconds()));
-  EXPECT_EQ(6, hits->load());
+  EXPECT_EQ(11, hits->load());
   EXPECT_EQ("/first",
             content::EvalJs(second,
                             "dao.sources.collect('first', {}, {fresh:true})"));
-  EXPECT_EQ(7, hits->load());
+  EXPECT_EQ(12, hits->load());
   EXPECT_EQ("A\nB", content::EvalJs(
                         second, "dao.sources.collect('first', {layout:true})"));
 
   auto* contents = browser()->tab_strip_model()->GetActiveWebContents();
-  constexpr char kStartBoth[] = R"(
+  constexpr char kStartEight[] = R"(
     (async () => {
       const bridge = await import('./home_bridge.js');
-      const {revision} = await bridge.getHomeSnapshot();
-      const pair = await Promise.all(['first','second'].map(id =>
-        bridge.startHomeConnector(revision, id, {}, true)));
-      return pair.every(result => !!result.execution_id);
+      const {revision, connectors} = await bridge.getHomeSnapshot();
+      const start = ({id}) => bridge.startHomeConnector(revision, id, {}, true);
+      const active = await Promise.all(connectors.slice(0, 8).map(start));
+      const overflow = await start(connectors[8]);
+      return active.every(result => !!result.execution_id) &&
+          overflow.code === 'temporarily_unavailable';
     })()
   )";
-  ASSERT_EQ(true, content::EvalJs(contents, kStartBoth));
+  ASSERT_EQ(true, content::EvalJs(contents, kStartEight));
   auto* ui = contents->GetWebUI()->GetController()->GetAs<DaoHomeUI>();
   ASSERT_TRUE(ui->HasActiveRuntimeConnectorForTesting());
   ASSERT_TRUE(
@@ -1692,7 +1699,7 @@ IN_PROC_BROWSER_TEST_F(DaoHomeExternalUIBrowserTest,
   EXPECT_FALSE(ui->HasActiveRuntimeConnectorForTesting());
   browser()->tab_strip_model()->ActivateTabAt(
       browser()->tab_strip_model()->GetIndexOfWebContents(contents));
-  ASSERT_EQ(true, content::EvalJs(contents, kStartBoth));
+  ASSERT_EQ(true, content::EvalJs(contents, kStartEight));
   base::test::TestFuture<base::expected<void, HomeError>> revoked;
   service->RevokeConnector("first", revoked.GetCallback());
   ASSERT_TRUE(revoked.Get().has_value());

@@ -139,7 +139,7 @@ constexpr char kGeneratedActionRuntime[] = R"js(
   }, {capture: true});
 })();
 )js";
-constexpr size_t kMaxActiveConnectorExecutors = 4;
+constexpr size_t kMaxActiveConnectorExecutors = 8;
 constexpr size_t kMaxRetainedMediaBytes = 16 * 1024 * 1024;
 constexpr size_t kMaxRetainedConnectorExecutors = 16;
 constexpr size_t kMaxBootstrapPermissionSelections = 3;

@@ -51,22 +51,22 @@ describe('ConnectorHost', () => {
     }));
   }
 
-  it('starts four sources, coalesces duplicates and frees each slot independently', async () => {
-    const ids = ['a', 'b', 'c', 'd', 'e', 'f'];
+  it('starts eight sources, coalesces duplicates and frees each slot independently', async () => {
+    const ids = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'];
     const requests = ids.map(id => host.collect(id, {}));
     const duplicate = host.collect('c', {});
-    await vi.waitFor(() => expect(frames).toHaveLength(4));
-    expect(bridge.startHomeConnector).toHaveBeenCalledTimes(4);
+    await vi.waitFor(() => expect(frames).toHaveLength(8));
+    expect(bridge.startHomeConnector).toHaveBeenCalledTimes(8);
     const failure = expect(requests[1]).rejects.toMatchObject({code: 'auth_required'});
     bridge.callHomeConnectorPage.mockResolvedValueOnce({error: 'Sign in', code: 'auth_required'});
     await message(frames[1]!, 'b', {type: 'page_call', callId: 1, operation: 'exists', args: ['main']});
     await message(frames[1]!, 'b', {type: 'complete', error: 'Sign in', code: 'auth_required'});
     await failure;
-    await vi.waitFor(() => expect(frames).toHaveLength(5));
+    await vi.waitFor(() => expect(frames).toHaveLength(9));
     await message(frames[2]!, 'c', {type: 'complete', result: 2});
     await expect(duplicate).resolves.toBe(2);
-    await vi.waitFor(() => expect(frames).toHaveLength(6));
-    for (const i of [5, 4, 3, 0]) {
+    await vi.waitFor(() => expect(frames).toHaveLength(10));
+    for (const i of [9, 8, 7, 6, 5, 4, 3, 0]) {
       await message(frames[i]!, ids[i]!, {type: 'complete', result: i});
       await expect(requests[i]).resolves.toBe(i);
     }
@@ -146,12 +146,12 @@ describe('ConnectorHost', () => {
   });
 
   it('cancels active work and rejects queued work on disconnect', async () => {
-    const requests = Array.from({length: 6}, (_, i) => host.collect(String(i), {}));
+    const requests = Array.from({length: 10}, (_, i) => host.collect(String(i), {}));
     const results = Promise.allSettled(requests);
-    await vi.waitFor(() => expect(frames).toHaveLength(4));
+    await vi.waitFor(() => expect(frames).toHaveLength(8));
     host.disconnect();
     expect((await results).every(result => result.status === 'rejected')).toBe(true);
-    expect(bridge.startHomeConnector).toHaveBeenCalledTimes(4);
+    expect(bridge.startHomeConnector).toHaveBeenCalledTimes(8);
     expect(frames.every(frame => !frame.isConnected)).toBe(true);
   });
 });

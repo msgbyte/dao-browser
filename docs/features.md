@@ -1250,7 +1250,7 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
   rejected before allocation when its raw pixels exceed the remaining 5 MiB
   session budget, and repeated handles share one retained blob. Completed
   executors retain only those snapshots for a bounded session window. The
-  trusted host can run four collections at once. Each module gets its own
+  trusted host can run eight collections at once. Each module gets its own
   opaque iframe and detached desktop-sized source page. DOM reads can begin at
   DOMContentLoaded, and the browser checks for sign-in forms again before
   delivering results. Up to 16 completed media executors share a 16 MiB

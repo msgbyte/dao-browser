@@ -39,7 +39,7 @@ interface PendingCollection {
   pageError?: HomeConnectorError;
 }
 
-const MAX_CONCURRENT_COLLECTIONS = 4;
+const MAX_CONCURRENT_COLLECTIONS = 8;
 
 export class HomeConnectorError extends Error {
   constructor(message: string, readonly code: string) {
