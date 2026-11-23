@@ -1104,7 +1104,7 @@ export class DaoHomeApp extends CrLitElement {
         <summary>${loadTimeData.getString('daoHomeMenu')}</summary>
         <div class="menu">
           ${this.renderExternalEditor_()}
-          <button @click=${() => openHomeAgent('create')}>
+          <button @click=${() => openHomeAgent('edit', this.snapshot_!.revision)}>
             ${loadTimeData.getString('daoHomeEditWithDao')}
           </button>
           <button data-test="view-source" @click=${() => this.openSource_()}>

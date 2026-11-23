@@ -1020,7 +1020,16 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
   retrying the unknown operation. Unreferenced temporary snapshots are pruned.
   Screenshot failures report a separate result without losing a valid preview.
 - **Existing Agent integration** — The two empty-state actions open the
-  existing right-side Agent. Home-specific atomic tools are injected only for
+  existing right-side Agent. **Edit with Dao** binds its first turn to the
+  clicked Home document and displayed revision. Before contacting the model,
+  the Agent reads that revision's manifest, file list, and entry file through
+  its enabled Home tools. Immediately before sending the excerpts, it checks
+  that the original document, revision, and read permissions are still valid.
+  Editing, retrying, or regenerating that first message rereads the same revision.
+  Chat history stores the reference without the source excerpts.
+  A disabled read tool, failed read, changed revision, or lost document
+  stops the request and shows a message in the sidebar.
+  Home-specific atomic tools are injected only for
   a turn pinned to the exact active Home tab and published revision, and native
   code revalidates the pinned document and its one-way Home authorization
   before and after asynchronous work. That document authorization is the

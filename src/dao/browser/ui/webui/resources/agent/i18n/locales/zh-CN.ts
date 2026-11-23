@@ -117,6 +117,8 @@ const dict: Dictionary = {
   'chat.tool_call.output': '输出',
   'chat.code_block.empty': '空',
   'chat.toast.wait_for_turn': '请等待当前回合结束',
+  'chat.home_edit.tools_disabled': '请在 Agent 设置中启用主页的项目清单、文件列表和文件读取工具，再编辑主页。',
+  'chat.home_edit.load_failed': '未能读取这个版本的主页。请回到当前主页，再点一次「让 Dao 修改」。',
   'chat.skill_picker.aria_label': '技能选择器',
   'chat.skill_picker.title': '技能',
   'chat.skill_picker.hint': '↑↓ 切换 · Enter 选中 · Esc 关闭',

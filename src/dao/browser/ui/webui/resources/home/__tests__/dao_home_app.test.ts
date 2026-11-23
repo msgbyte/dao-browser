@@ -131,6 +131,20 @@ describe('dao-home-app', () => {
        expect(bridge.openHomeAgent).toHaveBeenNthCalledWith(2, 'history');
      });
 
+  it('opens the Agent in edit mode from a published Home', async () => {
+    bridge.getHomeSnapshot.mockResolvedValue({
+      hasProject: true, revision: 'revision-1', entry: 'index.html', connectors: [],
+    });
+    const app = await createApp();
+    const menu = app.shadowRoot!.querySelector<HTMLDetailsElement>(
+        '[data-test="project-menu"]')!;
+    menu.querySelector('summary')!.click();
+    const edit = [...menu.querySelectorAll('button')].find(
+        button => button.textContent.trim() === 'daoHomeEditWithDao')!;
+    edit.click();
+    expect(bridge.openHomeAgent).toHaveBeenCalledExactlyOnceWith('edit', 'revision-1');
+  });
+
   it('frames a published project only at the untrusted app origin', async () => {
     bridge.getHomeSnapshot.mockResolvedValue({
       hasProject: true,

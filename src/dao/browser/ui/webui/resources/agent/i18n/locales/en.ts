@@ -172,6 +172,8 @@ const dict: Dictionary = {
 
   // Toast shown when the user submits while a turn is still streaming.
   'chat.toast.wait_for_turn': 'Wait for the current turn to finish',
+  'chat.home_edit.tools_disabled': 'Enable the Home manifest, file list, and file reading tools in Agent settings to edit this Home.',
+  'chat.home_edit.load_failed': 'Could not load this version of Dao Home. Reopen Edit with Dao on the current Home.',
 
   // Skill picker dropdown.
   'chat.skill_picker.aria_label': 'Skill picker',

@@ -16,7 +16,7 @@ import './dao_chat_view.js';
 import './dao_dream_dispatcher.js';
 import './dao_tab_classification.js';
 import './llm_connection_test.js';
-import type {DaoChatView} from './dao_chat_view.js';
+import type {DaoChatView, HomePromptOptions} from './dao_chat_view.js';
 import {initI18n, t} from './i18n/i18n.js';
 import {refreshSkillRegistryIfStale} from './skill_registry.js';
 
@@ -128,10 +128,7 @@ export class DaoAgentApp extends CrLitElement {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (window as any).__daoExternalSubmit =
         (text: string,
-         options?: {
-           includePageContext?: boolean;
-           historyClaimToken?: string;
-         }) => {
+         options?: HomePromptOptions & {includePageContext?: boolean}) => {
       if (typeof text !== 'string' || !text) return;
       const includePageContext = options?.includePageContext !== false;
       const historyClaimToken =
@@ -147,14 +144,17 @@ export class DaoAgentApp extends CrLitElement {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const iface: any = view?.querySelector('pi-chat-panel agent-interface');
         if (view && iface && typeof iface.sendMessage === 'function') {
-          void view.submitExternalPrompt(
-              text, {includePageContext, historyClaimToken});
+          void view.submitExternalPrompt(text, {
+            includePageContext, historyClaimToken, homeEdit: options?.homeEdit,
+          });
           return;
         }
         if (Date.now() < deadline) {
           setTimeout(tryOnce, 80);
         } else if (historyClaimToken) {
           chrome.send('cancelHomeHistoryClaim', [historyClaimToken]);
+        } else if (options?.homeEdit) {
+          this.showToast_(t('chat.home_edit.load_failed'));
         }
       };
       // Let the active-tab flip render before the first attempt.

@@ -181,8 +181,10 @@ export function resolveHomeBootstrapPermission(
       'resolveHomeBootstrapPermission', requestId, selectedConnectorIds);
 }
 
-export function openHomeAgent(mode: 'create'|'history'|'repair'): void {
-  chrome.send('openHomeAgent', [mode]);
+export function openHomeAgent(mode: 'edit', revision: string): void;
+export function openHomeAgent(mode: 'create'|'history'|'repair'): void;
+export function openHomeAgent(mode: string, revision?: string): void {
+  chrome.send('openHomeAgent', revision === undefined ? [mode] : [mode, revision]);
 }
 
 export function rollbackHome(

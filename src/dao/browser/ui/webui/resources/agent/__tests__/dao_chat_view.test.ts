@@ -183,6 +183,7 @@ vi.mock('../skill_registry.js', async () => {
 });
 
 vi.mock('../tool_catalog.js', () => ({
+  isToolEnabled: vi.fn(() => true),
   toolConfigChannel: {
     addEventListener: vi.fn(),
     removeEventListener: vi.fn(),
@@ -199,6 +200,7 @@ vi.mock('../i18n/i18n.js', () => ({
 vi.mock('../vendor/pi_runtime_bundle.js', () => ({
   Agent: class {
     convertToLlm: (msgs: any[]) => any[];
+    onPayload?: () => Promise<void>;
     state = {
       systemPrompt: '',
       model: {},
@@ -212,6 +214,7 @@ vi.mock('../vendor/pi_runtime_bundle.js', () => ({
         ...this.state,
         ...(opts.initialState || {}),
       };
+      this.onPayload = opts.onPayload;
       this.convertToLlm = opts.convertToLlm || ((msgs: any[]) => msgs);
     }
     listeners: Array<(ev: any) => void> = [];
@@ -1403,7 +1406,7 @@ describe('dao-chat-view message metadata helpers', () => {
          (view.panel_!.querySelector('.dao-user-edit-context button') as HTMLButtonElement)
              .click();
          view.agent_.state.isStreaming = true;
-         Object.assign(view, {pendingMemoryContextText_: 'stale page memory'});
+         Object.assign(view, {pendingTurnContextText_: 'stale page memory'});
          const applying = view._daoTestApplyUserMessageEdit('u1', 'correct prompt');
          expect(abort).toHaveBeenCalledOnce();
          expect(resume).not.toHaveBeenCalled();
@@ -2109,6 +2112,103 @@ describe('dao-chat-view element picker', () => {
       clearTabWatchTimer(view);
     }
   });
+
+  it.each(['ready', 'disabled', 'cancelled', 'stale', 'read failure',
+           'hidden before dispatch', 'disabled before dispatch'])(
+      'loads the clicked Home before the model request (%s)', async state => {
+        const homeEdit = {frameId: 11, token: 'clicked', revision: 'v1'};
+        const modelInputs: string[] = [];
+        const dispatch = async () => {
+          const messages = chat.agent_.convertToLlm(chat.agent_.state.messages);
+          if (state === 'disabled before dispatch') {
+            vi.mocked(isToolEnabled).mockReturnValue(false);
+          }
+          await chat.agent_.onPayload?.();
+          modelInputs.push(JSON.stringify(messages));
+        };
+        const send = vi.fn(async (text: string) => {
+          const message = {role: 'user', content: text};
+          chat.agent_.state.messages.push(message);
+          for (const listener of chat.agent_.listeners) {
+            listener({type: 'message_end', message});
+          }
+          await dispatch();
+        });
+        const {view} = await mountChatViewWithSend(send);
+        const chat = view as unknown as {
+          agent_: {
+            state: {messages: object[]};
+            listeners: Array<(event: object) => void>;
+            onPayload?: () => Promise<void>;
+            convertToLlm: (messages: object[]) => object[];
+            continue: () => Promise<void>;
+          };
+          retryFromUserIndex_: (index: number) => Promise<void>;
+          submitExternalPrompt: (text: string, options: object) => Promise<void>;
+        };
+        const notify = vi.fn();
+        view.addEventListener('show-toast', notify);
+        pickerMocks.callNative.mockImplementation(async (method, params) => {
+          if (method === 'beginAgentTurn') {
+            return state === 'cancelled' ? {error: 'cancelled'} : {
+              success: true, turnId: 'edit', homeEditResumeToken: 'resume', homeContext: {
+                active: true, revision: state === 'stale' ? 'v2' : 'v1',
+              },
+            };
+          }
+          if (method === 'validateHomeEdit') {
+            expect(params).toEqual({turnId: 'edit', resumeToken: 'resume'});
+            return state !== 'hidden before dispatch';
+          }
+          if (method !== 'executeHomeTool') return {};
+          if (params.name === 'home_get_manifest') {
+            return {has_project: true, revision: 'v1', manifest: {entry: 'start.html'}};
+          }
+          if (params.name === 'home_list_files') return ['start.html', 'style.css'];
+          if (params.name === 'home_read_file' && state !== 'read failure') {
+            expect(params.arguments).toEqual({revision: 'v1', path: 'start.html'});
+            return {revision: 'v1', path: 'start.html', contents: '<main>My reading list</main>'};
+          }
+          return {error: 'read failed'};
+        });
+        const {isToolEnabled} = await import('../tool_catalog.js');
+        try {
+          vi.mocked(isToolEnabled).mockImplementation(
+              name => state !== 'disabled' || name !== 'home_read_file');
+          await chat.submitExternalPrompt('Edit this Home', {includePageContext: false, homeEdit});
+          if (state === 'ready') {
+            expect(pickerMocks.callNative).toHaveBeenCalledWith(
+                'beginAgentTurn', {homeEdit}, {cancelMethod: 'cancelBeginAgentTurn'});
+            expect(modelInputs).toHaveLength(1);
+            expect(modelInputs[0]).toContain('My reading list');
+            expect(modelInputs[0]).toContain('style.css');
+            expect(JSON.stringify(chat.agent_.state.messages)).not.toContain('My reading list');
+            chat.agent_.continue = dispatch;
+            await chat.retryFromUserIndex_(0);
+            expect(pickerMocks.callNative).toHaveBeenCalledWith(
+                'beginAgentTurn',
+                {homeEdit: {frameId: 11, revision: 'v1', resumeToken: 'resume'}},
+                {cancelMethod: 'cancelBeginAgentTurn'});
+            expect(modelInputs[1]).toBe(modelInputs[0]);
+            expect(pickerMocks.callNative.mock.calls.filter(
+                ([method, params]) => method === 'executeHomeTool' &&
+                    params.name === 'home_read_file')).toHaveLength(2);
+          } else if (state.endsWith('before dispatch')) {
+            expect(send).toHaveBeenCalledOnce();
+            expect(modelInputs).toHaveLength(0);
+          } else {
+            expect(send).not.toHaveBeenCalled();
+            expect(notify).toHaveBeenCalled();
+            if (state !== 'read failure') {
+              expect(pickerMocks.callNative.mock.calls.map(call => call[0]))
+                  .not.toContain('executeHomeTool');
+            }
+          }
+        } finally {
+          vi.mocked(isToolEnabled).mockReturnValue(true);
+          clearTabWatchTimer(view);
+        }
+      });
 
   it('cancels a history claim when mount stays pending after the interface exists',
      async () => {
