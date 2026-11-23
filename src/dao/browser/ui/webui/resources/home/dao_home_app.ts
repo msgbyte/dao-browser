@@ -224,8 +224,16 @@ export class DaoHomeApp extends CrLitElement {
         white-space: nowrap;
       }
       .external-preview-status button {
+        align-items: center;
+        border-radius: 999px;
+        display: inline-flex;
         flex-shrink: 0;
+        font-size: 13px;
+        font-weight: 500;
+        gap: 6px;
         margin-inline-start: auto;
+        min-height: 28px;
+        padding: 0 12px;
         white-space: nowrap;
       }
       .external-waiting { padding: 24px; }
@@ -1435,8 +1443,14 @@ export class DaoHomeApp extends CrLitElement {
             <span>${loadTimeData.getString(this.externalSession_.published ?
                 'daoHomeExternalPublished' : 'daoHomeExternalPreviewTitle')}</span>
             <span>${this.externalSession_.client}</span>
-            <button data-test="stop-external-preview"
+            <button class="action" data-test="stop-external-preview"
                 @click=${() => stopHomeExternalSession()}>
+              <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24"
+                  fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <rect x="9" y="9" width="6" height="6" rx="1" />
+              </svg>
               ${loadTimeData.getString('daoHomeExternalStop')}
             </button>
           </div>

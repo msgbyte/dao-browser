@@ -4,6 +4,8 @@
 
 ### [Unreleased] Unreleased
 
+- The Stop external editing button in Dao Home previews now has a compact, rounded shape and a stop icon that stays visible in light and dark themes.
+
 ### [1.0.142] - 2026-11-23
 
 - See which tabs keep using a lot of CPU or memory, with sidebar indicators and persistent reminders that group affected background tabs; when Dao is in the background, receive one system notification and keep the reminder on return. Dismiss reminders or turn off the default-on checks in Settings > Performance. Copy feedback temporarily replaces the reminder, and long tab titles fit within the page.
