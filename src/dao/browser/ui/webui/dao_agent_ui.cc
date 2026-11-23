@@ -113,6 +113,47 @@ bool IsDaoHomeUrl(const GURL& url) {
   return url.SchemeIs(content::kChromeUIScheme) && url.host() == "home";
 }
 
+DaoHomeUI* GetHomeUI(content::WebContents* contents) {
+  if (!contents || !IsDaoHomeUrl(contents->GetLastCommittedURL()) ||
+      !contents->GetWebUI()) {
+    return nullptr;
+  }
+  auto* controller = contents->GetWebUI()->GetController();
+  return controller ? controller->GetAs<DaoHomeUI>() : nullptr;
+}
+
+content::WebContents* ClaimHomeEdit(Profile* profile,
+                                    const base::Value& edit,
+                                    std::string& resume_token) {
+  const auto* claim = edit.GetIfDict();
+  if (!claim) {
+    return nullptr;
+  }
+  const int frame_id = claim->FindInt("frameId").value_or(0);
+  const std::string* token = claim->FindString("token");
+  const std::string* resume = claim->FindString("resumeToken");
+  if (frame_id <= 0 || (!token && !resume) || (token && resume)) {
+    return nullptr;
+  }
+  auto* owner = content::WebContents::FromFrameTreeNodeId(
+      content::FrameTreeNodeId(frame_id));
+  if (!owner || owner->GetBrowserContext() != profile) {
+    return nullptr;
+  }
+  auto* home = GetHomeUI(owner);
+  if (!home) {
+    return nullptr;
+  }
+  if (token) {
+    resume_token = home->ConsumeEditToken(*token);
+  } else if (home->CanResumeEdit(*resume)) {
+    resume_token = *resume;
+  } else {
+    return nullptr;
+  }
+  return resume_token.empty() ? nullptr : owner;
+}
+
 bool IsLegacyUiOneShotTool(std::string_view tool_name) {
   return tool_name == "get_page_info" || tool_name == "execute_script" ||
          tool_name == "capture_screenshot";
@@ -422,6 +463,10 @@ void DaoAgentUIHandler::OnJavascriptDisallowed() {
 
 void DaoAgentUIHandler::RegisterMessages() {
   web_ui()->RegisterMessageCallback(
+      "validateHomeEdit",
+      base::BindRepeating(&DaoAgentUIHandler::HandleValidateHomeEdit,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
       "beginAgentTurn",
       base::BindRepeating(&DaoAgentUIHandler::HandleBeginAgentTurn,
                           base::Unretained(this)));
@@ -711,14 +756,8 @@ void DaoAgentUIHandler::AbortAgentTurn(DaoToolError error) {
     }
   }
   InvalidateHomeMutationLeases();
-  if (target && IsDaoHomeUrl(target->GetLastCommittedURL())) {
-    content::WebUI* target_ui = target->GetWebUI();
-    DaoHomeUI* home_ui = target_ui && target_ui->GetController()
-                             ? target_ui->GetController()->GetAs<DaoHomeUI>()
-                             : nullptr;
-    if (home_ui) {
-      home_ui->CancelAgentSession();
-    }
+  if (auto* home = GetHomeUI(target)) {
+    home->CancelAgentSession();
   }
   if (browser_tool_executor_) {
     browser_tool_executor_->CancelAll(error);
@@ -976,6 +1015,24 @@ bool DaoAgentUIHandler::RequireActiveAgentTurn(const std::string& callback_id) {
   return false;
 }
 
+void DaoAgentUIHandler::HandleValidateHomeEdit(const base::ListValue& args) {
+  AllowJavascript();
+  if (args.size() < 2 || !args[0].is_string() || !args[1].is_dict()) {
+    return;
+  }
+  const auto& request = args[1].GetDict();
+  const auto* turn = request.FindString("turnId");
+  const auto* token = request.FindString("resumeToken");
+  auto* target = agent_turn_session_ ? ResolveTargetContents() : nullptr;
+  auto* home = GetHomeUI(target);
+  const bool valid =
+      home && token && turn &&
+      target->GetBrowserContext() == Profile::FromWebUI(web_ui()) &&
+      OwnsActiveHomeTurn(*turn, target->GetWeakPtr()) &&
+      home->CanResumeEdit(*token);
+  ResolveJavascriptCallback(args[0], base::Value(valid));
+}
+
 void DaoAgentUIHandler::HandleBeginAgentTurn(const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 1 || !args[0].is_string()) {
@@ -983,7 +1040,9 @@ void DaoAgentUIHandler::HandleBeginAgentTurn(const base::ListValue& args) {
   }
   const std::string callback_id = args[0].GetString();
   std::string history_claim_token;
+  const base::Value* home_edit = nullptr;
   if (args.size() > 1 && args[1].is_dict()) {
+    home_edit = args[1].GetDict().Find("homeEdit");
     const std::string* token =
         args[1].GetDict().FindString("historyClaimToken");
     if (token && token->size() <= 64) {
@@ -1002,10 +1061,20 @@ void DaoAgentUIHandler::HandleBeginAgentTurn(const base::ListValue& args) {
     }
   };
 
+  std::string resume_token;
+  content::WebContents* contents =
+      home_edit ? ClaimHomeEdit(Profile::FromWebUI(web_ui()), *home_edit,
+                                resume_token)
+                : GetActivePageContents();
+  if (home_edit && !contents) {
+    ResolvePageToolError(callback_id,
+                         MakeDaoToolError(DaoToolErrorCode::kToolCancelled,
+                                          "The original Home is no longer active."));
+    return;
+  }
   AbortAgentTurn(MakeDaoToolError(DaoToolErrorCode::kToolCancelled,
                                   "Previous Dao Agent turn was replaced."));
   pending_begin_callback_id_ = callback_id;
-  content::WebContents* contents = GetActivePageContents();
   BrowserWindowInterface* browser_window =
       contents ? GlobalBrowserCollection::GetInstance()
                  ->FindBrowserWithTab(contents)
@@ -1028,7 +1097,7 @@ void DaoAgentUIHandler::HandleBeginAgentTurn(const base::ListValue& args) {
                                     "Dao Agent"});
   if (!acquired.has_value()) {
     DaoToolError error = LocalizeAgentToolError(std::move(acquired).error());
-    if (error.code != DaoToolErrorCode::kAgentControlBusy) {
+    if (home_edit || error.code != DaoToolErrorCode::kAgentControlBusy) {
       clear_history_claim();
       FinishPendingBeginAgentTurn(callback_id);
       ResolvePageToolError(callback_id, std::move(error));
@@ -1060,10 +1129,10 @@ void DaoAgentUIHandler::HandleBeginAgentTurn(const base::ListValue& args) {
   response.Set("url", contents->GetVisibleURL().spec());
   response.Set("title", base::UTF16ToUTF8(contents->GetTitle()));
   if (IsDaoHomeUrl(contents->GetLastCommittedURL())) {
-    content::WebUI* target_ui = contents->GetWebUI();
-    DaoHomeUI* home_ui = target_ui && target_ui->GetController()
-                             ? target_ui->GetController()->GetAs<DaoHomeUI>()
-                             : nullptr;
+    if (home_edit) {
+      response.Set("homeEditResumeToken", std::move(resume_token));
+    }
+    auto* home_ui = GetHomeUI(contents);
     home_turn_authorization_ =
         home_ui ? home_ui->CreateMutationLease() : nullptr;
     if (!home_turn_authorization_) {
@@ -1167,7 +1236,7 @@ void DaoAgentUIHandler::HandleExecuteHomeTool(const base::ListValue& args) {
   }
   content::WebContents* target = ResolveTargetContents();
   Profile* profile = agent_turn_session_->profile();
-  if (!target || !profile ||
+  if (!target || !profile || profile != Profile::FromWebUI(web_ui()) ||
       target->GetBrowserContext() != profile || profile->IsOffTheRecord() ||
       !IsDaoHomeUrl(target->GetLastCommittedURL())) {
     ResolvePageToolError(
@@ -1181,10 +1250,7 @@ void DaoAgentUIHandler::HandleExecuteHomeTool(const base::ListValue& args) {
     home_agent_tools_ = std::make_unique<DaoHomeAgentTools>(
         DaoHomeProjectServiceFactory::GetForProfile(profile));
   }
-  content::WebUI* target_ui = target->GetWebUI();
-  DaoHomeUI* home_ui = target_ui && target_ui->GetController()
-                           ? target_ui->GetController()->GetAs<DaoHomeUI>()
-                           : nullptr;
+  auto* home_ui = GetHomeUI(target);
   scoped_refptr<DaoHomeMutationLease> mutation_lease;
   if (home_ui && home_turn_authorization_ &&
       home_turn_authorization_->IsValid()) {

@@ -992,14 +992,17 @@ void DaoHomeUIHandler::HandleOpenAgent(const base::ListValue& args) {
     return;
   }
   const std::string& mode = args[0].GetString();
-  if (mode != "create" && mode != "history" && mode != "repair") {
-    return;
-  }
-  if (mode == "history") {
+  if (mode == "create") {
+    OpenAgentWithPrompt(IDS_DAO_HOME_CREATE_AGENT_PROMPT);
+  } else if (mode == "edit" && args.size() == 2 && args[1].is_string() &&
+             !args[1].GetString().empty()) {
+    OpenAgentWithPrompt(IDS_DAO_HOME_EDIT_AGENT_PROMPT, {},
+                        args[1].GetString());
+  } else if (mode == "repair") {
+    OpenAgentWithPrompt(IDS_DAO_HOME_REPAIR_AGENT_PROMPT);
+  } else if (mode == "history") {
     QueryHistoryAndOpenAgent();
-    return;
   }
-  OpenAgentWithMode(mode);
 }
 
 void DaoHomeUIHandler::QueryHistoryAndOpenAgent() {
@@ -1013,7 +1016,8 @@ void DaoHomeUIHandler::QueryHistoryAndOpenAgent() {
     brief.locale = g_browser_process->GetApplicationLocale();
     service_->SetHistoryBootstrapBrief(web_ui()->GetWebContents()->GetWeakPtr(),
                                        claim_token, std::move(brief));
-    OpenAgentWithMode("history", std::move(claim_token));
+    OpenAgentWithPrompt(IDS_DAO_HOME_HISTORY_AGENT_PROMPT,
+                        std::move(claim_token));
     return;
   }
   const base::Time now = base::Time::Now();
@@ -1036,14 +1040,16 @@ void DaoHomeUIHandler::QueryHistoryAndOpenAgent() {
             self->service_->SetHistoryBootstrapBrief(
                 self->web_ui()->GetWebContents()->GetWeakPtr(), claim_token,
                 BuildHomeBootstrapBrief(results, now, std::move(locale)));
-            self->OpenAgentWithMode("history", std::move(claim_token));
+            self->OpenAgentWithPrompt(IDS_DAO_HOME_HISTORY_AGENT_PROMPT,
+                                      std::move(claim_token));
           },
           weak_factory_.GetWeakPtr(), now, locale),
       &history_tracker_);
 }
 
-void DaoHomeUIHandler::OpenAgentWithMode(const std::string& mode,
-                                         std::string history_claim_token) {
+void DaoHomeUIHandler::OpenAgentWithPrompt(int prompt_id,
+                                           std::string history_claim_token,
+                                           std::string edit_revision) {
   if (!HasActiveHomeOwner()) {
     service_->ClearHistoryBootstrapForClaim(history_claim_token);
     return;
@@ -1057,11 +1063,19 @@ void DaoHomeUIHandler::OpenAgentWithMode(const std::string& mode,
     service_->ClearHistoryBootstrapForClaim(history_claim_token);
     return;
   }
-  const int prompt_id = mode == "history"  ? IDS_DAO_HOME_HISTORY_AGENT_PROMPT
-                        : mode == "repair" ? IDS_DAO_HOME_REPAIR_AGENT_PROMPT
-                                           : IDS_DAO_HOME_CREATE_AGENT_PROMPT;
   base::OnceClosure on_prompt_abandoned;
+  base::DictValue options;
+  if (!edit_revision.empty()) {
+    pending_edit_token_ = base::Uuid::GenerateRandomV4().AsLowercaseString();
+    options.Set("homeEdit",
+                base::DictValue()
+                    .Set("frameId", web_contents()->GetPrimaryMainFrame()
+                                        ->GetFrameTreeNodeId().value())
+                    .Set("token", pending_edit_token_)
+                    .Set("revision", std::move(edit_revision)));
+  }
   if (!history_claim_token.empty()) {
+    options.Set("historyClaimToken", history_claim_token);
     on_prompt_abandoned = base::BindOnce(
         [](base::WeakPtr<DaoHomeProjectService> service,
            std::string claim_token) {
@@ -1073,7 +1087,7 @@ void DaoHomeUIHandler::OpenAgentWithMode(const std::string& mode,
   }
   browser_view->dao_agent_sidebar()->ExpandAndSubmitPrompt(
       l10n_util::GetStringUTF16(prompt_id), /*include_page_context=*/false,
-      std::move(history_claim_token), std::move(on_prompt_abandoned));
+      std::move(options), std::move(on_prompt_abandoned));
   browser_view->InvalidateLayout();
 }
 
@@ -1935,6 +1949,8 @@ void DaoHomeUIHandler::DiscardDraftAndReply(std::string draft_id,
 }
 
 void DaoHomeUIHandler::OnProjectChanged() {
+  pending_edit_token_.clear();
+  edit_resume_token_.clear();
   external_session_ready_ = false;
   ++external_session_generation_;
   CancelAllSessions();
@@ -2213,6 +2229,21 @@ void DaoHomeUIHandler::CompleteAgentPreview() {
   std::move(callback).Run(base::Value(base::DictValue().Set("valid", true)));
 }
 
+std::string DaoHomeUIHandler::ConsumeEditToken(const std::string& token) {
+  if (token.empty() || token != pending_edit_token_ || !HasActiveHomeOwner()) {
+    return {};
+  }
+  pending_edit_token_.clear();
+  if (edit_resume_token_.empty()) {
+    edit_resume_token_ = base::Uuid::GenerateRandomV4().AsLowercaseString();
+  }
+  return edit_resume_token_;
+}
+
+bool DaoHomeUIHandler::CanResumeEdit(const std::string& token) const {
+  return !token.empty() && token == edit_resume_token_ && HasActiveHomeOwner();
+}
+
 scoped_refptr<DaoHomeMutationLease> DaoHomeUIHandler::CreateMutationLease() {
   if (!HasActiveHomeOwner()) {
     return nullptr;
@@ -2253,6 +2284,8 @@ bool DaoHomeUIHandler::HasActiveRuntimeConnectorForTesting() const {
 }
 
 void DaoHomeUIHandler::InvalidateDocumentMutationLease() {
+  pending_edit_token_.clear();
+  edit_resume_token_.clear();
   external_session_ready_ = false;
   service_->ClearHistoryBootstrapForOwner(web_ui()->GetWebContents());
   if (document_mutation_lease_) {
@@ -2471,6 +2504,14 @@ void DaoHomeUI::NotifyExternalEditorChanged() {
   if (handler_) {
     handler_->NotifyExternalEditorChanged();
   }
+}
+
+std::string DaoHomeUI::ConsumeEditToken(const std::string& token) {
+  return handler_ ? handler_->ConsumeEditToken(token) : std::string();
+}
+
+bool DaoHomeUI::CanResumeEdit(const std::string& token) const {
+  return handler_ && handler_->CanResumeEdit(token);
 }
 
 scoped_refptr<DaoHomeMutationLease> DaoHomeUI::CreateMutationLease() {

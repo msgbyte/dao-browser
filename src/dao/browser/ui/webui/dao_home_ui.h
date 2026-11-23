@@ -98,6 +98,8 @@ class DaoHomeUIHandler : public content::WebUIMessageHandler,
   void NotifyExternalSessionChanged();
   void NotifyExternalEditorChanged();
   void CancelAgentSession();
+  std::string ConsumeEditToken(const std::string& token);
+  bool CanResumeEdit(const std::string& token) const;
   scoped_refptr<DaoHomeMutationLease> CreateMutationLease();
   void ArmAgentConnectorForTesting(ConnectorCallback callback);
   bool HasPendingAgentConnectorForTesting() const;
@@ -137,8 +139,9 @@ class DaoHomeUIHandler : public content::WebUIMessageHandler,
   void HandleSetSelection(const base::ListValue& args);
   void HandleOpenNavigation(const base::ListValue& args);
   void QueryHistoryAndOpenAgent();
-  void OpenAgentWithMode(const std::string& mode,
-                         std::string history_claim_token = std::string());
+  void OpenAgentWithPrompt(int prompt_id,
+                           std::string history_claim_token = {},
+                           std::string edit_revision = {});
 
   void ReplySnapshot(const std::string& callback_event, HomeSnapshot snapshot);
   void ReplyVersions(const std::string& callback_event,
@@ -226,6 +229,8 @@ class DaoHomeUIHandler : public content::WebUIMessageHandler,
   std::string agent_connector_draft_id_;
   std::string agent_connector_id_;
   scoped_refptr<DaoHomeMutationLease> document_mutation_lease_;
+  std::string pending_edit_token_;
+  std::string edit_resume_token_;
   base::WeakPtrFactory<DaoHomeUIHandler> weak_factory_{this};
 };
 
@@ -255,6 +260,8 @@ class DaoHomeUI : public content::WebUIController {
   void NotifyExternalSessionChanged();
   void NotifyExternalEditorChanged();
   void CancelAgentSession();
+  std::string ConsumeEditToken(const std::string& token);
+  bool CanResumeEdit(const std::string& token) const;
   scoped_refptr<DaoHomeMutationLease> CreateMutationLease();
   void ArmAgentConnectorForTesting(ConnectorCallback callback);
   bool HasPendingAgentConnectorForTesting() const;

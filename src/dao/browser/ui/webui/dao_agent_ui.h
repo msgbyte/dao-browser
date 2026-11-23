@@ -156,6 +156,7 @@ class DaoAgentUIHandler : public content::WebUIMessageHandler,
   void ResolvePageToolError(std::string callback_id, DaoToolError error);
 
   // Message handlers called from JS via chrome.send().
+  void HandleValidateHomeEdit(const base::ListValue& args);
   void HandleBeginAgentTurn(const base::ListValue& args);
   void HandleCancelBeginAgentTurn(const base::ListValue& args);
   void HandleCancelHomeHistoryClaim(const base::ListValue& args);

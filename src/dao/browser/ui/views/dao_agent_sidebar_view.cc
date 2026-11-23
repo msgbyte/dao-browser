@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <utility>
 
+#include "base/json/json_writer.h"
 #include "base/json/string_escape.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
@@ -126,7 +127,7 @@ void DaoAgentSidebarView::EnsureLoaded() {
 void DaoAgentSidebarView::ExpandAndSubmitPrompt(
     const std::u16string& prompt,
     bool include_page_context,
-    std::string history_claim_token,
+    base::DictValue options,
     base::OnceClosure on_prompt_abandoned) {
   if (prompt.empty()) {
     if (on_prompt_abandoned) {
@@ -136,8 +137,8 @@ void DaoAgentSidebarView::ExpandAndSubmitPrompt(
   }
   ClearPendingPrompt(pending_prompt_generation_, /*abandoned=*/true);
   pending_prompt_ = prompt;
-  pending_include_page_context_ = include_page_context;
-  pending_history_claim_token_ = std::move(history_claim_token);
+  pending_prompt_options_ = std::move(options);
+  pending_prompt_options_.Set("includePageContext", include_page_context);
   pending_prompt_abandoned_ = std::move(on_prompt_abandoned);
   const uint64_t generation = ++pending_prompt_generation_;
 
@@ -291,23 +292,11 @@ void DaoAgentSidebarView::TryFlushPendingPrompt(int attempts_left,
   base::EscapeJSONString(base::UTF16ToUTF8(pending_prompt_),
                          /*put_in_quotes=*/true, &prompt_json);
 
-  const std::string include_page_literal =
-      pending_include_page_context_ ? "true" : "false";
-  std::string history_claim_option;
-  if (!pending_history_claim_token_.empty()) {
-    std::string claim_token_json;
-    base::EscapeJSONString(pending_history_claim_token_,
-                           /*put_in_quotes=*/true, &claim_token_json);
-    history_claim_option =
-        base::StrCat({", historyClaimToken: ", claim_token_json});
-  }
-
   std::u16string script = base::UTF8ToUTF16(base::StrCat({
       "(function(){",
       "  if (typeof window.__daoExternalSubmit === 'function') {",
       "    window.__daoExternalSubmit(", prompt_json,
-      ", { includePageContext: ", include_page_literal, history_claim_option,
-      " });",
+      ", ", base::WriteJson(pending_prompt_options_).value(), ");",
       "    return true;",
       "  }",
       "  return false;",
@@ -349,8 +338,7 @@ void DaoAgentSidebarView::ClearPendingPrompt(uint64_t generation,
     return;
   }
   pending_prompt_.clear();
-  pending_include_page_context_ = true;
-  pending_history_claim_token_.clear();
+  pending_prompt_options_.clear();
   base::OnceClosure on_prompt_abandoned =
       std::move(pending_prompt_abandoned_);
   if (abandoned && on_prompt_abandoned) {

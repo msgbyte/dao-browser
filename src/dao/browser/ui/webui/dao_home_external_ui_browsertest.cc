@@ -40,6 +40,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/test/base/in_process_browser_test.h"
@@ -59,12 +60,15 @@
 #include "dao/browser/home/dao_home_project_service.h"
 #include "dao/browser/home/dao_home_project_service_factory.h"
 #include "dao/browser/strings/grit/dao_strings.h"
+#include "dao/browser/ui/views/dao_agent_sidebar_view.h"
 #include "net/http/http_status_code.h"
 #include "net/test/embedded_test_server/controllable_http_response.h"
 #include "net/test/embedded_test_server/http_request.h"
 #include "net/test/embedded_test_server/http_response.h"
 #include "ui/base/base_window.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/views/controls/webview/webview.h"
+#include "ui/views/view_utils.h"
 
 namespace dao {
 namespace {
@@ -204,6 +208,99 @@ class DaoHomeExternalUIBrowserTest : public InProcessBrowserTest {
   base::ScopedTempDir user_data_dir_;
   base::FilePath cli_workspace_dir_;
 };
+
+IN_PROC_BROWSER_TEST_F(DaoHomeExternalUIBrowserTest,
+                       EditPromptCannotFollowATabSwitchOrBeReplayed) {
+  auto* service =
+      DaoHomeProjectServiceFactory::GetForProfile(browser()->GetProfile());
+  base::test::TestFuture<base::expected<HomeDraft, HomeError>> staged;
+  service->StageSnapshot("", BasicProject(), "Existing Home",
+                         staged.GetCallback());
+  ASSERT_TRUE(staged.Get().has_value());
+  base::test::TestFuture<base::expected<HomeVersion, HomeError>> published;
+  service->Publish(staged.Get()->id, HomeRevisionKind::kInitial,
+                   published.GetCallback(), nullptr);
+  ASSERT_TRUE(published.Get().has_value());
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("dao://home/")));
+  auto* home = browser()->tab_strip_model()->GetActiveWebContents();
+  auto* sidebar =
+      BrowserView::GetBrowserViewForBrowser(browser())->dao_agent_sidebar();
+  ASSERT_TRUE(sidebar);
+  if (!sidebar->is_expanded()) {
+    sidebar->Toggle();
+  }
+  content::WebContents* agent = nullptr;
+  for (views::View* child : sidebar->children()) {
+    if (auto* web_view = views::AsViewClass<views::WebView>(child)) {
+      agent = web_view->GetWebContents();
+      break;
+    }
+  }
+  ASSERT_TRUE(agent);
+  ASSERT_TRUE(content::WaitForLoadStop(agent));
+  ASSERT_EQ(true, content::EvalJs(agent, R"js(
+    customElements.whenDefined('dao-agent-app').then(() => true)
+  )js"));
+  auto capture_click = [&] {
+    ASSERT_TRUE(content::ExecJs(agent, R"js(
+      window.editRequest = new Promise(resolve => {
+        window.__daoExternalSubmit = (_, options) => resolve(options.homeEdit);
+      });
+      true;
+    )js"));
+    ASSERT_TRUE(content::ExecJs(home, content::JsReplace(
+        "chrome.send('openHomeAgent', ['edit', $1])", published.Get()->id)));
+    ASSERT_EQ(true, content::EvalJs(
+                        agent, "editRequest.then(edit => !!edit.token)"));
+  };
+  ASSERT_TRUE(content::ExecJs(agent, R"js(
+    window.beginEdit = async (retry = false) => {
+      const {callNative} = await import('./agent_bridge.js');
+      const {token, ...origin} = await editRequest;
+      const homeEdit = retry ? {...origin, resumeToken: window.resumeToken}
+                             : {...origin, token};
+      const result = await callNative('beginAgentTurn', {homeEdit});
+      if (result.turnId) {
+        window.turnId = result.turnId;
+        window.resumeToken = result.homeEditResumeToken;
+      }
+      return result.homeContext?.revision ?? result.code;
+    };
+    window.validateEdit = async () => {
+      const {callNative} = await import('./agent_bridge.js');
+      return callNative('validateHomeEdit', {turnId, resumeToken});
+    };
+    true;
+  )js"));
+  ASSERT_NO_FATAL_FAILURE(capture_click());
+  EXPECT_EQ(published.Get()->id, content::EvalJs(agent, "beginEdit()"));
+  EXPECT_EQ(true, content::EvalJs(agent, "validateEdit()"));
+  EXPECT_EQ("TOOL_CANCELLED", content::EvalJs(agent, "beginEdit()"));
+  ASSERT_TRUE(content::ExecJs(agent, R"js(
+    (async () => {
+      const {callNative} = await import('./agent_bridge.js');
+      return (await callNative('endAgentTurn', {turnId})).success;
+    })()
+  )js"));
+  EXPECT_EQ(false, content::EvalJs(agent, "validateEdit()"));
+  EXPECT_EQ(published.Get()->id, content::EvalJs(agent, "beginEdit(true)"));
+  EXPECT_EQ(true, content::EvalJs(agent, "validateEdit()"));
+  ASSERT_NO_FATAL_FAILURE(capture_click());
+  ASSERT_TRUE(AddTabAtIndex(-1, GURL("about:blank"), ui::PAGE_TRANSITION_TYPED));
+  EXPECT_EQ(false, content::EvalJs(agent, "validateEdit()"));
+  browser()->tab_strip_model()->ActivateTabAt(
+      browser()->tab_strip_model()->GetIndexOfWebContents(home));
+  EXPECT_EQ(false, content::EvalJs(agent, "validateEdit()"));
+  EXPECT_EQ("TOOL_CANCELLED", content::EvalJs(agent, "beginEdit(true)"));
+  EXPECT_EQ("TOOL_CANCELLED", content::EvalJs(agent, "beginEdit()"));
+  ASSERT_NO_FATAL_FAILURE(capture_click());
+  EXPECT_EQ(published.Get()->id, content::EvalJs(agent, "beginEdit()"));
+  base::test::TestFuture<base::expected<void, HomeError>> reset;
+  service->Reset(published.Get()->id, reset.GetCallback(), nullptr);
+  ASSERT_TRUE(reset.Get().has_value());
+  EXPECT_EQ(false, content::EvalJs(agent, "validateEdit()"));
+  EXPECT_EQ("TOOL_CANCELLED", content::EvalJs(agent, "beginEdit(true)"));
+}
 
 class DaoHomeExternalUnavailableSourceUIBrowserTest
     : public DaoHomeExternalUIBrowserTest,
