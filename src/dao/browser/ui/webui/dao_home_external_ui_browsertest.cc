@@ -51,6 +51,7 @@
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/test_navigation_observer.h"
 #include "dao/browser/dao_pref_names.h"
+#include "dao/browser/home/dao_home_connector_executor.h"
 #include "dao/browser/home/dao_home_external_service.h"
 #include "dao/browser/home/dao_home_file_snapshot.h"
 #include "dao/browser/home/dao_home_project_service.h"
@@ -1444,6 +1445,98 @@ IN_PROC_BROWSER_TEST_F(DaoHomeExternalUIBrowserTest,
                   ->GetController()
                   ->GetAs<DaoHomeUI>()
                   ->IsExternalPreviewValid(draft_id_));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoHomeExternalUIBrowserTest,
+                       EarlyReadinessRejectsLateLoginAndScopeChanges) {
+  net::test_server::ControllableHttpResponse login(embedded_test_server(),
+                                                   "/login-signal");
+  net::test_server::ControllableHttpResponse installed(embedded_test_server(),
+                                                       "/installed");
+  net::test_server::ControllableHttpResponse redirect(embedded_test_server(),
+                                                      "/redirect-signal");
+  embedded_test_server()->RegisterRequestHandler(base::BindRepeating(
+      [](const net::test_server::HttpRequest& request)
+          -> std::unique_ptr<net::test_server::HttpResponse> {
+        auto response = std::make_unique<net::test_server::BasicHttpResponse>();
+        response->set_content_type("text/html");
+        if (request.relative_url == "/hydrate") {
+          response->set_content(
+              "<main></main><script>setTimeout(() => "
+              "document.querySelector('main').id='ready', 5600)</script>");
+        } else if (request.relative_url == "/form") {
+          response->set_content(
+              "<main>Ready</main><script>fetch('/login-signal').then(() => {"
+              "document.body.innerHTML='<input type=password>'; "
+              "fetch('/installed');});</script>");
+        } else if (request.relative_url == "/move") {
+          response->set_content(
+              "<main>Ready</main><script>fetch('/redirect-signal').then(() => "
+              "history.pushState({}, '', '/outside'));</script>");
+        } else if (request.relative_url == "/401" ||
+                   request.relative_url == "/403") {
+          response->set_code(request.relative_url == "/401"
+                                 ? net::HTTP_UNAUTHORIZED
+                                 : net::HTTP_FORBIDDEN);
+          response->set_content("Sign in");
+        } else {
+          return nullptr;
+        }
+        return response;
+      }));
+  ASSERT_TRUE(embedded_test_server()->Start());
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("dao://home/")));
+  auto* owner = browser()->tab_strip_model()->GetActiveWebContents();
+  DaoHomeConnectorExecutor executor;
+  auto start = [&](const std::string& path) {
+    HomeConnector connector;
+    connector.id = "fixture";
+    connector.permissions.origins.push_back(
+        url::Origin::Create(embedded_test_server()->GetURL(path)));
+    connector.permissions.paths.push_back(path);
+    connector.permissions.capabilities.insert(HomePageCapability::kReadDom);
+    base::test::TestFuture<base::Value> ready;
+    executor.Start(owner, browser()->GetProfile(), "revision",
+                   std::move(connector), HomeLimits(), "export default {}",
+                   R"({"type":"string"})", base::Value(base::DictValue()),
+                   ready.GetCallback());
+    return ready.Take().TakeDict();
+  };
+  for (const char* path : {"/401", "/403"}) {
+    auto response = start(path);
+    ASSERT_TRUE(response.FindString("code"));
+    EXPECT_EQ("auth_required", *response.FindString("code"));
+  }
+  auto hydrated = start("/hydrate");
+  ASSERT_TRUE(hydrated.FindString("execution_id"));
+  base::test::TestFuture<base::Value> waited;
+  executor.CallPage(*hydrated.FindString("execution_id"), "waitFor",
+                    base::ListValue().Append("#ready").Append(9000),
+                    waited.GetCallback());
+  EXPECT_EQ(base::Value(true), waited.Get());
+  auto started = start("/form");
+  ASSERT_TRUE(started.FindString("execution_id")) << started.DebugString();
+  login.WaitForRequest();
+  login.Send(net::HTTP_OK, "text/plain", "ok");
+  login.Done();
+  installed.WaitForRequest();
+  installed.Send(net::HTTP_OK, "text/plain", "ok");
+  installed.Done();
+  base::test::TestFuture<base::Value> finished;
+  executor.Finish(*started.FindString("execution_id"), base::Value("stale"),
+                  finished.GetCallback());
+  ASSERT_EQ("auth_required", *finished.Get().GetDict().FindString("code"));
+
+  started = start("/move");
+  ASSERT_TRUE(started.FindString("execution_id"));
+  redirect.WaitForRequest();
+  redirect.Send(net::HTTP_OK, "text/plain", "ok");
+  redirect.Done();
+  ASSERT_TRUE(base::test::RunUntil([&] { return !executor.running(); }));
+  base::test::TestFuture<base::Value> outside;
+  executor.Finish(*started.FindString("execution_id"), base::Value("stale"),
+                  outside.GetCallback());
+  EXPECT_EQ("site_changed", *outside.Get().GetDict().FindString("code"));
 }
 
 IN_PROC_BROWSER_TEST_F(DaoHomeExternalUIBrowserTest,

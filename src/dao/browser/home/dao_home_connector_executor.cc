@@ -31,9 +31,11 @@
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/visibility.h"
+#include "content/public/browser/weak_document_ptr.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/isolated_world_ids.h"
 #include "content/public/common/url_constants.h"
+#include "dao/browser/performance/dao_high_performance_mode.h"
 #include "net/http/http_response_headers.h"
 #include "url/gurl.h"
 #include "url/origin.h"
@@ -46,6 +48,9 @@ constexpr int kMaxOperations = 100;
 constexpr int kMaxScrolls = 10;
 constexpr size_t kMaxMediaHandles = 100;
 constexpr size_t kMaxMediaBytes = 5 * 1024 * 1024;
+
+constexpr std::string_view kLoginFormPresent =
+    R"js(!!document.querySelector('input[type="password"], input[autocomplete="current-password"], form[action*="login" i], form[action*="signin" i]'))js";
 
 base::Value Error(std::string code, std::string message) {
   return base::Value(base::DictValue()
@@ -213,6 +218,7 @@ void DaoHomeConnectorExecutor::Start(content::WebContents* owner,
                                      base::Value input,
                                      Callback callback) {
   Cancel();
+  failed_execution_id_.clear();
   if (!owner || !profile || profile->IsOffTheRecord() ||
       connector.permissions.origins.empty() ||
       connector.permissions.paths.empty()) {
@@ -246,10 +252,17 @@ void DaoHomeConnectorExecutor::Start(content::WebContents* owner,
   input_ = std::move(input);
   execution_id_ = base::Uuid::GenerateRandomV4().AsLowercaseString();
   start_callback_ = std::move(callback);
+  if (!OwnerIsActive()) {
+    FailStart("cancelled", "Dao Home is no longer active.");
+    return;
+  }
   owner_observer_ =
       std::make_unique<OwnerObserver>(owner, weak_factory_.GetWeakPtr());
-  source_ =
-      content::WebContents::Create(content::WebContents::CreateParams(profile));
+  content::WebContents::CreateParams source_params(profile);
+  source_params.initially_hidden = true;
+  source_ = content::WebContents::Create(source_params);
+  source_->Resize(gfx::Rect(1280, 800));
+  DaoHighPerformanceMode::SetEnabled(source_.get(), true);
   Observe(source_.get());
   timeout_.Start(FROM_HERE, kExecutionTimeout,
                  base::BindOnce(&DaoHomeConnectorExecutor::FailStart,
@@ -322,6 +335,10 @@ void DaoHomeConnectorExecutor::CallPage(const std::string& execution_id,
                                         const std::string& operation,
                                         base::ListValue arguments,
                                         Callback callback) {
+  if (!failed_execution_id_.empty() && execution_id == failed_execution_id_) {
+    std::move(callback).Run(terminal_error_.Clone());
+    return;
+  }
   if (execution_id != execution_id_ || !source_ ||
       !committed_allowed_document_ || collection_finished_ ||
       !OwnerIsActive()) {
@@ -389,18 +406,18 @@ void DaoHomeConnectorExecutor::CallPage(const std::string& execution_id,
           .Run(Error("invalid_argument", "waitFor requires a selector."));
       return;
     }
-    int wait_ms = 5000;
+    double wait_ms = 5000;
     if (arguments.size() > 1) {
       if (std::optional<int> requested = arguments[1].GetIfInt()) {
         wait_ms = *requested;
       } else if (std::optional<double> requested_double =
                      arguments[1].GetIfDouble()) {
-        wait_ms = static_cast<int>(*requested_double);
+        wait_ms = *requested_double;
       }
     }
     wait_for_selector_ = *selector;
     wait_for_deadline_ = base::TimeTicks::Now() +
-                         base::Milliseconds(std::clamp(wait_ms, 0, 5000));
+                         base::Milliseconds(std::clamp(wait_ms, 0.0, 10000.0));
     PollWaitFor();
     return;
   }
@@ -417,6 +434,7 @@ std::string DaoHomeConnectorExecutor::BuildAdapterScript(
   std::string args_json;
   base::JSONWriter::Write(arguments, &args_json);
   std::string script = R"js((() => {
+    if (__LOGIN_FORM__) return {__dao_auth_required: true};
     const args = __ARGS__;
     const operation = __OP__;
     const sensitive = element => {
@@ -440,6 +458,7 @@ std::string DaoHomeConnectorExecutor::BuildAdapterScript(
         if (!candidate) continue;
         if (candidate === 'text' || candidate === '$text')
           return {element: root, mode: 'text'};
+        if (candidate === '$innerText') return {element: root, mode: 'innerText'};
         if (candidate === 'href' || candidate === '$href') {
           const element = root.matches?.('a[href]') ? root :
               select('a[href]', root);
@@ -502,6 +521,7 @@ std::string DaoHomeConnectorExecutor::BuildAdapterScript(
           for (const [key, field] of Object.entries(fields)) {
             const {element, mode} = selectField(field, root);
             item[key] = mode === 'text' ? text(element) :
+                mode === 'innerText' ? String(element.innerText ?? element.textContent ?? '').trim().slice(0, 65536) :
                 mode === 'href' ?
                     (element instanceof HTMLAnchorElement ? element.href : null) :
                 mode === 'media' ? media(element) :
@@ -535,6 +555,8 @@ std::string DaoHomeConnectorExecutor::BuildAdapterScript(
     }
     throw new Error('Unknown page operation');
   })())js";
+  base::ReplaceSubstringsAfterOffset(&script, 0, "__LOGIN_FORM__",
+                                     kLoginFormPresent);
   base::ReplaceSubstringsAfterOffset(&script, 0, "__ARGS__", args_json);
   std::string operation_json;
   base::JSONWriter::Write(operation, &operation_json);
@@ -544,6 +566,11 @@ std::string DaoHomeConnectorExecutor::BuildAdapterScript(
 
 void DaoHomeConnectorExecutor::OnPageResult(base::Value result) {
   if (!page_callback_) {
+    return;
+  }
+  if (result.is_dict() &&
+      result.GetDict().FindBool("__dao_auth_required").value_or(false)) {
+    FailStart("auth_required", "Sign in to reconnect this Home source.");
     return;
   }
   Callback callback = std::move(page_callback_);
@@ -589,6 +616,11 @@ void DaoHomeConnectorExecutor::PollWaitFor() {
 
 void DaoHomeConnectorExecutor::OnWaitForResult(base::Value result) {
   if (!page_callback_) {
+    return;
+  }
+  if (result.is_dict() &&
+      result.GetDict().FindBool("__dao_auth_required").value_or(false)) {
+    FailStart("auth_required", "Sign in to reconnect this Home source.");
     return;
   }
   if (result.is_bool() && result.GetBool()) {
@@ -643,6 +675,10 @@ void DaoHomeConnectorExecutor::ReplaceMediaReferences(base::Value& value,
 void DaoHomeConnectorExecutor::Finish(const std::string& execution_id,
                                       base::Value result,
                                       Callback callback) {
+  if (!failed_execution_id_.empty() && execution_id == failed_execution_id_) {
+    std::move(callback).Run(terminal_error_.Clone());
+    return;
+  }
   if (execution_id != execution_id_ || !OwnerIsActive() || page_callback_ ||
       finish_callback_ || collection_finished_) {
     Cancel();
@@ -665,12 +701,31 @@ void DaoHomeConnectorExecutor::Finish(const std::string& execution_id,
         "invalid_response", "The connector result does not match its schema."));
     return;
   }
+  // Only snapshot handles returned by the module. A discarded query may have
+  // discovered unloaded images unrelated to the card.
+  if (!media_handles_.empty()) {
+    constexpr std::string_view kPrefix = "dao-media:";
+    const size_t handle_length = media_handles_.begin()->first.size();
+    const std::string_view json(serialized);
+    std::set<std::string_view> returned_handles;
+    for (size_t pos = json.find(kPrefix); pos != json.npos;
+         pos = json.find(kPrefix, pos + kPrefix.size())) {
+      const auto handle = json.substr(pos, handle_length);
+      if (media_handles_.contains(handle)) {
+        returned_handles.insert(handle);
+      }
+    }
+    std::erase_if(media_handles_, [&](const auto& item) {
+      return !returned_handles.contains(item.first);
+    });
+  }
   finish_result_ = std::move(result);
   finish_callback_ = std::move(callback);
   if (media_handles_.empty()) {
-    CompleteFinish();
+    CheckAuthState();
     return;
   }
+  media_ready_deadline_ = base::TimeTicks::Now() + base::Seconds(2);
   std::set<std::string> unique_urls;
   for (const auto& [handle, url] : media_handles_) {
     if (unique_urls.insert(url.spec()).second) {
@@ -685,7 +740,7 @@ void DaoHomeConnectorExecutor::SnapshotNextMedia() {
     return;
   }
   if (next_media_snapshot_ >= pending_media_urls_.size()) {
-    CompleteFinish();
+    CheckAuthState();
     return;
   }
   const GURL& url = pending_media_urls_[next_media_snapshot_];
@@ -739,6 +794,9 @@ std::string DaoHomeConnectorExecutor::BuildMediaSnapshotScript(
       const media = [...document.images, ...document.querySelectorAll('video')]
           .find(element => String(element.currentSrc || element.src || '') === url);
       if (!media) return {__dao_media_error: 'not_found'};
+      if ((media instanceof HTMLImageElement && !media.complete) ||
+          (media instanceof HTMLVideoElement && media.readyState < 2))
+        return {__dao_media_pending: true};
       const width = Number(media.videoWidth || media.naturalWidth || media.width);
       const height = Number(media.videoHeight || media.naturalHeight || media.height);
       if (!Number.isFinite(width) || !Number.isFinite(height) ||
@@ -774,6 +832,16 @@ void DaoHomeConnectorExecutor::OnMediaSnapshotResult(std::string url,
     return;
   }
   const base::DictValue* snapshot = result.GetIfDict();
+  if (snapshot && snapshot->FindBool("__dao_media_pending").value_or(false)) {
+    if (base::TimeTicks::Now() < media_ready_deadline_) {
+      wait_for_timer_.Start(
+          FROM_HERE, base::Milliseconds(50),
+          base::BindOnce(&DaoHomeConnectorExecutor::SnapshotNextMedia,
+                         weak_factory_.GetWeakPtr()));
+      return;
+    }
+    result.GetDict().Set("__dao_media_error", "temporarily_unavailable");
+  }
   const std::string* error =
       snapshot ? snapshot->FindString("__dao_media_error") : nullptr;
   const std::string* mime = snapshot ? snapshot->FindString("mime") : nullptr;
@@ -811,6 +879,9 @@ void DaoHomeConnectorExecutor::CompleteFinish() {
   base::SequencedTaskRunner::GetCurrentDefault()->DeleteSoon(
       FROM_HERE, std::move(source_));
   pending_media_urls_.clear();
+  module_source_.clear();
+  schema_ = base::Value();
+  input_ = base::Value();
   std::move(callback).Run(base::Value(base::DictValue()
                                           .Set("execution_id", execution_id_)
                                           .Set("result", std::move(result))));
@@ -825,20 +896,31 @@ void DaoHomeConnectorExecutor::DidFinishNavigation(
     FailStart("site_changed", "The connector page left its granted scope.");
     return;
   }
-  if (handle->IsErrorPage()) {
-    FailStart("temporarily_unavailable", "The connector page is unavailable.");
-    return;
-  }
   const net::HttpResponseHeaders* headers = handle->GetResponseHeaders();
   if (headers &&
       (headers->response_code() == 401 || headers->response_code() == 403)) {
     FailStart("auth_required", "Sign in to reconnect this Home source.");
     return;
   }
+  if (handle->IsErrorPage()) {
+    FailStart("temporarily_unavailable", "The connector page is unavailable.");
+    return;
+  }
   committed_allowed_document_ = true;
 }
 
+void DaoHomeConnectorExecutor::DOMContentLoaded(
+    content::RenderFrameHost* frame) {
+  if (frame->IsInPrimaryMainFrame()) {
+    MaybeCheckDocumentReady();
+  }
+}
+
 void DaoHomeConnectorExecutor::DidStopLoading() {
+  MaybeCheckDocumentReady();
+}
+
+void DaoHomeConnectorExecutor::MaybeCheckDocumentReady() {
   if ((start_callback_ || (page_callback_ && navigation_pending_)) &&
       committed_allowed_document_ && !auth_check_pending_) {
     CheckAuthState();
@@ -854,18 +936,30 @@ void DaoHomeConnectorExecutor::CheckAuthState() {
   }
   auth_check_pending_ = true;
   frame->ExecuteJavaScriptInIsolatedWorld(
-      uR"js((() => Boolean(
-        document.querySelector('input[type="password"], input[autocomplete="current-password"], form[action*="login" i], form[action*="signin" i]')
-      ))())js",
+      base::UTF8ToUTF16(kLoginFormPresent),
       base::BindOnce(&DaoHomeConnectorExecutor::OnAuthState,
-                     weak_factory_.GetWeakPtr()),
+                     weak_factory_.GetWeakPtr(), frame->GetWeakDocumentPtr()),
       ISOLATED_WORLD_ID_CHROME_INTERNAL);
 }
 
-void DaoHomeConnectorExecutor::OnAuthState(base::Value result) {
+void DaoHomeConnectorExecutor::OnAuthState(content::WeakDocumentPtr document,
+                                           base::Value result) {
   auth_check_pending_ = false;
-  if (result.is_bool() && result.GetBool()) {
+  if (!source_ ||
+      document.AsRenderFrameHostIfValid() != source_->GetPrimaryMainFrame()) {
+    FailStart("site_changed", "The connector source document changed.");
+    return;
+  }
+  if (!OwnerIsActive() || !result.is_bool()) {
+    FailStart("cancelled", "The active Dao Home connector session ended.");
+    return;
+  }
+  if (result.GetBool()) {
     FailStart("auth_required", "Sign in to reconnect this Home source.");
+    return;
+  }
+  if (finish_callback_) {
+    CompleteFinish();
     return;
   }
   if (start_callback_) {
@@ -917,7 +1011,15 @@ void DaoHomeConnectorExecutor::Fail(std::string code,
 void DaoHomeConnectorExecutor::FailStart(std::string code,
                                          std::string message) {
   if (!start_callback_ && !page_callback_ && !finish_callback_) {
+    // Navigation and timeouts can terminate a session between sandbox calls.
+    auto id = execution_id_;
+    auto revision = revision_;
+    auto connector_id = connector_.id;
     Reset();
+    failed_execution_id_ = std::move(id);
+    revision_ = std::move(revision);
+    connector_.id = std::move(connector_id);
+    terminal_error_ = Error(std::move(code), std::move(message));
     return;
   }
   Callback callback = start_callback_  ? std::move(start_callback_)

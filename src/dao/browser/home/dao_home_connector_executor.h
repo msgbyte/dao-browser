@@ -5,6 +5,7 @@
 #ifndef DAO_BROWSER_HOME_DAO_HOME_CONNECTOR_EXECUTOR_H_
 #define DAO_BROWSER_HOME_DAO_HOME_CONNECTOR_EXECUTOR_H_
 
+#include <functional>
 #include <map>
 #include <memory>
 #include <string>
@@ -22,6 +23,7 @@
 class Profile;
 namespace content {
 class NavigationHandle;
+class WeakDocumentPtr;
 class WebContents;
 }  // namespace content
 
@@ -62,7 +64,8 @@ class DaoHomeConnectorExecutor : public content::WebContentsObserver {
   bool running() const;
   bool collection_finished() const { return collection_finished_; }
   bool OwnsExecution(const std::string& execution_id) const {
-    return !execution_id.empty() && execution_id == execution_id_;
+    return !execution_id.empty() && (execution_id == execution_id_ ||
+                                     execution_id == failed_execution_id_);
   }
   bool OwnsMediaHandle(const std::string& handle) const;
   size_t retained_media_blob_count_for_testing() const {
@@ -73,6 +76,7 @@ class DaoHomeConnectorExecutor : public content::WebContentsObserver {
 
   // content::WebContentsObserver:
   void DidFinishNavigation(content::NavigationHandle* handle) override;
+  void DOMContentLoaded(content::RenderFrameHost* frame) override;
   void DidStopLoading() override;
   void WebContentsDestroyed() override;
 
@@ -84,9 +88,10 @@ class DaoHomeConnectorExecutor : public content::WebContentsObserver {
   bool OperationIsAllowed(const std::string& operation) const;
   std::string BuildAdapterScript(const std::string& operation,
                                  const base::ListValue& arguments) const;
+  void MaybeCheckDocumentReady();
   void ReplyStarted();
   void CheckAuthState();
-  void OnAuthState(base::Value result);
+  void OnAuthState(content::WeakDocumentPtr document, base::Value result);
   void OnPageResult(base::Value result);
   void PollWaitFor();
   void OnWaitForResult(base::Value result);
@@ -105,6 +110,8 @@ class DaoHomeConnectorExecutor : public content::WebContentsObserver {
   std::unique_ptr<OwnerObserver> owner_observer_;
   std::unique_ptr<content::WebContents> source_;
   std::string execution_id_;
+  std::string failed_execution_id_;
+  base::Value terminal_error_;
   std::string revision_;
   HomeConnector connector_;
   HomeLimits limits_;
@@ -115,9 +122,10 @@ class DaoHomeConnectorExecutor : public content::WebContentsObserver {
   Callback page_callback_;
   Callback finish_callback_;
   base::Value finish_result_;
-  std::map<std::string, GURL> media_handles_;
+  std::map<std::string, GURL, std::less<>> media_handles_;
   std::map<std::string, base::Value> resolved_media_;
   std::vector<GURL> pending_media_urls_;
+  base::TimeTicks media_ready_deadline_;
   size_t next_media_snapshot_ = 0;
   size_t retained_media_bytes_ = 0;
   int operation_count_ = 0;

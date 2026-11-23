@@ -15,6 +15,12 @@ schema, item and byte limits. Return only the content the user requested. Never
 read sensitive controls or credentials, broaden access to bypass denial, or
 substitute discovery/trending content for a missing personalized feed.
 
+The page can start at DOMContentLoaded. On a dynamic site, wait for an element
+that indicates the requested data is ready with `page.waitFor(selector, ms)`.
+The default wait is five seconds and the maximum is ten seconds, within the
+twenty-second collection budget. In `queryAll` fields, `$innerText` reads
+rendered text with layout line breaks and `$text` reads text content.
+
 Use `home preview --workspace W` to ask for any native source permissions in the
 preview window, test connectors, then validate the actual generated runtime.
 Collection uses that exact regular Profile's signed-in state. Cookie bytes and
