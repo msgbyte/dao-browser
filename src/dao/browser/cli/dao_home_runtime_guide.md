@@ -15,8 +15,9 @@ fail CSP. The runtime resets default
 html/body margins; add intentional layout spacing in project CSS. No cookies,
 localStorage, sessionStorage, IndexedDB, fetch, XMLHttpRequest, WebSocket, direct
 external links, or arbitrary browser APIs are available. Use memory-only
-`dao.session.get(key)` and `dao.session.set(key, value)`. Open a user-confirmed
-HTTP(S) destination through `dao.navigation.open(url)` from project JavaScript.
+`dao.session.get(key)` and `dao.session.set(key, value)`. Call
+`dao.navigation.open(url)` from a click or keyboard handler to open an HTTP(S)
+destination directly in a new tab.
 Collect declared sources with `await dao.sources.collect(connectorId, {})`.
 Resolve opaque media handles with `await dao.media.resolve(handle)`; never treat
 them as network URLs. No polling or background refresh is introduced.

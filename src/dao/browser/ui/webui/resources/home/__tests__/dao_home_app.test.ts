@@ -160,42 +160,42 @@ describe('dao-home-app', () => {
        expect(cssText).not.toMatch(/\.canvas\s*{[^}]*border(?:-radius)?:/s);
      });
 
-  it('requires trusted confirmation before opening generated navigation',
-     async () => {
+  it.each([
+    {url: 'https://example.test/path?q=home#section', active: true, opens: true},
+    {url: 'http://example.test/', active: true, opens: true},
+    {url: 'https://example.test/', active: false, opens: false},
+    {url: 'file:///private/example', active: true, opens: false},
+  ])('handles navigation to $url with user activation $active',
+     async ({url, active, opens}) => {
        bridge.getHomeSnapshot.mockResolvedValue({
-         hasProject: true,
-         revision: 'revision-1',
-         entry: 'index.html',
-         connectors: [],
+         hasProject: true, revision: 'revision-1', entry: 'index.html', connectors: [],
        });
        const app = await createApp();
        const frame = app.shadowRoot!.querySelector<HTMLIFrameElement>(
            '[data-test="project-frame"]')!;
+       const postMessage = vi.fn();
+       Object.defineProperty(frame, 'contentWindow', {value: {postMessage}});
 
-       window.dispatchEvent(new MessageEvent('message', {
+       const message = new MessageEvent('message', {
          source: frame.contentWindow,
          origin: 'null',
          data: {
-           daoHome: 1,
-           requestId: 'navigation-1',
-           revision: 'revision-1',
-           method: 'navigation.open',
-           params: {url: 'https://example.test/private?token=secret'},
+           daoHome: 1, requestId: 'link', revision: 'revision-1',
+           method: 'navigation.open', params: {url},
          },
-       }));
-
-       await vi.waitFor(() => {
-         expect(app.shadowRoot!.querySelector(
-             '[data-test="navigation-dialog"]')).not.toBeNull();
        });
-       expect(bridge.openHomeNavigation).not.toHaveBeenCalled();
+       Object.defineProperty(message, 'userActivation', {value: {isActive: active}});
+       window.dispatchEvent(message);
 
-       app.shadowRoot!.querySelector<HTMLButtonElement>(
-           '[data-test="confirm-navigation"]')!.click();
-
-       expect(bridge.openHomeNavigation).toHaveBeenCalledOnce();
-       expect(bridge.openHomeNavigation).toHaveBeenCalledWith(
-           'https://example.test/private?token=secret');
+       await vi.waitFor(() => expect(postMessage).toHaveBeenCalledWith(
+           expect.objectContaining(opens ? {result: {opened: true}} :
+                                           {error: expect.any(String)}), '*'));
+       expect(app.shadowRoot!.querySelector('[role="dialog"]')).toBeNull();
+       if (opens) {
+         expect(bridge.openHomeNavigation).toHaveBeenCalledExactlyOnceWith(url);
+       } else {
+         expect(bridge.openHomeNavigation).not.toHaveBeenCalled();
+       }
      });
 
   it('opens a validated launch action without a confirmation dialog',
@@ -266,51 +266,6 @@ describe('dao-home-app', () => {
     expect(app.shadowRoot!.querySelector(
         '[data-test="navigation-dialog"]')).toBeNull();
   });
-
-  it('cancels pending generated navigation when the project changes',
-     async () => {
-       bridge.getHomeSnapshot.mockResolvedValue({
-         hasProject: true,
-         revision: 'revision-1',
-         entry: 'index.html',
-         connectors: [],
-       });
-       const app = await createApp();
-       const frame = app.shadowRoot!.querySelector<HTMLIFrameElement>(
-           '[data-test="project-frame"]')!;
-
-       window.dispatchEvent(new MessageEvent('message', {
-         source: frame.contentWindow,
-         origin: 'null',
-         data: {
-           daoHome: 1,
-           requestId: 'navigation-stale',
-           revision: 'revision-1',
-           method: 'navigation.open',
-           params: {url: 'https://example.test/stale'},
-         },
-       }));
-       await vi.waitFor(() => {
-         expect(app.shadowRoot!.querySelector(
-             '[data-test="navigation-dialog"]')).not.toBeNull();
-       });
-
-       bridge.getHomeSnapshot.mockResolvedValue({
-         hasProject: true,
-         revision: 'revision-2',
-         entry: 'index.html',
-         connectors: [],
-       });
-       const registration = bridge.addListener.mock.calls.find(
-           ([eventName]) => eventName === 'dao-home-project-changed')![1];
-       registration();
-
-       await vi.waitFor(() => {
-         expect(app.shadowRoot!.querySelector(
-             '[data-test="navigation-dialog"]')).toBeNull();
-       });
-       expect(bridge.openHomeNavigation).not.toHaveBeenCalled();
-     });
 
   it('destroys the untrusted session whenever Home becomes hidden',
      async () => {

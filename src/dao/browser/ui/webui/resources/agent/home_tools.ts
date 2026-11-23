@@ -47,8 +47,8 @@ runtime. Follow this contract exactly whenever you use Home tools:
    - Do not use localStorage, sessionStorage, cookies, or IndexedDB. For
      memory-only state use dao.session.get(key) and dao.session.set(key, value).
    - Do not use fetch, XMLHttpRequest, WebSocket, or direct external links.
-     Open a user-confirmed HTTP(S) destination with dao.navigation.open(url)
-     from project JavaScript. Source data uses declared connectors only.
+     Call dao.navigation.open(url) from a click or keyboard handler to open an
+     HTTP(S) destination directly in a new tab. Source data uses declared connectors only.
 5. Use home_replace_files when rewriting most or all of one or more existing
    text files. Put every related replacement in the same call so index.html,
    styles.css, app.js, and metadata changes share one atomic draft. Pass the

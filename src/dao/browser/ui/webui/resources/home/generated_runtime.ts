@@ -216,7 +216,11 @@ export class GeneratedAppChannel {
       method,
       params,
     };
-    this.parent_.postMessage(envelope, this.trustedOrigin_);
+    const options = {
+      targetOrigin: this.trustedOrigin_,
+      includeUserActivation: method === 'navigation.open',
+    };
+    this.parent_.postMessage(envelope, options);
     return request;
   }
 

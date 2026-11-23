@@ -1028,7 +1028,7 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
   opaque-origin runtime constraints, and the atomic apply-preview-publish
   sequence. It directs generated interaction code into project script files,
   memory-only state through `dao.session`, and external navigation through the
-  trusted confirmation API instead of inline script, Web Storage, or raw
+  trusted navigation API instead of inline script, Web Storage, or raw
   network APIs. Native tool failures include their stable error code in the
   model-visible message so the Agent can correct a rejected patch instead of
   guessing another project format. Re-entrant manual or command-bar submits
@@ -1211,10 +1211,12 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
   a validated launch action opens directly without an extra confirmation.
   Collected cards marked with `data-dao-feed-link`, `data-dao-feed-url`, and
   `data-dao-feed-source` use the same direct user-click path.
-  Arbitrary `dao.navigation.open` calls still require browser-owned confirmation.
+  A click or keyboard activation that calls `dao.navigation.open(url)` opens the
+  HTTP(S) destination directly in a new foreground tab. The host rejects calls
+  without a recent user gesture.
   A synchronous trusted prelude owns canonical action clicks before project
   scripts run, so generated capture handlers cannot replace or suppress the
-  confirmation path. The host inserts that prelude after a real leading
+  navigation handler. The host inserts that prelude after a real leading
   doctype and before all project markup, without mistaking HTML comments for
   document structure. The generated canvas fills the browser-owned content
   card without adding another inset or border, and the prelude clears only the
@@ -1226,8 +1228,7 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
   cannot submit its own preview verdict: the trusted parent reports only the
   iframe load, while the browser process binds the exact preview frame and
   rejects console errors, failed loads, or cross-document replacement before
-  issuing the draft receipt. A trusted Home dialog displays and confirms
-  non-action generated-app navigation before it occurs.
+  issuing the draft receipt.
 - **Generated connector isolation** — Connector modules run in a second
   no-bindings `chrome-untrusted://dao-home-connector` sandbox and receive only
   a fixed, audited page RPC. Native code owns a detached, never-focused regular

@@ -47,11 +47,6 @@ import {
 } from './home_bridge.js';
 import {ConnectorHost} from './connector_host.js';
 
-interface PendingNavigation {
-  url: string;
-  reply: (value: {result?: unknown; error?: string; code?: string}) => void;
-}
-
 interface PendingPreview {
   requestId: string;
   draftId: string;
@@ -100,7 +95,6 @@ export class DaoHomeApp extends CrLitElement {
       pendingRollback_: {type: Object},
       pendingReset_: {type: Boolean},
       resetFailed_: {type: Boolean},
-      pendingNavigation_: {type: Object},
       pendingPreview_: {type: Object},
       externalEditor_: {type: Object},
       externalSession_: {type: Object},
@@ -489,7 +483,6 @@ export class DaoHomeApp extends CrLitElement {
   declare protected pendingRollback_: HomeVersion|null;
   declare protected pendingReset_: boolean;
   declare protected resetFailed_: boolean;
-  declare protected pendingNavigation_: PendingNavigation|null;
   declare protected pendingPreview_: PendingPreview|null;
   declare protected externalEditor_: {client: string}|null;
   declare protected externalSession_: {
@@ -524,7 +517,6 @@ export class DaoHomeApp extends CrLitElement {
       return;
     }
     if (!active) {
-      this.cancelNavigation_();
       this.pendingPreview_ = null;
       this.connectorHost_?.disconnect();
       this.connectorHost_ = null;
@@ -559,7 +551,6 @@ export class DaoHomeApp extends CrLitElement {
     this.pendingRollback_ = null;
     this.pendingReset_ = false;
     this.resetFailed_ = false;
-    this.pendingNavigation_ = null;
     this.pendingPreview_ = null;
     this.externalEditor_ = null;
     this.externalSession_ = null;
@@ -573,7 +564,6 @@ export class DaoHomeApp extends CrLitElement {
         'visibilitychange', this.onVisibilityChanged_);
     this.projectChangedListener_ = addListener(
         'dao-home-project-changed', () => {
-          this.cancelNavigation_();
           this.pendingPreview_ = null;
           void this.refresh_();
         });
@@ -611,7 +601,6 @@ export class DaoHomeApp extends CrLitElement {
     window.removeEventListener('message', this.onRuntimeMessage_);
     document.removeEventListener(
         'visibilitychange', this.onVisibilityChanged_);
-    this.cancelNavigation_();
     this.pendingPreview_ = null;
     this.connectorHost_?.disconnect();
     this.connectorHost_ = null;
@@ -770,7 +759,8 @@ export class DaoHomeApp extends CrLitElement {
     }
   }
 
-  private async handleRuntimeMessage_(event: MessageEvent): Promise<void> {
+  private async handleRuntimeMessage_(
+      event: MessageEvent&{userActivation?: UserActivation|null}): Promise<void> {
     if (await this.connectorHost_?.handleMessage(event)) {
       return;
     }
@@ -826,10 +816,15 @@ export class DaoHomeApp extends CrLitElement {
              destination.protocol !== 'https:')) {
           throw new Error('Only HTTP(S) navigation is allowed.');
         }
-        if (this.pendingNavigation_) {
-          throw new Error('Another navigation request is awaiting approval.');
+        if (!event.userActivation?.isActive) {
+          reply({
+            error: 'Opening a Home link requires user interaction.',
+            code: 'cancelled',
+          });
+          return;
         }
-        this.pendingNavigation_ = {url: destination.href, reply};
+        openHomeNavigation(destination.href);
+        reply({result: {opened: true}});
         return;
       }
       if (envelope.method === 'navigation.openAction') {
@@ -1057,25 +1052,6 @@ export class DaoHomeApp extends CrLitElement {
     this.permission_ = null;
     this.selectedBootstrapConnectorIds_ = new Set();
     await resolveHomeBootstrapPermission(request.id, selectedConnectorIds);
-  }
-
-  private cancelNavigation_(): void {
-    const navigation = this.pendingNavigation_;
-    this.pendingNavigation_ = null;
-    navigation?.reply({
-      error: 'Navigation was cancelled.',
-      code: 'cancelled',
-    });
-  }
-
-  private confirmNavigation_(): void {
-    const navigation = this.pendingNavigation_;
-    this.pendingNavigation_ = null;
-    if (!navigation) {
-      return;
-    }
-    openHomeNavigation(navigation.url);
-    navigation.reply({result: {opened: true}});
   }
 
   private capabilityLabel_(capability: string): string {
@@ -1384,39 +1360,6 @@ export class DaoHomeApp extends CrLitElement {
     `;
   }
 
-  private renderNavigation_() {
-    if (!this.pendingNavigation_) {
-      return nothing;
-    }
-    return html`
-      <div class="scrim">
-        <section class="dialog" role="dialog" aria-modal="true"
-            data-test="navigation-dialog">
-          <h2>${loadTimeData.getString('daoHomeConfirmNavigationTitle')}</h2>
-          <p>${loadTimeData.getString(
-              'daoHomeConfirmNavigationDescription')}</p>
-          <div class="scope">
-            <div class="scope-row">
-              <span class="scope-label">${loadTimeData.getString(
-                  'daoHomeWebsite')}</span>
-              <span>${this.pendingNavigation_.url}</span>
-            </div>
-          </div>
-          <div class="dialog-actions">
-            <button class="action" data-test="cancel-navigation"
-                @click=${() => this.cancelNavigation_()}>
-              ${loadTimeData.getString('daoHomeCancel')}
-            </button>
-            <button class="action primary" data-test="confirm-navigation"
-                @click=${() => this.confirmNavigation_()}>
-              ${loadTimeData.getString('daoHomeConfirm')}
-            </button>
-          </div>
-        </section>
-      </div>
-    `;
-  }
-
   private renderPreview_() {
     const preview = this.pendingPreview_;
     if (!preview) {
@@ -1471,7 +1414,6 @@ export class DaoHomeApp extends CrLitElement {
             <div class="external-waiting">${loadTimeData.getString('daoHomeExternalWaiting')}</div>
           ` : nothing}
           ${this.renderPermission_()}
-          ${this.renderNavigation_()}
         </main>
       `;
     }
@@ -1546,7 +1488,6 @@ export class DaoHomeApp extends CrLitElement {
         ${this.renderPanel_()}
         ${this.renderConfirmation_()}
         ${this.renderPermission_()}
-        ${this.renderNavigation_()}
       </main>
     `;
   }

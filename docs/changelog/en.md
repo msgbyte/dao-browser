@@ -5,6 +5,7 @@
 ### [Unreleased] Unreleased
 
 - The Stop external editing button in Dao Home previews now has a compact, rounded shape and a stop icon that stays visible in light and dark themes.
+- Click a link in Dao Home to open it directly in a new tab without a confirmation prompt.
 
 ### [1.0.142] - 2026-11-23
 

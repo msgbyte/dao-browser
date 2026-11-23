@@ -83,7 +83,6 @@
 <translation id="251834402454969316">与当前版本的差异</translation>
 <translation id="2519023533785544875">打开智能助手</translation>
 <translation id="2535607573648844553">Dao 需要读取所选浏览器的“安全存储”密钥，才能解密已保存的密码。如果拒绝授权，只会跳过密码，其他内容仍会继续迁移。</translation>
-<translation id="2580366865845491095">打开这个链接？</translation>
 <translation id="2612596415938768738">可能需要你先登录</translation>
 <translation id="2654155183153466577">复制当前标签页</translation>
 <translation id="2698054069012763064">另有 <ph name="COUNT" /> 项</translation>
@@ -180,7 +179,6 @@
 <translation id="6204195547326023850">正在打开你的主页…</translation>
 <translation id="6266039999629596120">需要处理</translation>
 <translation id="6270944267518310103">等待中</translation>
-<translation id="6299569859560607348">这个主页想打开一个外部页面。继续前请确认目标地址。</translation>
 <translation id="6325047129563993580">根据我最近的浏览主题创建 Dao 主页。只使用经过隐私精简的主页浏览材料，先简要说明设计方向，再构建并发布第一个版本。</translation>
 <translation id="642671119120438272">导入的标签页</translation>
 <translation id="6527303717912515753">分享</translation>

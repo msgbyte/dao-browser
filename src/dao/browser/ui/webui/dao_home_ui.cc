@@ -2373,10 +2373,6 @@ DaoHomeUI::DaoHomeUI(content::WebUI* web_ui) : WebUIController(web_ui) {
                              IDS_DAO_HOME_CONFIRM_RESTORE_TITLE);
   source->AddLocalizedString("daoHomeConfirmRestoreDescription",
                              IDS_DAO_HOME_CONFIRM_RESTORE_DESCRIPTION);
-  source->AddLocalizedString("daoHomeConfirmNavigationTitle",
-                             IDS_DAO_HOME_CONFIRM_NAVIGATION_TITLE);
-  source->AddLocalizedString("daoHomeConfirmNavigationDescription",
-                             IDS_DAO_HOME_CONFIRM_NAVIGATION_DESCRIPTION);
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::ChildSrc,
       "child-src chrome-untrusted://dao-home-app "
