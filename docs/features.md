@@ -1278,13 +1278,25 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
 - **No automatic maintenance** — Opening Home renders published code without an
   LLM call. Source collection is visible-card initiated, duplicate requests are
   coalesced for the active session, and successful results (including an empty
-  result) are reused for ten minutes before the next foreground collection can
-  refresh them. Generated feed apps keep the same per-connector ten-minute
-  memory cache and never create a refresh timer or background crawl. The
-  connector sandbox is also present on an empty active Home so the
+  result) are fresh for 30 minutes. Until 6 hours after collection, a read
+  returns cached data immediately and starts a refresh. Cards using the
+  `onUpdate` callback render the new result in place. Refresh failures preserve
+  the last success on temporary errors. The six-hour limit includes system sleep.
+  Reads check their authorized cache before queueing live work, even during a refresh.
+  Extending a cookie's expiry with the same value and access scope preserves the cache.
+  Reads check cookie expiry against wall-clock time even when the site is closed.
+  A first-party local storage mutation, session change, or site-data clear invalidates matching structured and media
+  results across Home documents, including reads still loading the source page.
+  An ordinary read without cached data retries once if the source establishes a new session.
+  A sign-in failure evicts results for the affected origins across drafts and
+  published cards. Each document accepts replies only to its own requests.
+  A document that rendered stale data reloads if the refresh detects a session
+  change or requires sign-in.
+  At hard expiry a read waits for a new result. The connector sandbox is also
+  present on an empty active Home so the
   first approved connector draft can be tested before its initial publication.
   Schema-validated results without media handles can be reused across Home
-  tabs for ten minutes in the same regular Profile (64 entries, 8 MiB of
+  tabs in the same regular Profile (64 entries, 8 MiB of
   serialized results). Each hit requires current permission and matches the
   revision, draft, connector fingerprint, and input. Project changes clear
   the cache. Ending a preview or discarding a draft clears its entries.

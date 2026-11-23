@@ -208,12 +208,12 @@ export function importHome(
 }
 
 export function startHomeConnector(
-    revision: string, connectorId: string, input: unknown, fresh = false): Promise<unknown> {
+    revision: string, connectorId: string, input: unknown, fresh: boolean|'cache-only' = false): Promise<unknown> {
   return sendAsync('startHomeConnector', revision, connectorId, input, fresh);
 }
 
 export function startHomeDraftConnector(
-    draftId: string, connectorId: string, input: unknown, fresh = false): Promise<unknown> {
+    draftId: string, connectorId: string, input: unknown, fresh: boolean|'cache-only' = false): Promise<unknown> {
   return sendAsync('startHomeDraftConnector', draftId, connectorId, input, fresh);
 }
 
@@ -231,8 +231,8 @@ export function finishHomeConnector(
   return sendAsync('finishHomeConnector', executionId, result);
 }
 
-export function resolveHomeMedia(handle: string, draftId = ''): Promise<unknown> {
-  return sendAsync('resolveHomeMedia', handle, draftId);
+export function resolveHomeMedia(handle: string, draftId = '', checkOnly = false): Promise<unknown> {
+  return sendAsync('resolveHomeMedia', handle, draftId, checkOnly);
 }
 
 export function completeHomeAgentConnector(

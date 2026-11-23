@@ -9,6 +9,7 @@ interface HomeEnvelope {
   method?: string;
   params?: unknown;
   result?: unknown;
+  stale?: boolean;
   error?: string;
   code?: string;
 }
@@ -16,6 +17,8 @@ interface HomeEnvelope {
 interface PendingRequest {
   resolve: (value: unknown) => void;
   reject: (reason: Error) => void;
+  onUpdate?: (value: unknown) => void;
+  servedStale?: boolean;
 }
 
 interface ResolvedMedia {
@@ -191,7 +194,6 @@ export function createMediaObjectUrl(
   return create(new Blob([bytes], {type: media.mime}));
 }
 
-// Object URLs live independently of the native snapshots that supplied them.
 export class HomeMediaUrls {
   private readonly entries_ = new Map<string, {url: string; bytes: number}>();
   private bytes_ = 0;
@@ -206,39 +208,45 @@ export class HomeMediaUrls {
     const url = URL.createObjectURL(blob);
     this.entries_.set(handle, {url, bytes: blob.size});
     this.bytes_ += blob.size;
-    for (const [id, entry] of this.entries_) {
+    for (const id of this.entries_.keys()) {
       if (this.bytes_ <= 16 * 1024 * 1024 && this.entries_.size <= 1600) break;
-      URL.revokeObjectURL(entry.url);
-      this.entries_.delete(id);
-      this.bytes_ -= entry.bytes;
+      this.delete(id);
     }
     return url;
   }
 
+  delete(handle: string): void {
+    const entry = this.entries_.get(handle);
+    if (entry) {
+      URL.revokeObjectURL(entry.url);
+      this.bytes_ -= entry.bytes;
+      this.entries_.delete(handle);
+    }
+  }
+
   clear(): void {
-    for (const entry of this.entries_.values()) URL.revokeObjectURL(entry.url);
-    this.entries_.clear();
-    this.bytes_ = 0;
+    for (const handle of this.entries_.keys()) this.delete(handle);
   }
 }
 
 export class GeneratedAppChannel {
-  private nextRequestId_ = 0;
   private readonly pending_ = new Map<string, PendingRequest>();
 
   constructor(
       private readonly parent_: Window,
       private readonly trustedOrigin_: string,
-      private readonly revision_: string) {}
+      private readonly revision_: string,
+      private readonly discardStaleDocument_: () => void = () => location.reload()) {}
 
   get pendingCountForTesting(): number {
     return this.pending_.size;
   }
 
-  call(method: string, params: unknown = {}): Promise<unknown> {
-    const requestId = `${this.revision_}:${++this.nextRequestId_}`;
+  call(method: string, params: unknown = {},
+       onUpdate?: (value: unknown) => void): Promise<unknown> {
+    const requestId = crypto.getRandomValues(new Uint32Array(4)).join('-');
     const request = new Promise<unknown>((resolve, reject) => {
-      this.pending_.set(requestId, {resolve, reject});
+      this.pending_.set(requestId, {resolve, reject, onUpdate});
     });
     const envelope: HomeEnvelope = {
       daoHome: 1,
@@ -266,6 +274,11 @@ export class GeneratedAppChannel {
     if (!pending) {
       return false;
     }
+    if (envelope.stale === true) {
+      pending.servedStale = true;
+      pending.resolve(envelope.result);
+      return true;
+    }
     this.pending_.delete(envelope.requestId);
     if (typeof envelope.error === 'string') {
       const error = new Error(envelope.error) as Error&{code?: string};
@@ -273,6 +286,13 @@ export class GeneratedAppChannel {
         error.code = envelope.code;
       }
       pending.reject(error);
+      if (pending.servedStale &&
+          (error.code === 'auth_required' || error.code === 'session_changed')) {
+        // A one-shot card may already have rendered data from the ended session.
+        this.discardStaleDocument_();
+      }
+    } else if (pending.servedStale) {
+      pending.onUpdate?.(envelope.result);
     } else {
       pending.resolve(envelope.result);
     }
@@ -351,8 +371,10 @@ function installRuntime(): void {
 
   (window as unknown as {dao: unknown}).dao = Object.freeze({
     sources: Object.freeze({
-      collect: (connectorId: string, input: unknown = {}, options?: {fresh?: boolean}) =>
-          channel.call('sources.collect', {connectorId, input, fresh: options?.fresh === true}),
+      collect: (connectorId: string, input: unknown = {},
+                options?: {fresh?: boolean; onUpdate?: (value: unknown) => void}) =>
+          channel.call('sources.collect', {connectorId, input, fresh: options?.fresh === true},
+                       options?.onUpdate),
     }),
     session: Object.freeze({
       get: (key: string) => session.get(key),
@@ -363,8 +385,16 @@ function installRuntime(): void {
     }),
     media: Object.freeze({
       resolve: async (handle: string) => {
-        const existing = mediaUrls.get(handle);
-        if (existing) return existing;
+        if (mediaUrls.get(handle)) {
+          try {
+            await channel.call('media.resolve', {handle, checkOnly: true});
+          } catch (error) {
+            mediaUrls.delete(handle);
+            throw error;
+          }
+          const existing = mediaUrls.get(handle);
+          if (existing) return existing;
+        }
         return createMediaObjectUrl(await channel.call('media.resolve', {handle}),
                                    blob => mediaUrls.store(handle, blob));
       },

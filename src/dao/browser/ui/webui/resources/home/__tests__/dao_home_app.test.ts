@@ -985,6 +985,8 @@ describe('dao-home-app', () => {
        });
        const result = Promise.withResolvers<unknown[]>();
        const collectDraft = vi.fn().mockReturnValue(result.promise);
+       const reply = vi.fn();
+       Object.defineProperty(frame, 'contentWindow', {value: {postMessage: reply}});
        frame.dispatchEvent(new Event('load'));
        (app as unknown as {connectorHost_: unknown}).connectorHost_ = {
          handleMessage: vi.fn().mockResolvedValue(false), collectDraft,
@@ -993,14 +995,22 @@ describe('dao-home-app', () => {
        window.dispatchEvent(new MessageEvent('message', {
          source: frame.contentWindow, origin: 'null',
          data: {daoHome: 1, requestId: 'collect', revision: draft,
-           method: 'sources.collect', params: {connectorId: 'news', input: {}, fresh: true}},
+           method: 'sources.collect', params: {connectorId: 'news', input: {}}},
        }));
        await vi.waitFor(() => expect(collectDraft).toHaveBeenCalledWith(
-           draft, 'news', {}, true));
+           draft, 'news', {}, false, expect.any(Function)));
+       expect(bridge.notifyHomeAgentPreviewLoaded).toHaveBeenLastCalledWith('external-preview', false);
+       collectDraft.mock.calls[0]![4](['old']);
+       expect(reply).toHaveBeenCalledWith(expect.objectContaining({
+         requestId: 'collect', result: ['old'], stale: true,
+       }), '*');
        expect(bridge.notifyHomeAgentPreviewLoaded).toHaveBeenLastCalledWith('external-preview', false);
        result.resolve([]);
        await vi.waitFor(() => expect(bridge.notifyHomeAgentPreviewLoaded)
            .toHaveBeenLastCalledWith('external-preview'));
+       expect(reply).toHaveBeenLastCalledWith(expect.objectContaining({
+         requestId: 'collect', result: [],
+       }), '*');
        window.dispatchEvent(new MessageEvent('message', {
          source: frame.contentWindow, origin: 'null',
          data: {daoHome: 1, requestId: 'late-error', revision: draft,

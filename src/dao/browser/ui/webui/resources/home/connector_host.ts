@@ -12,12 +12,21 @@ import {
 
 interface StartResult {
   cached?: unknown;
+  cache_miss?: boolean;
+  previous_session?: boolean;
+  stale?: boolean;
   execution_id?: string;
   revision?: string;
   module?: string;
   input?: unknown;
   error?: string;
   code?: string;
+}
+
+interface CollectionResult {
+  value?: unknown;
+  stale?: boolean;
+  previousSession?: boolean;
 }
 
 interface SandboxMessage {
@@ -59,7 +68,7 @@ function connectorError(
 export class ConnectorHost {
   private readonly pending_ = new Map<string, PendingCollection>();
   private readonly inFlight_ = new Map<string, {
-    promise: Promise<unknown>; reject: (error: Error) => void;
+    promise: Promise<CollectionResult>; reject: (error: Error) => void;
   }>();
   private readonly lastBySource_ = new Map<string, Promise<unknown>>();
   private readonly waiters_: Array<() => void> = [];
@@ -70,19 +79,48 @@ export class ConnectorHost {
       private readonly frame_: HTMLIFrameElement,
       private readonly revision_: string) {}
 
-  async collect(connectorId: string, input: unknown, fresh = false): Promise<unknown> {
-    return this.collectForDraft_('', connectorId, input, fresh);
+  async collect(connectorId: string, input: unknown, fresh = false,
+                onStale?: (value: unknown) => void): Promise<unknown> {
+    return this.collectForDraft_('', connectorId, input, fresh, onStale);
   }
 
   async collectDraft(
       draftId: string, connectorId: string, input: unknown,
-      fresh = false): Promise<unknown> {
-    return this.collectForDraft_(draftId, connectorId, input, fresh);
+      fresh = false, onStale?: (value: unknown) => void): Promise<unknown> {
+    return this.collectForDraft_(draftId, connectorId, input, fresh, onStale);
   }
 
   private async collectForDraft_(
       draftId: string, connectorId: string, input: unknown,
-      fresh = false): Promise<unknown> {
+      fresh: boolean, onStale?: (value: unknown) => void): Promise<unknown> {
+    const source = JSON.stringify([draftId, connectorId]);
+    let coldRead = false;
+    if (!fresh || this.lastBySource_.has(source)) {
+      const cached = await this.request_(draftId, connectorId, input, false);
+      coldRead = !fresh && !('value' in cached);
+      if (cached.previousSession) {
+        await this.lastBySource_.get(source)?.catch(() => {});
+      }
+      if (!fresh && 'value' in cached) {
+        if (!cached.stale) return cached.value;
+        onStale?.(cached.value);
+      }
+    }
+    const readLive = () => this.request_(draftId, connectorId, input, true);
+    try {
+      return (await readLive()).value;
+    } catch (error) {
+      if (!coldRead || !(error instanceof HomeConnectorError) || error.code !== 'session_changed') {
+        throw error;
+      }
+      // The first response may establish the site's session. Read again under that session.
+      return (await readLive()).value;
+    }
+  }
+
+  private async request_(
+      draftId: string, connectorId: string, input: unknown,
+      fresh: boolean): Promise<CollectionResult> {
     this.lifetime_.signal.throwIfAborted();
     let key: string;
     try {
@@ -94,11 +132,12 @@ export class ConnectorHost {
     if (inFlight) return inFlight.promise;
 
     const source = JSON.stringify([draftId, connectorId]);
-    const previous = this.lastBySource_.get(source);
-    const run = () => this.schedule_(draftId, connectorId, input, fresh);
-    const request = Promise.withResolvers<unknown>();
+    const previous = fresh ? this.lastBySource_.get(source) : undefined;
+    const run = () => fresh ? this.schedule_(draftId, connectorId, input) :
+                              this.start_(draftId, connectorId, input, 'cache-only');
+    const request = Promise.withResolvers<CollectionResult>();
     this.inFlight_.set(key, request);
-    this.lastBySource_.set(source, request.promise);
+    if (fresh) this.lastBySource_.set(source, request.promise);
     void (previous ? previous.then(run, run) : run()).then(request.resolve, request.reject);
     try {
       return await request.promise;
@@ -110,8 +149,7 @@ export class ConnectorHost {
   }
 
   private async schedule_(
-      draftId: string, connectorId: string, input: unknown,
-      fresh: boolean): Promise<unknown> {
+      draftId: string, connectorId: string, input: unknown): Promise<CollectionResult> {
     const signal = this.lifetime_.signal;
     signal.throwIfAborted();
     if (this.running_ >= MAX_CONCURRENT_COLLECTIONS) {
@@ -121,22 +159,32 @@ export class ConnectorHost {
       ++this.running_;
     }
     try {
-      const started = await (draftId ?
-          startHomeDraftConnector(draftId, connectorId, input, fresh) :
-          startHomeConnector(this.revision_, connectorId, input, fresh)) as StartResult;
-      if (signal.aborted && started.execution_id)
-        cancelHomeConnector(started.execution_id);
-      signal.throwIfAborted();
-      if (started.error) throw connectorError(started, 'Unable to start Home connector.');
-      if ('cached' in started) return started.cached;
-      if (!started.execution_id || !started.module)
-        throw connectorError(started, 'Unable to start Home connector.');
-      return await this.run_(started.execution_id, started.module, started.input);
+      return await this.start_(draftId, connectorId, input, true);
     } finally {
       const next = this.waiters_.shift();
       if (next) next();
       else --this.running_;
     }
+  }
+
+  private async start_(
+      draftId: string, connectorId: string, input: unknown,
+      mode: true|'cache-only'): Promise<CollectionResult> {
+    const signal = this.lifetime_.signal;
+    const started = await (draftId ?
+        startHomeDraftConnector(draftId, connectorId, input, mode) :
+        startHomeConnector(this.revision_, connectorId, input, mode)) as StartResult;
+    if (signal.aborted && started.execution_id)
+      cancelHomeConnector(started.execution_id);
+    signal.throwIfAborted();
+    if (started.error) throw connectorError(started, 'Unable to start Home connector.');
+    if (mode === 'cache-only' && started.cache_miss) {
+      return {previousSession: started.previous_session};
+    }
+    if ('cached' in started) return {value: started.cached, stale: started.stale};
+    if (!started.execution_id || !started.module)
+      throw connectorError(started, 'Unable to start Home connector.');
+    return {value: await this.run_(started.execution_id, started.module, started.input)};
   }
 
   private async run_(executionId: string, module: string, input: unknown):
@@ -191,7 +239,13 @@ export class ConnectorHost {
         }
         this.replyPage_(pending.frame, message.executionId, message.callId, {result});
       } catch (error) {
-        if (error instanceof HomeConnectorError) pending.pageError = error;
+        if (error instanceof HomeConnectorError) {
+          if (error.code === 'auth_required' || error.code === 'session_changed') {
+            pending.reject(error);
+            return true;
+          }
+          pending.pageError = error;
+        }
         this.replyPage_(pending.frame, message.executionId, message.callId, {
           error: error instanceof Error ? error.message : String(error),
           code: error instanceof HomeConnectorError ? error.code : undefined,

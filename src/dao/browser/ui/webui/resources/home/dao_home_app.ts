@@ -793,7 +793,7 @@ export class DaoHomeApp extends CrLitElement {
       return;
     }
     const responseTarget = projectFrame.contentWindow;
-    const reply = (value: {result?: unknown; error?: string; code?: string}) =>
+    const reply = (value: {result?: unknown; error?: string; code?: string; stale?: boolean}) =>
         responseTarget?.postMessage({
           daoHome: 1,
           requestId: envelope.requestId,
@@ -812,9 +812,10 @@ export class DaoHomeApp extends CrLitElement {
         }
         const input = envelope.params?.['input'] ?? {};
         const fresh = envelope.params?.['fresh'] === true;
+        const onStale = (result: unknown) => reply({result, stale: true});
         reply({result: preview ?
-          await this.connectorHost_.collectDraft(preview.draftId, connectorId, input, fresh) :
-          await this.connectorHost_.collect(connectorId, input, fresh)});
+          await this.connectorHost_.collectDraft(preview.draftId, connectorId, input, fresh, onStale) :
+          await this.connectorHost_.collect(connectorId, input, fresh, onStale)});
         return;
       }
       if (envelope.method === 'navigation.open') {
@@ -888,7 +889,8 @@ export class DaoHomeApp extends CrLitElement {
             !/^dao-media:[a-f0-9-]{36}$/.test(handle)) {
           throw new Error('Invalid Home media handle.');
         }
-        const result = await resolveHomeMedia(handle, preview?.draftId ?? '') as {
+        const result = await resolveHomeMedia(
+            handle, preview?.draftId ?? '', envelope.params?.['checkOnly'] === true) as {
           error?: string; code?: string;
         }|unknown;
         if (result && typeof result === 'object' &&

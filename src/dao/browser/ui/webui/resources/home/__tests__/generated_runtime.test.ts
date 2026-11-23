@@ -190,6 +190,61 @@ it('bounds retained media URLs and revokes them when Home closes', () => {
 });
 
 describe('GeneratedAppChannel', () => {
+  it('ignores replies from the previous document after a same-revision reload', async () => {
+    const postMessage = vi.fn();
+    const parent = {postMessage} as unknown as Window;
+    const sendReply = (channel: GeneratedAppChannel, requestId: string, result: string) =>
+      channel.handleMessage(new MessageEvent('message', {
+        source: parent, origin: 'dao://home', data: {daoHome: 1, revision: 'rev', requestId, result},
+      }));
+    const previous = new GeneratedAppChannel(parent, 'dao://home', 'rev');
+    const abandoned = previous.call('sources.collect', {connectorId: 'mail'});
+    const oldId = postMessage.mock.calls[0]![0].requestId;
+    previous.disconnect();
+    await expect(abandoned).rejects.toThrow('disconnected');
+
+    const current = new GeneratedAppChannel(parent, 'dao://home', 'rev');
+    const read = current.call('sources.collect', {connectorId: 'revenue'});
+    expect(sendReply(current, oldId, 'mail')).toBe(false);
+    expect(sendReply(current, postMessage.mock.calls[1]![0].requestId, 'revenue')).toBe(true);
+    await expect(read).resolves.toBe('revenue');
+  });
+
+  it.each(['auth_required', 'session_changed'])('discards stale signed-in data on %s', async code => {
+    const parent = {postMessage: vi.fn()} as unknown as Window;
+    const discard = vi.fn();
+    const channel = new GeneratedAppChannel(parent, 'dao://home', 'rev', discard);
+    const read = channel.call('sources.collect', {connectorId: 'feed'});
+    const requestId = parent.postMessage.mock.calls[0]![0].requestId;
+    const reply = (data: object) => channel.handleMessage(new MessageEvent('message', {
+      source: parent, origin: 'dao://home',
+      data: {daoHome: 1, revision: 'rev', requestId, ...data},
+    }));
+    reply({stale: true, result: ['old']});
+    await expect(read).resolves.toEqual(['old']);
+    reply({error: 'Session ended', code});
+    expect(discard).toHaveBeenCalledOnce();
+  });
+
+  it.each([false, true])('keeps stale content during revalidation (failure: %s)', async failed => {
+    const parent = {postMessage: vi.fn()} as unknown as Window;
+    const channel = new GeneratedAppChannel(parent, 'dao://home', 'rev');
+    const update = vi.fn();
+    const request = channel.call('sources.collect', {connectorId: 'feed'}, update);
+    const requestId = parent.postMessage.mock.calls[0]![0].requestId;
+    const reply = (data: object) => channel.handleMessage(new MessageEvent('message', {
+      source: parent, origin: 'dao://home',
+      data: {daoHome: 1, revision: 'rev', requestId, ...data},
+    }));
+    reply({stale: true, result: ['old']});
+    await expect(request).resolves.toEqual(['old']);
+    expect(update).not.toHaveBeenCalled();
+    expect(channel.pendingCountForTesting).toBe(1);
+    reply(failed ? {error: 'offline'} : {result: []});
+    expect(update.mock.calls).toEqual(failed ? [] : [[[]]]);
+    expect(channel.pendingCountForTesting).toBe(0);
+  });
+
   it('accepts replies only from the exact parent and trusted host origin',
      async () => {
        const parent = {postMessage: vi.fn()} as unknown as Window;

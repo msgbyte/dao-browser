@@ -31,8 +31,8 @@ describe('ConnectorHost', () => {
       frames.push(frame);
       return frame;
     });
-    bridge.startHomeConnector.mockImplementation(async (_revision, id, input) =>
-      ({execution_id: id, module: 'export default {}', input}));
+    bridge.startHomeConnector.mockImplementation(async (_revision, id, input, mode) =>
+      mode === 'cache-only' ? {cache_miss: true} : {execution_id: id, module: 'export default {}', input});
     bridge.finishHomeConnector.mockImplementation(async (_id, result) => ({result}));
     host = new ConnectorHost(template, 'revision');
   });
@@ -56,7 +56,7 @@ describe('ConnectorHost', () => {
     const requests = ids.map(id => host.collect(id, {}));
     const duplicate = host.collect('c', {});
     await vi.waitFor(() => expect(frames).toHaveLength(8));
-    expect(bridge.startHomeConnector).toHaveBeenCalledTimes(8);
+    expect(bridge.startHomeConnector.mock.calls.filter(call => call[3] === true)).toHaveLength(8);
     const failure = expect(requests[1]).rejects.toMatchObject({code: 'auth_required'});
     bridge.callHomeConnectorPage.mockResolvedValueOnce({error: 'Sign in', code: 'auth_required'});
     await message(frames[1]!, 'b', {type: 'page_call', callId: 1, operation: 'exists', args: ['main']});
@@ -98,6 +98,19 @@ describe('ConnectorHost', () => {
     await result;
   });
 
+  it.each(['auth_required', 'session_changed'])('preserves the native %s when a connector wraps a page error', async code => {
+    const stale = vi.fn();
+    bridge.startHomeConnector.mockResolvedValueOnce({cached: 'old account', stale: true});
+    const result = expect(host.collect('feed', {}, false, stale)).rejects.toMatchObject({code});
+    await vi.waitFor(() => expect(frames).toHaveLength(1));
+    expect(stale).toHaveBeenCalledWith('old account');
+    bridge.callHomeConnectorPage.mockResolvedValueOnce({error: 'Native session ended', code});
+    await message(frames[0]!, 'feed', {type: 'page_call', callId: 1, operation: 'exists', args: ['main']});
+    await message(frames[0]!, 'feed', {type: 'complete', error: 'Could not read feed'});
+    await result;
+    expect(bridge.finishHomeConnector).not.toHaveBeenCalled();
+  });
+
   it('returns native cache hits without a sandbox and forwards explicit refreshes', async () => {
     bridge.startHomeConnector.mockResolvedValueOnce({cached: null});
     bridge.startHomeDraftConnector.mockResolvedValueOnce({cached: []});
@@ -114,6 +127,56 @@ describe('ConnectorHost', () => {
     expect(bridge.startHomeDraftConnector).toHaveBeenLastCalledWith('draft', 'a', {}, true);
   });
 
+  it('serves a later cache reader immediately while the same refresh is in flight', async () => {
+    bridge.startHomeConnector.mockImplementation(async (_revision, id, input, mode) =>
+      mode === true ? {execution_id: id, module: 'export default {}', input} :
+                      {cached: [], stale: true});
+    const first = vi.fn();
+    const second = vi.fn();
+    const read = host.collect('a', {}, false, first);
+    await vi.waitFor(() => expect(frames).toHaveLength(1));
+    expect(first).toHaveBeenCalledExactlyOnceWith([]);
+    const later = host.collect('a', {}, false, second);
+    await vi.waitFor(() => expect(second).toHaveBeenCalledExactlyOnceWith([]));
+    expect(frames).toHaveLength(1);
+    await message(frames[0]!, 'a', {type: 'complete', result: ['new']});
+    await expect(Promise.all([read, later])).resolves.toEqual([['new'], ['new']]);
+  });
+
+  it.each([false, true])('retries a cold read once when the source sets a session (changes again: %s)', async changesAgain => {
+    const changed = {error: 'Session changed', code: 'session_changed'};
+    bridge.startHomeConnector.mockResolvedValueOnce({cache_miss: true})
+        .mockResolvedValueOnce(changed)
+        .mockResolvedValueOnce(changesAgain ? changed : {execution_id: 'a', module: 'export default {}'});
+    const read = host.collect('a', {});
+    if (changesAgain) {
+      await expect(read).rejects.toMatchObject({code: 'session_changed'});
+    } else {
+      const result = expect(read).resolves.toBe('new session');
+      await vi.waitFor(() => expect(frames).toHaveLength(1));
+      await message(frames[0]!, 'a', {type: 'complete', result: 'new session'});
+      await result;
+    }
+    expect(bridge.startHomeConnector).toHaveBeenCalledTimes(3);
+  });
+
+  it('starts a new read when the in-flight read belongs to a previous session', async () => {
+    const probe = Promise.withResolvers<unknown>();
+    bridge.startHomeConnector.mockImplementation(async (_revision, id, input, mode) =>
+      mode === 'cache-only' ? probe.promise : {execution_id: id, module: 'export default {}', input});
+    const later = host.collect('a', {});
+    const original = host.collect('a', {}, true);
+    await vi.waitFor(() => expect(frames).toHaveLength(1));
+    probe.resolve({cache_miss: true, previous_session: true});
+    bridge.finishHomeConnector.mockResolvedValueOnce({error: 'Session changed', code: 'session_changed'});
+    const rejected = expect(original).rejects.toMatchObject({code: 'session_changed'});
+    await message(frames[0]!, 'a', {type: 'complete', result: 'old'});
+    await rejected;
+    await vi.waitFor(() => expect(frames).toHaveLength(2));
+    await message(frames[1]!, 'a', {type: 'complete', result: 'new'});
+    await expect(later).resolves.toBe('new');
+  });
+
   it('times out a stalled sandbox and removes its frame', async () => {
     vi.useFakeTimers();
     const rejected = expect(host.collect('a', {})).rejects.toMatchObject({code: 'timed_out'});
@@ -123,15 +186,13 @@ describe('ConnectorHost', () => {
     expect(frames[0]!.isConnected).toBe(false);
   });
 
-  it('queues a fresh read behind a pending read of the same source', async () => {
+  it('shares a live read with a manual refresh of the same input', async () => {
     const first = host.collect('a', {});
-    const fresh = host.collect('a', {}, true);
     await vi.waitFor(() => expect(frames).toHaveLength(1));
-    await message(frames[0]!, 'a', {type: 'complete', result: 'first'});
-    await expect(first).resolves.toBe('first');
-    await vi.waitFor(() => expect(frames).toHaveLength(2));
-    await message(frames[1]!, 'a', {type: 'complete', result: 'updated'});
-    await expect(fresh).resolves.toBe('updated');
+    const fresh = host.collect('a', {}, true);
+    await message(frames[0]!, 'a', {type: 'complete', result: 'updated'});
+    await expect(Promise.all([first, fresh])).resolves.toEqual(['updated', 'updated']);
+    expect(frames).toHaveLength(1);
   });
 
   it('rejects pending starts immediately and cancels a late native reply', async () => {
@@ -151,7 +212,7 @@ describe('ConnectorHost', () => {
     await vi.waitFor(() => expect(frames).toHaveLength(8));
     host.disconnect();
     expect((await results).every(result => result.status === 'rejected')).toBe(true);
-    expect(bridge.startHomeConnector).toHaveBeenCalledTimes(8);
+    expect(bridge.startHomeConnector.mock.calls.filter(call => call[3] === true)).toHaveLength(8);
     expect(frames.every(frame => !frame.isConnected)).toBe(true);
   });
 });

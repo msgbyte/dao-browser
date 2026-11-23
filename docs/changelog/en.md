@@ -5,7 +5,8 @@
 ### [Unreleased] Unreleased
 
 - **Edit with Dao** now loads the version of Home you clicked before asking what you want to change. Retrying or regenerating the reply uses that same version. If you leave the Home tab or its version changes before sending, Dao stops.
-- Dao Home can load cards from up to eight sources at once. Reopening Home within ten minutes can show recently collected text and data without loading the source sites again.
+- Dao Home can load cards from up to eight sources at once. Reopening Home reuses data collected in the last 30 minutes. From 30 minutes to under 6 hours, Home shows the previous result while it checks for updates. Reading the card again during that refresh shows the cached result immediately. At 6 hours, including time the computer spent asleep, it waits for fresh data.
+- Dao Home discards an old account’s pending card updates when you switch accounts and keeps cached cards when a site simply renews your sign-in. When a sign-in expires, a site switches accounts through local storage, or the site asks you to sign in again, Home discards that site’s cached cards. Clearing site data also clears its cards. Late replies from before a reload no longer appear on another card.
 - When an external AI tool edits Dao Home, it opens a preview and waits for you to ask it to publish. You can request more changes in the meantime.
 - External AI tools now favor Lucide icon buttons for familiar Dao Home actions, with text labels where an icon needs explanation.
 - The Stop external editing button in Dao Home previews now has a compact, rounded shape and a stop icon that stays visible in light and dark themes.
