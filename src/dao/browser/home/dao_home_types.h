@@ -301,6 +301,15 @@ struct HomeSnapshot {
   std::vector<std::string> granted_connector_ids;
 };
 
+struct HomeCollectionKey {
+  std::string draft_id;
+  std::string revision;
+  std::string connector_id;
+  std::string fingerprint;
+  std::string input_hash;
+  bool operator==(const HomeCollectionKey&) const = default;
+};
+
 struct HomeConnectorBundle {
   HomeConnectorBundle();
   ~HomeConnectorBundle();
@@ -309,6 +318,7 @@ struct HomeConnectorBundle {
   HomeConnectorBundle(HomeConnectorBundle&&) noexcept;
   HomeConnectorBundle& operator=(HomeConnectorBundle&&) noexcept;
 
+  std::string revision;
   HomeConnector connector;
   HomeLimits limits;
   std::string module_source;

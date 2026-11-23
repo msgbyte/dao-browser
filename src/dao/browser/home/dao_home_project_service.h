@@ -5,10 +5,12 @@
 #ifndef DAO_BROWSER_HOME_DAO_HOME_PROJECT_SERVICE_H_
 #define DAO_BROWSER_HOME_DAO_HOME_PROJECT_SERVICE_H_
 
+#include <list>
 #include <memory>
 #include <optional>
 #include <set>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -17,6 +19,7 @@
 #include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
 #include "base/threading/sequence_bound.h"
+#include "base/time/time.h"
 #include "base/types/expected.h"
 #include "base/values.h"
 #include "components/keyed_service/core/keyed_service.h"
@@ -80,6 +83,11 @@ class DaoHomeProjectService : public KeyedService {
       const std::string& draft_id,
       const std::string& connector_id,
       ResultCallback<HomeConnectorBundle> callback);
+  static constexpr auto kCollectionLifetime = base::Minutes(10);
+  std::optional<base::Value> GetCachedCollection(const HomeCollectionKey& key);
+  void ForgetCachedCollection(const HomeCollectionKey& key);
+  void CacheCollection(const HomeCollectionKey& key, const base::Value& value);
+
   void ApplyPatch(const std::string& base_revision,
                   const std::string& patch,
                   const std::string& summary,
@@ -236,7 +244,7 @@ class DaoHomeProjectService : public KeyedService {
   base::WeakPtr<DaoHomeProjectService> GetWeakPtr();
 
  private:
-  void NotifyProjectChanged();
+  void NotifyProjectChanged(std::string_view changed_connector = {});
   void NotifyPermissionChanged();
   void NotifyBootstrapPermissionChanged();
   bool ValidateBootstrapContext(
@@ -290,6 +298,12 @@ class DaoHomeProjectService : public KeyedService {
   std::set<std::string> tested_draft_connectors_;
   std::set<std::string> active_preview_drafts_;
   std::set<std::string> previewed_drafts_;
+  struct CachedCollection {
+    HomeCollectionKey key;
+    std::string json;
+    base::TimeTicks expires;
+  };
+  std::list<CachedCollection> collections_;
   std::vector<HomeDiagnostic> diagnostics_;
   base::RepeatingClosureList project_changed_observers_;
   base::RepeatingCallbackList<void(

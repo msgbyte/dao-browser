@@ -10,6 +10,8 @@
 #include <utility>
 
 #include "base/functional/bind.h"
+#include "base/json/json_reader.h"
+#include "base/json/json_writer.h"
 #include "base/logging.h"
 #include "base/strings/string_util.h"
 #include "base/task/thread_pool.h"
@@ -257,6 +259,49 @@ void DaoHomeProjectService::GetApprovedDraftConnectorBundle(
   store_.AsyncCall(&DaoHomeProjectStore::GetDraftConnectorBundle)
       .WithArgs(draft_id, connector_id)
       .Then(std::move(callback));
+}
+
+std::optional<base::Value> DaoHomeProjectService::GetCachedCollection(
+    const HomeCollectionKey& key) {
+  auto it = std::ranges::find(collections_, key, &CachedCollection::key);
+  if (it == collections_.end()) {
+    return std::nullopt;
+  }
+  if (base::TimeTicks::Now() >= it->expires) {
+    collections_.erase(it);
+    return std::nullopt;
+  }
+  collections_.splice(collections_.begin(), collections_, it);
+  return base::JSONReader::Read(it->json, base::JSON_PARSE_RFC);
+}
+
+void DaoHomeProjectService::ForgetCachedCollection(
+    const HomeCollectionKey& key) {
+  std::erase_if(collections_,
+                [&](const auto& entry) { return entry.key == key; });
+}
+
+void DaoHomeProjectService::CacheCollection(const HomeCollectionKey& key,
+                                            const base::Value& value) {
+  constexpr size_t kMaxEntries = 64;
+  constexpr size_t kMaxBytes = 8 * 1024 * 1024;
+  auto json = base::WriteJson(value);
+  ForgetCachedCollection(key);
+  // Media capabilities belong to one Home document.
+  if (!json || json->size() > kMaxBytes || json->contains("dao-media:")) {
+    return;
+  }
+  collections_.push_front(
+      {key, std::move(*json), base::TimeTicks::Now() + kCollectionLifetime});
+  size_t bytes = 0;
+  size_t count = 0;
+  for (auto it = collections_.begin(); it != collections_.end(); ++it) {
+    bytes += it->json.size();
+    if (++count > kMaxEntries || bytes > kMaxBytes) {
+      collections_.erase(it, collections_.end());
+      break;
+    }
+  }
 }
 
 void DaoHomeProjectService::ApplyPatch(const std::string& base_revision,
@@ -528,7 +573,7 @@ void DaoHomeProjectService::DiscardDraft(const std::string& draft_id,
   if (had_pending_permission) {
     pending_permission_.reset();
   }
-  active_preview_drafts_.erase(draft_id);
+  EndDraftPreview(draft_id);
   previewed_drafts_.erase(draft_id);
   const std::string connector_key_prefix = draft_id + "\n";
   std::erase_if(approved_draft_connectors_, [&](const std::string& key) {
@@ -551,14 +596,14 @@ void DaoHomeProjectService::GrantConnector(const std::string& connector_id,
       .WithArgs(connector_id)
       .Then(base::BindOnce(
           [](base::WeakPtr<DaoHomeProjectService> self,
-             ResultCallback<void> callback,
+             std::string connector_id, ResultCallback<void> callback,
              base::expected<void, HomeError> result) {
             if (self && result.has_value()) {
-              self->NotifyProjectChanged();
+              self->NotifyProjectChanged(connector_id);
             }
             std::move(callback).Run(std::move(result));
           },
-          weak_factory_.GetWeakPtr(), std::move(callback)));
+          weak_factory_.GetWeakPtr(), connector_id, std::move(callback)));
 }
 
 void DaoHomeProjectService::RevokeConnector(const std::string& connector_id,
@@ -567,14 +612,14 @@ void DaoHomeProjectService::RevokeConnector(const std::string& connector_id,
       .WithArgs(connector_id)
       .Then(base::BindOnce(
           [](base::WeakPtr<DaoHomeProjectService> self,
-             ResultCallback<void> callback,
+             std::string connector_id, ResultCallback<void> callback,
              base::expected<void, HomeError> result) {
             if (self && result.has_value()) {
-              self->NotifyProjectChanged();
+              self->NotifyProjectChanged(connector_id);
             }
             std::move(callback).Run(std::move(result));
           },
-          weak_factory_.GetWeakPtr(), std::move(callback)));
+          weak_factory_.GetWeakPtr(), connector_id, std::move(callback)));
 }
 
 base::expected<HomePermissionBatchRequest, HomeError>
@@ -649,7 +694,13 @@ void DaoHomeProjectService::BeginDraftPreview(const std::string& draft_id) {
 }
 
 void DaoHomeProjectService::EndDraftPreview(const std::string& draft_id) {
+  if (draft_id.empty()) {
+    return;
+  }
   active_preview_drafts_.erase(draft_id);
+  std::erase_if(collections_, [&](const auto& entry) {
+    return entry.key.draft_id == draft_id;
+  });
 }
 
 void DaoHomeProjectService::MarkDraftPreviewed(const std::string& draft_id) {
@@ -683,7 +734,12 @@ DaoHomeProjectService::AddBootstrapPermissionObserver(
   return bootstrap_permission_observers_.Add(std::move(callback));
 }
 
-void DaoHomeProjectService::NotifyProjectChanged() {
+void DaoHomeProjectService::NotifyProjectChanged(
+    std::string_view changed_connector) {
+  std::erase_if(collections_, [&](const auto& entry) {
+    return changed_connector.empty() || !entry.key.draft_id.empty() ||
+           entry.key.connector_id == changed_connector;
+  });
   FinishOrCancelBootstrap();
   ClearSelectedNode();
   const bool had_pending_permission = pending_permission_.has_value();

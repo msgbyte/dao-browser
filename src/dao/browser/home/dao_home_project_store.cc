@@ -842,6 +842,7 @@ DaoHomeProjectStore::GetConnectorBundle(const std::string& revision,
     return base::unexpected(schema.error());
   }
   HomeConnectorBundle bundle;
+  bundle.revision = revision;
   bundle.connector = *connector;
   bundle.limits = current_manifest_->limits;
   bundle.module_source = std::move(module.value());
@@ -872,6 +873,7 @@ DaoHomeProjectStore::GetDraftConnectorBundle(
     return base::unexpected(schema.error());
   }
   HomeConnectorBundle bundle;
+  bundle.revision = draft->second.draft.base_revision;
   bundle.connector = *connector;
   bundle.limits = draft->second.draft.manifest.limits;
   bundle.module_source = std::move(module.value());
