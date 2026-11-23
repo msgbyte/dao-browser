@@ -1029,6 +1029,12 @@ void DaoHomeConnectorExecutor::FailStart(std::string code,
   Fail(std::move(code), std::move(message), std::move(callback));
 }
 
+void DaoHomeConnectorExecutor::FailPendingCallForSessionChange() {
+  if (start_callback_ || page_callback_ || finish_callback_) {
+    FailStart("session_changed", "The Home source session changed.");
+  }
+}
+
 void DaoHomeConnectorExecutor::Cancel() {
   if (!running()) {
     return;

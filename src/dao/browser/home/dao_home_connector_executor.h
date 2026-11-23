@@ -60,6 +60,7 @@ class DaoHomeConnectorExecutor : public content::WebContentsObserver {
               Callback callback);
   void ResolveMedia(const std::string& handle, Callback callback);
   void Cancel();
+  void FailPendingCallForSessionChange();
 
   bool running() const;
   bool collection_finished() const { return collection_finished_; }

@@ -159,6 +159,11 @@ class DaoHomeUIHandler : public content::WebUIMessageHandler,
                     bool retained,
                     PreviewCallback callback);
   void ReplyConnector(const std::string& callback_event, base::Value result);
+  void ReplyCollection(const std::string& callback_event,
+                       const HomeCollectionKey& key,
+                       const std::string& scope,
+                       const std::string& stage,
+                       base::Value result);
   void ReplyConnectorWithDiagnostic(const std::string& callback_event,
                                     const std::string& revision,
                                     const std::string& connector_id,
@@ -179,11 +184,12 @@ class DaoHomeUIHandler : public content::WebUIMessageHandler,
   void CompleteAgentPreview();
   void InvalidateDocumentMutationLease();
   void CancelAllSessions();
+  enum class CollectionMode { kDefault, kCacheOnly, kFresh };
   void StartCollection(const std::string& callback_event,
                        std::string draft_id,
                        HomeConnectorBundle bundle,
                        base::Value input,
-                       bool fresh);
+                       CollectionMode mode);
   void OnCollectionFinished(std::string callback_event,
                             HomeCollectionKey key,
                             std::string execution_id,
@@ -192,7 +198,9 @@ class DaoHomeUIHandler : public content::WebUIMessageHandler,
     HomeCollectionKey key;
     std::unique_ptr<DaoHomeConnectorExecutor> executor;
     std::optional<base::Value> media_result;
-    base::TimeTicks expires;
+    base::Time collected_at;
+    HomeSourceWatches watches;
+    bool session_ended = false;
   };
   Collection* FindCollection(const std::string& execution_id);
   DaoHomeConnectorExecutor* FindConnectorExecutor(
@@ -207,6 +215,7 @@ class DaoHomeUIHandler : public content::WebUIMessageHandler,
   int collection_generation_ = 0;
   int draft_collection_generation_ = 0;
   base::CallbackListSubscription project_changed_subscription_;
+  base::CallbackListSubscription collection_invalidation_subscription_;
   base::CallbackListSubscription permission_subscription_;
   base::CallbackListSubscription bootstrap_permission_subscription_;
   base::CancelableTaskTracker history_tracker_;

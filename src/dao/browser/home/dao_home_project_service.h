@@ -17,6 +17,7 @@
 #include "base/callback_list.h"
 #include "base/containers/flat_set.h"
 #include "base/functional/callback.h"
+#include "base/functional/function_ref.h"
 #include "base/memory/weak_ptr.h"
 #include "base/threading/sequence_bound.h"
 #include "base/time/time.h"
@@ -26,6 +27,7 @@
 #include "dao/browser/home/dao_home_project_store.h"
 
 namespace content {
+class StoragePartition;
 class WebContents;
 }
 
@@ -41,6 +43,7 @@ class DaoHomeProjectService : public KeyedService {
 
   explicit DaoHomeProjectService(const base::FilePath& profile_path);
   ~DaoHomeProjectService() override;
+  void Shutdown() override;
 
   DaoHomeProjectService(const DaoHomeProjectService&) = delete;
   DaoHomeProjectService& operator=(const DaoHomeProjectService&) = delete;
@@ -83,10 +86,23 @@ class DaoHomeProjectService : public KeyedService {
       const std::string& draft_id,
       const std::string& connector_id,
       ResultCallback<HomeConnectorBundle> callback);
-  static constexpr auto kCollectionLifetime = base::Minutes(10);
-  std::optional<base::Value> GetCachedCollection(const HomeCollectionKey& key);
-  void ForgetCachedCollection(const HomeCollectionKey& key);
-  void CacheCollection(const HomeCollectionKey& key, const base::Value& value);
+  static constexpr auto kCollectionSoftTtl = base::Minutes(30);
+  static constexpr auto kCollectionHardTtl = base::Hours(6);
+  enum class CollectionAge { kFresh, kStale, kExpired };
+  static CollectionAge GetCollectionAge(base::Time collected_at);
+  std::optional<base::Value> GetCachedCollection(const HomeCollectionKey& key,
+                                                 bool* stale = nullptr);
+  void CacheCollection(const HomeCollectionKey& key,
+                       const base::Value& value,
+                       HomeSourceWatches watches = {});
+  using CollectionMatcher = base::FunctionRef<bool(const HomeCollectionKey&)>;
+  HomeSourceWatches WatchSourceData(content::StoragePartition* partition,
+                                    const HomeCollectionKey& key);
+  void CheckSourceCookieExpiry();
+  static bool SourceWatchesReady(const HomeSourceWatches& watches);
+  void InvalidateSourceSession(const HomeCollectionKey& source);
+  base::CallbackListSubscription AddCollectionInvalidationObserver(
+      base::RepeatingCallback<void(CollectionMatcher)> callback);
 
   void ApplyPatch(const std::string& base_revision,
                   const std::string& patch,
@@ -244,6 +260,11 @@ class DaoHomeProjectService : public KeyedService {
   base::WeakPtr<DaoHomeProjectService> GetWeakPtr();
 
  private:
+  class SourceDataObserver;
+  void InvalidateCollections(CollectionMatcher matches);
+  std::unique_ptr<SourceDataObserver> source_data_observer_;
+  base::RepeatingCallbackList<void(CollectionMatcher)>
+      collection_invalidation_observers_;
   void NotifyProjectChanged(std::string_view changed_connector = {});
   void NotifyPermissionChanged();
   void NotifyBootstrapPermissionChanged();
@@ -301,7 +322,8 @@ class DaoHomeProjectService : public KeyedService {
   struct CachedCollection {
     HomeCollectionKey key;
     std::string json;
-    base::TimeTicks expires;
+    base::Time collected_at;
+    HomeSourceWatches watches;
   };
   std::list<CachedCollection> collections_;
   std::vector<HomeDiagnostic> diagnostics_;

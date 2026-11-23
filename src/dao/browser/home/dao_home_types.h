@@ -8,6 +8,7 @@
 #include <atomic>
 #include <cstdint>
 #include <map>
+#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -23,6 +24,8 @@
 
 namespace dao {
 
+class DaoHomeSourceWatch;
+using HomeSourceWatches = std::vector<std::shared_ptr<DaoHomeSourceWatch>>;
 
 // A thread-safe, one-way authorization shared by the trusted Home document,
 // the owning Agent turn, and the blocking project store. Child leases inherit
@@ -307,6 +310,7 @@ struct HomeCollectionKey {
   std::string connector_id;
   std::string fingerprint;
   std::string input_hash;
+  std::vector<url::Origin> origins = {};
   bool operator==(const HomeCollectionKey&) const = default;
 };
 

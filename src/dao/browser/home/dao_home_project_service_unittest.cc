@@ -8,6 +8,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
+#include "base/time/time_override.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace dao {
@@ -31,8 +32,18 @@ TEST(DaoHomeProjectServiceTest, CollectionCacheBoundsExpiryAndScope) {
   service.CacheCollection(draft, value);
   service.EndDraftPreview("draft");
   EXPECT_FALSE(service.GetCachedCollection(draft));
-  EXPECT_EQ(service.GetCachedCollection(key), value);
-  time.FastForwardBy(base::Minutes(10));
+  bool stale = true;
+  time.FastForwardBy(base::Minutes(30) - base::Milliseconds(1));
+  EXPECT_EQ(service.GetCachedCollection(key, &stale), value);
+  EXPECT_FALSE(stale);
+  time.FastForwardBy(base::Milliseconds(1));
+  EXPECT_EQ(service.GetCachedCollection(key, &stale), value);
+  EXPECT_TRUE(stale);
+  time.FastForwardBy(base::Hours(6) - base::Minutes(30) -
+                     base::Milliseconds(1));
+  EXPECT_EQ(service.GetCachedCollection(key, &stale), value);
+  EXPECT_TRUE(stale);
+  time.FastForwardBy(base::Milliseconds(1));
   EXPECT_FALSE(service.GetCachedCollection(key));
 
   for (int i = 0; i < 64; ++i) {
@@ -54,6 +65,44 @@ TEST(DaoHomeProjectServiceTest, CollectionCacheBoundsExpiryAndScope) {
   EXPECT_FALSE(service.GetCachedCollection(key));
   service.CacheCollection(draft, base::Value("dao-media:fixture"));
   EXPECT_FALSE(service.GetCachedCollection(draft));
+}
+
+TEST(DaoHomeProjectServiceTest, OvernightSleepExpiresCachedCollections) {
+  base::test::TaskEnvironment tasks;
+  base::ScopedTempDir profile;
+  ASSERT_TRUE(profile.CreateUniqueTempDir());
+  DaoHomeProjectService service(profile.GetPath());
+  HomeCollectionKey key{"", "version", "feed", "fingerprint", "input"};
+  service.CacheCollection(key, base::Value("yesterday"));
+  // Advance only wall time, as on a Mac that slept overnight.
+  base::subtle::ScopedTimeClockOverrides wake(
+      [] { return base::subtle::TimeNowIgnoringOverride() + base::Hours(8); },
+      nullptr, nullptr);
+  EXPECT_FALSE(service.GetCachedCollection(key));
+}
+
+TEST(DaoHomeProjectServiceTest, SignInFailureOnlyInvalidatesSharedOrigins) {
+  base::test::TaskEnvironment tasks;
+  base::ScopedTempDir profile;
+  ASSERT_TRUE(profile.CreateUniqueTempDir());
+  DaoHomeProjectService service(profile.GetPath());
+  const HomeCollectionKey published{
+      "",          "rev",   "feed",
+      "published", "input", {url::Origin::Create(GURL("https://mail.test"))}};
+  const HomeCollectionKey draft{
+      "draft", "rev",   "feed",
+      "draft", "input", {url::Origin::Create(GURL("https://news.test"))}};
+  auto same_site = draft;
+  same_site.draft_id.clear();
+  same_site.connector_id = "headlines";
+  const base::Value value("fixture");
+  for (const auto& key : {published, draft, same_site}) {
+    service.CacheCollection(key, value);
+  }
+  service.InvalidateSourceSession(draft);
+  EXPECT_EQ(service.GetCachedCollection(published), value);
+  EXPECT_FALSE(service.GetCachedCollection(draft));
+  EXPECT_FALSE(service.GetCachedCollection(same_site));
 }
 
 TEST(DaoHomeProjectServiceTest, MutationsInvalidateCachedCollections) {
