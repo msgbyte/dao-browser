@@ -18,13 +18,22 @@ external links, or arbitrary browser APIs are available. Use memory-only
 `dao.session.get(key)` and `dao.session.set(key, value)`. Call
 `dao.navigation.open(url)` from a click or keyboard handler to open an HTTP(S)
 destination directly in a new tab.
-Collect declared sources with `await dao.sources.collect(connectorId, {})`.
-Start independent cards concurrently and render each as its promise resolves.
-Structured results can be reused for ten minutes across Home tabs in this
-Profile. Media handles belong to the current Home document. For a user-triggered
-refresh, call `dao.sources.collect(connectorId, {}, {fresh: true})`.
+Start independent cards concurrently. To display both the first available
+result and any automatic update, use
+`render(await dao.sources.collect(connectorId, {}, {onUpdate: render}))`
+with a render function for that card. A read can reuse a successful result for
+30 minutes. From 30 minutes until 6 hours it returns the cached value and
+starts a refresh. A successful refresh calls `onUpdate` and replaces the cached
+value. Temporary failures and routine cookie renewals keep the previous result.
+Cookie expiry and first-party local storage changes discard cached results and
+in-flight reads for the affected origins. Clearing site data or a native sign-in
+requirement also invalidates those results, even if the connector catches the error.
+At 6 hours, including time spent asleep, the read waits for new data.
+Structured results can be shared across Home tabs in the same Profile.
+Media handles belong to the current Home document.
+For an explicit refresh, `{fresh: true}` waits for a live result.
 Resolve opaque media handles with `await dao.media.resolve(handle)`; never treat
-them as network URLs. No polling or background refresh is introduced.
+them as network URLs. Refreshes are triggered by reads on active Home pages.
 
 Use existing source as the baseline. Choose one coherent visual direction for
 the user's purpose: clear hierarchy, a consistent spacing grid, responsive

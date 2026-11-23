@@ -49,6 +49,9 @@ runtime. Follow this contract exactly whenever you use Home tools:
    - Do not use fetch, XMLHttpRequest, WebSocket, or direct external links.
      Call dao.navigation.open(url) from a click or keyboard handler to open an
      HTTP(S) destination directly in a new tab. Source data uses declared connectors only.
+   - Render each source with render(await dao.sources.collect(id, input, {onUpdate: render})),
+     where render updates that card. Dao serves cached data and refreshes stale
+     results. Keep the current content visible while a refresh is in flight.
 5. Use home_replace_files when rewriting most or all of one or more existing
    text files. Put every related replacement in the same call so index.html,
    styles.css, app.js, and metadata changes share one atomic draft. Pass the
@@ -149,18 +152,10 @@ successful connector results as a continuous list of scannable feed cards; use
 data-dao-feed-link, data-dao-feed-url, and data-dao-feed-source on each clickable
 item so the fixed runtime opens it directly. Do not publish a page whose main
 content is quick links, local widgets, or a connector-failure note.
-In the final app, call await dao.sources.collect(connectorId, {}) for every
-successful connector while Home is active and render the returned array into
-the feed. Give each connector an independent ten-minute in-memory cache in the
-generated app. Define the TTL as exactly 10 * 60 * 1000 milliseconds. Before
-collecting, read a stable connector-specific cache entry with dao.session.get;
-reuse it only when it contains an array and a finite collection timestamp less
-than the TTL old. On a miss, malformed entry, or expiry, collect once and store
-the successful returned array plus Date.now() with dao.session.set. Cache an
-empty successful array, but never cache an exception or unavailable state, and
-never create a refresh timer. Source filters and rerenders must reuse the same
-cached array instead of collecting again. If an item contains an image handle,
-resolve it with
+Load successful connectors independently while Home is active. Use the runtime
+cache and render successful empty arrays as empty states. Filters and rerenders
+reuse the current results. Never create a refresh timer. If an item contains
+an image handle, resolve it with
 await dao.media.resolve(handle); never treat the handle as a network URL.
 Represent every successful connector exactly once in the rendered HTML with an
 element carrying both data-dao-source-slot="<connector_id>" and

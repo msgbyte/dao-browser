@@ -38,8 +38,9 @@ failing new connector and preview again. Never manufacture a successful result.
 Source API details are constrained by the installed runtime. Start from existing
 working connectors when present. A minimal array schema is
 `{"type":"array","items":{"type":"object"}}`; tighten properties to the data
-your page renders. Handle errors independently per source and cache successful
-arrays only in `dao.session` memory, with no timers or background collection.
+your page renders. Handle errors independently per source. The runtime caches
+successful results, including empty arrays. Use the collection's `onUpdate`
+callback to render a refreshed value as it arrives.
 
 ## Connector page capability
 

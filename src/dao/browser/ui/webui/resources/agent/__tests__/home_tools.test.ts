@@ -205,16 +205,9 @@ describe('Home contextual Agent tools', () => {
        expect(getHomeSystemPrompt()).toMatch(
            /Do not treat navigation,\s+pricing, product-promotion/);
        expect(getHomeSystemPrompt()).toContain('dao.sources.collect');
-       expect(getHomeSystemPrompt()).toContain(
-           'exactly 10 * 60 * 1000 milliseconds');
-       expect(getHomeSystemPrompt()).toMatch(
-           /connector-specific cache entry with dao\.session\.get/);
-       expect(getHomeSystemPrompt()).toMatch(
-           /successful returned array plus Date\.now\(\) with dao\.session\.set/);
-       expect(getHomeSystemPrompt()).toContain(
-           'never create a refresh timer');
-       expect(getHomeSystemPrompt()).toMatch(
-           /Cache an\s+empty successful array/);
+       expect(getHomeSystemPrompt()).toContain('{onUpdate: render}');
+       expect(getHomeSystemPrompt()).toContain('Never create a refresh timer');
+       expect(getHomeSystemPrompt()).toContain('render successful empty arrays as empty states');
        expect(getHomeSystemPrompt()).toContain('data-dao-source-slot');
        expect(getHomeSystemPrompt()).toContain('data-dao-connector');
        expect(getHomeSystemPrompt()).toContain('preserves the authored');
