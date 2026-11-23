@@ -13,6 +13,9 @@ Pull a CLI-created temporary checkout and use only its returned absolute paths.
 Never put Home source, state, assets, or artifacts in the current directory.
 Read existing files before editing; preserve unrelated work. Use normal file
 tools inside `project/` to create directly runnable HTML, CSS, and JavaScript.
+Prefer icon buttons for familiar actions. Use local Lucide SVGs, give each
+icon-only button an accessible name, and add visible text when the icon alone
+would be unclear.
 
 Review `home diff`, then run `home preview` in the real Profile's dedicated Dao
 window. Inspect both render and source results; request a screenshot when visual

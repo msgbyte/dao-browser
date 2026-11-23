@@ -25,7 +25,11 @@ them as network URLs. No polling or background refresh is introduced.
 Use existing source as the baseline. Choose one coherent visual direction for
 the user's purpose: clear hierarchy, a consistent spacing grid, responsive
 breakpoints, deliberate typography, a restrained color palette, and accessible
-keyboard interactions. Prefer content and alignment over decoration. Avoid
+keyboard interactions. Prefer icon buttons for familiar actions. Copy the
+upstream Lucide SVG into the project or inline it in a native button. Give
+each icon-only button an accessible name and hide the decorative SVG from
+assistive technology. Add a visible label when the action needs explanation.
+Prefer content and alignment over decoration. Avoid
 invented statistics, filler content, emoji icons, generic card grids, and
 animation without a useful response. Render truthful loading, empty, populated,
 and unavailable states. Do not hide connector failures behind made-up content.
