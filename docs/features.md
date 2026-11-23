@@ -958,7 +958,9 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
   `local_ipc/`) — The installed `dao-home` skill uses `dao-browser home` to
   pull, diff, preview, publish, inspect sources and diagnostics, capture the
   preview, list versions, and roll back. For familiar actions, the skill prefers
-  Lucide icon buttons with accessible names. A native approval binds a fixed
+  Lucide icon buttons with accessible names. After each edit it opens the draft
+  for review and waits for the user to explicitly request publication of that
+  preview in a follow-up message. A native approval binds a fixed
   one-hour editing session to one regular Profile. Home uses its own
   authenticated local endpoint and works with MCP disabled; it does not start
   the built-in Agent or make a browser-side model call. Local files live only

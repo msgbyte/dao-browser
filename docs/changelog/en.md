@@ -4,6 +4,7 @@
 
 ### [Unreleased] Unreleased
 
+- When an external AI tool edits Dao Home, it opens a preview and waits for you to ask it to publish. You can request more changes in the meantime.
 - External AI tools now favor Lucide icon buttons for familiar Dao Home actions, with text labels where an icon needs explanation.
 - The Stop external editing button in Dao Home previews now has a compact, rounded shape and a stop icon that stays visible in light and dark themes.
 - Click a link in Dao Home to open it directly in a new tab without a confirmation prompt.

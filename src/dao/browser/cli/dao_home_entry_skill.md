@@ -18,10 +18,15 @@ icon-only button an accessible name, and add visible text when the icon alone
 would be unclear.
 
 Review `home diff`, then run `home preview` in the real Profile's dedicated Dao
-window. Inspect both render and source results; request a screenshot when visual
-verification helps. Do not navigate an ordinary Home tab for preview. Publish
-within the user's requested task only after a valid preview, and report the
-confirmed revision and any source limitations.
+window. Inspect the render and source results, using a screenshot when helpful.
+Tell the user what is ready to review and report any source limitations. Leave
+the preview open and keep the workspace and session for their reply.
+
+Run `home publish` only when the user explicitly asks in a subsequent message
+to publish the current preview. A successful preview, editing consent, or
+positive feedback alone does not authorize publication. If the user asks for
+changes, edit and preview again, then wait for a publish request for that
+version. Report the published revision only after Dao confirms it.
 
 On stale revisions, pull a fresh temporary checkout with `--from` and reapply
 the intended edits. On denial or revocation, stop. Resolve an unknown publication

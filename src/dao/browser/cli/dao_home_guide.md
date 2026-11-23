@@ -26,11 +26,17 @@ No browser Agent or model call is involved.
    `--screenshot` explicitly captures that preview into private artifacts.
    Its `screenshot` result is independent: a failed capture does not erase a
    successful preview or its publication readiness.
-5. `dao-browser home publish --workspace /absolute/returned/workspace --summary
-   "Describe the user-visible change"` commits only the unchanged successfully
-   previewed draft. Summaries must be nonempty UTF-8 text of at most 500 bytes.
+5. Tell the user the preview is ready and report any source limitations. Leave
+   the preview open and retain the workspace and session. Wait for a new message
+   explicitly asking to publish this preview. Editing consent and
+   `publishable: true` do not supply that request. For further edits, repeat
+   the diff and preview steps and wait for the user's decision on the new draft.
+6. When the user asks to publish the current preview, run
+   `dao-browser home publish --workspace /absolute/returned/workspace --summary
+   "Describe the user-visible change"`. This commits the exact previewed draft.
+   Summaries must be nonempty UTF-8 text of at most 500 bytes.
    Report success only after Dao confirms `revision`.
-6. At task completion, `dao-browser home clean --workspace
+7. At task completion, `dao-browser home clean --workspace
    /absolute/returned/workspace --close-session` ends the session and removes
    that checkout. It refuses unpublished changes; use
    `--discard` only when the user intends to discard them. Keep failed work and
