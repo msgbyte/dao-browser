@@ -1077,7 +1077,7 @@ IN_PROC_BROWSER_TEST_F(DaoHomeBrowserTest,
   }));
   EXPECT_FALSE(decision_future.IsReady());
 
-  auto singular = service->RequestPermission(draft.value(), "github");
+  auto singular = service->RequestPermission(draft.value(), {"github"});
   ASSERT_FALSE(singular.has_value());
   EXPECT_EQ(HomeError::kAlreadyExists, singular.error());
 

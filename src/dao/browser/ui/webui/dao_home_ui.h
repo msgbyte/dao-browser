@@ -161,7 +161,8 @@ class DaoHomeUIHandler : public content::WebUIMessageHandler,
                                     const std::string& stage,
                                     base::Value result);
   void OnProjectChanged();
-  void OnPermissionChanged(const std::optional<HomePermissionRequest>& request);
+  void OnPermissionChanged(
+      const std::optional<HomePermissionBatchRequest>& request);
   void OnBootstrapPermissionChanged();
   void CancelAgentConnector(std::string code, std::string message);
   void CancelAgentPreview(std::string code, std::string message);

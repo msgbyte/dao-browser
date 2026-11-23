@@ -62,7 +62,7 @@ export interface HomePermissionBatchItem {
 }
 
 export interface HomePermissionBatchRequest {
-  kind: 'batch';
+  kind: 'batch'|'external-batch';
   id: string;
   draftId: string;
   baseRevision: string;
@@ -165,8 +165,10 @@ export function getHomePermission(): Promise<HomePermissionRequest|null> {
   return sendAsync<HomePermissionRequest|null>('getHomePermission');
 }
 
-export function approveHomePermission(requestId: string): Promise<unknown> {
-  return sendAsync('approveHomePermission', requestId);
+export function approveHomePermission(
+    requestId: string, selectedIds?: string[]): Promise<unknown> {
+  return selectedIds ? sendAsync('approveHomePermission', requestId, selectedIds) :
+                       sendAsync('approveHomePermission', requestId);
 }
 
 export function cancelHomePermission(requestId: string): Promise<boolean> {

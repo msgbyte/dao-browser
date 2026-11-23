@@ -517,8 +517,8 @@ describe('dao-home-app', () => {
         .toContain('daoHomeItemLimitIncrease:25:250');
   });
 
-  it('shows exact selectable batch scopes and confirms only selected sources',
-     async () => {
+  it.each(['batch', 'external-batch'])('shows the exact %s scopes and approves only selected sources',
+     async kind => {
        bridge.getHomeSnapshot.mockResolvedValue({
          hasProject: true,
          revision: 'revision-1',
@@ -526,7 +526,7 @@ describe('dao-home-app', () => {
          connectors: [],
        });
        bridge.getHomePermission.mockResolvedValue({
-         kind: 'batch',
+         kind,
          id: 'batch-1',
          draftId: 'draft-1',
          baseRevision: 'revision-1',
@@ -606,7 +606,8 @@ describe('dao-home-app', () => {
        expect(rows[0]!.textContent).toContain('daoHomeItemLimit:100');
        expect(rows[1]!.textContent).toContain('Bilibili');
        expect(rows[1]!.textContent).toContain('https://www.bilibili.com');
-       expect(rows[1]!.textContent).toContain('/video, /v/popular');
+       expect(rows[1]!.textContent).toContain('/video');
+       expect(rows[1]!.textContent).toContain('/v/popular');
        expect(rows[1]!.textContent).toContain('daoHomeCapabilityReadStyle');
        expect(rows[1]!.textContent).not.toContain(
            'daoHomeAuthenticationMayBeRequired');
@@ -629,8 +630,9 @@ describe('dao-home-app', () => {
            '[data-test="confirm-bootstrap-permission"]')!.click();
 
        await vi.waitFor(() => {
-         expect(bridge.resolveHomeBootstrapPermission).toHaveBeenCalledOnce();
-         expect(bridge.resolveHomeBootstrapPermission).toHaveBeenCalledWith(
+         const approve = kind === 'batch' ? bridge.resolveHomeBootstrapPermission :
+                                            bridge.approveHomePermission;
+         expect(approve).toHaveBeenCalledExactlyOnceWith(
              'batch-1', ['github', 'forum']);
          expect(app.shadowRoot!.querySelector(
              '[data-test="permission-dialog"]')).toBeNull();

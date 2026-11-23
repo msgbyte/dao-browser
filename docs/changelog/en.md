@@ -6,6 +6,7 @@
 
 - The Stop external editing button in Dao Home previews now has a compact, rounded shape and a stop icon that stays visible in light and dark themes.
 - Click a link in Dao Home to open it directly in a new tab without a confirmation prompt.
+- When previewing an externally edited Dao Home, review new source permissions together and choose which sources to connect. Long web addresses and page paths wrap within the dialog.
 
 ### [1.0.142] - 2026-11-23
 

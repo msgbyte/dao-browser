@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "base/base64.h"
+#include "base/containers/flat_set.h"
 #include "base/containers/span.h"
 #include "base/functional/bind.h"
 #include "base/process/process_handle.h"
@@ -197,6 +198,7 @@ struct DaoHomeExternalService::Session : content::WebContentsObserver,
   base::TimeTicks deadline;
   base::TimeTicks permission_deadline;
   std::string permission_id;
+  base::flat_set<std::string> requested_connector_ids;
   std::optional<HomeDraft> draft;
   std::string digest;
   scoped_refptr<DaoHomeMutationLease> lease;
@@ -1135,6 +1137,50 @@ void DaoHomeExternalService::ContinuePreview(std::string token) {
     return;
   }
   const auto& connectors = session->draft->manifest.connectors;
+  if (session->connector_index == 0 && session->permission_id.empty()) {
+    auto& requested = session->requested_connector_ids;
+    for (const auto& connector : connectors) {
+      if ((!session->single_connector ||
+           connector.id == *session->single_connector) &&
+          !session->project->IsDraftConnectorApproved(session->draft->id,
+                                                      connector.id)) {
+        requested.insert(connector.id);
+      }
+    }
+    if (!requested.empty()) {
+      auto permission =
+          session->project->RequestPermission(*session->draft, requested);
+      if (!permission.has_value()) {
+        FinishPreview(*session, Error(permission.error()));
+        return;
+      }
+      session->permission_id = permission->id;
+      session->permission_deadline = base::TimeTicks::Now() + base::Seconds(60);
+    }
+  }
+  const auto& pending = session->project->GetPendingPermission();
+  if (pending && pending->id == session->permission_id) {
+    if (base::TimeTicks::Now() >= session->permission_deadline) {
+      FinishPreview(*session, Error("SOURCE_PERMISSION_REQUIRED"));
+      return;
+    }
+    session->poll.Start(FROM_HERE, base::Milliseconds(100),
+                        base::BindOnce(&DaoHomeExternalService::ContinuePreview,
+                                       weak_factory_.GetWeakPtr(), token));
+    return;
+  }
+  if (!session->requested_connector_ids.empty()) {
+    const bool any_approved = std::ranges::any_of(
+        session->requested_connector_ids, [&](const std::string& id) {
+          return session->project->IsDraftConnectorApproved(session->draft->id,
+                                                            id);
+        });
+    session->requested_connector_ids.clear();
+    if (!any_approved) {
+      FinishPreview(*session, Error("SOURCE_PERMISSION_REQUIRED"));
+      return;
+    }
+  }
   while (session->connector_index < connectors.size()) {
     const auto& connector = connectors[session->connector_index];
     if (session->single_connector &&
@@ -1144,33 +1190,25 @@ void DaoHomeExternalService::ContinuePreview(std::string token) {
     }
     if (!session->project->IsDraftConnectorApproved(session->draft->id,
                                                     connector.id)) {
-      if (session->permission_id.empty()) {
-        auto permission =
-            session->project->RequestPermission(*session->draft, connector.id);
-        if (!permission.has_value()) {
-          FinishPreview(*session, Error(permission.error()));
-          return;
-        }
-        session->permission_id = permission->id;
-        session->permission_deadline =
-            base::TimeTicks::Now() + base::Seconds(60);
-      } else if (!session->project->GetPendingPermission() ||
-                 base::TimeTicks::Now() >= session->permission_deadline) {
-        FinishPreview(*session, Error("SOURCE_PERMISSION_REQUIRED"));
-        return;
-      }
-      session->poll.Start(
-          FROM_HERE, base::Milliseconds(100),
-          base::BindOnce(&DaoHomeExternalService::ContinuePreview,
-                         weak_factory_.GetWeakPtr(), token));
-      return;
+      session->sources.Append(base::DictValue()
+                                  .Set("id", connector.id)
+                                  .Set("status", "permission_required")
+                                  .Set("required", true));
+      session->source_failure = "SOURCE_PERMISSION_REQUIRED";
+      ++session->connector_index;
+      continue;
     }
-    session->permission_id.clear();
     session->awaiting_source = true;
     ui->CollectConnectorForAgent(
         session->draft->id, connector.id, base::Value(base::DictValue()),
         base::BindOnce(&DaoHomeExternalService::OnSourceTested,
                        weak_factory_.GetWeakPtr(), token, connector.id));
+    return;
+  }
+  if (session->source_failure == "SOURCE_PERMISSION_REQUIRED") {
+    FinishPreview(*session, Error(session->source_failure)
+                                .Set("publishable", false)
+                                .Set("sources", session->sources.Clone()));
     return;
   }
   if (session->single_connector) {
@@ -1278,6 +1316,7 @@ void DaoHomeExternalService::FinishPreview(Session& session,
   session.preview_timeout.Stop();
   session.poll.Stop();
   session.awaiting_source = false;
+  session.requested_connector_ids.clear();
   if (!session.permission_id.empty() && session.project) {
     session.project->CancelPermission(session.permission_id);
     session.permission_id.clear();

@@ -108,8 +108,9 @@ class DaoHomeProjectService : public KeyedService {
       ResultCallback<HomeVersion> callback,
       scoped_refptr<DaoHomeMutationLease> authorization,
       std::optional<HomeOperationRequest> operation = std::nullopt);
-  void ApprovePermission(const std::string& request_id,
-                         ResultCallback<void> callback);
+  base::expected<void, HomeError> ApprovePermission(
+      const std::string& request_id,
+      const base::flat_set<std::string>& selected_ids);
   void PublishApprovedDraft(
       const HomeDraft& draft,
       HomeRevisionKind kind,
@@ -136,10 +137,10 @@ class DaoHomeProjectService : public KeyedService {
   void RevokeConnector(const std::string& connector_id,
                        ResultCallback<void> callback);
 
-  base::expected<HomePermissionRequest, HomeError> RequestPermission(
+  base::expected<HomePermissionBatchRequest, HomeError> RequestPermission(
       const HomeDraft& draft,
-      const std::string& connector_id);
-  std::optional<HomePermissionRequest> GetPendingPermission() const;
+      const base::flat_set<std::string>& connector_ids);
+  const std::optional<HomePermissionBatchRequest>& GetPendingPermission() const;
   bool CancelPermission(const std::string& request_id);
   bool IsDraftConnectorApproved(const std::string& draft_id,
                                 const std::string& connector_id) const;
@@ -158,8 +159,8 @@ class DaoHomeProjectService : public KeyedService {
   base::CallbackListSubscription AddProjectChangedObserver(
       base::RepeatingClosure callback);
   base::CallbackListSubscription AddPermissionObserver(
-      base::RepeatingCallback<void(const std::optional<HomePermissionRequest>&)>
-          callback);
+      base::RepeatingCallback<
+          void(const std::optional<HomePermissionBatchRequest>&)> callback);
 
   // The one-shot bootstrap brief is intentionally kept only in this
   // UI-sequence service object. It is bound to the requesting Home document,
@@ -284,14 +285,15 @@ class DaoHomeProjectService : public KeyedService {
   base::flat_set<std::string> bootstrap_successful_connector_ids_;
   std::string bootstrap_connector_test_in_flight_;
   std::string selected_node_;
-  std::optional<HomePermissionRequest> pending_permission_;
+  std::optional<HomePermissionBatchRequest> pending_permission_;
   std::set<std::string> approved_draft_connectors_;
   std::set<std::string> tested_draft_connectors_;
   std::set<std::string> active_preview_drafts_;
   std::set<std::string> previewed_drafts_;
   std::vector<HomeDiagnostic> diagnostics_;
   base::RepeatingClosureList project_changed_observers_;
-  base::RepeatingCallbackList<void(const std::optional<HomePermissionRequest>&)>
+  base::RepeatingCallbackList<void(
+      const std::optional<HomePermissionBatchRequest>&)>
       permission_observers_;
   base::RepeatingClosureList bootstrap_permission_observers_;
   base::OnceClosure before_snapshot_reply_callback_for_testing_;

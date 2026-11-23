@@ -245,40 +245,7 @@ base::DictValue LimitsToValue(const HomeLimits& limits) {
       .Set("maxItemsPerConnector", limits.max_items_per_connector);
 }
 
-base::DictValue PermissionToValue(const HomePermissionRequest& request) {
-  base::ListValue origins;
-  for (const url::Origin& origin : request.connector.permissions.origins) {
-    origins.Append(origin.Serialize());
-  }
-  base::ListValue paths;
-  for (const std::string& path : request.connector.permissions.paths) {
-    paths.Append(path);
-  }
-  base::ListValue capabilities;
-  for (HomePageCapability capability :
-       request.connector.permissions.capabilities) {
-    capabilities.Append(HomePageCapabilityToString(capability));
-  }
-  base::DictValue value =
-      base::DictValue()
-          .Set("kind", "single")
-          .Set("id", request.id)
-          .Set("draftId", request.draft_id)
-          .Set("baseRevision", request.base_revision)
-          .Set("connectorId", request.connector.id)
-          .Set("origins", std::move(origins))
-          .Set("paths", std::move(paths))
-          .Set("capabilities", std::move(capabilities))
-          .Set("mode", "read")
-          .Set("requestedLimits", LimitsToValue(request.requested_limits));
-  if (request.previous_limits) {
-    value.Set("previousLimits", LimitsToValue(*request.previous_limits));
-  }
-  return value;
-}
-
-base::DictValue BootstrapPermissionItemToValue(
-    const HomePermissionBatchItem& item) {
+base::DictValue PermissionItemToValue(const HomePermissionBatchItem& item) {
   base::ListValue origins;
   for (const url::Origin& origin : item.connector.permissions.origins) {
     origins.Append(origin.Serialize());
@@ -309,18 +276,24 @@ base::DictValue BootstrapPermissionItemToValue(
   return value;
 }
 
-base::DictValue BootstrapPermissionToValue(
-    const HomePermissionBatchRequest& request) {
-  base::ListValue items;
-  for (const HomePermissionBatchItem& item : request.items) {
-    items.Append(BootstrapPermissionItemToValue(item));
+base::DictValue PermissionToValue(const HomePermissionBatchRequest& request) {
+  const bool bootstrap = !request.transaction_id.empty();
+  base::DictValue value;
+  if (!bootstrap && request.items.size() == 1) {
+    value = PermissionItemToValue(request.items.front());
+    value.Set("kind", "single");
+  } else {
+    base::ListValue items;
+    for (const HomePermissionBatchItem& item : request.items) {
+      items.Append(PermissionItemToValue(item));
+    }
+    value.Set("kind", bootstrap ? "batch" : "external-batch");
+    value.Set("items", std::move(items));
   }
-  return base::DictValue()
-      .Set("kind", "batch")
-      .Set("id", request.id)
-      .Set("draftId", request.draft_id)
-      .Set("baseRevision", request.base_revision)
-      .Set("items", std::move(items));
+  value.Set("id", request.id);
+  value.Set("draftId", request.draft_id);
+  value.Set("baseRevision", request.base_revision);
+  return value;
 }
 
 bool IsValidBootstrapPermissionRequestId(std::string_view request_id) {
@@ -846,13 +819,12 @@ void DaoHomeUIHandler::HandleGetPermission(const base::ListValue& args) {
     std::optional<HomePermissionBatchRequest> bootstrap_request =
         service_->GetPendingBootstrapPermission(web_ui()->GetWebContents());
     if (bootstrap_request) {
-      FireWebUIListener(
-          args[0].GetString(),
-          base::Value(BootstrapPermissionToValue(*bootstrap_request)));
+      FireWebUIListener(args[0].GetString(),
+                        base::Value(PermissionToValue(*bootstrap_request)));
       return;
     }
   }
-  std::optional<HomePermissionRequest> request =
+  std::optional<HomePermissionBatchRequest> request =
       service_->GetPendingPermission();
   if (request && !CanAccessDraft(request->draft_id)) {
     request.reset();
@@ -875,24 +847,33 @@ void DaoHomeUIHandler::HandleApprovePermission(const base::ListValue& args) {
                       ConnectorError("cancelled", "Dao Home is not active."));
     return;
   }
-  service_->ApprovePermission(
-      args[1].GetString(),
-      base::BindOnce(
-          [](base::WeakPtr<DaoHomeUIHandler> self, std::string callback_event,
-             base::expected<void, HomeError> result) {
-            if (!self) {
-              return;
-            }
-            if (!result.has_value()) {
-              self->FireWebUIListener(
-                  callback_event,
-                  ConnectorError("approval_failed",
-                                 "Unable to approve the source scope."));
-              return;
-            }
-            self->FireWebUIListener(callback_event, base::Value(true));
-          },
-          weak_factory_.GetWeakPtr(), callback_event));
+  base::flat_set<std::string> selected_ids;
+  if (args.size() == 2 && request->items.size() == 1) {
+    selected_ids.insert(request->items.front().connector_id);
+  } else if (args.size() == 3 && args[2].is_list() &&
+             args[2].GetList().size() <= request->items.size()) {
+    for (const auto& value : args[2].GetList()) {
+      if (!value.is_string() ||
+          !selected_ids.insert(value.GetString()).second) {
+        FireWebUIListener(
+            callback_event,
+            ConnectorError("invalid_argument", "Invalid source selection."));
+        return;
+      }
+    }
+  } else {
+    FireWebUIListener(
+        callback_event,
+        ConnectorError("invalid_argument", "Invalid source selection."));
+    return;
+  }
+  auto approved = service_->ApprovePermission(request->id, selected_ids);
+  FireWebUIListener(
+      callback_event,
+      approved.has_value()
+          ? base::Value(true)
+          : ConnectorError("approval_failed",
+                           "Unable to approve the source scope."));
 }
 
 void DaoHomeUIHandler::HandleCancelPermission(const base::ListValue& args) {
@@ -2248,7 +2229,7 @@ void DaoHomeUIHandler::InvalidateDocumentMutationLease() {
 }
 
 void DaoHomeUIHandler::OnPermissionChanged(
-    const std::optional<HomePermissionRequest>& request) {
+    const std::optional<HomePermissionBatchRequest>& request) {
   if (!IsJavascriptAllowed()) {
     return;
   }
@@ -2267,9 +2248,9 @@ void DaoHomeUIHandler::OnBootstrapPermissionChanged() {
     request =
         service_->GetPendingBootstrapPermission(web_ui()->GetWebContents());
   }
-  FireWebUIListener("dao-home-permission-changed",
-                    request ? base::Value(BootstrapPermissionToValue(*request))
-                            : base::Value());
+  FireWebUIListener(
+      "dao-home-permission-changed",
+      request ? base::Value(PermissionToValue(*request)) : base::Value());
 }
 
 DaoHomeUI::DaoHomeUI(content::WebUI* web_ui) : WebUIController(web_ui) {
@@ -2324,6 +2305,8 @@ DaoHomeUI::DaoHomeUI(content::WebUI* web_ui) : WebUIController(web_ui) {
                              IDS_DAO_HOME_CONNECT_SOURCE);
   source->AddLocalizedString("daoHomePermissionDescription",
                              IDS_DAO_HOME_PERMISSION_DESCRIPTION);
+  source->AddLocalizedString("daoHomeExternalSourcesDescription",
+                             IDS_DAO_HOME_EXTERNAL_SOURCES_DESCRIPTION);
   source->AddLocalizedString("daoHomeConnectSourcesTitle",
                              IDS_DAO_HOME_CONNECT_SOURCES_TITLE);
   source->AddLocalizedString("daoHomeConnectSourcesDescription",

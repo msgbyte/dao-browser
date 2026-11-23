@@ -1200,6 +1200,7 @@ Clean removes only the local workspace; add --close-session to end editing for a
       <message name="IDS_DAO_RESOURCE_SUMMARY" desc="Number of tabs with sustained high resource usage">Tabs with sustained high resource usage: <ph name="COUNT">$1<ex>3</ex></ph></message>
       <message name="IDS_DAO_RESOURCE_VIEW_USAGE" desc="Open the browser task manager from a resource reminder">View usage</message>
       <message name="IDS_DAO_RESOURCE_NOTIFICATION_TITLE" desc="System notification for background resource usage">Dao background resource alert</message>
+      <message name="IDS_DAO_HOME_EXTERNAL_SOURCES_DESCRIPTION" desc="Explains source selection for an externally edited Home draft.">Choose which sources this draft can read while Home is active. To publish the draft, approve every source it uses.</message>
     </messages>
   </release>
 </grit>

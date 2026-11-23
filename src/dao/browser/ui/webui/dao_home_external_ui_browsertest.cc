@@ -259,10 +259,9 @@ IN_PROC_BROWSER_TEST_F(DaoHomeExternalOcclusionUIBrowserTest,
            preview_result.IsReady();
   }));
   ASSERT_TRUE(project->GetPendingPermission());
-  base::test::TestFuture<base::expected<void, HomeError>> approved;
-  project->ApprovePermission(project->GetPendingPermission()->id,
-                             approved.GetCallback());
-  ASSERT_TRUE(approved.Take().has_value());
+  ASSERT_TRUE(
+      project->ApprovePermission(project->GetPendingPermission()->id, {"feed"})
+          .has_value());
   source_response.WaitForRequest();
   auto* preview = PreviewContents();
   ASSERT_TRUE(preview);
@@ -983,7 +982,7 @@ IN_PROC_BROWSER_TEST_F(DaoHomeExternalUIBrowserTest,
   base::test::TestFuture<base::expected<HomeDraft, HomeError>> draft;
   project->GetDraft(draft_id_, draft.GetCallback());
   ASSERT_TRUE(draft.Get().has_value());
-  const auto permission = project->RequestPermission(*draft.Get(), "feed");
+  const auto permission = project->RequestPermission(*draft.Get(), {"feed"});
   ASSERT_TRUE(permission.has_value());
   EXPECT_EQ(R"({"permission":null,"approval":"cancelled","cancelled":false})",
             content::EvalJs(ordinary, content::JsReplace(R"(
@@ -1402,19 +1401,20 @@ IN_PROC_BROWSER_TEST_F(DaoHomeExternalUIBrowserTest,
       preview_result.GetCallback());
   auto* project =
       DaoHomeProjectServiceFactory::GetForProfile(browser()->GetProfile());
-  for (int source = 0; source < 2; ++source) {
-    ASSERT_TRUE(base::test::RunUntil([&] {
-      return project->GetPendingPermission().has_value() ||
-             preview_result.IsReady();
-    }));
-    ASSERT_TRUE(project->GetPendingPermission())
-        << (preview_result.IsReady() ? preview_result.Get().DebugString()
-                                     : "Preview is still pending");
-    base::test::TestFuture<base::expected<void, HomeError>> approved;
-    project->ApprovePermission(project->GetPendingPermission()->id,
-                               approved.GetCallback());
-    ASSERT_TRUE(approved.Take().has_value());
-  }
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return project->GetPendingPermission().has_value() ||
+           preview_result.IsReady();
+  }));
+  const auto request = project->GetPendingPermission();
+  ASSERT_TRUE(request);
+  ASSERT_EQ(2u, request->items.size());
+  EXPECT_EQ("first", request->items[0].connector_id);
+  EXPECT_EQ("second", request->items[1].connector_id);
+  EXPECT_FALSE(project->ApprovePermission(request->id, {"first", "unknown"})
+                   .has_value());
+  EXPECT_FALSE(project->IsDraftConnectorApproved(draft_id_, "first"));
+  ASSERT_TRUE(
+      project->ApprovePermission(request->id, {"first", "second"}).has_value());
   const auto result = preview_result.Take();
   ASSERT_EQ(true, result.FindBool("publishable")) << result.DebugString();
   auto* preview = PreviewContents();

@@ -18,7 +18,9 @@ No browser Agent or model call is involved.
    It compares bytes, including binary assets and removals, against the base.
 4. `dao-browser home preview --workspace /absolute/returned/workspace` stages all
    files together and runs the real Home app and authorized connectors in the
-   exact Profile. Dao opens its own visible preview window. Keep its Home tab
+   exact Profile. To request several sources together, include them in one
+   draft and run preview. Dao groups outstanding source permissions in its
+   preview window. A draft with a declined source cannot publish. Keep its Home tab
    selected and the window unminimized. Focusing another app or ordinary window
    is fine. Inspect `render`, every `sources` result, and `publishable` separately.
    `--screenshot` explicitly captures that preview into private artifacts.

@@ -83,7 +83,7 @@ export class DaoHomeApp extends CrLitElement {
       snapshot_: {type: Object},
       versions_: {type: Array},
       permission_: {type: Object},
-      selectedBootstrapConnectorIds_: {type: Object},
+      selectedConnectorIds_: {type: Object},
       panel_: {type: String},
       files_: {type: Array},
       selectedFile_: {type: String},
@@ -343,7 +343,15 @@ export class DaoHomeApp extends CrLitElement {
       }
       .scope-row { display: grid; gap: 3px; }
       .scope-label { color: var(--secondary); font-size: 11px; text-transform: uppercase; }
-      .batch-sources { display: grid; gap: 12px; margin: 16px 0 20px; }
+      .source-permission { min-width: 0; overflow-wrap: anywhere; }
+      .source-permission.grouped { display: flex; flex-direction: column; }
+      .batch-sources {
+        display: grid;
+        gap: 12px;
+        margin: 0 0 20px;
+        overflow-y: auto;
+      }
+      .source-permission .dialog-actions { flex-wrap: wrap; }
       .batch-source {
         background: var(--surface);
         border: 1px solid var(--hairline);
@@ -471,7 +479,7 @@ export class DaoHomeApp extends CrLitElement {
   declare protected snapshot_: HomeSnapshot|null;
   declare protected versions_: HomeVersion[];
   declare protected permission_: HomePermissionRequest|null;
-  declare protected selectedBootstrapConnectorIds_: Set<string>;
+  declare protected selectedConnectorIds_: Set<string>;
   declare protected panel_: 'source'|'versions'|null;
   declare protected files_: string[];
   declare protected selectedFile_: string;
@@ -539,7 +547,7 @@ export class DaoHomeApp extends CrLitElement {
     this.snapshot_ = null;
     this.versions_ = [];
     this.permission_ = null;
-    this.selectedBootstrapConnectorIds_ = new Set();
+    this.selectedConnectorIds_ = new Set();
     this.panel_ = null;
     this.files_ = [];
     this.selectedFile_ = '';
@@ -1023,35 +1031,42 @@ export class DaoHomeApp extends CrLitElement {
   }
 
   private setPermission_(request: HomePermissionRequest|null): void {
+    if (request && this.permission_?.id === request.id) return;
     this.permission_ = request;
-    this.selectedBootstrapConnectorIds_ = request?.kind === 'batch' ?
+    this.selectedConnectorIds_ = request && request.kind !== 'single' ?
         new Set(request.items.map(item => item.connectorId)) : new Set();
   }
 
-  private toggleBootstrapConnector_(connectorId: string, selected: boolean):
+  private toggleConnector_(connectorId: string, selected: boolean):
       void {
-    const next = new Set(this.selectedBootstrapConnectorIds_);
+    const next = new Set(this.selectedConnectorIds_);
     if (selected) {
       next.add(connectorId);
     } else {
       next.delete(connectorId);
     }
-    this.selectedBootstrapConnectorIds_ = next;
+    this.selectedConnectorIds_ = next;
   }
 
-  private async resolveBootstrapPermission_(connectSelected: boolean):
+  private async resolveBatchPermission_(connectSelected: boolean):
       Promise<void> {
     const request = this.permission_;
-    if (!request || request.kind !== 'batch') {
+    if (!request || request.kind === 'single') {
       return;
     }
     const selectedConnectorIds = connectSelected ?
         request.items
             .map(item => item.connectorId)
-            .filter(id => this.selectedBootstrapConnectorIds_.has(id)) : [];
+            .filter(id => this.selectedConnectorIds_.has(id)) : [];
     this.permission_ = null;
-    this.selectedBootstrapConnectorIds_ = new Set();
-    await resolveHomeBootstrapPermission(request.id, selectedConnectorIds);
+    this.selectedConnectorIds_ = new Set();
+    if (request.kind === 'batch') {
+      await resolveHomeBootstrapPermission(request.id, selectedConnectorIds);
+    } else if (selectedConnectorIds.length) {
+      await approveHomePermission(request.id, selectedConnectorIds);
+    } else {
+      await cancelHomePermission(request.id);
+    }
   }
 
   private capabilityLabel_(capability: string): string {
@@ -1167,30 +1182,31 @@ export class DaoHomeApp extends CrLitElement {
       return nothing;
     }
     const request = this.permission_;
-    if (request.kind === 'batch') {
+    if (request.kind !== 'single') {
       return html`
         <div class="scrim">
-          <section class="dialog" role="dialog" aria-modal="true"
-              aria-labelledby="bootstrap-permission-title"
+          <section class="dialog source-permission grouped" role="dialog" aria-modal="true"
+              aria-labelledby="source-permission-title"
               data-test="permission-dialog">
-            <h2 id="bootstrap-permission-title">
+            <h2 id="source-permission-title">
               ${loadTimeData.getString('daoHomeConnectSourcesTitle')}
             </h2>
             <p>${loadTimeData.getString(
-                'daoHomeConnectSourcesDescription')}</p>
+                request.kind === 'batch' ? 'daoHomeConnectSourcesDescription' :
+                                           'daoHomeExternalSourcesDescription')}</p>
             <div class="batch-sources">
               ${request.items.map(item => this.renderBatchPermissionItem_(
                   item))}
             </div>
             <div class="dialog-actions">
               <button class="action" data-test="reject-bootstrap-permission"
-                  @click=${() => this.resolveBootstrapPermission_(false)}>
+                  @click=${() => this.resolveBatchPermission_(false)}>
                 ${loadTimeData.getString(
-                    'daoHomeContinueWithoutSources')}
+                    request.kind === 'batch' ? 'daoHomeContinueWithoutSources' : 'daoHomeCancel')}
               </button>
               <button class="action primary"
                   data-test="confirm-bootstrap-permission"
-                  @click=${() => this.resolveBootstrapPermission_(true)}>
+                  @click=${() => this.resolveBatchPermission_(true)}>
                 ${loadTimeData.getString('daoHomeConnectSelected')}
               </button>
             </div>
@@ -1200,16 +1216,16 @@ export class DaoHomeApp extends CrLitElement {
     }
     return html`
       <div class="scrim">
-        <section class="dialog" role="dialog" aria-modal="true"
-            data-test="permission-dialog">
-          <h2>${loadTimeData.getStringF(
+        <section class="dialog source-permission" role="dialog" aria-modal="true"
+            aria-labelledby="source-permission-title" data-test="permission-dialog">
+          <h2 id="source-permission-title">${loadTimeData.getStringF(
               'daoHomeConnectSource', request.connectorId)}</h2>
           <p>${loadTimeData.getString('daoHomePermissionDescription')}</p>
           <div class="scope">
             <div class="scope-row"><span class="scope-label">${loadTimeData.getString('daoHomeWebsite')}</span>
               <span>${request.origins.join(', ')}</span></div>
             <div class="scope-row"><span class="scope-label">${loadTimeData.getString('daoHomePageScope')}</span>
-              <span>${request.paths.join(', ')}</span></div>
+              ${request.paths.map(path => html`<span>${path}</span>`)}</div>
             <div class="scope-row"><span class="scope-label">${loadTimeData.getString('daoHomeCapabilities')}</span>
               <span>${request.capabilities.map(value => this.capabilityLabel_(value)).join(', ')}</span></div>
             <div class="scope-row"><span class="scope-label">${loadTimeData.getString('daoHomeRuns')}</span>
@@ -1230,15 +1246,15 @@ export class DaoHomeApp extends CrLitElement {
   }
 
   private renderBatchPermissionItem_(item: HomePermissionBatchItem) {
-    const detailsId = `bootstrap-source-${item.connectorId}`;
+    const detailsId = `source-scope-${item.connectorId}`;
     return html`
       <section class="batch-source" data-connector-id=${item.connectorId}>
         <label class="batch-source-choice">
           <input type="checkbox"
               aria-describedby=${detailsId}
-              .checked=${this.selectedBootstrapConnectorIds_.has(
+              .checked=${this.selectedConnectorIds_.has(
                   item.connectorId)}
-              @change=${(event: Event) => this.toggleBootstrapConnector_(
+              @change=${(event: Event) => this.toggleConnector_(
                   item.connectorId,
                   (event.target as HTMLInputElement).checked)}>
           <span>${item.label}</span>
@@ -1252,7 +1268,7 @@ export class DaoHomeApp extends CrLitElement {
           <div class="scope-row">
             <span class="scope-label">${loadTimeData.getString(
                 'daoHomePageScope')}</span>
-            <span>${item.paths.join(', ')}</span>
+            ${item.paths.map(path => html`<span>${path}</span>`)}
           </div>
           <div class="scope-row">
             <span class="scope-label">${loadTimeData.getString(

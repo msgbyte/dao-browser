@@ -978,8 +978,12 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
 - **Dedicated real-Profile preview** — External preview opens a separate visible
   Dao window in the approved Profile and runs the actual Home app and native
   source collectors using that Profile's signed-in state. Source approval
-  remains separate from editing consent, and cookie values never leave the
-  browser. Ordinary Home tabs keep the published project and their own runtime
+  remains separate from editing consent. A full preview groups all sources
+  that still need approval in one dialog. Users can review the full websites,
+  paths, capabilities, and limits, then connect their selection. Long addresses
+  wrap within the dialog. Declined sources are not tested and a draft that
+  requires them cannot publish. Testing a single source requests only its
+  scope. Cookie values never leave the browser. Ordinary Home tabs keep the published project and their own runtime
   state. Focusing another application, switching tabs in an ordinary window, or
   closing the original consent window does not cancel the dedicated preview.
   Native owner visibility distinguishes an occluded window from a hidden one;

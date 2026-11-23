@@ -903,14 +903,14 @@ void DaoHomeAgentTools::ExecuteWithSnapshot(
                 return;
               }
               auto request = self->service_->RequestPermission(result.value(),
-                                                               connector_id);
+                                                               {connector_id});
               if (!request.has_value()) {
                 std::move(callback).Run(ErrorValue(
                     request.error(), "Unable to request source access."));
                 return;
               }
-              base::DictValue response =
-                  ConnectorToValue(request->connector, /*granted=*/false);
+              base::DictValue response = ConnectorToValue(
+                  request->items.front().connector, /*granted=*/false);
               response.Set("request_id", request->id);
               response.Set("draft_id", result->id);
               response.Set("base_revision", result->base_revision);

@@ -202,17 +202,6 @@ HomeDiagnostic& HomeDiagnostic::operator=(const HomeDiagnostic&) = default;
 HomeDiagnostic::HomeDiagnostic(HomeDiagnostic&&) noexcept = default;
 HomeDiagnostic& HomeDiagnostic::operator=(HomeDiagnostic&&) noexcept = default;
 
-HomePermissionRequest::HomePermissionRequest() = default;
-HomePermissionRequest::~HomePermissionRequest() = default;
-HomePermissionRequest::HomePermissionRequest(const HomePermissionRequest&) =
-    default;
-HomePermissionRequest& HomePermissionRequest::operator=(
-    const HomePermissionRequest&) = default;
-HomePermissionRequest::HomePermissionRequest(HomePermissionRequest&&) noexcept =
-    default;
-HomePermissionRequest& HomePermissionRequest::operator=(
-    HomePermissionRequest&&) noexcept = default;
-
 const char* HomeRevisionKindToString(HomeRevisionKind kind) {
   switch (kind) {
     case HomeRevisionKind::kInitial:

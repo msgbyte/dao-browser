@@ -405,25 +405,6 @@ struct HomeDiagnostic {
   int64_t created_at_ms = 0;
 };
 
-// Opaque trusted-host approval request created by an Agent tool. The request
-// contains a normalized connector scope, but only the trusted Home WebUI can
-// consume its ID to publish and record the grant.
-struct HomePermissionRequest {
-  HomePermissionRequest();
-  ~HomePermissionRequest();
-  HomePermissionRequest(const HomePermissionRequest&);
-  HomePermissionRequest& operator=(const HomePermissionRequest&);
-  HomePermissionRequest(HomePermissionRequest&&) noexcept;
-  HomePermissionRequest& operator=(HomePermissionRequest&&) noexcept;
-
-  std::string id;
-  std::string draft_id;
-  std::string base_revision;
-  HomeConnector connector;
-  std::optional<HomeLimits> previous_limits;
-  HomeLimits requested_limits;
-};
-
 const char* HomeRevisionKindToString(HomeRevisionKind kind);
 std::optional<HomeRevisionKind> HomeRevisionKindFromString(
     std::string_view value);

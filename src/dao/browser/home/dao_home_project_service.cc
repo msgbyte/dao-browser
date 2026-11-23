@@ -398,18 +398,25 @@ void DaoHomeProjectService::PublishPreviewedDraft(
           std::move(operation));
 }
 
-void DaoHomeProjectService::ApprovePermission(const std::string& request_id,
-                                              ResultCallback<void> callback) {
+base::expected<void, HomeError> DaoHomeProjectService::ApprovePermission(
+    const std::string& request_id,
+    const base::flat_set<std::string>& selected_ids) {
   if (!pending_permission_ || pending_permission_->id != request_id) {
-    std::move(callback).Run(base::unexpected(HomeError::kNotFound));
-    return;
+    return base::unexpected(HomeError::kNotFound);
   }
-  const HomePermissionRequest request = *pending_permission_;
-  approved_draft_connectors_.insert(
-      DraftConnectorKey(request.draft_id, request.connector.id));
+  for (const auto& id : selected_ids) {
+    if (!std::ranges::contains(pending_permission_->items, id,
+                               &HomePermissionBatchItem::connector_id)) {
+      return base::unexpected(HomeError::kInvalidArgument);
+    }
+  }
+  for (const auto& id : selected_ids) {
+    approved_draft_connectors_.insert(
+        DraftConnectorKey(pending_permission_->draft_id, id));
+  }
   pending_permission_.reset();
   NotifyPermissionChanged();
-  std::move(callback).Run(base::ok());
+  return base::ok();
 }
 
 void DaoHomeProjectService::PublishApprovedDraft(
@@ -570,38 +577,42 @@ void DaoHomeProjectService::RevokeConnector(const std::string& connector_id,
           weak_factory_.GetWeakPtr(), std::move(callback)));
 }
 
-base::expected<HomePermissionRequest, HomeError>
-DaoHomeProjectService::RequestPermission(const HomeDraft& draft,
-                                         const std::string& connector_id) {
+base::expected<HomePermissionBatchRequest, HomeError>
+DaoHomeProjectService::RequestPermission(
+    const HomeDraft& draft,
+    const base::flat_set<std::string>& connector_ids) {
   if (pending_permission_ || bootstrap_permission_preparing_ ||
       bootstrap_decision_callback_) {
     return base::unexpected(HomeError::kAlreadyExists);
   }
-  if (std::ranges::find(draft.permission_expanded_connector_ids,
-                        connector_id) ==
-      draft.permission_expanded_connector_ids.end()) {
-    return base::unexpected(HomeError::kInvalidDraft);
-  }
-  auto connector = std::ranges::find_if(draft.manifest.connectors,
-                                        [&](const HomeConnector& candidate) {
-                                          return candidate.id == connector_id;
-                                        });
-  if (connector == draft.manifest.connectors.end()) {
-    return base::unexpected(HomeError::kNotFound);
-  }
-  HomePermissionRequest request;
+  HomePermissionBatchRequest request;
   request.id = base::Uuid::GenerateRandomV4().AsLowercaseString();
   request.draft_id = draft.id;
   request.base_revision = draft.base_revision;
-  request.connector = *connector;
-  request.previous_limits = draft.previous_limits;
-  request.requested_limits = draft.manifest.limits;
+  for (const HomeConnector& connector : draft.manifest.connectors) {
+    if (!connector_ids.contains(connector.id)) {
+      continue;
+    }
+    if (!std::ranges::contains(draft.permission_expanded_connector_ids,
+                               connector.id)) {
+      return base::unexpected(HomeError::kInvalidDraft);
+    }
+    HomePermissionBatchItem& item = request.items.emplace_back();
+    item.connector_id = connector.id;
+    item.label = connector.id;
+    item.connector = connector;
+    item.previous_limits = draft.previous_limits;
+    item.requested_limits = draft.manifest.limits;
+  }
+  if (request.items.empty() || request.items.size() != connector_ids.size()) {
+    return base::unexpected(HomeError::kInvalidDraft);
+  }
   pending_permission_ = request;
   NotifyPermissionChanged();
   return request;
 }
 
-std::optional<HomePermissionRequest>
+const std::optional<HomePermissionBatchRequest>&
 DaoHomeProjectService::GetPendingPermission() const {
   return pending_permission_;
 }
@@ -661,8 +672,8 @@ base::CallbackListSubscription DaoHomeProjectService::AddProjectChangedObserver(
 }
 
 base::CallbackListSubscription DaoHomeProjectService::AddPermissionObserver(
-    base::RepeatingCallback<void(const std::optional<HomePermissionRequest>&)>
-        callback) {
+    base::RepeatingCallback<
+        void(const std::optional<HomePermissionBatchRequest>&)> callback) {
   return permission_observers_.Add(std::move(callback));
 }
 
