@@ -2,266 +2,156 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {beforeEach, describe, expect, it, vi} from 'vitest';
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
 const bridge = vi.hoisted(() => ({
   startHomeConnector: vi.fn(),
   startHomeDraftConnector: vi.fn(),
   callHomeConnectorPage: vi.fn(),
+  cancelHomeConnector: vi.fn(),
   finishHomeConnector: vi.fn(),
 }));
-
 vi.mock('../home_bridge.js', () => bridge);
 
-import {
-  COMPLETED_COLLECTION_TTL_MS,
-  ConnectorHost,
-} from '../connector_host.js';
+import {ConnectorHost} from '../connector_host.js';
 
 describe('ConnectorHost', () => {
+  let host: ConnectorHost;
+  let frames: HTMLIFrameElement[];
+
   beforeEach(() => {
-    vi.clearAllMocks();
-    bridge.startHomeConnector.mockResolvedValue({
-      execution_id: 'execution-1',
-      revision: 'revision-1',
-      module: 'export default {}',
-      input: {page: 1},
+    vi.resetAllMocks();
+    const template = document.createElement('iframe');
+    template.setAttribute('sandbox', 'allow-scripts');
+    document.body.append(template);
+    frames = [];
+    const cloneNode = template.cloneNode.bind(template);
+    vi.spyOn(template, 'cloneNode').mockImplementation(() => {
+      const frame = cloneNode(false) as HTMLIFrameElement;
+      frames.push(frame);
+      return frame;
     });
+    bridge.startHomeConnector.mockImplementation(async (_revision, id, input) =>
+      ({execution_id: id, module: 'export default {}', input}));
+    bridge.finishHomeConnector.mockImplementation(async (_id, result) => ({result}));
+    host = new ConnectorHost(template, 'revision');
   });
 
-  it('coalesces identical connector requests for the active session',
-     async () => {
-       const contentWindow = {postMessage: vi.fn()} as unknown as Window;
-       const frame = {contentWindow} as HTMLIFrameElement;
-       const host = new ConnectorHost(frame, 'revision-1');
+  afterEach(() => {
+    host.disconnect();
+    document.body.replaceChildren();
+    vi.useRealTimers();
+  });
 
-       const first = host.collect('feed', {page: 1});
-       const second = host.collect('feed', {page: 1});
-       await vi.waitFor(() => {
-         expect(bridge.startHomeConnector).toHaveBeenCalledTimes(1);
-       });
-       expect(contentWindow.postMessage).toHaveBeenCalledWith(
-           expect.objectContaining({executionId: 'execution-1'}), '*');
-       bridge.finishHomeConnector.mockResolvedValue({
-         result: [{title: 'Fresh'}],
-       });
+  function message(frame: HTMLIFrameElement, executionId: string,
+                   data: Record<string, unknown>) {
+    return host.handleMessage(new MessageEvent('message', {
+      source: frame.contentWindow, origin: 'null',
+      data: {daoHomeConnector: 1, executionId, ...data},
+    }));
+  }
 
-       const handled = await host.handleMessage({
-         source: contentWindow,
-         origin: 'null',
-         data: {
-           daoHomeConnector: 1,
-           type: 'complete',
-           executionId: 'execution-1',
-           result: [{title: 'Fresh'}],
-         },
-       } as unknown as MessageEvent);
-       expect(handled).toBe(true);
-       await expect(Promise.all([first, second])).resolves.toEqual([
-         [{title: 'Fresh'}], [{title: 'Fresh'}],
-       ]);
-
-       await expect(host.collect('feed', {page: 1})).resolves.toEqual(
-           [{title: 'Fresh'}]);
-       expect(bridge.startHomeConnector).toHaveBeenCalledTimes(1);
-     });
-
-  it('refreshes a completed connector result after ten minutes', async () => {
-    vi.useFakeTimers();
-    try {
-      const contentWindow = {postMessage: vi.fn()} as unknown as Window;
-      const frame = {contentWindow} as HTMLIFrameElement;
-      const host = new ConnectorHost(frame, 'revision-1');
-      bridge.finishHomeConnector.mockImplementation(
-          (_executionId: string, result: unknown) =>
-              Promise.resolve({result}));
-
-      const first = host.collect('feed', {});
-      await vi.advanceTimersByTimeAsync(0);
-      await host.handleMessage({
-        source: contentWindow,
-        origin: 'null',
-        data: {
-          daoHomeConnector: 1,
-          type: 'complete',
-          executionId: 'execution-1',
-          result: [{title: 'Fresh'}],
-        },
-      } as unknown as MessageEvent);
-      await expect(first).resolves.toEqual([{title: 'Fresh'}]);
-
-      await vi.advanceTimersByTimeAsync(COMPLETED_COLLECTION_TTL_MS - 1);
-      await expect(host.collect('feed', {})).resolves.toEqual(
-          [{title: 'Fresh'}]);
-      expect(bridge.startHomeConnector).toHaveBeenCalledTimes(1);
-
-      bridge.startHomeConnector.mockResolvedValue({
-        execution_id: 'execution-2',
-        revision: 'revision-1',
-        module: 'export default {}',
-        input: {},
-      });
-      await vi.advanceTimersByTimeAsync(1);
-      const refreshed = host.collect('feed', {});
-      await vi.advanceTimersByTimeAsync(0);
-      expect(bridge.startHomeConnector).toHaveBeenCalledTimes(2);
-      await host.handleMessage({
-        source: contentWindow,
-        origin: 'null',
-        data: {
-          daoHomeConnector: 1,
-          type: 'complete',
-          executionId: 'execution-2',
-          result: [{title: 'New'}],
-        },
-      } as unknown as MessageEvent);
-      await expect(refreshed).resolves.toEqual([{title: 'New'}]);
-    } finally {
-      vi.useRealTimers();
+  it('starts four sources, coalesces duplicates and frees each slot independently', async () => {
+    const ids = ['a', 'b', 'c', 'd', 'e', 'f'];
+    const requests = ids.map(id => host.collect(id, {}));
+    const duplicate = host.collect('c', {});
+    await vi.waitFor(() => expect(frames).toHaveLength(4));
+    expect(bridge.startHomeConnector).toHaveBeenCalledTimes(4);
+    const failure = expect(requests[1]).rejects.toMatchObject({code: 'auth_required'});
+    bridge.callHomeConnectorPage.mockResolvedValueOnce({error: 'Sign in', code: 'auth_required'});
+    await message(frames[1]!, 'b', {type: 'page_call', callId: 1, operation: 'exists', args: ['main']});
+    await message(frames[1]!, 'b', {type: 'complete', error: 'Sign in', code: 'auth_required'});
+    await failure;
+    await vi.waitFor(() => expect(frames).toHaveLength(5));
+    await message(frames[2]!, 'c', {type: 'complete', result: 2});
+    await expect(duplicate).resolves.toBe(2);
+    await vi.waitFor(() => expect(frames).toHaveLength(6));
+    for (const i of [5, 4, 3, 0]) {
+      await message(frames[i]!, ids[i]!, {type: 'complete', result: i});
+      await expect(requests[i]).resolves.toBe(i);
     }
+    expect(bridge.cancelHomeConnector).toHaveBeenCalledExactlyOnceWith('b');
   });
 
-  it('evicts completed results when native media executors roll over',
-     async () => {
-       const contentWindow = {postMessage: vi.fn()} as unknown as Window;
-       const frame = {contentWindow} as HTMLIFrameElement;
-       const host = new ConnectorHost(frame, 'revision-1');
-       bridge.startHomeConnector.mockImplementation(
-           (_revision: string, _connectorId: string, input: {page: number}) =>
-               Promise.resolve({
-                 execution_id: `execution-${input.page}`,
-                 revision: 'revision-1',
-                 module: 'export default {}',
-                 input,
-               }));
-       bridge.finishHomeConnector.mockImplementation(
-           (_executionId: string, result: unknown) =>
-               Promise.resolve({result}));
-
-       for (let page = 0; page < 17; ++page) {
-         const collection = host.collect('feed', {page});
-         await vi.waitFor(() => {
-           expect(bridge.startHomeConnector).toHaveBeenCalledTimes(page + 1);
-         });
-         await host.handleMessage({
-           source: contentWindow,
-           origin: 'null',
-           data: {
-             daoHomeConnector: 1,
-             type: 'complete',
-             executionId: `execution-${page}`,
-             result: {page},
-           },
-         } as unknown as MessageEvent);
-         await expect(collection).resolves.toEqual({page});
-       }
-
-       const replay = host.collect('feed', {page: 0});
-       await vi.waitFor(() => {
-         expect(bridge.startHomeConnector).toHaveBeenCalledTimes(18);
-       });
-       await host.handleMessage({
-         source: contentWindow,
-         origin: 'null',
-         data: {
-           daoHomeConnector: 1,
-           type: 'complete',
-           executionId: 'execution-0',
-           result: {page: 0},
-         },
-       } as unknown as MessageEvent);
-       await expect(replay).resolves.toEqual({page: 0});
-     });
-
-  it('starts an approved draft connector without publishing it', async () => {
-    const contentWindow = {postMessage: vi.fn()} as unknown as Window;
-    const frame = {contentWindow} as HTMLIFrameElement;
-    const host = new ConnectorHost(frame, 'revision-1');
-    bridge.startHomeDraftConnector.mockResolvedValue({
-      execution_id: 'draft-execution-1',
-      revision: 'revision-1',
-      module: 'export default {}',
-      input: {page: 2},
-    });
-
-    const collection = host.collectDraft('draft-1', 'feed', {page: 2});
-
-    await vi.waitFor(() => {
-      expect(bridge.startHomeDraftConnector).toHaveBeenCalledWith(
-          'draft-1', 'feed', {page: 2});
-    });
-    expect(bridge.startHomeConnector).not.toHaveBeenCalled();
-    bridge.finishHomeConnector.mockResolvedValue({result: {ok: true}});
-    await host.handleMessage({
-      source: contentWindow,
-      origin: 'null',
-      data: {
-        daoHomeConnector: 1,
-        type: 'complete',
-        executionId: 'draft-execution-1',
-        result: {ok: true},
-      },
-    } as unknown as MessageEvent);
-    await expect(collection).resolves.toEqual({ok: true});
-
-    await expect(host.collectDraft('draft-1', 'feed', {page: 2}))
-        .resolves.toEqual({ok: true});
-    expect(bridge.startHomeDraftConnector).toHaveBeenCalledTimes(1);
-    const retest = host.collectDraft('draft-1', 'feed', {page: 2}, true);
-    await vi.waitFor(() =>
-      expect(bridge.startHomeDraftConnector).toHaveBeenCalledTimes(2));
-    bridge.finishHomeConnector.mockResolvedValue({result: {ok: 'updated'}});
-    await host.handleMessage({
-      source: contentWindow, origin: 'null',
-      data: {daoHomeConnector: 1, type: 'complete',
-        executionId: 'draft-execution-1', result: {ok: 'updated'}},
-    } as unknown as MessageEvent);
-    await expect(retest).resolves.toEqual({ok: 'updated'});
-    await expect(host.collectDraft('draft-1', 'feed', {page: 2}))
-        .resolves.toEqual({ok: 'updated'});
+  it('routes interleaved replies by frame and execution even with identical call IDs', async () => {
+    const a = host.collect('a', {});
+    const b = host.collect('b', {});
+    await vi.waitFor(() => expect(frames).toHaveLength(2));
+    const [first, second] = frames as [HTMLIFrameElement, HTMLIFrameElement];
+    const replyA = vi.spyOn(first.contentWindow!, 'postMessage');
+    const replyB = vi.spyOn(second.contentWindow!, 'postMessage');
+    const call = {type: 'page_call', callId: 1, operation: 'exists', args: ['main']};
+    expect(await message(first, 'b', call)).toBe(false);
+    bridge.callHomeConnectorPage.mockImplementation(async id => id);
+    await Promise.all([message(second, 'b', call), message(first, 'a', call)]);
+    expect(replyA).toHaveBeenCalledWith(expect.objectContaining({result: 'a', callId: 1}), '*');
+    expect(replyB).toHaveBeenCalledWith(expect.objectContaining({result: 'b', callId: 1}), '*');
+    await message(first, 'a', {type: 'complete', result: 'a'});
+    await message(second, 'b', {type: 'complete', result: 'b'});
+    await expect(Promise.all([a, b])).resolves.toEqual(['a', 'b']);
   });
 
-  it('keeps the sandbox error when native cleanup also fails', async () => {
-    const contentWindow = {postMessage: vi.fn()} as unknown as Window;
-    const frame = {contentWindow} as HTMLIFrameElement;
-    const host = new ConnectorHost(frame, 'revision-1');
-    const collection = host.collect('feed', {page: 1});
-    await vi.waitFor(() => {
-      expect(bridge.startHomeConnector).toHaveBeenCalledTimes(1);
-    });
-    bridge.finishHomeConnector.mockRejectedValue(new Error('cleanup failed'));
-
-    await expect(host.handleMessage({
-      source: contentWindow,
-      origin: 'null',
-      data: {
-        daoHomeConnector: 1,
-        type: 'complete',
-        executionId: 'execution-1',
-        error: 'connector failed',
-      },
-    } as unknown as MessageEvent)).resolves.toBe(true);
-    await expect(collection).rejects.toThrow('connector failed');
+  it('keeps connector-supplied strings out of external error codes', async () => {
+    const result = expect(host.collect('a', {})).rejects.not.toHaveProperty('code');
+    await vi.waitFor(() => expect(frames).toHaveLength(1));
+    await message(frames[0]!, 'a', {type: 'complete', error: 'failed', code: 'private fixture'});
+    await result;
   });
 
-  it('times out a sandbox that never completes', async () => {
+  it('returns native cache hits without a sandbox and forwards explicit refreshes', async () => {
+    bridge.startHomeConnector.mockResolvedValueOnce({cached: null});
+    bridge.startHomeDraftConnector.mockResolvedValueOnce({cached: []});
+    await expect(host.collect('a', {})).resolves.toBeNull();
+    await expect(host.collectDraft('draft', 'a', {})).resolves.toEqual([]);
+    expect(frames).toHaveLength(0);
+    const fresh = host.collect('a', {}, true);
+    await vi.waitFor(() => expect(frames).toHaveLength(1));
+    expect(bridge.startHomeConnector).toHaveBeenLastCalledWith('revision', 'a', {}, true);
+    await message(frames[0]!, 'a', {type: 'complete', result: 'new'});
+    await expect(fresh).resolves.toBe('new');
+    bridge.startHomeDraftConnector.mockResolvedValueOnce({error: 'Denied', code: 'permission_required'});
+    await expect(host.collectDraft('draft', 'a', {}, true)).rejects.toMatchObject({code: 'permission_required'});
+    expect(bridge.startHomeDraftConnector).toHaveBeenLastCalledWith('draft', 'a', {}, true);
+  });
+
+  it('times out a stalled sandbox and removes its frame', async () => {
     vi.useFakeTimers();
-    try {
-      const contentWindow = {postMessage: vi.fn()} as unknown as Window;
-      const frame = {contentWindow} as HTMLIFrameElement;
-      const host = new ConnectorHost(frame, 'revision-1');
-      bridge.finishHomeConnector.mockResolvedValue({});
-      const collection = host.collect('feed', {page: 1});
-      const assertion = expect(collection).rejects.toMatchObject({
-        code: 'timed_out',
-      });
-      await vi.advanceTimersByTimeAsync(21_000);
+    const rejected = expect(host.collect('a', {})).rejects.toMatchObject({code: 'timed_out'});
+    await vi.advanceTimersByTimeAsync(21_000);
+    await rejected;
+    expect(bridge.cancelHomeConnector).toHaveBeenCalledExactlyOnceWith('a');
+    expect(frames[0]!.isConnected).toBe(false);
+  });
 
-      await assertion;
-      expect(bridge.finishHomeConnector).toHaveBeenCalledWith(
-          'execution-1', null);
-    } finally {
-      vi.useRealTimers();
-    }
+  it('queues a fresh read behind a pending read of the same source', async () => {
+    const first = host.collect('a', {});
+    const fresh = host.collect('a', {}, true);
+    await vi.waitFor(() => expect(frames).toHaveLength(1));
+    await message(frames[0]!, 'a', {type: 'complete', result: 'first'});
+    await expect(first).resolves.toBe('first');
+    await vi.waitFor(() => expect(frames).toHaveLength(2));
+    await message(frames[1]!, 'a', {type: 'complete', result: 'updated'});
+    await expect(fresh).resolves.toBe('updated');
+  });
+
+  it('rejects pending starts immediately and cancels a late native reply', async () => {
+    const start = Promise.withResolvers<unknown>();
+    bridge.startHomeConnector.mockReturnValue(start.promise);
+    const result = expect(host.collect('a', {})).rejects.toThrow('disconnected');
+    host.disconnect();
+    await result;
+    start.resolve({execution_id: 'late', module: 'export default {}'});
+    await vi.waitFor(() => expect(bridge.cancelHomeConnector).toHaveBeenCalledWith('late'));
+    expect(frames).toHaveLength(0);
+  });
+
+  it('cancels active work and rejects queued work on disconnect', async () => {
+    const requests = Array.from({length: 6}, (_, i) => host.collect(String(i), {}));
+    const results = Promise.allSettled(requests);
+    await vi.waitFor(() => expect(frames).toHaveLength(4));
+    host.disconnect();
+    expect((await results).every(result => result.status === 'rejected')).toBe(true);
+    expect(bridge.startHomeConnector).toHaveBeenCalledTimes(4);
+    expect(frames.every(frame => !frame.isConnected)).toBe(true);
   });
 });

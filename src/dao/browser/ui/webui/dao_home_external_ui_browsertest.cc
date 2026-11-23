@@ -25,6 +25,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/task/thread_pool.h"
+#include "base/test/gtest_tags.h"
 #include "base/test/run_until.h"
 #include "base/test/test_future.h"
 #include "base/threading/thread_restrictions.h"
@@ -1540,15 +1541,183 @@ IN_PROC_BROWSER_TEST_F(DaoHomeExternalUIBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DaoHomeExternalUIBrowserTest,
+                       ParallelCardsReuseOnlyAuthorizedProfileResults) {
+  auto hits = std::make_shared<std::atomic_int>(0);
+  embedded_test_server()->RegisterRequestHandler(base::BindRepeating(
+      [](std::shared_ptr<std::atomic_int> hits,
+         const net::test_server::HttpRequest& request)
+          -> std::unique_ptr<net::test_server::HttpResponse> {
+        if (request.relative_url == "/never.png") {
+          return std::make_unique<net::test_server::HungResponse>();
+        }
+        if (request.relative_url == "/icon.svg") {
+          auto icon = std::make_unique<net::test_server::BasicHttpResponse>();
+          icon->set_content_type("image/svg+xml");
+          icon->set_content(
+              "<svg xmlns='http://www.w3.org/2000/svg' width='1' height='1'/>");
+          return icon;
+        }
+        if (request.relative_url != "/first" &&
+            request.relative_url != "/second" &&
+            request.relative_url != "/third" &&
+            request.relative_url != "/fourth") {
+          return nullptr;
+        }
+        ++*hits;
+        auto response = std::make_unique<net::test_server::BasicHttpResponse>();
+        response->set_content_type("text/html");
+        response->AddCustomHeader("Cache-Control", "no-store");
+        response->set_content("<main>" + request.relative_url +
+                              "</main><section><div>A</div><div>B</div></"
+                              "section><img id=icon src=/icon.svg>"
+                              "<img src='/never.png'>");
+        return response;
+      },
+      hits));
+  ASSERT_TRUE(embedded_test_server()->Start());
+  auto files = BasicProject();
+  auto manifest = base::JSONReader::ReadDict(files.at("manifest.json"),
+                                             base::JSON_PARSE_RFC);
+  ASSERT_TRUE(manifest);
+  for (const std::string id : {"first", "second", "third", "fourth"}) {
+    const auto module = "connectors/" + id + ".js";
+    manifest->FindList("connectors")
+        ->Append(
+            base::DictValue()
+                .Set("id", id)
+                .Set("module", module)
+                .Set("schema", "schemas/value.json")
+                .Set("permissions",
+                     base::DictValue()
+                         .Set("origins",
+                              base::ListValue().Append(
+                                  embedded_test_server()->GetURL("/").spec()))
+                         .Set("paths", base::ListValue().Append("/" + id))
+                         .Set("capabilities",
+                              base::ListValue().Append("read_dom"))
+                         .Set("mode", "read")));
+    files[module] =
+        "export default {async collect(page, input) {"
+        "if (input.layout) return (await page.queryAll('section', "
+        "{lines:'$innerText'}))[0].lines;"
+        "await page.getAttribute('img:last-of-type', 'src');"
+        "return input.media ? await page.getAttribute('#icon', 'src') : await "
+        "page.getText('main');}}";
+  }
+  files["manifest.json"] = *base::WriteJson(*manifest);
+  files["schemas/value.json"] = R"({"type":"string"})";
+  auto* service =
+      DaoHomeProjectServiceFactory::GetForProfile(browser()->GetProfile());
+  base::test::TestFuture<base::expected<HomeDraft, HomeError>> staged;
+  service->StageSnapshot("", files, "Parallel cards", staged.GetCallback());
+  ASSERT_TRUE(staged.Get().has_value());
+  base::test::TestFuture<base::expected<HomeVersion, HomeError>> published;
+  service->Publish(staged.Get()->id, HomeRevisionKind::kInitial,
+                   published.GetCallback(), nullptr);
+  ASSERT_TRUE(published.Get().has_value());
+  for (const std::string id : {"first", "second", "third", "fourth"}) {
+    base::test::TestFuture<base::expected<void, HomeError>> grant;
+    service->GrantConnector(id, grant.GetCallback());
+    ASSERT_TRUE(grant.Get().has_value());
+  }
+  const GURL home("dao://home/");
+  const GURL app("chrome-untrusted://dao-home-app/" + published.Get()->id +
+                 "/index.html?route=%2F");
+  auto open = [&]() -> content::RenderFrameHost* {
+    content::TestNavigationObserver loaded(app);
+    loaded.StartWatchingNewWebContents();
+    if (!AddTabAtIndex(-1, home, ui::PAGE_TRANSITION_TYPED)) {
+      return nullptr;
+    }
+    loaded.Wait();
+    auto* contents = browser()->tab_strip_model()->GetActiveWebContents();
+    content::RenderFrameHost* project = nullptr;
+    contents->ForEachRenderFrameHost([&](content::RenderFrameHost* frame) {
+      if (frame->GetLastCommittedURL() == app) {
+        project = frame;
+      }
+    });
+    return project;
+  };
+  constexpr char kReadCards[] = R"(
+    Promise.all(['first','second','third','fourth'].map(id => dao.sources.collect(id))).then(v => v.join(','))
+  )";
+  auto* first = open();
+  ASSERT_TRUE(first);
+  auto start = base::TimeTicks::Now();
+  EXPECT_EQ("/first,/second,/third,/fourth",
+            content::EvalJs(first, kReadCards));
+  base::AddTagToTestResult(
+      "cold_collect_ms",
+      base::NumberToString((base::TimeTicks::Now() - start).InMilliseconds()));
+  EXPECT_EQ(4, hits->load());
+  EXPECT_EQ(true, content::EvalJs(first, R"(
+    Promise.all(['first','second'].map(async id => {
+      const handle = await dao.sources.collect(id, {media:true});
+      return handle.startsWith('dao-media:') && (await dao.media.resolve(handle)).startsWith('blob:');
+    })).then(v => v.every(Boolean))
+  )"));
+  EXPECT_EQ(6, hits->load());
+  auto* second = open();
+  ASSERT_TRUE(second);
+  start = base::TimeTicks::Now();
+  EXPECT_EQ("/first,/second,/third,/fourth",
+            content::EvalJs(second, kReadCards));
+  base::AddTagToTestResult(
+      "warm_collect_ms",
+      base::NumberToString((base::TimeTicks::Now() - start).InMilliseconds()));
+  EXPECT_EQ(6, hits->load());
+  EXPECT_EQ("/first",
+            content::EvalJs(second,
+                            "dao.sources.collect('first', {}, {fresh:true})"));
+  EXPECT_EQ(7, hits->load());
+  EXPECT_EQ("A\nB", content::EvalJs(
+                        second, "dao.sources.collect('first', {layout:true})"));
+
+  auto* contents = browser()->tab_strip_model()->GetActiveWebContents();
+  constexpr char kStartBoth[] = R"(
+    (async () => {
+      const bridge = await import('./home_bridge.js');
+      const {revision} = await bridge.getHomeSnapshot();
+      const pair = await Promise.all(['first','second'].map(id =>
+        bridge.startHomeConnector(revision, id, {}, true)));
+      return pair.every(result => !!result.execution_id);
+    })()
+  )";
+  ASSERT_EQ(true, content::EvalJs(contents, kStartBoth));
+  auto* ui = contents->GetWebUI()->GetController()->GetAs<DaoHomeUI>();
+  ASSERT_TRUE(ui->HasActiveRuntimeConnectorForTesting());
+  ASSERT_TRUE(
+      AddTabAtIndex(-1, GURL("about:blank"), ui::PAGE_TRANSITION_TYPED));
+  EXPECT_FALSE(ui->HasActiveRuntimeConnectorForTesting());
+  browser()->tab_strip_model()->ActivateTabAt(
+      browser()->tab_strip_model()->GetIndexOfWebContents(contents));
+  ASSERT_EQ(true, content::EvalJs(contents, kStartBoth));
+  base::test::TestFuture<base::expected<void, HomeError>> revoked;
+  service->RevokeConnector("first", revoked.GetCallback());
+  ASSERT_TRUE(revoked.Get().has_value());
+  EXPECT_FALSE(ui->HasActiveRuntimeConnectorForTesting());
+  EXPECT_EQ("permission_required", content::EvalJs(contents, R"(
+    (async () => {
+      const bridge = await import('./home_bridge.js');
+      return (await bridge.startHomeConnector((await bridge.getHomeSnapshot()).revision, 'first', {})).code;
+    })()
+  )"));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoHomeExternalUIBrowserTest,
                        CollectsSignedInProfileSourceWhileMcpIsDisabled) {
   g_browser_process->local_state()->SetBoolean(prefs::kDaoMcpServerEnabled,
                                                false);
+  auto hits = std::make_shared<std::atomic_int>(0);
   embedded_test_server()->RegisterRequestHandler(base::BindRepeating(
-      [](const net::test_server::HttpRequest& request)
+      [](std::shared_ptr<std::atomic_int> hits,
+         const net::test_server::HttpRequest& request)
           -> std::unique_ptr<net::test_server::HttpResponse> {
         if (request.relative_url != "/private-feed") {
           return nullptr;
         }
+        ++*hits;
         const auto cookie = request.headers.find("Cookie");
         const bool signed_in =
             cookie != request.headers.end() &&
@@ -1561,7 +1730,8 @@ IN_PROC_BROWSER_TEST_F(DaoHomeExternalUIBrowserTest,
             signed_in ? "<main data-signed-in>Signed-in fixture content</main>"
                       : "<main>Sign in required</main>");
         return response;
-      }));
+      },
+      hits));
   ASSERT_TRUE(embedded_test_server()->Start());
   const GURL fixture = embedded_test_server()->GetURL("/private-feed");
   ASSERT_TRUE(content::SetCookie(
@@ -1659,16 +1829,15 @@ IN_PROC_BROWSER_TEST_F(DaoHomeExternalUIBrowserTest,
     }
   });
   ASSERT_TRUE(frame);
-  EXPECT_EQ("Signed-in fixture content", content::EvalJs(frame, R"(
-    new Promise(resolve => {
-      const tick = () => {
-        const text = document.querySelector('main').textContent;
-        if (text === 'Signed-in fixture content') resolve(text);
-        else setTimeout(tick, 10);
-      };
-      tick();
-    });
-  )"));
+  EXPECT_EQ(
+      "Signed-in fixture content",
+      content::EvalJs(frame, "document.querySelector('main').textContent"));
+  EXPECT_EQ(1, hits->load());
+  const auto retest = Call(
+      "draft.test_source",
+      base::DictValue().Set("draft_id", draft_id_).Set("connector_id", "feed"));
+  ASSERT_EQ(true, retest.FindBool("ok")) << retest.DebugString();
+  EXPECT_EQ(2, hits->load());
   EXPECT_FALSE(g_browser_process->local_state()->GetBoolean(
       prefs::kDaoMcpServerEnabled));
 }

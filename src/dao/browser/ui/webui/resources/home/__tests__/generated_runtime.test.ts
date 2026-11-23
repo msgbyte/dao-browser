@@ -7,6 +7,7 @@ import {afterEach, describe, expect, it, vi} from 'vitest';
 import {
   createMediaObjectUrl,
   GeneratedAppChannel,
+  HomeMediaUrls,
   installActionNavigation,
   installHomeElementPickerHitTest,
 } from '../generated_runtime.js';
@@ -168,6 +169,24 @@ describe('installActionNavigation', () => {
     expect(generatedHandler).not.toHaveBeenCalled();
     uninstall();
   });
+});
+
+it('bounds retained media URLs and revokes them when Home closes', () => {
+  const revokeObjectURL = vi.fn();
+  const createObjectURL = vi.fn(() => 'blob:' + createObjectURL.mock.calls.length);
+  vi.stubGlobal('URL', {createObjectURL, revokeObjectURL});
+  try {
+    const urls = new HomeMediaUrls();
+    const blob = new Blob([new Uint8Array(5 * 1024 * 1024)]);
+    for (const handle of ['a', 'b', 'c', 'd']) urls.store(handle, blob);
+    expect(urls.get('a')).toBeUndefined();
+    expect(revokeObjectURL).toHaveBeenCalledExactlyOnceWith('blob:1');
+    expect(urls.store('b', blob)).toBe('blob:2');
+    urls.clear();
+    expect(revokeObjectURL).toHaveBeenCalledTimes(4);
+  } finally {
+    vi.unstubAllGlobals();
+  }
 });
 
 describe('GeneratedAppChannel', () => {

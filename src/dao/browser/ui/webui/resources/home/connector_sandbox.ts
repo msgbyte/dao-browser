@@ -59,6 +59,7 @@ interface SandboxMessage {
   callId?: number;
   result?: unknown;
   error?: string;
+  code?: string;
 }
 
 function installConnectorSandbox(): void {
@@ -82,7 +83,7 @@ function installConnectorSandbox(): void {
       const request = pending.get(message.callId);
       if (!request) return;
       pending.delete(message.callId);
-      if (message.error) request.reject(new Error(message.error));
+      if (message.error) request.reject(Object.assign(new Error(message.error), {code: message.code}));
       else request.resolve(message.result);
       return;
     }
@@ -112,6 +113,7 @@ function installConnectorSandbox(): void {
     } catch (error) {
       send({
         type: 'complete',
+        code: error instanceof Error ? (error as Error&{code?: string}).code : undefined,
         error: error instanceof Error ? error.message : String(error),
       });
     } finally {

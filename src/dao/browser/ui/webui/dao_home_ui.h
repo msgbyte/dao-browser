@@ -125,9 +125,9 @@ class DaoHomeUIHandler : public content::WebUIMessageHandler,
   void HandleReset(const base::ListValue& args);
   void HandleExport(const base::ListValue& args);
   void HandleImport(const base::ListValue& args);
-  void HandleStartConnector(const base::ListValue& args);
-  void HandleStartDraftConnector(const base::ListValue& args);
+  void HandleStartConnector(bool draft, const base::ListValue& args);
   void HandleCallConnectorPage(const base::ListValue& args);
+  void HandleCancelConnector(const base::ListValue& args);
   void HandleFinishConnector(const base::ListValue& args);
   void HandleResolveMedia(const base::ListValue& args);
   void HandleCompleteAgentConnector(const base::ListValue& args);
@@ -149,6 +149,7 @@ class DaoHomeUIHandler : public content::WebUIMessageHandler,
                             base::Value result);
   bool HasActiveHomeOwner() const;
   bool CanAccessDraft(const std::string& draft_id) const;
+  bool CanUseCollection(const HomeCollectionKey& key) const;
   void PreviewDraft(std::string draft_id,
                     std::string entry,
                     HomePreviewRequirements requirements,
@@ -175,18 +176,33 @@ class DaoHomeUIHandler : public content::WebUIMessageHandler,
   void CompleteAgentPreview();
   void InvalidateDocumentMutationLease();
   void CancelAllSessions();
-  void PrepareConnectorExecutorForStart();
-  void PrepareDraftConnectorExecutorForStart();
-  void ClearRetainedExternalConnectorMedia();
+  void StartCollection(const std::string& callback_event,
+                       std::string draft_id,
+                       HomeConnectorBundle bundle,
+                       base::Value input,
+                       bool fresh);
+  void OnCollectionFinished(std::string callback_event,
+                            HomeCollectionKey key,
+                            std::string execution_id,
+                            base::Value response);
+  struct Collection {
+    HomeCollectionKey key;
+    std::unique_ptr<DaoHomeConnectorExecutor> executor;
+    std::optional<base::Value> media_result;
+    base::TimeTicks expires;
+  };
+  Collection* FindCollection(const std::string& execution_id);
   DaoHomeConnectorExecutor* FindConnectorExecutor(
       const std::string& execution_id);
-  DaoHomeConnectorExecutor* FindMediaExecutor(const std::string& handle);
+  DaoHomeConnectorExecutor* FindMediaExecutor(const std::string& handle,
+                                              const std::string& draft_id);
+  void CancelDraftCollections(const std::string& draft_id);
 
   raw_ptr<DaoHomeProjectService> service_;
-  std::unique_ptr<DaoHomeConnectorExecutor> connector_executor_;
-  std::unique_ptr<DaoHomeConnectorExecutor> draft_connector_executor_;
-  std::vector<std::unique_ptr<DaoHomeConnectorExecutor>>
-      retained_connector_executors_;
+  std::vector<Collection> active_collections_;
+  std::vector<Collection> retained_collections_;
+  int collection_generation_ = 0;
+  int draft_collection_generation_ = 0;
   base::CallbackListSubscription project_changed_subscription_;
   base::CallbackListSubscription permission_subscription_;
   base::CallbackListSubscription bootstrap_permission_subscription_;
@@ -207,7 +223,8 @@ class DaoHomeUIHandler : public content::WebUIMessageHandler,
   bool external_preview_valid_ = false;
   bool external_session_ready_ = false;
   int external_session_generation_ = 0;
-  bool retains_external_connector_media_ = false;
+  std::string agent_connector_draft_id_;
+  std::string agent_connector_id_;
   scoped_refptr<DaoHomeMutationLease> document_mutation_lease_;
   base::WeakPtrFactory<DaoHomeUIHandler> weak_factory_{this};
 };

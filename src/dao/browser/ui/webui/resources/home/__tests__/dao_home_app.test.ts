@@ -768,7 +768,7 @@ describe('dao-home-app', () => {
 
        await vi.waitFor(() => {
          expect(bridge.startHomeDraftConnector).toHaveBeenCalledWith(
-             'draft-1', 'feed', {page: 1});
+             'draft-1', 'feed', {page: 1}, true);
        });
      });
 
@@ -791,7 +791,7 @@ describe('dao-home-app', () => {
 
     await vi.waitFor(() => {
       expect(bridge.startHomeDraftConnector).toHaveBeenCalledWith(
-          'draft-1', 'feed', {page: 1});
+          'draft-1', 'feed', {page: 1}, true);
     });
   });
 
@@ -969,7 +969,9 @@ describe('dao-home-app', () => {
          expect(frame!.classList.contains('retained')).toBe(true);
          return frame!;
        });
-       const collectDraft = vi.fn().mockResolvedValue([]);
+       const result = Promise.withResolvers<unknown[]>();
+       const collectDraft = vi.fn().mockReturnValue(result.promise);
+       frame.dispatchEvent(new Event('load'));
        (app as unknown as {connectorHost_: unknown}).connectorHost_ = {
          handleMessage: vi.fn().mockResolvedValue(false), collectDraft,
          disconnect: vi.fn(),
@@ -977,10 +979,14 @@ describe('dao-home-app', () => {
        window.dispatchEvent(new MessageEvent('message', {
          source: frame.contentWindow, origin: 'null',
          data: {daoHome: 1, requestId: 'collect', revision: draft,
-           method: 'sources.collect', params: {connectorId: 'news', input: {}}},
+           method: 'sources.collect', params: {connectorId: 'news', input: {}, fresh: true}},
        }));
        await vi.waitFor(() => expect(collectDraft).toHaveBeenCalledWith(
-           draft, 'news', {}));
+           draft, 'news', {}, true));
+       expect(bridge.notifyHomeAgentPreviewLoaded).toHaveBeenLastCalledWith('external-preview', false);
+       result.resolve([]);
+       await vi.waitFor(() => expect(bridge.notifyHomeAgentPreviewLoaded)
+           .toHaveBeenLastCalledWith('external-preview'));
        window.dispatchEvent(new MessageEvent('message', {
          source: frame.contentWindow, origin: 'null',
          data: {daoHome: 1, requestId: 'late-error', revision: draft,

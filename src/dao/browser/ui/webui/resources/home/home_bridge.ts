@@ -206,13 +206,13 @@ export function importHome(
 }
 
 export function startHomeConnector(
-    revision: string, connectorId: string, input: unknown): Promise<unknown> {
-  return sendAsync('startHomeConnector', revision, connectorId, input);
+    revision: string, connectorId: string, input: unknown, fresh = false): Promise<unknown> {
+  return sendAsync('startHomeConnector', revision, connectorId, input, fresh);
 }
 
 export function startHomeDraftConnector(
-    draftId: string, connectorId: string, input: unknown): Promise<unknown> {
-  return sendAsync('startHomeDraftConnector', draftId, connectorId, input);
+    draftId: string, connectorId: string, input: unknown, fresh = false): Promise<unknown> {
+  return sendAsync('startHomeDraftConnector', draftId, connectorId, input, fresh);
 }
 
 export function callHomeConnectorPage(
@@ -220,13 +220,17 @@ export function callHomeConnectorPage(
   return sendAsync('callHomeConnectorPage', executionId, operation, args);
 }
 
+export function cancelHomeConnector(executionId: string): void {
+  chrome.send('cancelHomeConnector', [executionId]);
+}
+
 export function finishHomeConnector(
     executionId: string, result: unknown): Promise<unknown> {
   return sendAsync('finishHomeConnector', executionId, result);
 }
 
-export function resolveHomeMedia(handle: string): Promise<unknown> {
-  return sendAsync('resolveHomeMedia', handle);
+export function resolveHomeMedia(handle: string, draftId = ''): Promise<unknown> {
+  return sendAsync('resolveHomeMedia', handle, draftId);
 }
 
 export function completeHomeAgentConnector(
@@ -234,8 +238,8 @@ export function completeHomeAgentConnector(
   chrome.send('completeHomeAgentConnector', [requestId, result]);
 }
 
-export function notifyHomeAgentPreviewLoaded(requestId: string): void {
-  chrome.send('notifyHomeAgentPreviewLoaded', [requestId]);
+export function notifyHomeAgentPreviewLoaded(requestId: string, ready = true): void {
+  chrome.send('notifyHomeAgentPreviewLoaded', [requestId, ready]);
 }
 
 export function recordHomeRuntimeError(

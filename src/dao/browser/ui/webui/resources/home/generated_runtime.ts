@@ -191,6 +191,37 @@ export function createMediaObjectUrl(
   return create(new Blob([bytes], {type: media.mime}));
 }
 
+// Object URLs live independently of the native snapshots that supplied them.
+export class HomeMediaUrls {
+  private readonly entries_ = new Map<string, {url: string; bytes: number}>();
+  private bytes_ = 0;
+
+  get(handle: string): string|undefined {
+    return this.entries_.get(handle)?.url;
+  }
+
+  store(handle: string, blob: Blob): string {
+    const existing = this.get(handle);
+    if (existing) return existing;
+    const url = URL.createObjectURL(blob);
+    this.entries_.set(handle, {url, bytes: blob.size});
+    this.bytes_ += blob.size;
+    for (const [id, entry] of this.entries_) {
+      if (this.bytes_ <= 16 * 1024 * 1024 && this.entries_.size <= 1600) break;
+      URL.revokeObjectURL(entry.url);
+      this.entries_.delete(id);
+      this.bytes_ -= entry.bytes;
+    }
+    return url;
+  }
+
+  clear(): void {
+    for (const entry of this.entries_.values()) URL.revokeObjectURL(entry.url);
+    this.entries_.clear();
+    this.bytes_ = 0;
+  }
+}
+
 export class GeneratedAppChannel {
   private nextRequestId_ = 0;
   private readonly pending_ = new Map<string, PendingRequest>();
@@ -285,7 +316,7 @@ function installRuntime(): void {
   const revision = parts[parts[0] === 'preview' ? 1 : 0] ?? '';
   const channel = new GeneratedAppChannel(window.parent, 'dao://home', revision);
   const session = new Map<string, unknown>();
-  const mediaUrls = new Map<string, string>();
+  const mediaUrls = new HomeMediaUrls();
   const openNavigation = (url: string) =>
       channel.call('navigation.open', {url});
   const openAction = (actionId: string, url: string) =>
@@ -315,14 +346,13 @@ function installRuntime(): void {
     uninstallHomeElementPickerHitTest();
     channel.disconnect();
     session.clear();
-    for (const url of mediaUrls.values()) URL.revokeObjectURL(url);
     mediaUrls.clear();
   }, {once: true});
 
   (window as unknown as {dao: unknown}).dao = Object.freeze({
     sources: Object.freeze({
-      collect: (connectorId: string, input: unknown = {}) =>
-          channel.call('sources.collect', {connectorId, input}),
+      collect: (connectorId: string, input: unknown = {}, options?: {fresh?: boolean}) =>
+          channel.call('sources.collect', {connectorId, input, fresh: options?.fresh === true}),
     }),
     session: Object.freeze({
       get: (key: string) => session.get(key),
@@ -335,10 +365,8 @@ function installRuntime(): void {
       resolve: async (handle: string) => {
         const existing = mediaUrls.get(handle);
         if (existing) return existing;
-        const url = createMediaObjectUrl(
-            await channel.call('media.resolve', {handle}));
-        mediaUrls.set(handle, url);
-        return url;
+        return createMediaObjectUrl(await channel.call('media.resolve', {handle}),
+                                   blob => mediaUrls.store(handle, blob));
       },
     }),
   });

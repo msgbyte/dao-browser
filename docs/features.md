@@ -1250,9 +1250,12 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
   rejected before allocation when its raw pixels exceed the remaining 5 MiB
   session budget, and repeated handles share one retained blob. Completed
   executors retain only those snapshots for a bounded session window. The
-  trusted host keeps at most the same 16 successful
-  collection results, evicts them in executor-completion order, and reruns an
-  evicted request so returned media handles always have a retained native owner.
+  trusted host can run four collections at once. Each module gets its own
+  opaque iframe and detached desktop-sized source page. DOM reads can begin at
+  DOMContentLoaded, and the browser checks for sign-in forms again before
+  delivering results. Up to 16 completed media executors share a 16 MiB
+  retained blob budget per Home document. The generated runtime also caps its
+  object URLs at 16 MiB and revokes them on eviction or page exit.
 - **Trusted source permission** — Agent code can create an opaque permission
   request but cannot grant access. Home shows normalized website, path,
   read-only capability, lifecycle scope, and collection budgets. For budget
@@ -1271,13 +1274,17 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
   memory cache and never create a refresh timer or background crawl. The
   connector sandbox is also present on an empty active Home so the
   first approved connector draft can be tested before its initial publication.
-  Source payloads and generated-app session state remain memory-only and are
-  cleared when Home loses active ownership; both untrusted frames and native
-  executors are torn down and recreated only after Home becomes active again.
-  Agent draft sampling uses a separate executor: ending or replacing the Agent
-  turn cancels its draft work without interrupting an in-flight published Home
-  card, while Home navigation, hiding, closure, or revision replacement cancels
-  both classes.
+  Schema-validated results without media handles can be reused across Home
+  tabs for ten minutes in the same regular Profile (64 entries, 8 MiB of
+  serialized results). Each hit requires current permission and matches the
+  revision, draft, connector fingerprint, and input. Project changes clear
+  the cache. Ending a preview or discarding a draft clears its entries.
+  Preview cards can reuse the preceding draft samples. The preview waits for
+  its initial source and media reads to settle before issuing its receipt. Explicit source tests
+  and `collect(id, input, {fresh: true})` read the site again. Session values
+  and media handles belong to one Home document. Hiding or leaving Home
+  cancels all its executions. Ending an Agent session cancels its draft work
+  while published cards can continue collecting.
   Connector and generated-runtime failures record bounded non-content
   diagnostics; only the explicit **Ask Dao to fix** action starts a repair
   turn. A Home-scoped Agent sample request is routed through the same trusted

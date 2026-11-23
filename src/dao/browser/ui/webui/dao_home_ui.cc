@@ -14,8 +14,10 @@
 
 #include "base/check.h"
 #include "base/functional/bind.h"
+#include "base/json/json_writer.h"
 #include "base/memory/ref_counted_memory.h"
 #include "base/strings/escape.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/uuid.h"
@@ -40,6 +42,7 @@
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "content/public/common/url_constants.h"
+#include "crypto/sha2.h"
 #include "dao/browser/home/dao_home_connector_executor.h"
 #include "dao/browser/home/dao_home_external_service.h"
 #include "dao/browser/home/dao_home_history_material.h"
@@ -136,6 +139,8 @@ constexpr char kGeneratedActionRuntime[] = R"js(
   }, {capture: true});
 })();
 )js";
+constexpr size_t kMaxActiveConnectorExecutors = 4;
+constexpr size_t kMaxRetainedMediaBytes = 16 * 1024 * 1024;
 constexpr size_t kMaxRetainedConnectorExecutors = 16;
 constexpr size_t kMaxBootstrapPermissionSelections = 3;
 constexpr std::string_view kBootstrapPermissionRequestSuffix =
@@ -402,9 +407,7 @@ bool DaoHomeConnectorUIConfig::IsWebUIEnabled(
 }
 
 DaoHomeUIHandler::DaoHomeUIHandler(DaoHomeProjectService* service)
-    : service_(service),
-      connector_executor_(std::make_unique<DaoHomeConnectorExecutor>()),
-      draft_connector_executor_(std::make_unique<DaoHomeConnectorExecutor>()) {}
+    : service_(service) {}
 
 DaoHomeUIHandler::~DaoHomeUIHandler() {
   InvalidateDocumentMutationLease();
@@ -485,14 +488,18 @@ void DaoHomeUIHandler::RegisterMessages() {
   web_ui()->RegisterMessageCallback(
       "startHomeConnector",
       base::BindRepeating(&DaoHomeUIHandler::HandleStartConnector,
-                          base::Unretained(this)));
+                          base::Unretained(this), false));
   web_ui()->RegisterMessageCallback(
       "startHomeDraftConnector",
-      base::BindRepeating(&DaoHomeUIHandler::HandleStartDraftConnector,
-                          base::Unretained(this)));
+      base::BindRepeating(&DaoHomeUIHandler::HandleStartConnector,
+                          base::Unretained(this), true));
   web_ui()->RegisterMessageCallback(
       "callHomeConnectorPage",
       base::BindRepeating(&DaoHomeUIHandler::HandleCallConnectorPage,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "cancelHomeConnector",
+      base::BindRepeating(&DaoHomeUIHandler::HandleCancelConnector,
                           base::Unretained(this)));
   web_ui()->RegisterMessageCallback(
       "finishHomeConnector",
@@ -555,6 +562,8 @@ void DaoHomeUIHandler::CollectConnectorForAgent(std::string draft_id,
   }
   agent_connector_request_id_ =
       base::Uuid::GenerateRandomV4().AsLowercaseString();
+  agent_connector_draft_id_ = draft_id;
+  agent_connector_id_ = connector_id;
   agent_connector_callback_ = std::move(callback);
   agent_connector_timeout_.Start(
       FROM_HERE, base::Seconds(25),
@@ -1300,161 +1309,160 @@ bool DaoHomeUIHandler::CanAccessDraft(const std::string& draft_id) const {
                                                        draft_id);
 }
 
-void DaoHomeUIHandler::HandleStartConnector(const base::ListValue& args) {
+bool DaoHomeUIHandler::CanUseCollection(const HomeCollectionKey& key) const {
+  return HasActiveHomeOwner() &&
+         (key.draft_id.empty() ||
+          (CanAccessDraft(key.draft_id) &&
+           service_->IsDraftConnectorApproved(key.draft_id, key.connector_id)));
+}
+
+void DaoHomeUIHandler::HandleStartConnector(bool draft,
+                                            const base::ListValue& args) {
   AllowJavascript();
   if (args.size() < 4 || !args[0].is_string() || !args[1].is_string() ||
       !args[2].is_string()) {
     return;
   }
-  const std::string callback_event = args[0].GetString();
-  const std::string revision = args[1].GetString();
-  const std::string connector_id = args[2].GetString();
-  base::Value input = args[3].Clone();
-  if (!HasActiveHomeOwner()) {
+  const std::string scope = args[1].GetString();
+  const std::string id = args[2].GetString();
+  const char* stage = draft ? "draft_start" : "start";
+  if (!HasActiveHomeOwner() || (draft && !CanAccessDraft(scope))) {
     ReplyConnectorWithDiagnostic(
-        callback_event, revision, connector_id, "start",
+        args[0].GetString(), scope, id, stage,
         ConnectorError("cancelled", "Dao Home is not active."));
     return;
   }
-  base::WeakPtr<content::WebContents> owner =
-      web_ui()->GetWebContents()->GetWeakPtr();
-  service_->GetConnectorBundle(
-      revision, connector_id,
-      base::BindOnce(
-          [](base::WeakPtr<DaoHomeUIHandler> self, std::string callback_event,
-             std::string revision, base::WeakPtr<content::WebContents> owner,
-             base::Value input, std::string connector_id,
-             base::expected<HomeConnectorBundle, HomeError> bundle) {
-            if (!self) {
-              return;
-            }
-            if (!owner || !self->HasActiveHomeOwner() ||
-                self->web_ui()->GetWebContents() != owner.get()) {
-              self->ReplyConnectorWithDiagnostic(
-                  callback_event, revision, connector_id, "start",
-                  ConnectorError("cancelled", "Dao Home is not active."));
-              return;
-            }
-            if (!bundle.has_value()) {
-              self->ReplyConnectorWithDiagnostic(
-                  callback_event, revision, connector_id, "start",
-                  ConnectorError(
-                      "stale_revision",
-                      "The Home connector revision is unavailable."));
-              return;
-            }
-            if (!bundle->granted) {
-              self->ReplyConnectorWithDiagnostic(
-                  callback_event, revision, connector_id, "start",
-                  ConnectorError("permission_required",
-                                 "This Home source has not been connected."));
-              return;
-            }
-            Profile* profile = Profile::FromWebUI(self->web_ui());
-            self->PrepareConnectorExecutorForStart();
-            self->connector_executor_->Start(
-                owner.get(), profile, std::move(revision),
-                std::move(bundle->connector), bundle->limits,
-                std::move(bundle->module_source),
-                std::move(bundle->schema_source), std::move(input),
-                base::BindOnce(&DaoHomeUIHandler::ReplyConnectorWithDiagnostic,
-                               self, std::move(callback_event), revision,
-                               std::move(connector_id), "start"));
-          },
-          weak_factory_.GetWeakPtr(), callback_event, revision,
-          std::move(owner), std::move(input), connector_id));
+  auto ready = base::BindOnce(
+      [](base::WeakPtr<DaoHomeUIHandler> self, bool draft, int generation,
+         std::string callback, std::string scope, std::string id,
+         std::string stage, base::Value input, bool fresh,
+         base::expected<HomeConnectorBundle, HomeError> bundle) {
+        if (!self) {
+          return;
+        }
+        const int current = draft ? self->draft_collection_generation_
+                                  : self->collection_generation_;
+        if (current != generation || !self->HasActiveHomeOwner() ||
+            (draft && !self->CanAccessDraft(scope))) {
+          self->ReplyConnectorWithDiagnostic(
+              callback, scope, id, stage,
+              ConnectorError("cancelled", "Dao Home is not active."));
+          return;
+        }
+        if (draft && !self->service_->IsDraftConnectorApproved(scope, id)) {
+          self->ReplyConnectorWithDiagnostic(
+              callback, scope, id, stage,
+              ConnectorError(
+                  "permission_required",
+                  "This exact Home draft source has not been approved."));
+          return;
+        }
+        if (!bundle.has_value()) {
+          self->ReplyConnectorWithDiagnostic(
+              callback, scope, id, stage,
+              ConnectorError(draft ? "invalid_draft" : "stale_revision",
+                             "The Home connector revision is unavailable."));
+          return;
+        }
+        if (!draft && !bundle->granted) {
+          self->ReplyConnectorWithDiagnostic(
+              callback, scope, id, stage,
+              ConnectorError("permission_required",
+                             "This Home source has not been connected."));
+          return;
+        }
+        self->StartCollection(callback, draft ? scope : std::string(),
+                              std::move(*bundle), std::move(input), fresh);
+      },
+      weak_factory_.GetWeakPtr(), draft,
+      draft ? draft_collection_generation_ : collection_generation_,
+      args[0].GetString(), scope, id, std::string(stage), args[3].Clone(),
+      args.size() > 4 && args[4].GetIfBool().value_or(false));
+  if (draft) {
+    service_->GetApprovedDraftConnectorBundle(scope, id, std::move(ready));
+  } else {
+    service_->GetConnectorBundle(scope, id, std::move(ready));
+  }
 }
 
-void DaoHomeUIHandler::HandleStartDraftConnector(const base::ListValue& args) {
-  AllowJavascript();
-  if (args.size() < 4 || !args[0].is_string() || !args[1].is_string() ||
-      !args[2].is_string()) {
-    return;
-  }
-  const std::string callback_event = args[0].GetString();
-  const std::string draft_id = args[1].GetString();
-  const std::string connector_id = args[2].GetString();
-  base::Value input = args[3].Clone();
-  if (!HasActiveHomeOwner() || !CanAccessDraft(draft_id) ||
-      !service_->IsDraftConnectorApproved(draft_id, connector_id)) {
+void DaoHomeUIHandler::StartCollection(const std::string& callback_event,
+                                       std::string draft_id,
+                                       HomeConnectorBundle bundle,
+                                       base::Value input,
+                                       bool fresh) {
+  const auto& revision = bundle.revision;
+  const std::string scope = draft_id.empty() ? revision : draft_id;
+  const char* stage = draft_id.empty() ? "start" : "draft_start";
+  auto json = base::WriteJson(input);
+  if (!json) {
     ReplyConnectorWithDiagnostic(
-        callback_event, draft_id, connector_id, "draft_start",
-        ConnectorError("permission_required",
-                       "This exact Home draft source has not been approved."));
+        callback_event, scope, bundle.connector.id, stage,
+        ConnectorError("invalid_argument",
+                       "The Home connector input is invalid."));
     return;
   }
-  base::WeakPtr<content::WebContents> owner =
-      web_ui()->GetWebContents()->GetWeakPtr();
-  service_->GetApprovedDraftConnectorBundle(
-      draft_id, connector_id,
-      base::BindOnce(
-          [](base::WeakPtr<DaoHomeUIHandler> self, std::string callback_event,
-             std::string draft_id, base::WeakPtr<content::WebContents> owner,
-             base::Value input, std::string connector_id,
-             base::expected<HomeConnectorBundle, HomeError> bundle) {
-            if (!self) {
-              return;
-            }
-            if (!owner || !self->HasActiveHomeOwner() ||
-                self->web_ui()->GetWebContents() != owner.get() ||
-                !self->CanAccessDraft(draft_id) ||
-                !self->service_->IsDraftConnectorApproved(draft_id,
-                                                          connector_id)) {
-              self->ReplyConnectorWithDiagnostic(
-                  callback_event, draft_id, connector_id, "draft_start",
-                  ConnectorError("cancelled",
-                                 "The Home draft approval expired."));
-              return;
-            }
-            if (!bundle.has_value()) {
-              self->ReplyConnectorWithDiagnostic(
-                  callback_event, draft_id, connector_id, "draft_start",
-                  ConnectorError("invalid_draft",
-                                 "The Home draft connector is unavailable."));
-              return;
-            }
-            self->service_->GetDraft(
-                draft_id,
-                base::BindOnce(
-                    [](base::WeakPtr<DaoHomeUIHandler> self,
-                       std::string callback_event, std::string draft_id,
-                       base::WeakPtr<content::WebContents> owner,
-                       base::Value input, std::string connector_id,
-                       HomeConnectorBundle bundle,
-                       base::expected<HomeDraft, HomeError> draft) {
-                      if (!self || !draft.has_value() || !owner ||
-                          !self->HasActiveHomeOwner() ||
-                          self->web_ui()->GetWebContents() != owner.get() ||
-                          !self->CanAccessDraft(draft_id) ||
-                          !self->service_->IsDraftConnectorApproved(
-                              draft_id, connector_id)) {
-                        if (self) {
-                          self->ReplyConnectorWithDiagnostic(
-                              callback_event, draft_id, connector_id,
-                              "draft_start",
-                              ConnectorError(
-                                  "cancelled",
-                                  "The Home draft approval expired."));
-                        }
-                        return;
-                      }
-                      Profile* profile = Profile::FromWebUI(self->web_ui());
-                      self->PrepareDraftConnectorExecutorForStart();
-                      self->draft_connector_executor_->Start(
-                          owner.get(), profile, std::move(draft->base_revision),
-                          std::move(bundle.connector), bundle.limits,
-                          std::move(bundle.module_source),
-                          std::move(bundle.schema_source), std::move(input),
-                          base::BindOnce(
-                              &DaoHomeUIHandler::ReplyConnectorWithDiagnostic,
-                              self, std::move(callback_event), draft_id,
-                              std::move(connector_id), "draft_start"));
-                    },
-                    self, callback_event, draft_id, owner, std::move(input),
-                    connector_id, std::move(bundle.value())));
-          },
-          weak_factory_.GetWeakPtr(), callback_event, draft_id,
-          std::move(owner), std::move(input), connector_id));
+  HomeCollectionKey key{
+      draft_id, revision, bundle.connector.id,
+      HomeConnectorFingerprint(bundle.connector, bundle.limits,
+                               bundle.module_source, bundle.schema_source),
+      base::HexEncode(crypto::SHA256HashString(*json))};
+  if (fresh) {
+    service_->ForgetCachedCollection(key);
+    for (auto& item : retained_collections_) {
+      if (item.key == key) {
+        item.media_result.reset();
+      }
+    }
+  } else {
+    auto cached = service_->GetCachedCollection(key);
+    if (!cached) {
+      for (const auto& item : retained_collections_) {
+        if (item.key == key && item.media_result &&
+            base::TimeTicks::Now() < item.expires) {
+          cached = item.media_result->Clone();
+          break;
+        }
+      }
+    }
+    if (cached) {
+      ReplyConnector(callback_event, base::Value(base::DictValue().Set(
+                                         "cached", std::move(*cached))));
+      return;
+    }
+  }
+  for (auto& item : active_collections_) {
+    if (item.key.draft_id == draft_id && item.key.revision == revision &&
+        item.key.connector_id == key.connector_id) {
+      item.executor->Cancel();
+    }
+  }
+  std::erase_if(active_collections_,
+                [](const auto& item) { return !item.executor->running(); });
+  if (active_collections_.size() >= kMaxActiveConnectorExecutors) {
+    ReplyConnectorWithDiagnostic(
+        callback_event, scope, key.connector_id, stage,
+        ConnectorError("temporarily_unavailable",
+                       "All Home connector slots are busy."));
+    return;
+  }
+  auto& item = active_collections_.emplace_back(
+      Collection{key, std::make_unique<DaoHomeConnectorExecutor>(), {}, {}});
+  item.executor->Start(
+      web_contents(), Profile::FromWebUI(web_ui()), revision,
+      std::move(bundle.connector), bundle.limits,
+      std::move(bundle.module_source), std::move(bundle.schema_source),
+      std::move(input),
+      base::BindOnce(&DaoHomeUIHandler::ReplyConnectorWithDiagnostic,
+                     weak_factory_.GetWeakPtr(), callback_event, scope,
+                     key.connector_id, stage));
+}
+
+void DaoHomeUIHandler::HandleCancelConnector(const base::ListValue& args) {
+  if (args.size() == 1 && args[0].is_string()) {
+    if (auto* item = FindCollection(args[0].GetString())) {
+      item->executor->Cancel();
+    }
+  }
 }
 
 void DaoHomeUIHandler::HandleCallConnectorPage(const base::ListValue& args) {
@@ -1484,10 +1492,10 @@ void DaoHomeUIHandler::HandleCallConnectorPage(const base::ListValue& args) {
         if (!self) {
           return;
         }
-        DaoHomeConnectorExecutor* executor =
-            self->FindConnectorExecutor(execution_id);
-        if (!self->HasActiveHomeOwner() || !executor ||
-            snapshot.revision != executor->revision()) {
+        auto* collection = self->FindCollection(execution_id);
+        auto* executor = collection ? collection->executor.get() : nullptr;
+        if (!executor || snapshot.revision != executor->revision() ||
+            !self->CanUseCollection(collection->key)) {
           if (executor) {
             executor->Cancel();
           }
@@ -1530,10 +1538,10 @@ void DaoHomeUIHandler::HandleFinishConnector(const base::ListValue& args) {
         if (!self) {
           return;
         }
-        DaoHomeConnectorExecutor* executor =
-            self->FindConnectorExecutor(execution_id);
-        if (!self->HasActiveHomeOwner() || !executor ||
-            snapshot.revision != executor->revision()) {
+        auto* collection = self->FindCollection(execution_id);
+        auto* executor = collection ? collection->executor.get() : nullptr;
+        if (!executor || snapshot.revision != executor->revision() ||
+            !self->CanUseCollection(collection->key)) {
           if (executor) {
             executor->Cancel();
           }
@@ -1542,14 +1550,56 @@ void DaoHomeUIHandler::HandleFinishConnector(const base::ListValue& args) {
               ConnectorError("cancelled", "The Home revision changed."));
           return;
         }
-        executor->Finish(
-            execution_id, std::move(result),
-            base::BindOnce(&DaoHomeUIHandler::ReplyConnectorWithDiagnostic,
-                           self, std::move(callback_event), std::move(revision),
-                           std::move(connector_id), "finish"));
+        HomeCollectionKey key = collection->key;
+        executor->Finish(execution_id, std::move(result),
+                         base::BindOnce(&DaoHomeUIHandler::OnCollectionFinished,
+                                        self, std::move(callback_event),
+                                        std::move(key), execution_id));
       },
       weak_factory_.GetWeakPtr(), callback_event, execution_id,
       std::move(result), revision, connector_id));
+}
+
+void DaoHomeUIHandler::OnCollectionFinished(std::string callback_event,
+                                            HomeCollectionKey key,
+                                            std::string execution_id,
+                                            base::Value response) {
+  const base::Value* value = response.GetDict().Find("result");
+  auto it = std::ranges::find_if(active_collections_, [&](const auto& item) {
+    return item.executor->OwnsExecution(execution_id);
+  });
+  if (value && it != active_collections_.end()) {
+    if (!CanUseCollection(key)) {
+      response =
+          ConnectorError("cancelled", "The Home connector session ended.");
+    } else {
+      service_->CacheCollection(key, *value);
+      for (auto& previous : retained_collections_) {
+        if (key == previous.key) {
+          previous.media_result.reset();
+        }
+      }
+      if (it->executor->has_media()) {
+        it->media_result = value->Clone();
+        it->expires =
+            base::TimeTicks::Now() + DaoHomeProjectService::kCollectionLifetime;
+        retained_collections_.push_back(std::move(*it));
+        size_t bytes = 0;
+        for (const auto& item : retained_collections_) {
+          bytes += item.executor->retained_media_bytes();
+        }
+        while (retained_collections_.size() > kMaxRetainedConnectorExecutors ||
+               bytes > kMaxRetainedMediaBytes) {
+          bytes -=
+              retained_collections_.front().executor->retained_media_bytes();
+          retained_collections_.erase(retained_collections_.begin());
+        }
+      }
+    }
+    active_collections_.erase(it);
+  }
+  ReplyConnectorWithDiagnostic(callback_event, key.revision, key.connector_id,
+                               "finish", std::move(response));
 }
 
 void DaoHomeUIHandler::HandleResolveMedia(const base::ListValue& args) {
@@ -1559,7 +1609,10 @@ void DaoHomeUIHandler::HandleResolveMedia(const base::ListValue& args) {
   }
   const std::string callback_event = args[0].GetString();
   const std::string handle = args[1].GetString();
-  DaoHomeConnectorExecutor* executor = FindMediaExecutor(handle);
+  const std::string draft_id = args.size() > 2 && args[2].is_string()
+                                   ? args[2].GetString()
+                                   : std::string();
+  DaoHomeConnectorExecutor* executor = FindMediaExecutor(handle, draft_id);
   if (!executor) {
     ReplyConnector(
         callback_event,
@@ -1570,12 +1623,13 @@ void DaoHomeUIHandler::HandleResolveMedia(const base::ListValue& args) {
   const std::string connector_id = executor->connector_id();
   service_->GetSnapshot(base::BindOnce(
       [](base::WeakPtr<DaoHomeUIHandler> self, std::string callback_event,
-         std::string handle, std::string revision, std::string connector_id,
-         HomeSnapshot snapshot) {
+         std::string handle, std::string draft_id, std::string revision,
+         std::string connector_id, HomeSnapshot snapshot) {
         if (!self) {
           return;
         }
-        DaoHomeConnectorExecutor* executor = self->FindMediaExecutor(handle);
+        DaoHomeConnectorExecutor* executor =
+            self->FindMediaExecutor(handle, draft_id);
         if (!self->HasActiveHomeOwner() || snapshot.revision != revision ||
             !executor || executor->revision() != revision) {
           self->ReplyConnectorWithDiagnostic(
@@ -1589,7 +1643,7 @@ void DaoHomeUIHandler::HandleResolveMedia(const base::ListValue& args) {
                            self, std::move(callback_event), std::move(revision),
                            std::move(connector_id), "media"));
       },
-      weak_factory_.GetWeakPtr(), callback_event, handle, revision,
+      weak_factory_.GetWeakPtr(), callback_event, handle, draft_id, revision,
       connector_id));
 }
 
@@ -1602,12 +1656,8 @@ void DaoHomeUIHandler::HandleCompleteAgentConnector(
   }
   agent_connector_timeout_.Stop();
   agent_connector_request_id_.clear();
-  if (IsReadyForExternal()) {
-    PrepareDraftConnectorExecutorForStart();
-  } else {
-    draft_connector_executor_->Cancel();
-    draft_connector_executor_ = std::make_unique<DaoHomeConnectorExecutor>();
-  }
+  agent_connector_id_.clear();
+  agent_connector_draft_id_.clear();
   ConnectorCallback callback = std::move(agent_connector_callback_);
   std::move(callback).Run(args[1].Clone());
 }
@@ -1621,6 +1671,10 @@ void DaoHomeUIHandler::HandleNotifyAgentPreviewLoaded(
   }
   if (!HasActiveHomeOwner()) {
     CancelAgentPreview("cancelled", "Dao Home is not active.");
+    return;
+  }
+  if (args.size() > 1 && args[1].GetIfBool() == false) {
+    agent_preview_settle_timer_.Stop();
     return;
   }
   agent_preview_settle_timer_.Start(
@@ -1771,16 +1825,16 @@ void DaoHomeUIHandler::HandleCancelSession(const base::ListValue& args) {
 void DaoHomeUIHandler::CancelAgentSession() {
   CancelAgentConnector("cancelled", "The Home connector session ended.");
   CancelAgentPreview("cancelled", "The Home preview session ended.");
-  ClearRetainedExternalConnectorMedia();
+  CancelDraftCollections({});
 }
 
 void DaoHomeUIHandler::CancelAllSessions() {
-  connector_executor_->Cancel();
-  for (const auto& executor : retained_connector_executors_) {
-    executor->Cancel();
+  ++collection_generation_;
+  for (auto& item : active_collections_) {
+    item.executor->Cancel();
   }
-  retained_connector_executors_.clear();
-  retains_external_connector_media_ = false;
+  active_collections_.clear();
+  retained_collections_.clear();
   CancelAgentSession();
 }
 
@@ -1889,84 +1943,61 @@ void DaoHomeUIHandler::OnProjectChanged() {
   }
 }
 
-void DaoHomeUIHandler::PrepareConnectorExecutorForStart() {
-  if (connector_executor_->collection_finished()) {
-    retained_connector_executors_.push_back(std::move(connector_executor_));
-    if (retained_connector_executors_.size() > kMaxRetainedConnectorExecutors) {
-      retained_connector_executors_.erase(
-          retained_connector_executors_.begin());
+void DaoHomeUIHandler::CancelDraftCollections(const std::string& draft_id) {
+  ++draft_collection_generation_;
+  auto matches = [&](const Collection& item) {
+    return !item.key.draft_id.empty() &&
+           (draft_id.empty() || item.key.draft_id == draft_id);
+  };
+  for (auto& item : active_collections_) {
+    if (matches(item)) {
+      item.executor->Cancel();
     }
-    connector_executor_ = std::make_unique<DaoHomeConnectorExecutor>();
-    return;
   }
-  if (connector_executor_->running()) {
-    connector_executor_->Cancel();
-  }
+  std::erase_if(active_collections_, matches);
+  std::erase_if(retained_collections_, matches);
 }
 
-void DaoHomeUIHandler::PrepareDraftConnectorExecutorForStart() {
-  if (IsReadyForExternal() &&
-      draft_connector_executor_->collection_finished()) {
-    retained_connector_executors_.push_back(
-        std::move(draft_connector_executor_));
-    if (retained_connector_executors_.size() > kMaxRetainedConnectorExecutors) {
-      retained_connector_executors_.erase(
-          retained_connector_executors_.begin());
-    }
-    retains_external_connector_media_ = true;
-    draft_connector_executor_ = std::make_unique<DaoHomeConnectorExecutor>();
-    return;
-  }
-  if (draft_connector_executor_->running()) {
-    draft_connector_executor_->Cancel();
-  }
-  if (draft_connector_executor_->collection_finished()) {
-    draft_connector_executor_ = std::make_unique<DaoHomeConnectorExecutor>();
-  }
-}
-
-void DaoHomeUIHandler::ClearRetainedExternalConnectorMedia() {
-  if (!retains_external_connector_media_) {
-    return;
-  }
-  for (const auto& executor : retained_connector_executors_) {
-    executor->Cancel();
-  }
-  retained_connector_executors_.clear();
-  retains_external_connector_media_ = false;
-}
-
-DaoHomeConnectorExecutor* DaoHomeUIHandler::FindConnectorExecutor(
+DaoHomeUIHandler::Collection* DaoHomeUIHandler::FindCollection(
     const std::string& execution_id) {
-  if (connector_executor_->OwnsExecution(execution_id)) {
-    return connector_executor_.get();
-  }
-  if (draft_connector_executor_->OwnsExecution(execution_id)) {
-    return draft_connector_executor_.get();
+  for (auto& item : active_collections_) {
+    if (item.executor->OwnsExecution(execution_id)) {
+      return &item;
+    }
   }
   return nullptr;
 }
 
+DaoHomeConnectorExecutor* DaoHomeUIHandler::FindConnectorExecutor(
+    const std::string& execution_id) {
+  auto* item = FindCollection(execution_id);
+  return item ? item->executor.get() : nullptr;
+}
+
 DaoHomeConnectorExecutor* DaoHomeUIHandler::FindMediaExecutor(
-    const std::string& handle) {
-  if (connector_executor_->OwnsMediaHandle(handle)) {
-    return connector_executor_.get();
+    const std::string& handle,
+    const std::string& draft_id) {
+  for (const auto& item : retained_collections_) {
+    if (item.key.draft_id == draft_id &&
+        item.executor->OwnsMediaHandle(handle) && CanUseCollection(item.key)) {
+      return item.executor.get();
+    }
   }
-  if (draft_connector_executor_->OwnsMediaHandle(handle)) {
-    return draft_connector_executor_.get();
-  }
-  const auto found = std::ranges::find_if(
-      retained_connector_executors_,
-      [&](const auto& executor) { return executor->OwnsMediaHandle(handle); });
-  return found == retained_connector_executors_.end() ? nullptr : found->get();
+  return nullptr;
 }
 
 void DaoHomeUIHandler::CancelAgentConnector(std::string code,
                                             std::string message) {
   agent_connector_timeout_.Stop();
   agent_connector_request_id_.clear();
-  draft_connector_executor_->Cancel();
-  draft_connector_executor_ = std::make_unique<DaoHomeConnectorExecutor>();
+  for (auto& item : active_collections_) {
+    if (item.key.draft_id == agent_connector_draft_id_ &&
+        item.key.connector_id == agent_connector_id_) {
+      item.executor->Cancel();
+    }
+  }
+  agent_connector_draft_id_.clear();
+  agent_connector_id_.clear();
   if (!agent_connector_callback_) {
     return;
   }
@@ -1986,9 +2017,7 @@ void DaoHomeUIHandler::CancelAgentPreview(std::string code,
       document_mutation_lease_.reset();
     }
     service_->InvalidateDraftPreview(agent_preview_draft_id_);
-    ClearRetainedExternalConnectorMedia();
-    draft_connector_executor_->Cancel();
-    draft_connector_executor_ = std::make_unique<DaoHomeConnectorExecutor>();
+    CancelDraftCollections(agent_preview_draft_id_);
   }
   agent_preview_request_id_.clear();
   agent_preview_draft_id_.clear();
@@ -2207,16 +2236,20 @@ bool DaoHomeUIHandler::HasPendingAgentConnectorForTesting() const {
 void DaoHomeUIHandler::StartRuntimeConnectorForTesting(
     HomeConnector connector,
     ConnectorCallback callback) {
-  PrepareConnectorExecutorForStart();
-  connector_executor_->Start(
-      web_ui()->GetWebContents(), Profile::FromWebUI(web_ui()),
-      "test-runtime-revision", std::move(connector), HomeLimits(),
-      "export default {}", R"({"type":"array","items":{"type":"string"}})",
-      base::Value(base::DictValue()), std::move(callback));
+  HomeCollectionKey key{{}, "test-runtime-revision", connector.id, {}, {}};
+  auto& item = active_collections_.emplace_back(
+      Collection{key, std::make_unique<DaoHomeConnectorExecutor>(), {}, {}});
+  item.executor->Start(web_ui()->GetWebContents(), Profile::FromWebUI(web_ui()),
+                       "test-runtime-revision", std::move(connector),
+                       HomeLimits(), "export default {}",
+                       R"({"type":"array","items":{"type":"string"}})",
+                       base::Value(base::DictValue()), std::move(callback));
 }
 
 bool DaoHomeUIHandler::HasActiveRuntimeConnectorForTesting() const {
-  return connector_executor_->running();
+  return std::ranges::any_of(active_collections_, [](const auto& item) {
+    return item.key.draft_id.empty() && item.executor->running();
+  });
 }
 
 void DaoHomeUIHandler::InvalidateDocumentMutationLease() {

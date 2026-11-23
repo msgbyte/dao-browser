@@ -52,6 +52,7 @@ interface PendingPreview {
   draftId: string;
   entry: string;
   loaded: boolean;
+  pendingReads: number;
   retained: boolean;
 }
 
@@ -722,7 +723,7 @@ export class DaoHomeApp extends CrLitElement {
           await this.connectorHost_.collectDraft(
               value.draftId, value.connectorId, value.input ?? {}, true) :
           await this.connectorHost_.collect(
-              value.connectorId, value.input ?? {});
+              value.connectorId, value.input ?? {}, true);
       completeHomeAgentConnector(value.requestId, {ok: true, result});
     } catch (error) {
       completeHomeAgentConnector(value.requestId, {
@@ -753,6 +754,7 @@ export class DaoHomeApp extends CrLitElement {
       draftId: value.draftId,
       entry: value.entry,
       loaded: false,
+      pendingReads: 0,
       retained: value.retained === true && this.externalSession_ !== null,
     };
     if (this.pendingPreview_.retained && this.externalSession_)
@@ -763,7 +765,7 @@ export class DaoHomeApp extends CrLitElement {
     const preview = this.pendingPreview_;
     if (preview && !preview.loaded) {
       preview.loaded = true;
-      notifyHomeAgentPreviewLoaded(preview.requestId);
+      if (!preview.pendingReads) notifyHomeAgentPreviewLoaded(preview.requestId);
     }
   }
 
@@ -798,6 +800,10 @@ export class DaoHomeApp extends CrLitElement {
           revision: envelope.revision,
           ...value,
         }, '*');
+    const readingPreview = preview &&
+        (envelope.method === 'sources.collect' || envelope.method === 'media.resolve');
+    if (readingPreview && ++preview.pendingReads === 1 && preview.loaded)
+      notifyHomeAgentPreviewLoaded(preview.requestId, false);
     try {
       if (envelope.method === 'sources.collect') {
         const connectorId = envelope.params?.['connectorId'];
@@ -805,9 +811,10 @@ export class DaoHomeApp extends CrLitElement {
           throw new Error('Invalid Home connector request.');
         }
         const input = envelope.params?.['input'] ?? {};
+        const fresh = envelope.params?.['fresh'] === true;
         reply({result: preview ?
-          await this.connectorHost_.collectDraft(preview.draftId, connectorId, input) :
-          await this.connectorHost_.collect(connectorId, input)});
+          await this.connectorHost_.collectDraft(preview.draftId, connectorId, input, fresh) :
+          await this.connectorHost_.collect(connectorId, input, fresh)});
         return;
       }
       if (envelope.method === 'navigation.open') {
@@ -881,7 +888,7 @@ export class DaoHomeApp extends CrLitElement {
             !/^dao-media:[a-f0-9-]{36}$/.test(handle)) {
           throw new Error('Invalid Home media handle.');
         }
-        const result = await resolveHomeMedia(handle) as {
+        const result = await resolveHomeMedia(handle, preview?.draftId ?? '') as {
           error?: string; code?: string;
         }|unknown;
         if (result && typeof result === 'object' &&
@@ -922,6 +929,11 @@ export class DaoHomeApp extends CrLitElement {
                 typeof (error as Error&{code?: unknown}).code === 'string' ?
             (error as Error&{code: string}).code : 'temporarily_unavailable',
       });
+    } finally {
+      if (readingPreview && --preview.pendingReads === 0 && preview.loaded &&
+          this.pendingPreview_ === preview) {
+        notifyHomeAgentPreviewLoaded(preview.requestId);
+      }
     }
   }
 

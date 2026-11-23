@@ -19,6 +19,10 @@ external links, or arbitrary browser APIs are available. Use memory-only
 `dao.navigation.open(url)` from a click or keyboard handler to open an HTTP(S)
 destination directly in a new tab.
 Collect declared sources with `await dao.sources.collect(connectorId, {})`.
+Start independent cards concurrently and render each as its promise resolves.
+Structured results can be reused for ten minutes across Home tabs in this
+Profile. Media handles belong to the current Home document. For a user-triggered
+refresh, call `dao.sources.collect(connectorId, {}, {fresh: true})`.
 Resolve opaque media handles with `await dao.media.resolve(handle)`; never treat
 them as network URLs. No polling or background refresh is introduced.
 

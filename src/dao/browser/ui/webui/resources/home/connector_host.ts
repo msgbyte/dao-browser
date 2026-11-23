@@ -4,12 +4,14 @@
 
 import {
   callHomeConnectorPage,
+  cancelHomeConnector,
   finishHomeConnector,
   startHomeConnector,
   startHomeDraftConnector,
 } from './home_bridge.js';
 
 interface StartResult {
+  cached?: unknown;
   execution_id?: string;
   revision?: string;
   module?: string;
@@ -22,6 +24,7 @@ interface SandboxMessage {
   daoHomeConnector: 1;
   type: 'page_call'|'complete';
   executionId: string;
+  code?: string;
   callId?: number;
   operation?: string;
   args?: unknown[];
@@ -32,16 +35,11 @@ interface SandboxMessage {
 interface PendingCollection {
   resolve: (value: unknown) => void;
   reject: (error: Error) => void;
-  timeout: ReturnType<typeof setTimeout>;
+  frame: HTMLIFrameElement;
+  pageError?: HomeConnectorError;
 }
 
-const MAX_COMPLETED_COLLECTIONS = 16;
-export const COMPLETED_COLLECTION_TTL_MS = 10 * 60 * 1000;
-
-interface CompletedCollection {
-  value: unknown;
-  collectedAt: number;
-}
+const MAX_CONCURRENT_COLLECTIONS = 4;
 
 export class HomeConnectorError extends Error {
   constructor(message: string, readonly code: string) {
@@ -60,16 +58,20 @@ function connectorError(
 
 export class ConnectorHost {
   private readonly pending_ = new Map<string, PendingCollection>();
-  private readonly inFlight_ = new Map<string, Promise<unknown>>();
-  private readonly completed_ = new Map<string, CompletedCollection>();
-  private queue_: Promise<void> = Promise.resolve();
+  private readonly inFlight_ = new Map<string, {
+    promise: Promise<unknown>; reject: (error: Error) => void;
+  }>();
+  private readonly lastBySource_ = new Map<string, Promise<unknown>>();
+  private readonly waiters_: Array<() => void> = [];
+  private readonly lifetime_ = new AbortController();
+  private running_ = 0;
 
   constructor(
       private readonly frame_: HTMLIFrameElement,
       private readonly revision_: string) {}
 
-  async collect(connectorId: string, input: unknown): Promise<unknown> {
-    return this.collectForDraft_('', connectorId, input);
+  async collect(connectorId: string, input: unknown, fresh = false): Promise<unknown> {
+    return this.collectForDraft_('', connectorId, input, fresh);
   }
 
   async collectDraft(
@@ -81,90 +83,97 @@ export class ConnectorHost {
   private async collectForDraft_(
       draftId: string, connectorId: string, input: unknown,
       fresh = false): Promise<unknown> {
-    let serializedInput: string;
+    this.lifetime_.signal.throwIfAborted();
+    let key: string;
     try {
-      serializedInput = JSON.stringify(input);
+      key = JSON.stringify([draftId, connectorId, input, fresh]);
     } catch {
       throw new Error('Home connector input must be JSON serializable.');
     }
-    const key = `${draftId}\n${connectorId}\n${serializedInput}`;
-    if (fresh) this.completed_.delete(key);
-    const completed = this.completed_.get(key);
-    if (completed &&
-        Date.now() - completed.collectedAt < COMPLETED_COLLECTION_TTL_MS) {
-      return completed.value;
-    }
-    if (completed) {
-      this.completed_.delete(key);
-    }
     const inFlight = this.inFlight_.get(key);
-    if (inFlight) {
-      return inFlight;
-    }
-    const collection = this.queue_.then(
-        () => this.collectOnce_(draftId, connectorId, input));
-    this.inFlight_.set(key, collection);
-    this.queue_ = collection.then(() => undefined, () => undefined);
-    void collection.then(value => {
-      if (this.inFlight_.get(key) !== collection) {
-        return;
-      }
+    if (inFlight) return inFlight.promise;
+
+    const source = JSON.stringify([draftId, connectorId]);
+    const previous = this.lastBySource_.get(source);
+    const run = () => this.schedule_(draftId, connectorId, input, fresh);
+    const request = Promise.withResolvers<unknown>();
+    this.inFlight_.set(key, request);
+    this.lastBySource_.set(source, request.promise);
+    void (previous ? previous.then(run, run) : run()).then(request.resolve, request.reject);
+    try {
+      return await request.promise;
+    } finally {
       this.inFlight_.delete(key);
-      this.completed_.set(key, {value, collectedAt: Date.now()});
-      while (this.completed_.size > MAX_COMPLETED_COLLECTIONS) {
-        const oldest = this.completed_.keys().next().value;
-        if (oldest === undefined) {
-          break;
-        }
-        this.completed_.delete(oldest);
-      }
-    }, () => {
-      if (this.inFlight_.get(key) === collection) {
-        this.inFlight_.delete(key);
-      }
-    });
-    return collection;
+      if (this.lastBySource_.get(source) === request.promise)
+        this.lastBySource_.delete(source);
+    }
   }
 
-  private async collectOnce_(
-      draftId: string, connectorId: string, input: unknown): Promise<unknown> {
-    const started = await (draftId ?
-        startHomeDraftConnector(draftId, connectorId, input) :
-        startHomeConnector(
-            this.revision_, connectorId, input)) as StartResult;
-    if (started.error || !started.execution_id || !started.module) {
-      throw connectorError(started, 'Unable to start Home connector.');
+  private async schedule_(
+      draftId: string, connectorId: string, input: unknown,
+      fresh: boolean): Promise<unknown> {
+    const signal = this.lifetime_.signal;
+    signal.throwIfAborted();
+    if (this.running_ >= MAX_CONCURRENT_COLLECTIONS) {
+      await new Promise<void>(resolve => this.waiters_.push(resolve));
+      signal.throwIfAborted();
+    } else {
+      ++this.running_;
     }
-    const result = new Promise<unknown>((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        this.pending_.delete(started.execution_id!);
-        void finishHomeConnector(started.execution_id!, null);
-        reject(new HomeConnectorError(
-            'The Home connector timed out.', 'timed_out'));
-      }, 21_000);
-      this.pending_.set(started.execution_id!, {resolve, reject, timeout});
-    });
-    this.frame_.contentWindow!.postMessage({
-      daoHomeConnector: 1,
-      type: 'run',
-      executionId: started.execution_id,
-      revision: this.revision_,
-      module: started.module,
-      input: started.input,
-    }, '*');
-    return result;
+    try {
+      const started = await (draftId ?
+          startHomeDraftConnector(draftId, connectorId, input, fresh) :
+          startHomeConnector(this.revision_, connectorId, input, fresh)) as StartResult;
+      if (signal.aborted && started.execution_id)
+        cancelHomeConnector(started.execution_id);
+      signal.throwIfAborted();
+      if (started.error) throw connectorError(started, 'Unable to start Home connector.');
+      if ('cached' in started) return started.cached;
+      if (!started.execution_id || !started.module)
+        throw connectorError(started, 'Unable to start Home connector.');
+      return await this.run_(started.execution_id, started.module, started.input);
+    } finally {
+      const next = this.waiters_.shift();
+      if (next) next();
+      else --this.running_;
+    }
+  }
+
+  private async run_(executionId: string, module: string, input: unknown):
+      Promise<unknown> {
+    // Each module gets a fresh opaque realm, including its message listeners.
+    const frame = this.frame_.cloneNode(false) as HTMLIFrameElement;
+    frame.removeAttribute('data-test');
+    let timeout: ReturnType<typeof setTimeout>;
+    try {
+      return await new Promise<unknown>((resolve, reject) => {
+        this.pending_.set(executionId, {frame, resolve, reject});
+        timeout = setTimeout(() => reject(new HomeConnectorError(
+            'The Home connector timed out.', 'timed_out')), 21_000);
+        frame.addEventListener('load', () => frame.contentWindow?.postMessage({
+          daoHomeConnector: 1, type: 'run', executionId, module, input,
+        }, '*'), {once: true});
+        this.frame_.after(frame);
+      });
+    } catch (error) {
+      cancelHomeConnector(executionId);
+      throw error;
+    } finally {
+      clearTimeout(timeout!);
+      this.pending_.delete(executionId);
+      frame.remove();
+    }
   }
 
   async handleMessage(event: MessageEvent): Promise<boolean> {
     const message = event.data as Partial<SandboxMessage>|null;
-    if (event.source !== this.frame_.contentWindow ||
-        event.origin !== 'null' ||
+    if (event.origin !== 'null' ||
         message?.daoHomeConnector !== 1 ||
         typeof message.executionId !== 'string') {
       return false;
     }
     const pending = this.pending_.get(message.executionId);
-    if (!pending) {
+    if (!pending || !event.source || event.source !== pending.frame.contentWindow) {
       return false;
     }
     if (message.type === 'page_call' && typeof message.callId === 'number' &&
@@ -180,24 +189,22 @@ export class ConnectorHost {
               result as {error?: unknown; code?: unknown},
               'Unable to call the Home source page.');
         }
-        this.replyPage_(message.executionId, message.callId, {result});
+        this.replyPage_(pending.frame, message.executionId, message.callId, {result});
       } catch (error) {
-        this.replyPage_(message.executionId, message.callId, {
+        if (error instanceof HomeConnectorError) pending.pageError = error;
+        this.replyPage_(pending.frame, message.executionId, message.callId, {
           error: error instanceof Error ? error.message : String(error),
+          code: error instanceof HomeConnectorError ? error.code : undefined,
         });
       }
       return true;
     }
     if (message.type === 'complete') {
-      this.pending_.delete(message.executionId);
-      clearTimeout(pending.timeout);
+      pending.frame.remove();
       if (message.error) {
-        try {
-          await finishHomeConnector(message.executionId, null);
-        } catch {
-          // The sandbox error is the actionable failure for this collection.
-        }
-        pending.reject(new Error(message.error));
+        // Only native error codes may flow back to an Agent or the CLI.
+        pending.reject(pending.pageError && pending.pageError.code === message.code ?
+            pending.pageError : new Error(message.error));
         return true;
       }
       try {
@@ -219,19 +226,18 @@ export class ConnectorHost {
   }
 
   disconnect(): void {
-    for (const pending of this.pending_.values()) {
-      clearTimeout(pending.timeout);
-      pending.reject(new Error('Home connector host disconnected.'));
-    }
+    const error = new Error('Home connector host disconnected.');
+    this.lifetime_.abort(error);
+    for (const wake of this.waiters_.splice(0)) wake();
+    for (const request of this.inFlight_.values()) request.reject(error);
+    for (const pending of this.pending_.values()) pending.reject(error);
     this.pending_.clear();
-    this.inFlight_.clear();
-    this.completed_.clear();
   }
 
   private replyPage_(
-      executionId: string, callId: number,
-      value: {result?: unknown; error?: string}): void {
-    this.frame_.contentWindow!.postMessage({
+      frame: HTMLIFrameElement, executionId: string, callId: number,
+      value: {result?: unknown; error?: string; code?: string}): void {
+    frame.contentWindow?.postMessage({
       daoHomeConnector: 1,
       type: 'page_result',
       executionId,

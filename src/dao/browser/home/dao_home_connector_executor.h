@@ -68,6 +68,8 @@ class DaoHomeConnectorExecutor : public content::WebContentsObserver {
                                      execution_id == failed_execution_id_);
   }
   bool OwnsMediaHandle(const std::string& handle) const;
+  size_t retained_media_bytes() const { return retained_media_bytes_; }
+  bool has_media() const { return !media_handles_.empty(); }
   size_t retained_media_blob_count_for_testing() const {
     return resolved_media_.size();
   }
