@@ -26,7 +26,6 @@
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/sessions/tab_restore_service_factory.h"
 #include "chrome/browser/ui/browser_commands.h"
-#include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
@@ -58,6 +57,7 @@
 #include "components/url_formatter/url_fixer.h"
 #include "components/vector_icons/vector_icons.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/common/url_constants.h"
 #include "dao/browser/dao_pref_names.h"
 #include "dao/browser/strings/grit/dao_strings.h"
 #include "dao/browser/ui/views/dao_address_bar_view.h"
@@ -68,6 +68,7 @@
 #include "dao/browser/ui/views/dao_suggestion_item_view.h"
 #include "dao/browser/ui/views/dao_tab_commands.h"
 #include "dao/browser/ui/views/sidebar/dao_sidebar_view.h"
+#include "net/base/url_util.h"
 #include "third_party/metrics_proto/omnibox_event.pb.h"
 #include "third_party/metrics_proto/omnibox_focus_type.pb.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -89,6 +90,8 @@
 #include "ui/views/controls/scroll_view.h"
 #include "ui/views/controls/textfield/textfield.h"
 #include "ui/views/layout/box_layout.h"
+#include "url/origin.h"
+#include "url/third_party/mozilla/url_parse.h"
 
 namespace dao {
 
@@ -171,8 +174,50 @@ bool LooksLikeLocalFilePath(const std::string& text) {
   return !text.empty() && (text[0] == '/' || text[0] == '~');
 }
 
+bool IsDirectNavigationScheme(const GURL& url) {
+  return url.SchemeIsHTTPOrHTTPS() || url.SchemeIsFile() ||
+         url_formatter::IsEquivalentScheme(url.GetScheme(),
+                                           content::kChromeUIScheme);
+}
+
+bool HasCredentials(const GURL& url) {
+  return url.has_username() || url.has_password();
+}
+
+const GURL& TypedUrlForOpen(const AutocompleteInput& input) {
+  const GURL& url = input.canonicalized_url();
+  if (input.type() == metrics::OmniboxInputType::URL &&
+      IsDirectNavigationScheme(url)) {
+    return url;
+  }
+  // Legacy chrome:// links are rewritten to dao:// during navigation.
+  if (url.SchemeIs("chrome") &&
+      base::StartsWith(input.text(), u"chrome://",
+                       base::CompareCase::INSENSITIVE_ASCII)) {
+    return url;
+  }
+  return GURL::EmptyGURL();
+}
+
 std::u16string NormalizeSearchTerms(const std::u16string& text) {
   return std::u16string(base::TrimWhitespace(text, base::TRIM_ALL));
+}
+
+std::u16string InlineCompletionForMatch(const AutocompleteMatch& match,
+                                        const std::u16string& input) {
+  if (!match.inline_autocompletion.empty()) {
+    return match.inline_autocompletion;
+  }
+  if (AutocompleteMatch::IsSearchType(match.type) ||
+      !match.destination_url.SchemeIsHTTPOrHTTPS()) {
+    return {};
+  }
+  // Some URL providers omit the suffix when their edit text extends the input.
+  const size_t offset = URLPrefix::GetInlineAutocompleteOffset(
+      input, std::u16string(), /*allow_www_prefix_without_scheme=*/true,
+      match.fill_into_edit);
+  return offset == std::u16string::npos ? std::u16string()
+                                        : match.fill_into_edit.substr(offset);
 }
 
 std::u16string NormalizeCommandText(const std::u16string& text) {
@@ -424,13 +469,6 @@ bool DaoCommandBarView::ExperimentalRankingEnabled() const {
              dao::prefs::kDaoExperimentalCommandBarRankingEnabled);
 }
 
-bool DaoCommandBarView::ShouldShowAskAiSuggestion() const {
-  return AskAiEnabled() && !user_input_text_.empty() &&
-         (ExperimentalRankingEnabled()
-              ? AutocompleteMatch::IsSearchType(CreateTypedInputMatch().type)
-              : !LooksLikeURL(user_input_text_));
-}
-
 int DaoCommandBarView::GetAutocompleteProviderTypesForCurrentMode() const {
   if (EnhancedSuggestionsEnabled()) {
     return AutocompleteClassifier::DefaultOmniboxProviders();
@@ -527,7 +565,8 @@ void DaoCommandBarView::Show() {
   if (contents) {
     GURL url = contents->GetVisibleURL();
     if (url.is_valid() && !url.IsAboutBlank()) {
-      std::u16string url_text = base::UTF8ToUTF16(url.spec());
+      std::u16string url_text =
+          base::UTF8ToUTF16(net::RemoveCredentialsFromUrl(url).spec());
       updating_textfield_ = true;
       textfield_->SetText(url_text);
       textfield_->SelectAll(false);
@@ -859,7 +898,7 @@ void DaoCommandBarView::ContentsChanged(views::Textfield* sender,
 
   if (command_mode_) {
     StopAutocomplete();
-    UpdateSuggestions();
+    UpdateSuggestions(AutocompleteInput());
     return;
   }
 
@@ -1008,7 +1047,7 @@ void DaoCommandBarView::FillInput(const std::u16string& text) {
   suppress_ghost_for_current_query_ = false;
   command_mode_ = retain_command_prefix;
   if (command_mode_) {
-    UpdateSuggestions();
+    UpdateSuggestions(AutocompleteInput());
   } else {
     StartAutocomplete(user_input_text_);
   }
@@ -1016,10 +1055,12 @@ void DaoCommandBarView::FillInput(const std::u16string& text) {
 
 void DaoCommandBarView::OnResultChanged(AutocompleteController* controller,
                                         bool default_match_changed) {
-  if (command_mode_) {
+  if (command_mode_ ||
+      controller->input().text() !=
+          base::TrimWhitespace(user_input_text_, base::TRIM_LEADING)) {
     return;
   }
-  UpdateSuggestions();
+  UpdateSuggestions(controller->input());
   // Inline text must update on every tick — providers may publish a valid
   // inline_autocompletion without flipping the default match.
   UpdateInlineAutocompletion();
@@ -1039,14 +1080,7 @@ void DaoCommandBarView::StartAutocomplete(const std::u16string& text) {
     return;
   }
 
-  // Pass the caret position via the cursor_position constructor. Some
-  // providers (notably HistoryURL) suppress inline_autocompletion entirely
-  // when the cursor is unspecified, which breaks the stability that ghost
-  // text depends on.
-  AutocompleteInput input(
-      text, /*cursor_position=*/text.length(),
-      metrics::OmniboxEventProto::INSTANT_NTP_WITH_OMNIBOX_AS_STARTING_FOCUS,
-      *scheme_classifier_);
+  AutocompleteInput input = CreateAutocompleteInput(text);
   if (EnhancedSuggestionsEnabled()) {
     if (auto* contents = browser_->tab_strip_model()->GetActiveWebContents()) {
       input.set_current_url(contents->GetVisibleURL());
@@ -1190,7 +1224,7 @@ std::u16string DaoCommandBarView::GetCommandDisabledReason(
   return l10n_util::GetStringUTF16(IDS_DAO_COMMAND_UNAVAILABLE);
 }
 
-void DaoCommandBarView::UpdateSuggestions() {
+void DaoCommandBarView::UpdateSuggestions(const AutocompleteInput& input) {
   if (!autocomplete_controller_) {
     return;
   }
@@ -1205,8 +1239,6 @@ void DaoCommandBarView::UpdateSuggestions() {
   const bool experimental_ranking_enabled = ExperimentalRankingEnabled();
   std::optional<AutocompleteMatch> previously_selected_match;
   std::optional<SuggestionRow::Kind> previously_selected_non_command_kind;
-  GURL previously_selected_destination;
-  std::u16string previously_selected_fill_into_edit;
   if (selection_explicitly_changed_ && previously_selected_command < 0) {
     const SuggestionRow* selected_row = GetSelectedRow();
     if (selected_row && selected_row->kind != SuggestionRow::Kind::kCommand) {
@@ -1214,23 +1246,25 @@ void DaoCommandBarView::UpdateSuggestions() {
       if (selected_row->kind == SuggestionRow::Kind::kAutocomplete &&
           selected_row->index >= 0 &&
           selected_row->index < static_cast<int>(visible_matches_.size())) {
-        const AutocompleteMatch& match = visible_matches_[selected_row->index];
-        previously_selected_destination = match.destination_url;
-        previously_selected_fill_into_edit = match.fill_into_edit;
-        if (experimental_ranking_enabled) {
-          previously_selected_match = match;
-        }
+        previously_selected_match = visible_matches_[selected_row->index];
       }
     }
   }
   const bool enhanced_suggestions_enabled = EnhancedSuggestionsEnabled();
   const AutocompleteResult& result = autocomplete_controller_->result();
-  const bool show_ask_ai = !command_mode_ && ShouldShowAskAiSuggestion();
+  const GURL& typed_url = TypedUrlForOpen(input);
+  const bool show_ask_ai =
+      !command_mode_ && AskAiEnabled() &&
+      !typed_url.is_valid() &&
+      (experimental_ranking_enabled || !LooksLikeURL(user_input_text_));
   visible_matches_.clear();
   displayed_rows_.clear();
   if (!command_mode_) {
     visible_matches_.reserve(result.size() + 1);
     for (size_t i = 0; i < result.size(); ++i) {
+      if (HasCredentials(result.match_at(i).destination_url)) {
+        continue;
+      }
       visible_matches_.push_back(result.match_at(i));
       auto& match = visible_matches_.back();
       // Saved tab-switch suggestions are history, not live tab identities.
@@ -1320,8 +1354,15 @@ void DaoCommandBarView::UpdateSuggestions() {
         non_command_rows.end());
   }
 
-  if (experimental_ranking_enabled && !command_mode_) {
-    RankExperimentalSuggestions();
+  const bool needs_safe_default =
+      !visible_matches_.empty() &&
+      !AutocompleteMatch::IsSearchType(visible_matches_.front().type) &&
+      visible_matches_.front().destination_url.is_valid() &&
+      !IsDirectNavigationScheme(visible_matches_.front().destination_url);
+  if (!command_mode_ &&
+      (typed_url.is_valid() || experimental_ranking_enabled || needs_safe_default)) {
+    AddTypedInputSuggestion(typed_url, input.parts(),
+                            experimental_ranking_enabled);
   }
 
   ask_ai_row_index_ = -1;
@@ -1378,12 +1419,13 @@ void DaoCommandBarView::UpdateSuggestions() {
       const AutocompleteMatch& match = visible_matches_[row.index];
       bool is_bookmark =
           bookmark_model && bookmark_model->IsBookmarked(match.destination_url);
-      suggestion_views_[i]->SetMatch(match, is_bookmark,
-                                     enhanced_suggestions_enabled ||
-                                             experimental_ranking_enabled ||
-                                             match.has_tab_match.value_or(false)
-                                         ? GetIntentLabelForMatch(match)
-                                         : std::u16string());
+      const bool show_intent =
+          enhanced_suggestions_enabled || experimental_ranking_enabled ||
+          match.type == AutocompleteMatchType::URL_WHAT_YOU_TYPED ||
+          match.has_tab_match.value_or(false);
+      suggestion_views_[i]->SetMatch(
+          match, is_bookmark,
+          show_intent ? GetIntentLabelForMatch(match) : std::u16string());
       suggestion_views_[i]->SetVisible(true);
       suggestion_views_[i]->SetSelected(i == selected_index_);
     }
@@ -1424,16 +1466,18 @@ void DaoCommandBarView::UpdateSuggestions() {
           }
           return AutocompleteMatch::IsSearchType(candidate.type) ? 2 : 3;
         };
-        if (previously_selected_match &&
-            (action_kind(match) != action_kind(*previously_selected_match) ||
-             (match.type == AutocompleteMatchType::OPEN_TAB &&
-              match.description != previously_selected_match->description))) {
+        if (!previously_selected_match ||
+            action_kind(match) != action_kind(*previously_selected_match) ||
+            (match.type == AutocompleteMatchType::OPEN_TAB &&
+             match.description != previously_selected_match->description)) {
           continue;
         }
         // Providers may reformat completion text for the same destination.
-        if (match.destination_url == previously_selected_destination &&
-            (previously_selected_destination.is_valid() ||
-             match.fill_into_edit == previously_selected_fill_into_edit)) {
+        if (match.destination_url ==
+                previously_selected_match->destination_url &&
+            (match.destination_url.is_valid() ||
+             match.fill_into_edit ==
+                 previously_selected_match->fill_into_edit)) {
           next_selected_index = static_cast<int>(i);
           break;
         }
@@ -1470,28 +1514,63 @@ void DaoCommandBarView::UpdateSuggestions() {
   InvalidateLayout();
 }
 
-AutocompleteMatch DaoCommandBarView::CreateTypedInputMatch() const {
-  AutocompleteMatch typed_match = CreateExactSearchMatch(user_input_text_);
-  AutocompleteInput input(
-      user_input_text_,
+AutocompleteInput DaoCommandBarView::CreateAutocompleteInput(
+    const std::u16string& text) const {
+  // Pass the caret position via the cursor_position constructor. Some
+  // providers (notably HistoryURL) suppress inline_autocompletion entirely
+  // when the cursor is unspecified, which breaks the stability that ghost
+  // text depends on.
+  return AutocompleteInput(
+      text, /*cursor_position=*/text.length(),
       metrics::OmniboxEventProto::INSTANT_NTP_WITH_OMNIBOX_AS_STARTING_FOCUS,
-      *scheme_classifier_, /*should_use_https_as_default_scheme=*/true);
-  if (input.type() == metrics::OmniboxInputType::URL) {
-    typed_match.type = AutocompleteMatchType::URL_WHAT_YOU_TYPED;
-    typed_match.destination_url = input.canonicalized_url();
-    typed_match.contents = typed_match.fill_into_edit = user_input_text_;
-    typed_match.contents_class = {
-        {0, AutocompleteMatch::ACMatchClassification::URL}};
-  }
-  // The typed action must never inherit a provider's switch-to-tab action.
-  typed_match.has_tab_match = false;
-  return typed_match;
+      *scheme_classifier_);
 }
 
-void DaoCommandBarView::RankExperimentalSuggestions() {
-  AutocompleteMatch typed_match = CreateTypedInputMatch();
-  const bool typed_url = !AutocompleteMatch::IsSearchType(typed_match.type);
+void DaoCommandBarView::AddTypedInputSuggestion(const GURL& typed_url,
+                                                const url::Parsed& parts,
+                                                bool experimental) {
+  AutocompleteMatch typed_match(nullptr, 0, false,
+                                AutocompleteMatchType::URL_WHAT_YOU_TYPED);
+  GURL upgraded_url;
+  if (typed_url.is_valid()) {
+    typed_match.destination_url = typed_url;
+    if (HasCredentials(typed_url)) {
+      typed_match.contents =
+          base::UTF8ToUTF16(net::RemoveCredentialsFromUrl(typed_url).spec());
+      // Empty fill_into_edit keeps the user's own input when accepting with
+      // Tab.
+    } else {
+      typed_match.contents = typed_match.fill_into_edit = user_input_text_;
+    }
+    // Match HTTPS history to a public host typed without a scheme or port.
+    if (typed_url.SchemeIs(url::kHttpScheme) && !parts.scheme.is_nonempty() &&
+        !parts.port.is_nonempty() && !typed_url.HostIsIPAddress() &&
+        !net::IsHostnameNonUnique(typed_url.host())) {
+      GURL::Replacements replacements;
+      replacements.SetSchemeStr(url::kHttpsScheme);
+      upgraded_url = typed_url.ReplaceComponents(replacements);
+    }
+    typed_match.contents_class = {
+        {0, AutocompleteMatch::ACMatchClassification::URL}};
+  } else {
+    typed_match = CreateExactSearchMatch(user_input_text_);
+  }
 
+  // Keep a same-origin completion first and the exact address directly below.
+  bool keep_completion_first = false;
+  if (typed_url.is_valid() && !experimental && !displayed_rows_.empty() &&
+      displayed_rows_.front().kind == SuggestionRow::Kind::kAutocomplete) {
+    const auto& first = visible_matches_[displayed_rows_.front().index];
+    keep_completion_first =
+        first.allowed_to_be_default_match &&
+        !AutocompleteMatch::IsSearchType(first.type) &&
+        first.destination_url != typed_url &&
+        first.destination_url != upgraded_url &&
+        (url::IsSameOriginWith(typed_url, first.destination_url) ||
+         (upgraded_url.is_valid() &&
+          url::IsSameOriginWith(upgraded_url, first.destination_url))) &&
+        !InlineCompletionForMatch(first, user_input_text_).empty();
+  }
   const auto is_tab = [](const AutocompleteMatch& match) {
     return match.type == AutocompleteMatchType::OPEN_TAB ||
            match.has_tab_match.value_or(false);
@@ -1506,10 +1585,12 @@ void DaoCommandBarView::RankExperimentalSuggestions() {
         match.type == AutocompleteMatchType::SEARCH_OTHER_ENGINE) {
       return false;
     }
-    const bool duplicate =
-        typed_url ? !AutocompleteMatch::IsSearchType(match.type) &&
-                        match.destination_url == typed_match.destination_url
-                  : IsExactSearchMatch(match, user_input_text_);
+    const bool duplicate = typed_url.is_valid()
+                               ? !AutocompleteMatch::IsSearchType(match.type) &&
+                                     (match.destination_url == typed_url ||
+                                      (upgraded_url.is_valid() &&
+                                       match.destination_url == upgraded_url))
+                               : IsExactSearchMatch(match, user_input_text_);
     if (duplicate) {
       // Preserve the provider records used by Chromium's deletion path.
       typed_match.duplicate_matches.insert(typed_match.duplicate_matches.end(),
@@ -1531,14 +1612,17 @@ void DaoCommandBarView::RankExperimentalSuggestions() {
     }
     return is_tab(visible_matches_[row.index]) ? 0 : 3;
   };
-  std::stable_sort(displayed_rows_.begin(), displayed_rows_.end(),
-                   [&](const SuggestionRow& lhs, const SuggestionRow& rhs) {
-                     return priority(lhs) < priority(rhs);
-                   });
+  if (experimental) {
+    std::stable_sort(displayed_rows_.begin(), displayed_rows_.end(),
+                     [&](const SuggestionRow& lhs, const SuggestionRow& rhs) {
+                       return priority(lhs) < priority(rhs);
+                     });
+  }
   const int typed_index = static_cast<int>(visible_matches_.size());
   visible_matches_.push_back(std::move(typed_match));
-  displayed_rows_.insert(displayed_rows_.begin(),
-                         {SuggestionRow::Kind::kAutocomplete, typed_index});
+  displayed_rows_.insert(
+      displayed_rows_.begin() + (keep_completion_first ? 1 : 0),
+      {SuggestionRow::Kind::kAutocomplete, typed_index});
 }
 
 std::u16string DaoCommandBarView::GetIntentLabelForMatch(
@@ -1631,23 +1715,7 @@ std::u16string DaoCommandBarView::GetInlineAutocompletionForResult() const {
     return std::u16string();
   }
 
-  if (!default_match->inline_autocompletion.empty()) {
-    return default_match->inline_autocompletion;
-  }
-
-  if (AutocompleteMatch::IsSearchType(default_match->type) ||
-      !default_match->destination_url.SchemeIsHTTPOrHTTPS()) {
-    return std::u16string();
-  }
-
-  // Some URL matches omit the provider suffix even though their edit text
-  // extends the query. Use Chromium's URL-prefix rules to expose that target.
-  const size_t offset = URLPrefix::GetInlineAutocompleteOffset(
-      user_input_text_, std::u16string(),
-      /*allow_www_prefix_without_scheme=*/true, default_match->fill_into_edit);
-  return offset == std::u16string::npos
-             ? std::u16string()
-             : default_match->fill_into_edit.substr(offset);
+  return InlineCompletionForMatch(*default_match, user_input_text_);
 }
 
 bool DaoCommandBarView::IsAutocompleteResultStableForInlineAutocompletion()
@@ -1986,7 +2054,7 @@ void DaoCommandBarView::SetAutocompleteMatchesForTesting(
       const_cast<AutocompleteResult&>(autocomplete_controller_->result());
   result.Reset();
   result.AppendMatches(matches);
-  UpdateSuggestions();
+  UpdateSuggestions(CreateAutocompleteInput(user_input_text_));
   UpdateInlineAutocompletion();
 }
 
@@ -2008,7 +2076,7 @@ void DaoCommandBarView::SetAutocompleteMatchesForTesting(
       const_cast<AutocompleteResult&>(autocomplete_controller_->result());
   result.Reset();
   result.AppendMatches(matches);
-  UpdateSuggestions();
+  UpdateSuggestions(CreateAutocompleteInput(user_input_text_));
   UpdateInlineAutocompletion();
 }
 
@@ -2145,7 +2213,7 @@ void DaoCommandBarView::SetSelectedIndex(int index, bool user_initiated) {
 
 void DaoCommandBarView::ApplySelectedSuggestion() {
   if (user_input_text_.empty()) {
-    Navigate(std::u16string());
+    Dismiss();
     return;
   }
 
@@ -2163,11 +2231,7 @@ void DaoCommandBarView::ApplySelectedSuggestion() {
     return;
   }
 
-  if (const AutocompleteMatch* match = GetSelectedVisibleAutocompleteMatch()) {
-    NavigateToMatch(*match);
-  } else {
-    Navigate(user_input_text_);
-  }
+  Navigate(GetSelectedVisibleAutocompleteMatch());
 }
 
 void DaoCommandBarView::SubmitAskAi(const std::u16string& prompt) {
@@ -2205,6 +2269,9 @@ void DaoCommandBarView::SubmitAskAi(const std::u16string& prompt) {
 }
 
 void DaoCommandBarView::RecordShortcut(const AutocompleteMatch& match) {
+  if (HasCredentials(match.destination_url)) {
+    return;
+  }
   // Chromium cannot replay a search shortcut without its engine identity.
   if (AutocompleteMatch::IsSearchType(match.type) && match.keyword.empty()) {
     return;
@@ -2248,102 +2315,33 @@ tabs::TabHandle DaoCommandBarView::FindOpenTabTarget(
   return tabs::TabHandle::Null();
 }
 
-void DaoCommandBarView::NavigateToMatch(const AutocompleteMatch& match) {
-  if (match.type == AutocompleteMatchType::OPEN_TAB) {
-    const auto target = open_tab_targets_.find(
-        std::make_pair(match.destination_url, match.description));
-    const auto handle = target == open_tab_targets_.end()
-                            ? tabs::TabHandle::Null()
-                            : target->second;
-    const AutocompleteMatch accepted_match = match;
-    // Hide can publish autocomplete updates, so retain values before clearing.
-    Hide();
-    auto* tab = handle.Get();
-    auto* target_browser = tab ? tab->GetBrowserWindowInterface() : nullptr;
-    if (!target_browser || target_browser->IsDeleteScheduled() ||
-        target_browser->GetProfile() != browser_->GetProfile() ||
-        tab->GetContents()->GetVisibleURL() != accepted_match.destination_url) {
-      return;
-    }
-    auto* model = target_browser->GetTabStripModel();
-    const int index = model->GetIndexOfTab(tab);
-    if (index < 0) {
-      return;
-    }
-    RecordShortcut(accepted_match);
-    model->ActivateTabAt(index);
-    if (target_browser->GetWindow()) {
-      target_browser->GetWindow()->Activate();
-    }
-    tab->GetContents()->Focus();
+void DaoCommandBarView::SwitchToOpenTab(const AutocompleteMatch& match) {
+  const auto target = open_tab_targets_.find(
+      std::make_pair(match.destination_url, match.description));
+  const auto handle = target == open_tab_targets_.end()
+                          ? tabs::TabHandle::Null()
+                          : target->second;
+  const AutocompleteMatch accepted_match = match;
+  // Hide can publish autocomplete updates, so retain values before clearing.
+  Hide();
+  auto* tab = handle.Get();
+  auto* target_browser = tab ? tab->GetBrowserWindowInterface() : nullptr;
+  if (!target_browser || target_browser->IsDeleteScheduled() ||
+      target_browser->GetProfile() != browser_->GetProfile() ||
+      tab->GetContents()->GetVisibleURL() != accepted_match.destination_url) {
     return;
   }
-
-  // Learn from the accepted suggestion regardless of which navigation
-  // branch runs below; invalid destinations fall back to plain text
-  // navigation and carry nothing worth learning.
-  if (match.destination_url.is_valid()) {
-    RecordShortcut(match);
-  }
-
-  // Check if this is a tab switch match
-  if (match.has_tab_match.value_or(false)) {
-    NavigateParams params(browser_, match.destination_url,
-                          ui::PAGE_TRANSITION_TYPED);
-    params.disposition = WindowOpenDisposition::SWITCH_TO_TAB;
-    params.path_behavior = NavigateParams::RESPECT;
-
-    if (is_new_tab_mode_) {
-      SetNewTabButtonHighlight(false);
-      is_new_tab_mode_ = false;
-    }
-
-    StopAutocomplete();
-    dropdown_scroll_view_->SetVisible(false);
-    visible_suggestion_count_ = 0;
-    SetVisible(false);
-    SetWebContentEventProcessing(true);
-
-    ::Navigate(&params);
+  auto* model = target_browser->GetTabStripModel();
+  const int index = model->GetIndexOfTab(tab);
+  if (index < 0) {
     return;
   }
-
-  GURL url = match.destination_url;
-  if (!url.is_valid()) {
-    Navigate(std::u16string(textfield_->GetText()));
-    return;
+  RecordShortcut(accepted_match);
+  model->ActivateTabAt(index);
+  if (target_browser->GetWindow()) {
+    target_browser->GetWindow()->Activate();
   }
-
-  StopAutocomplete();
-  dropdown_scroll_view_->SetVisible(false);
-  visible_suggestion_count_ = 0;
-
-  if (is_new_tab_mode_) {
-    SetNewTabButtonHighlight(false);
-    is_new_tab_mode_ = false;
-    SetVisible(false);
-    SetWebContentEventProcessing(true);
-
-    chrome::AddTabAt(browser_, url, 0, true);
-
-    BrowserView* browser_view =
-        BrowserView::GetBrowserViewForBrowser(browser_);
-    if (browser_view && browser_view->contents_web_view()) {
-      browser_view->contents_web_view()->RequestFocus();
-    }
-  } else {
-    NavigateParams params(browser_, url, ui::PAGE_TRANSITION_TYPED);
-    params.disposition = WindowOpenDisposition::CURRENT_TAB;
-    SetVisible(false);
-    SetWebContentEventProcessing(true);
-    ::Navigate(&params);
-
-    BrowserView* browser_view =
-        BrowserView::GetBrowserViewForBrowser(browser_);
-    if (browser_view && browser_view->contents_web_view()) {
-      browser_view->contents_web_view()->RequestFocus();
-    }
-  }
+  tab->GetContents()->Focus();
 }
 
 void DaoCommandBarView::OnSuggestionClicked(int index) {
@@ -2371,66 +2369,47 @@ void DaoCommandBarView::OnSuggestionRemoved(int index) {
   textfield_->RequestFocus();
 }
 
-void DaoCommandBarView::Navigate(const std::u16string& text) {
-  std::string input = base::UTF16ToUTF8(text);
-  if (input.empty()) {
-    if (is_new_tab_mode_) {
-      CancelNewTab();
-    } else {
-      Hide();
-    }
+void DaoCommandBarView::Navigate(const AutocompleteMatch* match) {
+  const AutocompleteInput input = CreateAutocompleteInput(user_input_text_);
+  const GURL& typed_url = TypedUrlForOpen(input);
+  if (match && match->type == AutocompleteMatchType::OPEN_TAB) {
+    SwitchToOpenTab(*match);
     return;
   }
 
-  GURL url;
-  if (LooksLikeLocalFilePath(input)) {
-    url = url_formatter::FixupURL(input, std::string());
-  } else if (LooksLikeURL(text)) {
-    // Prepend https:// if no scheme
-    if (input.find("://") == std::string::npos) {
-      input = "https://" + input;
-    }
-    url = GURL(input);
-  } else {
-    url = GetSearchUrl(text);
-  }
-
+  const bool use_match = match && match->destination_url.is_valid();
+  GURL url = use_match ? match->destination_url : typed_url;
   if (!url.is_valid()) {
-    if (is_new_tab_mode_) {
-      CancelNewTab();
-    } else {
-      Hide();
-    }
+    url = GetSearchUrl(user_input_text_);
+  }
+  if (!url.is_valid()) {
+    Dismiss();
     return;
   }
+  if (use_match) {
+    RecordShortcut(*match);
+  }
 
-  StopAutocomplete();
-  dropdown_scroll_view_->SetVisible(false);
-  visible_suggestion_count_ = 0;
-
-  if (is_new_tab_mode_) {
-    // Create a new tab and navigate to the URL
-    SetNewTabButtonHighlight(false);
-    is_new_tab_mode_ = false;
-    SetVisible(false);
-
-    // Re-enable web content event processing
-    SetWebContentEventProcessing(true);
-
-    chrome::AddTabAt(browser_, url, 0, true);
-
-    // Return focus to web contents
-    BrowserView* browser_view =
-        BrowserView::GetBrowserViewForBrowser(browser_);
-    if (browser_view && browser_view->contents_web_view()) {
-      browser_view->contents_web_view()->RequestFocus();
+  const auto transition =
+      use_match ? match->transition : ui::PAGE_TRANSITION_TYPED;
+  NavigateParams params(browser_, url, transition);
+  const bool switch_tab = use_match && match->has_tab_match.value_or(false);
+  if (switch_tab) {
+    params.disposition = WindowOpenDisposition::SWITCH_TO_TAB;
+    params.path_behavior = NavigateParams::RESPECT;
+  } else if (is_new_tab_mode_) {
+    params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+    params.tabstrip_index = 0;
+    params.web_app_navigation_data.emplace();
+    params.web_app_navigation_data->SetNavigationCapturingForceOff(true);
+  }
+  Dismiss();
+  ::Navigate(&params);
+  if (!switch_tab) {
+    auto* view = BrowserView::GetBrowserViewForBrowser(browser_);
+    if (view && view->contents_web_view()) {
+      view->contents_web_view()->RequestFocus();
     }
-  } else {
-    // Navigate in current tab
-    NavigateParams params(browser_, url, ui::PAGE_TRANSITION_TYPED);
-    params.disposition = WindowOpenDisposition::CURRENT_TAB;
-    ::Navigate(&params);
-    Hide();
   }
 }
 

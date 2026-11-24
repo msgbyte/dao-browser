@@ -149,8 +149,8 @@ class DaoCommandBarView : public views::View,
     bool enabled = true;
   };
 
-  void Navigate(const std::u16string& text);
-  void NavigateToMatch(const AutocompleteMatch& match);
+  void Navigate(const AutocompleteMatch* match);
+  void SwitchToOpenTab(const AutocompleteMatch& match);
   tabs::TabHandle FindOpenTabTarget(const AutocompleteMatch& match) const;
   // Feeds the accepted input -> match association into the shortcuts
   // database so ShortcutsProvider ranks this destination higher for the
@@ -169,8 +169,10 @@ class DaoCommandBarView : public views::View,
   void StartAutocomplete(const std::u16string& text);
   void StopAutocomplete();
   void ClearSuggestions();
-  void UpdateSuggestions();
-  void RankExperimentalSuggestions();
+  void UpdateSuggestions(const AutocompleteInput& input);
+  void AddTypedInputSuggestion(const GURL& typed_url,
+                               const url::Parsed& parts,
+                               bool experimental);
   std::vector<int> GetMatchingCommandIndices(bool command_mode) const;
   bool IsCommandEnabled(int command_index) const;
   std::u16string GetCommandTitle(int command_index) const;
@@ -200,13 +202,12 @@ class DaoCommandBarView : public views::View,
   bool EnhancedSuggestionsEnabled() const;
   bool ExperimentalRankingEnabled() const;
   bool AskAiEnabled() const;
-  bool ShouldShowAskAiSuggestion() const;
   int GetAutocompleteProviderTypesForCurrentMode() const;
   const AutocompleteMatch* GetSelectedVisibleAutocompleteMatch() const;
   const SuggestionRow* GetSelectedRow() const;
   std::u16string GetIntentLabelForMatch(const AutocompleteMatch& match) const;
   GURL GetSearchUrl(const std::u16string& search_terms) const;
-  AutocompleteMatch CreateTypedInputMatch() const;
+  AutocompleteInput CreateAutocompleteInput(const std::u16string& text) const;
   AutocompleteMatch CreateExactSearchMatch(
       const std::u16string& search_terms) const;
   bool IsExactSearchMatch(const AutocompleteMatch& match,
@@ -265,7 +266,7 @@ class DaoCommandBarView : public views::View,
   // Index inside suggestion_views_ of the synthetic "Ask AI" row, or -1
   // when the current input does not qualify (empty / looks like a URL). The
   // row is inserted after the top autocomplete match; Enter / click on it
-  // routes to SubmitAskAi instead of NavigateToMatch.
+  // routes to SubmitAskAi.
   int ask_ai_row_index_ = -1;
   int selected_command_id_ = -1;
   // Keeps async updates from silently substituting a different action after

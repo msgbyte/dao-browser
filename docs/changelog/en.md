@@ -5,6 +5,7 @@
 ### [Unreleased] Unreleased
 
 - Dao Home cards can now load and refresh when a signed-in site updates its cookies or local storage. Cards keep their images when another card refreshes. Updated content can appear while you browse the site in another tab, and Home clears previously displayed account data when it detects a session change.
+- Typing a web address in the command bar now keeps an Open option in view, even when several open tabs have similar names. Press Enter to visit the address when it appears first. Local addresses with a port also open correctly after dismissing a suggestion.
 
 ### [1.0.143] - 2026-11-24
 

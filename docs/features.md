@@ -520,6 +520,12 @@ for measured overhead and the unvalidated 5 MiB memory target.
     provider omits the suffix, so Select All, copy, and replacement
     edits include the completed text, while long suffixes keep the typed prefix
     and caret boundary visible
+  - Recognized addresses have an **Open** action in the first two rows in both
+    suggestion modes. It comes first when other suggestions only match by title
+    or an unrelated URL. With experimental ordering off, a default URL completion
+    can stay first, with the exact address directly below it. Enter
+    uses the same address after dismissing a completion, including for localhost
+    ports.
   - Every non-blank query keeps one exact-input Search action through the default
     search provider alongside the full Chromium autocomplete result, including
     URL-like input and keyword-based site searches. The dropdown remains five
