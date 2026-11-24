@@ -8,6 +8,7 @@
 - Typing a web address in the command bar now keeps an Open option in view, even when several open tabs have similar names. Press Enter to visit the address when it appears first. Local addresses with a port also open correctly after dismissing a suggestion.
 - The command bar now removes script prefixes from pasted text. Addresses with login details stay out of search and shortcut history, even when the address is malformed.
 - Pasting a data URL keeps its contents in the command bar until you choose Open or Search.
+- Web addresses entered in the command bar now follow the browser’s HTTPS upgrade rules in both new and current tabs.
 
 ### [1.0.143] - 2026-11-24
 

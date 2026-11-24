@@ -523,7 +523,9 @@ for measured overhead and the unvalidated 5 MiB memory target.
   - Recognized addresses have an **Open** action in the first two rows in both
     suggestion modes. It comes first when other suggestions only match by title
     or an unrelated URL. With experimental ordering off, a default URL completion
-    can stay first, with the exact address directly below it. Enter
+    can stay first, with the exact address directly below it. Opening a bare
+    domain uses Chromium's address-bar HTTPS upgrade policy in both new and
+    current tabs. Explicit HTTP input is passed through to Chromium. Enter
     uses the same address after dismissing a completion, including for localhost
     ports.
   - Pasting uses Chromium's address-bar cleanup. Script URLs require an

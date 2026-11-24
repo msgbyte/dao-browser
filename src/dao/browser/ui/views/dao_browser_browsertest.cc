@@ -50,6 +50,7 @@
 #include "chrome/browser/picture_in_picture/picture_in_picture_window_manager.h"
 #include "chrome/browser/prefs/session_startup_pref.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/renderer_host/chrome_navigation_ui_data.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/sessions/session_service.h"
 #include "chrome/browser/sessions/session_service_factory.h"
@@ -129,6 +130,7 @@
 #include "content/public/browser/download_manager.h"
 #include "content/public/browser/host_zoom_map.h"
 #include "content/public/browser/media_player_id.h"
+#include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/page_navigator.h"
 #include "content/public/browser/picture_in_picture_window_controller.h"
 #include "content/public/browser/render_frame_host.h"
@@ -5491,6 +5493,53 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
     bar->Hide();
   }
   EXPECT_TRUE(backend->shortcuts_map().empty());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       TypedNavigationPreservesOmniboxHttpsPolicy) {
+  class Observer : public content::TestNavigationObserver {
+   public:
+    using TestNavigationObserver::TestNavigationObserver;
+    std::optional<bool> explicit_http;
+
+    void NavigationOfInterestDidFinish(
+        content::NavigationHandle* handle) override {
+      EXPECT_TRUE(handle->GetPageTransition() &
+                  ui::PAGE_TRANSITION_FROM_ADDRESS_BAR);
+      auto* data =
+          static_cast<ChromeNavigationUIData*>(handle->GetNavigationUIData());
+      ASSERT_TRUE(data);
+      explicit_http = data->force_no_https_upgrade();
+    }
+  };
+
+  ASSERT_TRUE(embedded_test_server()->Start());
+  auto* bar = GetBrowserView(browser())->dao_command_bar();
+  for (bool new_tab : {false, true}) {
+    for (bool explicit_http : {true, false}) {
+      for (bool selected : {true, false}) {
+        const GURL url = embedded_test_server()->GetURL(
+            selected ? "/title1.html" : "/title2.html");
+        const auto text = base::UTF8ToUTF16(
+            explicit_http ? url.spec() : url.spec().substr(7));
+        if (new_tab) {
+          bar->ShowForNewTab();
+        } else {
+          bar->Show();
+        }
+        bar->SetUserInputAndInlineAutocompletionForTesting(text, u"");
+        if (selected) {
+          bar->SetAutocompleteMatchesForTesting({});
+        }
+        Observer observer(browser()->tab_strip_model()->GetActiveWebContents());
+        observer.StartWatchingNewWebContents();
+        SendDialogKey(bar->GetWidget(), ui::VKEY_RETURN);
+        observer.Wait();
+        EXPECT_EQ(url, observer.last_navigation_url());
+        EXPECT_EQ(explicit_http, observer.explicit_http);
+      }
+    }
+  }
 }
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,

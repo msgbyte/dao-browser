@@ -2488,7 +2488,12 @@ void DaoCommandBarView::Navigate(const AutocompleteMatch* match) {
 
   const auto transition =
       use_match ? match->transition : ui::PAGE_TRANSITION_TYPED;
-  NavigateParams params(browser_, url, transition);
+  NavigateParams params(browser_, url,
+                        ui::PageTransitionFromInt(
+                            transition | ui::PAGE_TRANSITION_FROM_ADDRESS_BAR));
+  params.url_typed_with_http_scheme =
+      input.typed_url_had_http_scheme() && url == typed_url &&
+      (!use_match || match->type == AutocompleteMatchType::URL_WHAT_YOU_TYPED);
   const bool switch_tab = use_match && match->has_tab_match.value_or(false);
   if (switch_tab) {
     params.disposition = WindowOpenDisposition::SWITCH_TO_TAB;
