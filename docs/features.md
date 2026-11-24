@@ -526,7 +526,13 @@ for measured overhead and the unvalidated 5 MiB memory target.
     can stay first, with the exact address directly below it. Enter
     uses the same address after dismissing a completion, including for localhost
     ports.
-  - Every non-blank query keeps one exact-input Search action through the default
+  - Pasting uses Chromium's address-bar cleanup. Script URLs require an
+    explicit selection to open. For a data URL, Open and Search are both
+    explicit actions. Enter alone leaves the contents in the editor.
+  - An address containing login details offers only a redacted Open action
+    when it is navigable. Otherwise it stays in the editor. Dao keeps these
+    addresses and data URLs out of autocomplete providers and shortcut history.
+  - Other non-blank queries keep one exact-input Search action through the default
     search provider alongside the full Chromium autocomplete result, including
     URL-like input and keyword-based site searches. The dropdown remains five
     rows tall and scrolls by pointer or keyboard when more results are available;

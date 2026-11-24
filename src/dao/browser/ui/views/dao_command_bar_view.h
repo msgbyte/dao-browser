@@ -87,6 +87,9 @@ class DaoCommandBarView : public views::View,
                        const std::u16string& new_contents) override;
   void OnBeforeUserAction(views::Textfield* sender) override;
   void OnAfterUserAction(views::Textfield* sender) override;
+  void OnBeforePaste(views::Textfield* sender,
+                     base::OnceCallback<void(std::optional<std::u16string>)>
+                         callback) override;
   void OnAfterPaste() override;
 
   // AutocompleteController::Observer:

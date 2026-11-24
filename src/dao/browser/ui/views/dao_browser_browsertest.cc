@@ -143,6 +143,7 @@
 #include "content/public/test/test_navigation_observer.h"
 #include "content/public/test/test_utils.h"
 #include "content/public/test/test_web_ui.h"
+#include "content/public/test/url_loader_interceptor.h"
 #include "dao/browser/agent/dao_agent_lock_tab_helper.h"
 #include "dao/browser/agent/dao_agent_memory_service.h"
 #include "dao/browser/agent/dao_agent_memory_service_factory.h"
@@ -5370,6 +5371,158 @@ IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
     }
     bar->Hide();
   }
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest, PasteUsesOmniboxSanitization) {
+  content::BrowserTestClipboardScope clipboard_scope;
+  auto* bar = GetBrowserView(browser())->dao_command_bar();
+  bar->ShowForNewTab();
+  auto* field = FindDescendantViewOfClass<views::Textfield>(bar);
+  ASSERT_TRUE(field);
+  {
+    ui::ScopedClipboardWriter writer(ui::ClipboardBuffer::kCopyPaste);
+    writer.WriteText(u"javascript:ordinary words");
+  }
+  field->ExecuteCommand(
+      static_cast<int>(ui::TouchEditable::MenuCommands::kPaste), 0);
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return !bar->GetUserInputTextForTesting().empty(); }));
+  EXPECT_EQ(u"ordinary words", bar->GetUserInputTextForTesting());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       DataUrlRequiresExplicitOpenOrSearch) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  auto* profile = browser()->GetProfile();
+  auto* service = TemplateURLServiceFactory::GetForProfile(profile);
+  search_test_utils::WaitForTemplateURLServiceToLoad(service);
+  TemplateURLData engine;
+  engine.SetShortName(u"Local Search");
+  engine.SetKeyword(u"test-search");
+  engine.SetURL(
+      embedded_test_server()->GetURL("/title1.html?q={searchTerms}").spec());
+  auto* search = service->Add(std::make_unique<TemplateURL>(engine));
+  service->SetUserSelectedDefaultSearchProvider(search);
+  const std::u16string text = u"data:text/plain,local notes";
+  auto* bar = GetBrowserView(browser())->dao_command_bar();
+  for (bool experimental : {false, true}) {
+    profile->GetPrefs()->SetBoolean(kExperimentalRankingPref, experimental);
+    for (bool choose_search : {false, true}) {
+      bar->ShowForNewTab();
+      ASSERT_TRUE(EnterCommandBarText(bar, text));
+      ASSERT_EQ(-1, bar->GetSelectedIndexForTesting());
+      ASSERT_EQ(2, bar->GetVisibleSuggestionCountForTesting());
+      EXPECT_EQ(-1, bar->GetAskAiRowIndexForTesting());
+      const int tabs = browser()->tab_strip_model()->count();
+      SendDialogKey(bar->GetWidget(), ui::VKEY_RETURN);
+      ASSERT_TRUE(bar->GetVisible());
+      EXPECT_EQ(tabs, browser()->tab_strip_model()->count());
+      EXPECT_EQ(text, bar->GetUserInputTextForTesting());
+
+      ui_test_utils::TabAddedWaiter added(browser());
+      if (choose_search) {
+        SendDialogKey(bar->GetWidget(), ui::VKEY_UP);
+        bar->SetAutocompleteMatchesForTesting({});
+        ASSERT_EQ(1, bar->GetSelectedIndexForTesting());
+        SendDialogKey(bar->GetWidget(), ui::VKEY_RETURN);
+      } else {
+        ClickSuggestion(FindDescendantViewOfClass<DaoSuggestionItemView>(bar));
+      }
+      auto* contents = added.Wait();
+      ASSERT_TRUE(content::WaitForLoadStop(contents));
+      EXPECT_EQ(choose_search ? search->GenerateSearchURL(
+                                    service->search_terms_data(), text)
+                              : GURL(text),
+                contents->GetLastCommittedURL());
+    }
+  }
+  bar->ShowForNewTab();
+  ASSERT_TRUE(
+      EnterCommandBarText(bar, u"view-source:data:text/plain,local notes"));
+  EXPECT_EQ(-1, bar->GetSelectedIndexForTesting());
+  SendDialogKey(bar->GetWidget(), ui::VKEY_RETURN);
+  EXPECT_TRUE(bar->GetVisible());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       UnknownAndMalformedAddressesKeepCredentialsPrivate) {
+  const GURL public_url("https://vault.invalid/title1.html");
+  auto page = content::URLLoaderInterceptor::ServeFilesFromDirectoryAtOrigin(
+      "chrome/test/data", public_url);
+  GURL::Replacements credentials;
+  credentials.SetUsernameStr("reader");
+  credentials.SetPasswordStr("fixture");
+  const GURL address = public_url.ReplaceComponents(credentials);
+  auto* bar = GetBrowserView(browser())->dao_command_bar();
+  auto backend =
+      ShortcutsBackendFactory::GetForProfile(browser()->GetProfile());
+  ASSERT_TRUE(backend);
+  ASSERT_TRUE(base::test::RunUntil([&] { return backend->initialized(); }));
+  for (bool selected : {true, false}) {
+    bar->ShowForNewTab();
+    const auto text = base::UTF8ToUTF16(address.spec());
+    ASSERT_TRUE(EnterCommandBarText(bar, text));
+    ASSERT_EQ(1, bar->GetVisibleSuggestionCountForTesting());
+    ASSERT_EQ(base::UTF8ToUTF16(public_url.spec()),
+              bar->GetVisibleSuggestionTitleForTesting(0));
+    if (!selected) {
+      bar->SetUserInputAndInlineAutocompletionForTesting(text, u"");
+    }
+    ui_test_utils::TabAddedWaiter added(browser());
+    SendDialogKey(bar->GetWidget(), ui::VKEY_RETURN);
+    auto* contents = added.Wait();
+    ASSERT_TRUE(content::WaitForLoadStop(contents));
+    EXPECT_EQ(address, contents->GetLastCommittedURL());
+  }
+  for (const auto* text :
+       {u"https://reader:fixture@localhost:bad/path",
+        u"ftp://reader:fixture@localhost/file",
+        u"custom://reader:fixture@localhost/file",
+        u"reader:fixture@vault.invalid",
+        u"filesystem:https://reader:fixture@localhost/temporary/file",
+        u"view-source:https://reader:fixture@localhost/file"}) {
+    bar->ShowForNewTab();
+    ASSERT_TRUE(EnterCommandBarText(bar, text));
+    SCOPED_TRACE(text);
+    ASSERT_EQ(0, bar->GetVisibleSuggestionCountForTesting());
+    SendDialogKey(bar->GetWidget(), ui::VKEY_RETURN);
+    EXPECT_TRUE(bar->GetVisible());
+    EXPECT_EQ(text, bar->GetUserInputTextForTesting());
+    bar->Hide();
+  }
+  EXPECT_TRUE(backend->shortcuts_map().empty());
+}
+
+IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,
+                       CredentialedAddressOpensWithoutLearningOrSuggestingIt) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  const GURL public_url = embedded_test_server()->GetURL("/title1.html");
+  GURL::Replacements credentials;
+  credentials.SetUsernameStr("reader");
+  credentials.SetPasswordStr("test-password");
+  const GURL private_url = public_url.ReplaceComponents(credentials);
+  auto backend =
+      ShortcutsBackendFactory::GetForProfile(browser()->GetProfile());
+  ASSERT_TRUE(backend);
+  ASSERT_TRUE(base::test::RunUntil([&] { return backend->initialized(); }));
+  auto* bar = GetBrowserView(browser())->dao_command_bar();
+  bar->ShowForNewTab();
+  ASSERT_TRUE(EnterCommandBarText(bar, base::UTF8ToUTF16(private_url.spec())));
+  EXPECT_EQ(1, bar->GetVisibleSuggestionCountForTesting());
+  EXPECT_EQ(base::UTF8ToUTF16(public_url.spec()),
+            bar->GetVisibleSuggestionTitleForTesting(0));
+  SendDialogKey(bar->GetWidget(), ui::VKEY_TAB);
+  EXPECT_EQ(base::UTF8ToUTF16(private_url.spec()),
+            bar->GetUserInputTextForTesting());
+  ui_test_utils::TabAddedWaiter added(browser());
+  SendDialogKey(bar->GetWidget(), ui::VKEY_RETURN);
+  auto* contents = added.Wait();
+  ASSERT_TRUE(content::WaitForLoadStop(contents));
+  EXPECT_EQ(private_url, contents->GetLastCommittedURL());
+  EXPECT_TRUE(backend->shortcuts_map().empty());
+  bar->Show();
+  EXPECT_EQ(base::UTF8ToUTF16(public_url.spec()),
+            bar->GetUserInputTextForTesting());
 }
 
 IN_PROC_BROWSER_TEST_F(DaoCommandBarBrowserTest,

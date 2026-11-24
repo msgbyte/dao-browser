@@ -12,6 +12,7 @@
 #include "base/i18n/case_conversion.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/strings/escape.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
@@ -33,6 +34,7 @@
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/navigator/browser_navigator.h"
 #include "chrome/browser/ui/navigator/browser_navigator_params.h"
+#include "chrome/browser/ui/omnibox/clipboard_utils.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/grit/generated_resources.h"
@@ -184,8 +186,66 @@ bool HasCredentials(const GURL& url) {
   return url.has_username() || url.has_password();
 }
 
-const GURL& TypedUrlForOpen(const AutocompleteInput& input) {
+bool IsDataUrl(const GURL& url) {
+  return url.SchemeIs(url::kDataScheme) ||
+         (url.SchemeIs(content::kViewSourceScheme) &&
+          base::StartsWith(url.GetContentPiece(),
+                           "data:", base::CompareCase::INSENSITIVE_ASCII));
+}
+
+enum class InputPrivacy { kNormal, kCredentials, kDataUrl };
+
+InputPrivacy GetInputPrivacy(const AutocompleteInput& input) {
+  std::u16string_view text = input.text();
+  text = base::RemovePrefix(text, u"view-source:",
+                            base::CompareCase::INSENSITIVE_ASCII)
+             .value_or(text);
+  if (IsDataUrl(input.canonicalized_url()) ||
+      base::StartsWith(text, u"data:", base::CompareCase::INSENSITIVE_ASCII)) {
+    return InputPrivacy::kDataUrl;
+  }
+  const url::Parsed& parts = input.parts();
+  if (parts.password.is_nonempty() ||
+      (parts.username.is_nonempty() &&
+       (parts.scheme.is_nonempty() ||
+        input.type() == metrics::OmniboxInputType::URL))) {
+    return InputPrivacy::kCredentials;
+  }
+  // Omnibox can leave the authority unparsed for an unhandled scheme.
+  if (text.contains(u'@')) {
+    text = base::RemovePrefix(text, u"filesystem:",
+                              base::CompareCase::INSENSITIVE_ASCII)
+               .value_or(text);
+    url::Component scheme;
+    if (url::ExtractScheme(text, &scheme)) {
+      if (text.substr(scheme.end()).starts_with(u"://")) {
+        const auto parsed = url::ParseStandardUrl(text);
+        if (parsed.username.is_nonempty() || parsed.password.is_nonempty()) {
+          return InputPrivacy::kCredentials;
+        }
+      } else if (input.type() == metrics::OmniboxInputType::UNKNOWN &&
+                 text.find_first_of(base::kWhitespaceUTF16) == text.npos &&
+                 url::ParseStandardUrl(base::StrCat({u"http://", text}))
+                     .password.is_nonempty()) {
+        // Omnibox can interpret a bare username as an unknown scheme.
+        return InputPrivacy::kCredentials;
+      }
+    }
+  }
+  return InputPrivacy::kNormal;
+}
+
+const GURL& TypedUrlForOpen(const AutocompleteInput& input,
+                            InputPrivacy privacy) {
   const GURL& url = input.canonicalized_url();
+  if (privacy == InputPrivacy::kCredentials) {
+    return IsDirectNavigationScheme(url) && HasCredentials(url)
+               ? url
+               : GURL::EmptyGURL();
+  }
+  if (privacy == InputPrivacy::kDataUrl) {
+    return IsDataUrl(url) ? url : GURL::EmptyGURL();
+  }
   if (input.type() == metrics::OmniboxInputType::URL &&
       IsDirectNavigationScheme(url)) {
     return url;
@@ -830,6 +890,15 @@ void DaoCommandBarView::OnAfterUserAction(views::Textfield* sender) {
   text_before_edit_.reset();
 }
 
+void DaoCommandBarView::OnBeforePaste(
+    views::Textfield* sender,
+    base::OnceCallback<void(std::optional<std::u16string>)> callback) {
+  GetClipboardText(/*notify_if_restricted=*/true,
+                   base::BindOnce([](std::u16string text) {
+                     return std::make_optional(std::move(text));
+                   }).Then(std::move(callback)));
+}
+
 void DaoCommandBarView::OnAfterPaste() {
   // Paste reports ContentsChanged in a second user action, after this snapshot
   // is cleared. Detect whole-input replacement while the original range exists.
@@ -1081,10 +1150,19 @@ void DaoCommandBarView::StartAutocomplete(const std::u16string& text) {
   }
 
   AutocompleteInput input = CreateAutocompleteInput(text);
+  if (GetInputPrivacy(input) != InputPrivacy::kNormal) {
+    // Build local actions without sharing the input with providers.
+    StopAutocomplete();
+    UpdateSuggestions(input);
+    return;
+  }
   if (EnhancedSuggestionsEnabled()) {
     if (auto* contents = browser_->tab_strip_model()->GetActiveWebContents()) {
-      input.set_current_url(contents->GetVisibleURL());
-      input.set_current_title(contents->GetTitle());
+      const GURL& current_url = contents->GetVisibleURL();
+      if (!HasCredentials(current_url) && !IsDataUrl(current_url)) {
+        input.set_current_url(current_url);
+        input.set_current_title(contents->GetTitle());
+      }
     }
     if (text.empty()) {
       input.set_focus_type(metrics::OmniboxFocusType::INTERACTION_FOCUS);
@@ -1252,14 +1330,16 @@ void DaoCommandBarView::UpdateSuggestions(const AutocompleteInput& input) {
   }
   const bool enhanced_suggestions_enabled = EnhancedSuggestionsEnabled();
   const AutocompleteResult& result = autocomplete_controller_->result();
-  const GURL& typed_url = TypedUrlForOpen(input);
+  const InputPrivacy privacy = GetInputPrivacy(input);
+  const GURL& typed_url = TypedUrlForOpen(input, privacy);
+  const bool data_url = privacy == InputPrivacy::kDataUrl;
   const bool show_ask_ai =
-      !command_mode_ && AskAiEnabled() &&
+      !command_mode_ && privacy == InputPrivacy::kNormal && AskAiEnabled() &&
       !typed_url.is_valid() &&
       (experimental_ranking_enabled || !LooksLikeURL(user_input_text_));
   visible_matches_.clear();
   displayed_rows_.clear();
-  if (!command_mode_) {
+  if (!command_mode_ && privacy == InputPrivacy::kNormal) {
     visible_matches_.reserve(result.size() + 1);
     for (size_t i = 0; i < result.size(); ++i) {
       if (HasCredentials(result.match_at(i).destination_url)) {
@@ -1284,7 +1364,7 @@ void DaoCommandBarView::UpdateSuggestions(const AutocompleteInput& input) {
   }
 
   const bool exact_search_is_visible =
-      command_mode_ ||
+      command_mode_ || privacy == InputPrivacy::kCredentials ||
       std::any_of(visible_matches_.begin(), visible_matches_.end(),
                   [&](const AutocompleteMatch& match) {
                     return IsExactSearchMatch(match, search_terms);
@@ -1360,7 +1440,9 @@ void DaoCommandBarView::UpdateSuggestions(const AutocompleteInput& input) {
       visible_matches_.front().destination_url.is_valid() &&
       !IsDirectNavigationScheme(visible_matches_.front().destination_url);
   if (!command_mode_ &&
-      (typed_url.is_valid() || experimental_ranking_enabled || needs_safe_default)) {
+      (typed_url.is_valid() ||
+       (privacy == InputPrivacy::kNormal &&
+        (experimental_ranking_enabled || needs_safe_default)))) {
     AddTypedInputSuggestion(typed_url, input.parts(),
                             experimental_ranking_enabled);
   }
@@ -1420,7 +1502,8 @@ void DaoCommandBarView::UpdateSuggestions(const AutocompleteInput& input) {
       bool is_bookmark =
           bookmark_model && bookmark_model->IsBookmarked(match.destination_url);
       const bool show_intent =
-          enhanced_suggestions_enabled || experimental_ranking_enabled ||
+          data_url || enhanced_suggestions_enabled ||
+          experimental_ranking_enabled ||
           match.type == AutocompleteMatchType::URL_WHAT_YOU_TYPED ||
           match.has_tab_match.value_or(false);
       suggestion_views_[i]->SetMatch(
@@ -1486,7 +1569,7 @@ void DaoCommandBarView::UpdateSuggestions(const AutocompleteInput& input) {
         selection_explicitly_changed_ = false;
       }
     }
-    if (next_selected_index < 0 && experimental_ranking_enabled &&
+    if (next_selected_index < 0 && !data_url && experimental_ranking_enabled &&
         !command_mode_ && !suggestion_rejected_) {
       selection_explicitly_changed_ = false;
       command_selection_invalidated_ = false;
@@ -1496,7 +1579,7 @@ void DaoCommandBarView::UpdateSuggestions(const AutocompleteInput& input) {
         !command_selection_invalidated_) {
       if (command_mode_) {
         next_selected_index = GetNextEnabledIndex(-1, 1);
-      } else if (!suggestion_rejected_) {
+      } else if (!data_url && !suggestion_rejected_) {
         next_selected_index = 0;
       }
     }
@@ -2269,7 +2352,8 @@ void DaoCommandBarView::SubmitAskAi(const std::u16string& prompt) {
 }
 
 void DaoCommandBarView::RecordShortcut(const AutocompleteMatch& match) {
-  if (HasCredentials(match.destination_url)) {
+  if (HasCredentials(match.destination_url) ||
+      IsDataUrl(match.destination_url)) {
     return;
   }
   // Chromium cannot replay a search shortcut without its engine identity.
@@ -2371,22 +2455,34 @@ void DaoCommandBarView::OnSuggestionRemoved(int index) {
 
 void DaoCommandBarView::Navigate(const AutocompleteMatch* match) {
   const AutocompleteInput input = CreateAutocompleteInput(user_input_text_);
-  const GURL& typed_url = TypedUrlForOpen(input);
-  if (match && match->type == AutocompleteMatchType::OPEN_TAB) {
+  const InputPrivacy privacy = GetInputPrivacy(input);
+  const GURL& typed_url = TypedUrlForOpen(input, privacy);
+  if (privacy == InputPrivacy::kCredentials &&
+      (!typed_url.is_valid() ||
+       (match && match->destination_url != typed_url))) {
+    return;
+  }
+  if (privacy == InputPrivacy::kDataUrl &&
+      (!selection_explicitly_changed_ || !match ||
+       !match->destination_url.is_valid())) {
+    return;
+  }
+  if (match && match->type == AutocompleteMatchType::OPEN_TAB &&
+      privacy == InputPrivacy::kNormal) {
     SwitchToOpenTab(*match);
     return;
   }
 
   const bool use_match = match && match->destination_url.is_valid();
   GURL url = use_match ? match->destination_url : typed_url;
-  if (!url.is_valid()) {
+  if (!url.is_valid() && privacy == InputPrivacy::kNormal) {
     url = GetSearchUrl(user_input_text_);
   }
   if (!url.is_valid()) {
     Dismiss();
     return;
   }
-  if (use_match) {
+  if (use_match && privacy == InputPrivacy::kNormal) {
     RecordShortcut(*match);
   }
 
