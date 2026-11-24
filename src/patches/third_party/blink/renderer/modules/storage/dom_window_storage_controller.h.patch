@@ -1,0 +1,36 @@
+diff --git a/third_party/blink/renderer/modules/storage/dom_window_storage_controller.h b/third_party/blink/renderer/modules/storage/dom_window_storage_controller.h
+--- a/third_party/blink/renderer/modules/storage/dom_window_storage_controller.h
++++ b/third_party/blink/renderer/modules/storage/dom_window_storage_controller.h
+@@ -5,6 +5,7 @@
+ #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_STORAGE_DOM_WINDOW_STORAGE_CONTROLLER_H_
+ #define THIRD_PARTY_BLINK_RENDERER_MODULES_STORAGE_DOM_WINDOW_STORAGE_CONTROLLER_H_
+ 
++#include "dao/common/home_storage_reads.h"
+ #include "third_party/blink/renderer/core/frame/local_dom_window.h"
+ #include "third_party/blink/renderer/modules/modules_export.h"
+ #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+@@ -21,6 +22,13 @@
+ 
+   explicit DOMWindowStorageController(LocalDOMWindow&);
+   static DOMWindowStorageController& From(LocalDOMWindow&);
++  static void EnableHomeReadTracking(LocalDOMWindow&);
++
++  const dao::HomeStorageReads& HomeLocalStorageReadKeys() const {
++    return home_local_storage_read_keys_;
++  }
++  void RecordHomeLocalStorageRead(const String& key,
++                                  bool replaced_initial_document = false);
+ 
+   void Trace(Visitor*) const override;
+ 
+@@ -28,6 +36,10 @@
+   void DidAddEventListener(LocalDOMWindow*, const AtomicString&) override;
+   void DidRemoveEventListener(LocalDOMWindow*, const AtomicString&) override {}
+   void DidRemoveAllEventListeners(LocalDOMWindow*) override {}
++
++ private:
++  dao::HomeStorageReads home_local_storage_read_keys_{std::in_place};
++  bool home_read_tracking_enabled_ = false;
+ };
+ 
+ }  // namespace blink

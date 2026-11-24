@@ -1,0 +1,36 @@
+diff --git a/chrome/renderer/chrome_render_frame_observer.h b/chrome/renderer/chrome_render_frame_observer.h
+--- a/chrome/renderer/chrome_render_frame_observer.h
++++ b/chrome/renderer/chrome_render_frame_observer.h
+@@ -59,7 +59,8 @@
+ // This class holds the Chrome specific parts of RenderFrame, and has the same
+ // lifetime.
+ class ChromeRenderFrameObserver : public content::RenderFrameObserver,
+-                                  public chrome::mojom::ChromeRenderFrame {
++                                  public chrome::mojom::ChromeRenderFrame,
++                                  public chrome::mojom::DaoHomeStorageSource {
+  public:
+   ChromeRenderFrameObserver(content::RenderFrame* render_frame,
+                             web_cache::WebCacheImpl* web_cache_impl);
+@@ -107,6 +108,10 @@
+   void DidMeaningfulLayout(blink::WebMeaningfulLayout layout_type) override;
+   void OnDestruct() override;
+   void WillDetach(blink::DetachReason detach_reason) override;
++
++  void GetSourceId(GetSourceIdCallback callback) override;
++  void EnableReadTracking() override;
++  void GetReadKeys(GetReadKeysCallback callback) override;
+ 
+   // chrome::mojom::ChromeRenderFrame:
+   void SetWindowFeatures(
+@@ -230,6 +235,11 @@
+ 
+   mojo::AssociatedReceiverSet<chrome::mojom::ChromeRenderFrame> receivers_;
+ 
++  std::optional<blink::DocumentToken> home_storage_document_token_;
++  bool home_storage_document_was_initial_ = true;
++  mojo::AssociatedReceiverSet<chrome::mojom::DaoHomeStorageSource>
++      home_storage_receivers_;
++
+   service_manager::BinderRegistry registry_;
+   blink::AssociatedInterfaceRegistry associated_interfaces_;
+ };

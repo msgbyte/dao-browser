@@ -1,0 +1,29 @@
+diff --git a/third_party/blink/renderer/modules/storage/storage_area.h b/third_party/blink/renderer/modules/storage/storage_area.h
+--- a/third_party/blink/renderer/modules/storage/storage_area.h
++++ b/third_party/blink/renderer/modules/storage/storage_area.h
+@@ -79,6 +79,7 @@
+   bool NamedPropertyQuery(const AtomicString&, ExceptionState&);
+ 
+   bool CanAccessStorage() const;
++  base::Token SourceId() const { return source_id_; }
+ 
+   void Trace(Visitor*) const override;
+ 
+@@ -96,14 +97,17 @@
+   LocalDOMWindow* GetDOMWindow() override;
+ 
+  private:
++  void RecordHomeRead(const String& key) const;
+   void RecordModificationInMetrics();
+ 
+   void OnDocumentActivatedForPrerendering();
+ 
+   scoped_refptr<CachedStorageArea> cached_area_;
++  base::Token source_id_;
+   StorageType storage_type_;
+   const bool should_enqueue_events_;
+ 
++  mutable bool home_reads_unknown_ = false;
+   mutable bool did_check_can_access_storage_ = false;
+   mutable bool can_access_storage_cached_result_ = false;
+ };
