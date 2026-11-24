@@ -819,6 +819,8 @@
 
 ### [Unreleased] Unreleased
 
+- The download progress ring in the top-right corner of the address bar is now smaller.
+
 ### [1.3.2] - 2026-11-23
 
 - Open History, Bookmarks, Downloads, Extensions, and Settings from the home page's vertical three-dot menu, and return to the home page when you go back.

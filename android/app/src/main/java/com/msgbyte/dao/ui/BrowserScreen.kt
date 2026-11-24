@@ -1869,7 +1869,7 @@ internal fun AddressBar(
             ) {
                 if (activeDownloads.count > 0) {
                     Box(contentAlignment = Alignment.Center) {
-                        val progressModifier = Modifier.size(30.dp)
+                        val progressModifier = Modifier.size(24.dp)
                         val downloadProgress = activeDownloads.progress
                         if (downloadProgress == null) {
                             CircularProgressIndicator(
