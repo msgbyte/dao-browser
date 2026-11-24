@@ -1887,7 +1887,7 @@ internal fun AddressBar(
                                 trackColor = colors.brand.copy(alpha = .18f),
                             )
                         }
-                        Icon(Lucide.Download, stringResource(R.string.menu), tint = colors.brand, modifier = Modifier.size(16.dp))
+                        Icon(Lucide.Download, stringResource(R.string.menu), tint = colors.brand, modifier = Modifier.size(14.dp))
                     }
                 } else {
                     Icon(Lucide.EllipsisVertical, stringResource(R.string.menu), tint = colors.muted, modifier = Modifier.size(19.dp))

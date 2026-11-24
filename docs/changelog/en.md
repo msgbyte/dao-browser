@@ -819,7 +819,7 @@
 
 ### [Unreleased] Unreleased
 
-- The download progress ring in the top-right corner of the address bar is now smaller.
+- The download progress ring and its arrow are now smaller in the top-right corner of the address bar.
 
 ### [1.3.2] - 2026-11-23
 
