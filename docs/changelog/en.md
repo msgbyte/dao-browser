@@ -4,6 +4,8 @@
 
 ### [Unreleased] Unreleased
 
+- Dao Home cards can now load and refresh when a signed-in site updates its cookies or local storage. Cards keep their images when another card refreshes. Updated content can appear while you browse the site in another tab, and Home clears previously displayed account data when it detects a session change.
+
 ### [1.0.143] - 2026-11-24
 
 - **Edit with Dao** now loads the version of Home you clicked before asking what you want to change. Retrying or regenerating the reply uses that same version. If you leave the Home tab or its version changes before sending, Dao stops.

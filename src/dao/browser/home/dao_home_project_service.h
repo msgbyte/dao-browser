@@ -21,6 +21,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/threading/sequence_bound.h"
 #include "base/time/time.h"
+#include "base/token.h"
 #include "base/types/expected.h"
 #include "base/values.h"
 #include "components/keyed_service/core/keyed_service.h"
@@ -29,6 +30,10 @@
 namespace content {
 class StoragePartition;
 class WebContents;
+}
+
+namespace net {
+class CanonicalCookie;
 }
 
 namespace dao {
@@ -90,19 +95,36 @@ class DaoHomeProjectService : public KeyedService {
   static constexpr auto kCollectionHardTtl = base::Hours(6);
   enum class CollectionAge { kFresh, kStale, kExpired };
   static CollectionAge GetCollectionAge(base::Time collected_at);
-  std::optional<base::Value> GetCachedCollection(const HomeCollectionKey& key,
-                                                 bool* stale = nullptr);
+  std::optional<base::Value> GetCachedCollection(
+      const HomeCollectionKey& key,
+      bool* stale = nullptr,
+      HomeSourceDependencies* dependencies = nullptr);
   void CacheCollection(const HomeCollectionKey& key,
                        const base::Value& value,
-                       HomeSourceWatches watches = {});
+                       HomeSourceWatches watches = {},
+                       HomeStorageReads storage_reads = std::nullopt);
+  void AgeCachedCollectionsForTesting(base::TimeDelta age) {
+    for (auto& entry : collections_) {
+      entry.collected_at -= age;
+    }
+  }
   using CollectionMatcher = base::FunctionRef<bool(const HomeCollectionKey&)>;
   HomeSourceWatches WatchSourceData(content::StoragePartition* partition,
                                     const HomeCollectionKey& key);
+  // An unresolved write may be reported on the Profile pipe before its
+  // originating collector receives the corresponding frame notification.
+  using CollectorWrite = std::shared_ptr<const HomeSourceWrite>;
+  using InvalidationCallback = base::RepeatingCallback<
+      void(CollectionMatcher, const char* reason, CollectorWrite)>;
+  void ReportCollectorCookieWrite(const net::CanonicalCookie& cookie);
+  void ReportCollectorStorageSource(const url::Origin& origin, base::Token id);
   void CheckSourceCookieExpiry();
+  static void WhenSourceWatchesInitialized(const HomeSourceWatches& watches,
+                                           base::OnceClosure done);
   static bool SourceWatchesReady(const HomeSourceWatches& watches);
-  void InvalidateSourceSession(const HomeCollectionKey& source);
+  void InvalidateSourceSession(const std::vector<url::Origin>& origins);
   base::CallbackListSubscription AddCollectionInvalidationObserver(
-      base::RepeatingCallback<void(CollectionMatcher)> callback);
+      InvalidationCallback callback);
 
   void ApplyPatch(const std::string& base_revision,
                   const std::string& patch,
@@ -261,9 +283,12 @@ class DaoHomeProjectService : public KeyedService {
 
  private:
   class SourceDataObserver;
-  void InvalidateCollections(CollectionMatcher matches);
+  void InvalidateCollections(CollectionMatcher matches,
+                             const char* reason,
+                             CollectorWrite write = {});
   std::unique_ptr<SourceDataObserver> source_data_observer_;
-  base::RepeatingCallbackList<void(CollectionMatcher)>
+  base::RepeatingCallbackList<
+      void(CollectionMatcher, const char*, CollectorWrite)>
       collection_invalidation_observers_;
   void NotifyProjectChanged(std::string_view changed_connector = {});
   void NotifyPermissionChanged();
@@ -323,7 +348,7 @@ class DaoHomeProjectService : public KeyedService {
     HomeCollectionKey key;
     std::string json;
     base::Time collected_at;
-    HomeSourceWatches watches;
+    HomeSourceDependencies dependencies;
   };
   std::list<CachedCollection> collections_;
   std::vector<HomeDiagnostic> diagnostics_;

@@ -106,6 +106,7 @@ class DaoHomeUIHandler : public content::WebUIMessageHandler,
   void StartRuntimeConnectorForTesting(HomeConnector connector,
                                        ConnectorCallback callback);
   bool HasActiveRuntimeConnectorForTesting() const;
+  bool IsAwaitingCollectionDeliveryForTesting(const std::string& id);
 
  private:
   void HandleGetSnapshot(const base::ListValue& args);
@@ -168,7 +169,8 @@ class DaoHomeUIHandler : public content::WebUIMessageHandler,
                                     const std::string& revision,
                                     const std::string& connector_id,
                                     const std::string& stage,
-                                    base::Value result);
+                                    base::Value result,
+                                    const char* reason = nullptr);
   void OnProjectChanged();
   void OnPermissionChanged(
       const std::optional<HomePermissionBatchRequest>& request);
@@ -190,28 +192,65 @@ class DaoHomeUIHandler : public content::WebUIMessageHandler,
                        HomeConnectorBundle bundle,
                        base::Value input,
                        CollectionMode mode);
+  enum class SourceWait {
+    kNone,
+    kInitialCookies,
+    kValidated,
+    kAttribution,
+    kRevalidated
+  };
   void OnCollectionFinished(std::string callback_event,
                             HomeCollectionKey key,
                             std::string execution_id,
+                            SourceWait waited,
                             base::Value response);
+  struct SourceWrites {
+    bool Track(std::shared_ptr<const HomeSourceWrite> write);
+    const char* Reason(const HomeStorageReads& reads,
+                       base::TimeTicks through = base::TimeTicks::Max()) const;
+    std::vector<std::shared_ptr<const HomeSourceWrite>> pending;
+  };
+  struct DisplayedSource {
+    HomeCollectionKey key;
+    HomeSourceWatches watches;
+    HomeStorageReads storage_reads;
+    SourceWrites writes{};
+  };
+  void RememberDisplayedSource(const HomeCollectionKey& key,
+                               HomeSourceWatches watches,
+                               HomeStorageReads storage_reads);
+  void CheckDisplayedSourceWrites();
+  void RevokeDisplayedSource(const HomeCollectionKey& key);
   struct Collection {
     HomeCollectionKey key;
     std::unique_ptr<DaoHomeConnectorExecutor> executor;
     std::optional<base::Value> media_result;
     base::Time collected_at;
     HomeSourceWatches watches;
-    bool session_ended = false;
+    const char* session_end_reason = nullptr;
+    HomeStorageReads storage_reads = std::nullopt;
+    SourceWrites writes{};
+    const char* UnattributedWriteReason() const;
+    void Invalidate(const char* reason,
+                    std::shared_ptr<const HomeSourceWrite> write);
   };
   Collection* FindCollection(const std::string& execution_id);
   DaoHomeConnectorExecutor* FindConnectorExecutor(
       const std::string& execution_id);
-  DaoHomeConnectorExecutor* FindMediaExecutor(const std::string& handle,
-                                              const std::string& draft_id);
+  const Collection* FindMediaCollection(const std::string& handle,
+                                        const std::string& draft_id);
+  void ResolveMedia(std::string callback_event,
+                    std::string handle,
+                    std::string draft_id,
+                    bool check_only,
+                    bool allow_wait);
   void CancelDraftCollections(const std::string& draft_id);
 
   raw_ptr<DaoHomeProjectService> service_;
   std::vector<Collection> active_collections_;
   std::vector<Collection> retained_collections_;
+  std::vector<DisplayedSource> displayed_sources_;
+  base::OneShotTimer displayed_write_timer_;
   int collection_generation_ = 0;
   int draft_collection_generation_ = 0;
   base::CallbackListSubscription project_changed_subscription_;
@@ -277,6 +316,7 @@ class DaoHomeUI : public content::WebUIController {
   void StartRuntimeConnectorForTesting(HomeConnector connector,
                                        ConnectorCallback callback);
   bool HasActiveRuntimeConnectorForTesting() const;
+  bool IsAwaitingCollectionDeliveryForTesting(const std::string& id);
 
  private:
   raw_ptr<DaoHomeUIHandler> handler_ = nullptr;

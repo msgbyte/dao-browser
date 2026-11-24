@@ -5,6 +5,7 @@
 #ifndef DAO_BROWSER_HOME_DAO_HOME_TYPES_H_
 #define DAO_BROWSER_HOME_DAO_HOME_TYPES_H_
 
+#include <algorithm>
 #include <atomic>
 #include <cstdint>
 #include <map>
@@ -17,15 +18,38 @@
 #include "base/containers/flat_set.h"
 #include "base/memory/ref_counted.h"
 #include "base/synchronization/lock.h"
+#include "base/time/time.h"
 #include "base/values.h"
 #include "dao/browser/home/dao_home_error.h"
+#include "dao/common/home_storage_reads.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
 namespace dao {
 
+// Shared by the Profile mutation listener and detached source observers.
+// The observer can identify the writer after a live collection saw the write.
+struct HomeSourceWrite {
+  const char* reason;
+  std::shared_ptr<bool> from_collector;
+  // A missing fingerprint may affect any result, including cookie changes.
+  std::optional<uint32_t> storage_key = std::nullopt;
+  base::TimeTicks observed_at = base::TimeTicks::Now();
+
+  bool MayAffect(const HomeStorageReads& storage_reads) const {
+    return !*from_collector &&
+           (!storage_key || !storage_reads ||
+            std::ranges::contains(*storage_reads, *storage_key));
+  }
+};
+
 class DaoHomeSourceWatch;
 using HomeSourceWatches = std::vector<std::shared_ptr<DaoHomeSourceWatch>>;
+
+struct HomeSourceDependencies {
+  HomeSourceWatches watches;
+  HomeStorageReads storage_reads;
+};
 
 // A thread-safe, one-way authorization shared by the trusted Home document,
 // the owning Agent turn, and the blocking project store. Child leases inherit
@@ -416,6 +440,7 @@ struct HomeDiagnostic {
   std::string origin;
   std::string path;
   std::string detail;
+  std::string reason;
   int64_t created_at_ms = 0;
 };
 

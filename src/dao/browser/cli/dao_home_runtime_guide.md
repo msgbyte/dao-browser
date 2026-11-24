@@ -25,9 +25,18 @@ with a render function for that card. A read can reuse a successful result for
 30 minutes. From 30 minutes until 6 hours it returns the cached value and
 starts a refresh. A successful refresh calls `onUpdate` and replaces the cached
 value. Temporary failures and routine cookie renewals keep the previous result.
-Cookie expiry and first-party local storage changes discard cached results and
-in-flight reads for the affected origins. Clearing site data or a native sign-in
-requirement also invalidates those results, even if the connector catches the error.
+A source page can update local storage keys or rotate cookies as it loads.
+Matching cached results are discarded. Live reads can finish when Home can
+attribute those writes to a source page, including a sibling source sharing
+a parent-domain cookie. Cookie expiry, clearing site data, and a native sign-in
+requirement invalidate pending results, even if the connector catches the error.
+Changes to local storage keys that the source did not read can evict the cache
+while a live or background read still delivers updated data. Home checks the
+source document for a sign-in form immediately before delivery. When an outside
+write may change credentials or storage used by a displayed card, Home reloads
+the affected Home document, even if two accounts show the same count. A cold or
+explicit read that has yet to show data can reopen an uncertain source once.
+Issued media handles remain usable after a verified source write.
 At 6 hours, including time spent asleep, the read waits for new data.
 Structured results can be shared across Home tabs in the same Profile.
 Media handles belong to the current Home document.

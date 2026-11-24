@@ -99,7 +99,7 @@ TEST(DaoHomeProjectServiceTest, SignInFailureOnlyInvalidatesSharedOrigins) {
   for (const auto& key : {published, draft, same_site}) {
     service.CacheCollection(key, value);
   }
-  service.InvalidateSourceSession(draft);
+  service.InvalidateSourceSession(draft.origins);
   EXPECT_EQ(service.GetCachedCollection(published), value);
   EXPECT_FALSE(service.GetCachedCollection(draft));
   EXPECT_FALSE(service.GetCachedCollection(same_site));

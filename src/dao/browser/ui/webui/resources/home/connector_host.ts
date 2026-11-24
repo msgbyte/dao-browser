@@ -51,18 +51,19 @@ interface PendingCollection {
 const MAX_CONCURRENT_COLLECTIONS = 8;
 
 export class HomeConnectorError extends Error {
-  constructor(message: string, readonly code: string) {
+  constructor(message: string, readonly code: string, readonly retryLive = false) {
     super(message);
     this.name = 'HomeConnectorError';
   }
 }
 
 function connectorError(
-    value: {error?: unknown; code?: unknown}, fallback: string):
+    value: {error?: unknown; code?: unknown; retry_live?: boolean}, fallback: string):
     HomeConnectorError {
   return new HomeConnectorError(
       typeof value.error === 'string' ? value.error : fallback,
-      typeof value.code === 'string' ? value.code : 'temporarily_unavailable');
+      typeof value.code === 'string' ? value.code : 'temporarily_unavailable',
+      value.retry_live === true);
 }
 
 export class ConnectorHost {
@@ -95,6 +96,7 @@ export class ConnectorHost {
       fresh: boolean, onStale?: (value: unknown) => void): Promise<unknown> {
     const source = JSON.stringify([draftId, connectorId]);
     let coldRead = false;
+    let servedStale = false;
     if (!fresh || this.lastBySource_.has(source)) {
       const cached = await this.request_(draftId, connectorId, input, false);
       coldRead = !fresh && !('value' in cached);
@@ -103,6 +105,7 @@ export class ConnectorHost {
       }
       if (!fresh && 'value' in cached) {
         if (!cached.stale) return cached.value;
+        servedStale = !!onStale;
         onStale?.(cached.value);
       }
     }
@@ -110,10 +113,11 @@ export class ConnectorHost {
     try {
       return (await readLive()).value;
     } catch (error) {
-      if (!coldRead || !(error instanceof HomeConnectorError) || error.code !== 'session_changed') {
+      if (!(error instanceof HomeConnectorError) || error.code !== 'session_changed' ||
+          servedStale || !(coldRead || error.retryLive)) {
         throw error;
       }
-      // The first response may establish the site's session. Read again under that session.
+      // Reopen the source under the current session before returning any result.
       return (await readLive()).value;
     }
   }

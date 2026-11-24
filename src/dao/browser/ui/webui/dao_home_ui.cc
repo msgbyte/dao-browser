@@ -20,6 +20,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/uuid.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/history/history_service_factory.h"
@@ -139,6 +140,8 @@ constexpr char kGeneratedActionRuntime[] = R"js(
   }, {capture: true});
 })();
 )js";
+// The network service batches renderer cookie access notifications for 100 ms.
+constexpr auto kCookieAttributionWait = base::Milliseconds(500);
 constexpr size_t kMaxActiveConnectorExecutors = 8;
 constexpr size_t kMaxRetainedMediaBytes = 16 * 1024 * 1024;
 constexpr size_t kMaxRetainedConnectorExecutors = 16;
@@ -539,16 +542,40 @@ void DaoHomeUIHandler::RegisterMessages() {
   collection_invalidation_subscription_ =
       service_->AddCollectionInvalidationObserver(base::BindRepeating(
           [](DaoHomeUIHandler* self,
-             DaoHomeProjectService::CollectionMatcher matches) {
-            for (auto& item : self->active_collections_) {
-              if (matches(item.key)) {
-                item.session_ended = true;
-                item.executor->FailPendingCallForSessionChange();
+             DaoHomeProjectService::CollectionMatcher matches,
+             const char* reason, DaoHomeProjectService::CollectorWrite write) {
+            for (auto* collections :
+                 {&self->active_collections_, &self->retained_collections_}) {
+              for (auto& item : *collections) {
+                if (matches(item.key)) {
+                  item.Invalidate(reason, write);
+                }
               }
             }
-            std::erase_if(
-                self->retained_collections_,
-                [&](const Collection& item) { return matches(item.key); });
+            std::erase_if(self->displayed_sources_, [&](DisplayedSource& item) {
+              if (!matches(item.key)) {
+                return false;
+              }
+              if (write) {
+                if (!write->MayAffect(item.storage_reads)) {
+                  return false;
+                }
+                if (item.writes.Track(write)) {
+                  if (!self->displayed_write_timer_.IsRunning()) {
+                    self->displayed_write_timer_.Start(
+                        FROM_HERE, kCookieAttributionWait, self,
+                        &DaoHomeUIHandler::CheckDisplayedSourceWrites);
+                  }
+                  return false;
+                }
+              }
+              self->RevokeDisplayedSource(item.key);
+              return true;
+            });
+            std::erase_if(self->retained_collections_,
+                          [](const Collection& item) {
+                            return item.session_end_reason != nullptr;
+                          });
           },
           base::Unretained(this)));
   permission_subscription_ =
@@ -1422,6 +1449,97 @@ void DaoHomeUIHandler::HandleStartConnector(bool draft,
   }
 }
 
+bool DaoHomeUIHandler::SourceWrites::Track(
+    std::shared_ptr<const HomeSourceWrite> write) {
+  std::erase_if(pending,
+                [](const auto& item) { return *item->from_collector; });
+  if (std::ranges::any_of(pending, [&](const auto& item) {
+        return item->from_collector == write->from_collector &&
+               item->storage_key == write->storage_key;
+      })) {
+    return true;
+  }
+  if (pending.size() >= 256) {
+    return false;
+  }
+  pending.push_back(std::move(write));
+  return true;
+}
+
+const char* DaoHomeUIHandler::SourceWrites::Reason(
+    const HomeStorageReads& reads,
+    base::TimeTicks through) const {
+  for (const auto& write : pending) {
+    if (write->observed_at <= through && write->MayAffect(reads)) {
+      return write->reason;
+    }
+  }
+  return nullptr;
+}
+
+const char* DaoHomeUIHandler::Collection::UnattributedWriteReason() const {
+  return writes.Reason(storage_reads);
+}
+
+void DaoHomeUIHandler::Collection::Invalidate(
+    const char* reason,
+    std::shared_ptr<const HomeSourceWrite> write) {
+  media_result.reset();
+  if (session_end_reason) {
+    return;
+  }
+  if (write &&
+      (!write->MayAffect(storage_reads) || writes.Track(std::move(write)))) {
+    return;
+  }
+  session_end_reason = reason;
+  executor->FailPendingCallForSessionChange();
+}
+
+void DaoHomeUIHandler::RememberDisplayedSource(const HomeCollectionKey& key,
+                                               HomeSourceWatches watches,
+                                               HomeStorageReads storage_reads) {
+  // Several inputs for the same connector can still be visible in one document.
+  for (auto& item : displayed_sources_) {
+    if (item.key.revision == key.revision &&
+        item.key.draft_id == key.draft_id &&
+        item.key.connector_id == key.connector_id) {
+      MergeHomeStorageReads(item.storage_reads, storage_reads);
+      return;
+    }
+  }
+  displayed_sources_.push_back(
+      {key, std::move(watches), std::move(storage_reads)});
+}
+
+void DaoHomeUIHandler::RevokeDisplayedSource(const HomeCollectionKey& key) {
+  if (IsJavascriptAllowed()) {
+    FireWebUIListener(
+        "dao-home-source-invalidated",
+        base::Value(key.draft_id.empty() ? key.revision : key.draft_id),
+        base::Value(key.connector_id));
+  }
+}
+
+void DaoHomeUIHandler::CheckDisplayedSourceWrites() {
+  const auto through = base::TimeTicks::Now() - kCookieAttributionWait;
+  bool waiting = false;
+  std::erase_if(displayed_sources_, [&](DisplayedSource& item) {
+    if (item.writes.Reason(item.storage_reads, through)) {
+      RevokeDisplayedSource(item.key);
+      return true;
+    }
+    std::erase_if(item.writes.pending,
+                  [](const auto& write) { return *write->from_collector; });
+    waiting |= !item.writes.pending.empty();
+    return false;
+  });
+  if (waiting) {
+    displayed_write_timer_.Start(FROM_HERE, kCookieAttributionWait, this,
+                                 &DaoHomeUIHandler::CheckDisplayedSourceWrites);
+  }
+}
+
 void DaoHomeUIHandler::StartCollection(const std::string& callback_event,
                                        std::string draft_id,
                                        HomeConnectorBundle bundle,
@@ -1448,13 +1566,15 @@ void DaoHomeUIHandler::StartCollection(const std::string& callback_event,
       bundle.connector.permissions.origins};
   if (mode != CollectionMode::kFresh) {
     bool stale = false;
-    auto cached = service_->GetCachedCollection(key, &stale);
+    HomeSourceDependencies dependencies;
+    auto cached = service_->GetCachedCollection(key, &stale, &dependencies);
     if (!cached) {
       for (const auto& item : retained_collections_) {
         const auto age =
             DaoHomeProjectService::GetCollectionAge(item.collected_at);
         if (item.key == key && item.media_result &&
             age != DaoHomeProjectService::CollectionAge::kExpired) {
+          dependencies = {item.watches, item.storage_reads};
           cached = item.media_result->Clone();
           stale = age == DaoHomeProjectService::CollectionAge::kStale;
           break;
@@ -1462,6 +1582,8 @@ void DaoHomeUIHandler::StartCollection(const std::string& callback_event,
       }
     }
     if (cached) {
+      RememberDisplayedSource(key, std::move(dependencies.watches),
+                              std::move(dependencies.storage_reads));
       ReplyConnector(callback_event,
                      base::Value(base::DictValue()
                                      .Set("cached", std::move(*cached))
@@ -1471,7 +1593,8 @@ void DaoHomeUIHandler::StartCollection(const std::string& callback_event,
     if (mode == CollectionMode::kCacheOnly) {
       const bool previous_session =
           std::ranges::any_of(active_collections_, [&](const Collection& item) {
-            return item.session_ended && item.key == key;
+            return item.key == key &&
+                   (item.session_end_reason || item.UnattributedWriteReason());
           });
       ReplyConnector(callback_event, base::Value(base::DictValue()
                                                      .Set("cache_miss", true)
@@ -1495,11 +1618,13 @@ void DaoHomeUIHandler::StartCollection(const std::string& callback_event,
                        "All Home connector slots are busy."));
     return;
   }
-  auto& item = active_collections_.emplace_back(
-      Collection{key, std::make_unique<DaoHomeConnectorExecutor>(), {}, {},
-                 service_->WatchSourceData(
-                     Profile::FromWebUI(web_ui())->GetDefaultStoragePartition(),
-                     key)});
+  auto& item = active_collections_.emplace_back(Collection{
+      key,
+      std::make_unique<DaoHomeConnectorExecutor>(service_),
+      {},
+      {},
+      service_->WatchSourceData(
+          Profile::FromWebUI(web_ui())->GetDefaultStoragePartition(), key)});
   item.executor->Start(web_contents(), Profile::FromWebUI(web_ui()), revision,
                        std::move(bundle.connector), bundle.limits,
                        std::move(bundle.module_source),
@@ -1556,9 +1681,9 @@ void DaoHomeUIHandler::HandleCallConnectorPage(const base::ListValue& args) {
               ConnectorError("cancelled", "The Home revision changed."));
           return;
         }
-        if (collection->session_ended) {
-          self->ReplyConnector(
-              callback_event,
+        if (collection->session_end_reason) {
+          self->ReplyCollection(
+              callback_event, collection->key, revision, "page_call",
               ConnectorError("session_changed",
                              "The Home source session changed."));
           return;
@@ -1609,19 +1734,20 @@ void DaoHomeUIHandler::HandleFinishConnector(const base::ListValue& args) {
               ConnectorError("cancelled", "The Home revision changed."));
           return;
         }
-        if (collection->session_ended) {
+        if (collection->session_end_reason) {
           executor->Cancel();
-          self->ReplyConnector(
-              callback_event,
+          self->ReplyCollection(
+              callback_event, collection->key, revision, "finish",
               ConnectorError("session_changed",
                              "The Home source session changed."));
           return;
         }
         HomeCollectionKey key = collection->key;
-        executor->Finish(execution_id, std::move(result),
-                         base::BindOnce(&DaoHomeUIHandler::OnCollectionFinished,
-                                        self, std::move(callback_event),
-                                        std::move(key), execution_id));
+        executor->Finish(
+            execution_id, std::move(result),
+            base::BindOnce(&DaoHomeUIHandler::OnCollectionFinished, self,
+                           std::move(callback_event), std::move(key),
+                           execution_id, SourceWait::kNone));
       },
       weak_factory_.GetWeakPtr(), callback_event, execution_id,
       std::move(result), revision, connector_id));
@@ -1630,21 +1756,101 @@ void DaoHomeUIHandler::HandleFinishConnector(const base::ListValue& args) {
 void DaoHomeUIHandler::OnCollectionFinished(std::string callback_event,
                                             HomeCollectionKey key,
                                             std::string execution_id,
+                                            SourceWait waited,
                                             base::Value response) {
   service_->CheckSourceCookieExpiry();
   const base::Value* value = response.GetDict().Find("result");
   auto it = std::ranges::find_if(active_collections_, [&](const auto& item) {
     return item.executor->OwnsExecution(execution_id);
   });
-  if (value && it != active_collections_.end()) {
-    if (it->session_ended || !service_->SourceWatchesReady(it->watches)) {
+  const char* failure_reason = nullptr;
+  if (value && it == active_collections_.end()) {
+    response = ConnectorError("cancelled", "The Home connector session ended.");
+  } else if (value) {
+    if (const auto* error = it->executor->TerminalErrorFor(execution_id)) {
+      response = error->Clone();
+      active_collections_.erase(it);
+      ReplyConnectorWithDiagnostic(
+          callback_event, key.draft_id.empty() ? key.revision : key.draft_id,
+          key.connector_id, "finish", std::move(response));
+      return;
+    }
+    const bool initialized = service_->SourceWatchesReady(it->watches);
+    if (!it->session_end_reason && !initialized &&
+        waited == SourceWait::kNone) {
+      auto resume = base::BindRepeating(
+          [](base::OnceClosure& done) {
+            if (done) {
+              std::move(done).Run();
+            }
+          },
+          base::OwnedRef(base::BindOnce(
+              &DaoHomeUIHandler::OnCollectionFinished,
+              weak_factory_.GetWeakPtr(), std::move(callback_event),
+              std::move(key), std::move(execution_id),
+              SourceWait::kInitialCookies, std::move(response))));
+      base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+          FROM_HERE, resume, base::Seconds(20));
+      service_->WhenSourceWatchesInitialized(it->watches, std::move(resume));
+      return;
+    }
+    failure_reason = it->session_end_reason;
+    if (!failure_reason && initialized) {
+      if (waited != SourceWait::kValidated &&
+          waited != SourceWait::kRevalidated) {
+        const auto next = waited == SourceWait::kAttribution
+                              ? SourceWait::kRevalidated
+                              : SourceWait::kValidated;
+        it->executor->ValidateDelivery(base::BindOnce(
+            [](base::WeakPtr<DaoHomeUIHandler> self, std::string event,
+               HomeCollectionKey key, std::string id, SourceWait next,
+               base::Value response, HomeStorageReads reads) {
+              if (!self) {
+                return;
+              }
+              if (auto* item = self->FindCollection(id)) {
+                item->storage_reads = std::move(reads);
+              }
+              self->OnCollectionFinished(std::move(event), std::move(key),
+                                         std::move(id), next,
+                                         std::move(response));
+            },
+            weak_factory_.GetWeakPtr(), std::move(callback_event),
+            std::move(key), std::move(execution_id), next,
+            std::move(response)));
+        return;
+      }
+      failure_reason = it->UnattributedWriteReason();
+      if (failure_reason && waited == SourceWait::kValidated) {
+        base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+            FROM_HERE,
+            base::BindOnce(&DaoHomeUIHandler::OnCollectionFinished,
+                           weak_factory_.GetWeakPtr(),
+                           std::move(callback_event), std::move(key),
+                           std::move(execution_id), SourceWait::kAttribution,
+                           std::move(response)),
+            kCookieAttributionWait);
+        return;
+      }
+    }
+    it->executor->ReleaseSource();
+    if (failure_reason) {
       response =
           ConnectorError("session_changed", "The Home source session changed.");
+      if (!it->session_end_reason) {
+        response.GetDict().Set("retry_live", true);
+      }
+    } else if (!initialized) {
+      failure_reason = "watcher_not_ready";
+      response = ConnectorError("temporarily_unavailable",
+                                "The Home source is unavailable.");
     } else if (!CanUseCollection(key)) {
       response =
           ConnectorError("cancelled", "The Home connector session ended.");
     } else {
-      service_->CacheCollection(key, *value, it->watches);
+      it->writes.pending.clear();
+      RememberDisplayedSource(key, it->watches, it->storage_reads);
+      service_->CacheCollection(key, *value, it->watches, it->storage_reads);
       for (auto& previous : retained_collections_) {
         if (key == previous.key) {
           previous.media_result.reset();
@@ -1668,8 +1874,14 @@ void DaoHomeUIHandler::OnCollectionFinished(std::string callback_event,
     }
     active_collections_.erase(it);
   }
-  ReplyCollection(callback_event, key, key.revision, "finish",
-                  std::move(response));
+  if (failure_reason) {
+    ReplyConnectorWithDiagnostic(
+        callback_event, key.draft_id.empty() ? key.revision : key.draft_id,
+        key.connector_id, "finish", std::move(response), failure_reason);
+  } else {
+    ReplyCollection(callback_event, key, key.revision, "finish",
+                    std::move(response));
+  }
 }
 
 void DaoHomeUIHandler::HandleResolveMedia(const base::ListValue& args) {
@@ -1677,50 +1889,54 @@ void DaoHomeUIHandler::HandleResolveMedia(const base::ListValue& args) {
   if (args.size() < 2 || !args[0].is_string() || !args[1].is_string()) {
     return;
   }
-  const std::string callback_event = args[0].GetString();
-  const std::string handle = args[1].GetString();
-  const std::string draft_id = args.size() > 2 && args[2].is_string()
-                                   ? args[2].GetString()
-                                   : std::string();
-  DaoHomeConnectorExecutor* executor = FindMediaExecutor(handle, draft_id);
-  if (!executor) {
-    ReplyConnector(
-        callback_event,
-        ConnectorError("not_found", "The Home media handle is unavailable."));
-    return;
-  }
-  const bool check_only =
-      args.size() > 3 && args[3].GetIfBool().value_or(false);
-  const std::string revision = executor->revision();
-  const std::string connector_id = executor->connector_id();
+  ResolveMedia(
+      args[0].GetString(), args[1].GetString(),
+      args.size() > 2 && args[2].is_string() ? args[2].GetString() : "",
+      args.size() > 3 && args[3].GetIfBool().value_or(false), true);
+}
+
+void DaoHomeUIHandler::ResolveMedia(std::string callback_event,
+                                    std::string handle,
+                                    std::string draft_id,
+                                    bool check_only,
+                                    bool allow_wait) {
   service_->GetSnapshot(base::BindOnce(
       [](base::WeakPtr<DaoHomeUIHandler> self, std::string callback_event,
-         std::string handle, std::string draft_id, std::string revision,
-         std::string connector_id, bool check_only, HomeSnapshot snapshot) {
+         std::string handle, std::string draft_id, bool check_only,
+         bool allow_wait, HomeSnapshot snapshot) {
         if (!self) {
           return;
         }
-        DaoHomeConnectorExecutor* executor =
-            self->FindMediaExecutor(handle, draft_id);
-        if (!self->HasActiveHomeOwner() || snapshot.revision != revision ||
-            !executor || executor->revision() != revision) {
-          self->ReplyConnectorWithDiagnostic(
-              callback_event, revision, connector_id, "media",
-              ConnectorError("cancelled", "The Home revision changed."));
-          return;
+        const auto* item = self->FindMediaCollection(handle, draft_id);
+        if (item && item->key.revision == snapshot.revision) {
+          if (!item->UnattributedWriteReason()) {
+            if (check_only) {
+              self->ReplyConnector(callback_event, base::Value(true));
+              return;
+            }
+            item->executor->ResolveMedia(
+                handle, base::BindOnce(&DaoHomeUIHandler::ReplyCollection, self,
+                                       std::move(callback_event), item->key,
+                                       item->key.revision, "media"));
+            return;
+          }
+          if (allow_wait) {
+            base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+                FROM_HERE,
+                base::BindOnce(&DaoHomeUIHandler::ResolveMedia, self,
+                               std::move(callback_event), std::move(handle),
+                               std::move(draft_id), check_only, false),
+                kCookieAttributionWait);
+            return;
+          }
         }
-        if (check_only) {
-          self->ReplyConnector(callback_event, base::Value(true));
-          return;
-        }
-        executor->ResolveMedia(
-            handle,
-            base::BindOnce(&DaoHomeUIHandler::ReplyConnectorWithDiagnostic,
-                           self, std::move(callback_event), std::move(revision),
-                           std::move(connector_id), "media"));
+        self->ReplyConnector(
+            callback_event,
+            ConnectorError("not_found",
+                           "The Home media handle is unavailable."));
       },
-      weak_factory_.GetWeakPtr(), callback_event, handle, draft_id, revision,
-      connector_id, check_only));
+      weak_factory_.GetWeakPtr(), std::move(callback_event), std::move(handle),
+      std::move(draft_id), check_only, allow_wait));
 }
 
 void DaoHomeUIHandler::HandleCompleteAgentConnector(
@@ -1911,6 +2127,8 @@ void DaoHomeUIHandler::CancelAllSessions() {
   }
   active_collections_.clear();
   retained_collections_.clear();
+  displayed_sources_.clear();
+  displayed_write_timer_.Stop();
   CancelAgentSession();
 }
 
@@ -1961,10 +2179,20 @@ void DaoHomeUIHandler::ReplyCollection(const std::string& callback_event,
   const auto* value = result.GetIfDict();
   const auto* code = value ? value->FindString("code") : nullptr;
   if (code && *code == "auth_required" && value->FindString("error")) {
-    service_->InvalidateSourceSession(key);
+    service_->InvalidateSourceSession(key.origins);
   }
-  ReplyConnectorWithDiagnostic(callback_event, scope, key.connector_id, stage,
-                               std::move(result));
+  const char* reason = nullptr;
+  if (code && *code == "session_changed") {
+    for (const auto& item : active_collections_) {
+      if (item.key == key && item.session_end_reason) {
+        reason = item.session_end_reason;
+        break;
+      }
+    }
+  }
+  ReplyConnectorWithDiagnostic(
+      callback_event, key.draft_id.empty() ? scope : key.draft_id,
+      key.connector_id, stage, std::move(result), reason);
 }
 
 void DaoHomeUIHandler::ReplyConnectorWithDiagnostic(
@@ -1972,7 +2200,8 @@ void DaoHomeUIHandler::ReplyConnectorWithDiagnostic(
     const std::string& revision,
     const std::string& connector_id,
     const std::string& stage,
-    base::Value result) {
+    base::Value result,
+    const char* reason) {
   const base::DictValue* value = result.GetIfDict();
   const std::string* code = value ? value->FindString("code") : nullptr;
   const std::string* detail = value ? value->FindString("error") : nullptr;
@@ -1983,6 +2212,9 @@ void DaoHomeUIHandler::ReplyConnectorWithDiagnostic(
     diagnostic.stage = stage;
     diagnostic.code = *code;
     diagnostic.detail = *detail;
+    if (reason) {
+      diagnostic.reason = reason;
+    }
     service_->RecordDiagnostic(std::move(diagnostic));
   }
   ReplyConnector(callback_event, std::move(result));
@@ -2048,6 +2280,10 @@ void DaoHomeUIHandler::CancelDraftCollections(const std::string& draft_id) {
   }
   std::erase_if(active_collections_, matches);
   std::erase_if(retained_collections_, matches);
+  std::erase_if(displayed_sources_, [&](const DisplayedSource& source) {
+    return !source.key.draft_id.empty() &&
+           (draft_id.empty() || source.key.draft_id == draft_id);
+  });
 }
 
 DaoHomeUIHandler::Collection* DaoHomeUIHandler::FindCollection(
@@ -2067,7 +2303,7 @@ DaoHomeConnectorExecutor* DaoHomeUIHandler::FindConnectorExecutor(
   return item ? item->executor.get() : nullptr;
 }
 
-DaoHomeConnectorExecutor* DaoHomeUIHandler::FindMediaExecutor(
+const DaoHomeUIHandler::Collection* DaoHomeUIHandler::FindMediaCollection(
     const std::string& handle,
     const std::string& draft_id) {
   service_->CheckSourceCookieExpiry();
@@ -2077,7 +2313,7 @@ DaoHomeConnectorExecutor* DaoHomeUIHandler::FindMediaExecutor(
         DaoHomeProjectService::GetCollectionAge(item.collected_at) !=
             DaoHomeProjectService::CollectionAge::kExpired &&
         CanUseCollection(item.key)) {
-      return item.executor.get();
+      return &item;
     }
   }
   return nullptr;
@@ -2358,6 +2594,12 @@ void DaoHomeUIHandler::StartRuntimeConnectorForTesting(
                        base::Value(base::DictValue()), std::move(callback));
 }
 
+bool DaoHomeUIHandler::IsAwaitingCollectionDeliveryForTesting(
+    const std::string& id) {
+  auto* item = FindCollection(id);
+  return item && item->executor->collection_finished();
+}
+
 bool DaoHomeUIHandler::HasActiveRuntimeConnectorForTesting() const {
   return std::ranges::any_of(active_collections_, [](const auto& item) {
     return item.key.draft_id.empty() && item.executor->running();
@@ -2613,6 +2855,10 @@ void DaoHomeUI::StartRuntimeConnectorForTesting(HomeConnector connector,
   CHECK(handler_);
   handler_->StartRuntimeConnectorForTesting(std::move(connector),
                                             std::move(callback));
+}
+
+bool DaoHomeUI::IsAwaitingCollectionDeliveryForTesting(const std::string& id) {
+  return handler_ && handler_->IsAwaitingCollectionDeliveryForTesting(id);
 }
 
 bool DaoHomeUI::HasActiveRuntimeConnectorForTesting() const {

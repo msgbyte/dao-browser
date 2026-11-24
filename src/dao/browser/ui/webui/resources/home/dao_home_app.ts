@@ -499,6 +499,8 @@ export class DaoHomeApp extends CrLitElement {
   }|null;
   declare protected sessionActive_: boolean;
   private connectorHost_: ConnectorHost|null = null;
+  private readonly displayedSources_ = new WeakMap<HTMLIFrameElement, Set<string>>();
+  private sourceInvalidatedListener_: WebUiListener|null = null;
   private projectChangedListener_: WebUiListener|null = null;
   private permissionChangedListener_: WebUiListener|null = null;
   private agentConnectorListener_: WebUiListener|null = null;
@@ -576,6 +578,18 @@ export class DaoHomeApp extends CrLitElement {
           this.pendingPreview_ = null;
           void this.refresh_();
         });
+    this.sourceInvalidatedListener_ = addListener('dao-home-source-invalidated', (scope, id) => {
+      if (typeof scope !== 'string' || typeof id !== 'string') return;
+      const preview = scope === this.pendingPreview_?.draftId;
+      if (!preview && scope !== this.snapshot_?.revision) return;
+      const frame = this.shadowRoot?.querySelector<HTMLIFrameElement>(
+          preview ? '[data-test="preview-frame"]' : '[data-test="project-frame"]');
+      if (frame && this.displayedSources_.get(frame)?.has(id)) {
+        this.displayedSources_.delete(frame);
+        // Replace the generated document from its trusted parent.
+        frame.src = frame.src;
+      }
+    });
     this.permissionChangedListener_ = addListener(
         'dao-home-permission-changed', request => {
           this.setPermission_(request as HomePermissionRequest|null);
@@ -615,6 +629,8 @@ export class DaoHomeApp extends CrLitElement {
     this.connectorHost_ = null;
     if (this.projectChangedListener_)
       removeListener(this.projectChangedListener_);
+    if (this.sourceInvalidatedListener_)
+      removeListener(this.sourceInvalidatedListener_);
     if (this.permissionChangedListener_)
       removeListener(this.permissionChangedListener_);
     if (this.agentConnectorListener_)
@@ -812,10 +828,20 @@ export class DaoHomeApp extends CrLitElement {
         }
         const input = envelope.params?.['input'] ?? {};
         const fresh = envelope.params?.['fresh'] === true;
-        const onStale = (result: unknown) => reply({result, stale: true});
-        reply({result: preview ?
+        let sources = this.displayedSources_.get(projectFrame);
+        if (!sources) {
+          sources = new Set();
+          this.displayedSources_.set(projectFrame, sources);
+        }
+        const deliver = (result: unknown, stale = false) => {
+          if (!projectFrame.isConnected || this.displayedSources_.get(projectFrame) !== sources) return;
+          sources.add(connectorId);
+          reply({result, stale});
+        };
+        const onStale = (result: unknown) => deliver(result, true);
+        deliver(preview ?
           await this.connectorHost_.collectDraft(preview.draftId, connectorId, input, fresh, onStale) :
-          await this.connectorHost_.collect(connectorId, input, fresh, onStale)});
+          await this.connectorHost_.collect(connectorId, input, fresh, onStale));
         return;
       }
       if (envelope.method === 'navigation.open') {

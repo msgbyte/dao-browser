@@ -8,12 +8,16 @@
 #include <array>
 #include <map>
 #include <string_view>
+#include <tuple>
 #include <utility>
 
+#include "base/barrier_closure.h"
+#include "base/containers/lru_cache.h"
 #include "base/functional/bind.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/logging.h"
+#include "base/one_shot_event.h"
 #include "base/scoped_observation.h"
 #include "base/strings/string_util.h"
 #include "base/task/thread_pool.h"
@@ -22,7 +26,10 @@
 #include "components/services/storage/public/mojom/local_storage_control.mojom.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_contents.h"
+#include "crypto/hash.h"
 #include "dao/browser/home/dao_home_bootstrap_transaction.h"
+#include "dao/common/home_local_storage.h"
+#include "mojo/public/cpp/bindings/callback_helpers.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
@@ -96,9 +103,11 @@ void Truncate(std::string& value, size_t max_size) {
 // Shared by in-flight reads and cached results for one first-party origin.
 class DaoHomeSourceWatch : public blink::mojom::StorageAreaObserver {
  public:
-  DaoHomeSourceWatch(content::StoragePartition* partition,
-                     const url::Origin& origin,
-                     base::RepeatingClosure invalidate)
+  DaoHomeSourceWatch(
+      content::StoragePartition* partition,
+      const url::Origin& origin,
+      base::RepeatingCallback<
+          void(const char*, DaoHomeProjectService::CollectorWrite)> invalidate)
       : invalidate_(std::move(invalidate)) {
     partition->GetLocalStorageControl()->BindStorageArea(
         blink::StorageKey::CreateFirstParty(origin),
@@ -114,8 +123,19 @@ class DaoHomeSourceWatch : public blink::mojom::StorageAreaObserver {
         origin.GetURL(), options,
         net::CookiePartitionKeyCollection::MatchesSite(
             net::SchemefulSite(origin)),
-        base::BindOnce(&DaoHomeSourceWatch::OnInitialCookies,
-                       weak_factory_.GetWeakPtr(), origin));
+        mojo::WrapCallbackWithDropHandler(
+            base::BindOnce(&DaoHomeSourceWatch::OnInitialCookies,
+                           weak_factory_.GetWeakPtr(), origin),
+            base::BindOnce(&DaoHomeSourceWatch::OnDisconnect,
+                           weak_factory_.GetWeakPtr())));
+  }
+
+  void ReportCollectorStorageSource(base::Token id) {
+    *StorageWriter(id) = true;
+  }
+
+  void WhenInitialized(base::OnceClosure done) {
+    initialized_event_.Post(FROM_HERE, std::move(done));
   }
 
   bool disconnected() const { return disconnected_; }
@@ -166,39 +186,70 @@ class DaoHomeSourceWatch : public blink::mojom::StorageAreaObserver {
     std::erase_if(expiries_,
                   [](const auto& item) { return item.second.is_null(); });
     initialized_ = true;
+    if (!initialized_event_.is_signaled()) {
+      initialized_event_.Signal();
+    }
   }
 
   void OnDisconnect() {
+    if (disconnected_) {
+      return;
+    }
     disconnected_ = true;
-    invalidate_.Run();
+    if (!initialized_event_.is_signaled()) {
+      initialized_event_.Signal();
+    }
+    invalidate_.Run("watcher_disconnected", nullptr);
   }
 
-  void KeyChanged(const std::vector<uint8_t>&,
+  std::shared_ptr<bool> StorageWriter(base::Token id) {
+    auto found = storage_sources_.Get(id);
+    if (found == storage_sources_.end()) {
+      found = storage_sources_.Put(id, std::make_shared<bool>(false));
+    }
+    return found->second;
+  }
+
+  void StorageChanged(const std::vector<uint8_t>& key,
+                      const blink::mojom::StorageAreaSourcePtr& source) {
+    auto writer = source ? StorageWriter(source->storage_area_id)
+                         : std::make_shared<bool>(false);
+    invalidate_.Run("local_storage_changed",
+                    std::make_shared<HomeSourceWrite>(
+                        "local_storage_changed", std::move(writer),
+                        HomeLocalStorageKeyHash(key)));
+  }
+
+  void KeyChanged(const std::vector<uint8_t>& key,
                   const std::vector<uint8_t>& value,
                   const std::optional<std::vector<uint8_t>>& previous,
-                  blink::mojom::StorageAreaSourcePtr) override {
+                  blink::mojom::StorageAreaSourcePtr source) override {
     if (!previous || *previous != value) {
-      invalidate_.Run();
+      StorageChanged(key, source);
     }
   }
-  void KeyDeleted(const std::vector<uint8_t>&,
+  void KeyDeleted(const std::vector<uint8_t>& key,
                   const std::optional<std::vector<uint8_t>>& previous,
-                  blink::mojom::StorageAreaSourcePtr) override {
+                  blink::mojom::StorageAreaSourcePtr source) override {
     if (previous) {
-      invalidate_.Run();
+      StorageChanged(key, source);
     }
   }
   void AllDeleted(bool was_nonempty,
                   blink::mojom::StorageAreaSourcePtr) override {
     if (was_nonempty) {
-      invalidate_.Run();
+      invalidate_.Run("local_storage_cleared", nullptr);
     }
   }
   void KeyChangeFailed(const std::vector<uint8_t>&,
                        blink::mojom::StorageAreaSourcePtr) override {}
   void ShouldSendOldValueOnMutations(bool) override {}
 
-  base::RepeatingClosure invalidate_;
+  base::RepeatingCallback<void(const char*,
+                               DaoHomeProjectService::CollectorWrite)>
+      invalidate_;
+  base::LRUCache<base::Token, std::shared_ptr<bool>> storage_sources_{128};
+  base::OneShotEvent initialized_event_;
   mojo::Remote<blink::mojom::StorageArea> area_;
   mojo::Receiver<blink::mojom::StorageAreaObserver> receiver_{this};
   std::map<net::UniqueCookieKey, base::Time> expiries_;
@@ -247,10 +298,53 @@ class DaoHomeProjectService::SourceDataObserver
         expired.insert(origin);
       }
     }
-    InvalidateOrigins(expired);
+    InvalidateOrigins(expired, "cookie_expired", nullptr);
+  }
+
+  void ReportCollectorStorageSource(const url::Origin& origin, base::Token id) {
+    auto it = watches_.find(origin);
+    if (it != watches_.end()) {
+      if (auto watch = it->second.lock()) {
+        watch->ReportCollectorStorageSource(id);
+      }
+    }
+  }
+
+  void ReportCollectorCookieWrite(const net::CanonicalCookie& cookie) {
+    if (std::ranges::any_of(watches_, [&](const auto& item) {
+          return !item.second.expired() &&
+                 cookie.IsDomainMatch(item.first.host());
+        })) {
+      CookieWrite(cookie, true);
+    }
   }
 
  private:
+  // Match both IPC orders once, without retaining the cookie value.
+  using CookieVersion =
+      std::tuple<net::UniqueCookieKey, base::Time, std::array<uint8_t, 32>>;
+  std::shared_ptr<HomeSourceWrite> CookieWrite(
+      const net::CanonicalCookie& cookie,
+      bool from_collector) {
+    CookieVersion version(
+        cookie.StrictlyUniqueKey(), cookie.LastUpdateDate(),
+        crypto::hash::Sha256(
+            net::CanonicalCookie::BuildCookieAttributesLine(cookie)));
+    auto found = cookie_writes_.Get(version);
+    if (found == cookie_writes_.end()) {
+      auto write = std::make_shared<HomeSourceWrite>(
+          "cookie_changed", std::make_shared<bool>(from_collector));
+      cookie_writes_.Put(std::move(version), write);
+      return write;
+    }
+    auto write = found->second;
+    if (*write->from_collector != from_collector) {
+      *write->from_collector = true;
+      cookie_writes_.Erase(found);
+    }
+    return write;
+  }
+
   struct ReplacedCookie {
     net::UniqueCookieKey key;
     bool secure;
@@ -258,11 +352,15 @@ class DaoHomeProjectService::SourceDataObserver
     net::CookieSameSite same_site;
     base::Time expiry;
 
-    bool IsRenewedBy(const net::CanonicalCookie& cookie) const {
-      return !expiry.is_null() && cookie.ExpiryDate() > expiry &&
-             key == cookie.StrictlyUniqueKey() &&
+    bool SameScope(const net::CanonicalCookie& cookie) const {
+      return key == cookie.StrictlyUniqueKey() &&
              secure == cookie.SecureAttribute() &&
              http_only == cookie.IsHttpOnly() && same_site == cookie.SameSite();
+    }
+
+    bool IsRenewedBy(const net::CanonicalCookie& cookie) const {
+      return !expiry.is_null() && cookie.ExpiryDate() > expiry &&
+             SameScope(cookie);
     }
   };
 
@@ -278,8 +376,9 @@ class DaoHomeProjectService::SourceDataObserver
     receiver_.reset();
     watches_.clear();
     replaced_cookie_.reset();
+    cookie_writes_.Clear();
     service_->InvalidateCollections(
-        [](const HomeCollectionKey&) { return true; });
+        [](const HomeCollectionKey&) { return true; }, "watcher_disconnected");
     Listen();
   }
 
@@ -307,16 +406,37 @@ class DaoHomeProjectService::SourceDataObserver
         }
       }
     }
-    InvalidateOrigins(changed);
+    if (changed.empty()) {
+      return;
+    }
+    using Cause = net::CookieChangeCause;
+    if (change.cause == Cause::INSERTED && !cookie.LastUpdateDate().is_null() &&
+        cookie.SourceType() != net::CookieSourceType::kOther &&
+        (!previous || previous->SameScope(cookie))) {
+      InvalidateOrigins(changed, "cookie_changed", CookieWrite(cookie, false));
+    } else {
+      const bool expired = change.cause == Cause::EXPIRED ||
+                           change.cause == Cause::EXPIRED_OVERWRITE;
+      const char* reason = expired ? "cookie_expired"
+                           : net::CookieChangeCauseIsDeletion(change.cause)
+                               ? "cookie_deleted"
+                               : "cookie_changed";
+      InvalidateOrigins(changed, reason, nullptr);
+    }
   }
 
-  void InvalidateOrigins(const std::set<url::Origin>& origins) {
+  void InvalidateOrigins(const std::set<url::Origin>& origins,
+                         const char* reason,
+                         CollectorWrite write) {
     if (!origins.empty()) {
-      service_->InvalidateCollections([&](const HomeCollectionKey& key) {
-        return std::ranges::any_of(key.origins, [&](const url::Origin& origin) {
-          return origins.contains(origin);
-        });
-      });
+      service_->InvalidateCollections(
+          [&](const HomeCollectionKey& key) {
+            return std::ranges::any_of(key.origins,
+                                       [&](const url::Origin& origin) {
+                                         return origins.contains(origin);
+                                       });
+          },
+          reason, std::move(write));
     }
   }
 
@@ -332,14 +452,19 @@ class DaoHomeProjectService::SourceDataObserver
                   Partition::REMOVE_DATA_MASK_DEVICE_BOUND_SESSIONS))) {
       return;
     }
-    service_->InvalidateCollections([&](const HomeCollectionKey& key) {
-      return std::ranges::any_of(key.origins, [&](const url::Origin& origin) {
-        return !matcher ||
-               matcher.Run(blink::StorageKey::CreateFirstParty(origin));
-      });
-    });
+    service_->InvalidateCollections(
+        [&](const HomeCollectionKey& key) {
+          return std::ranges::any_of(
+              key.origins, [&](const url::Origin& origin) {
+                return !matcher ||
+                       matcher.Run(blink::StorageKey::CreateFirstParty(origin));
+              });
+        },
+        "browsing_data_removed");
   }
 
+  base::LRUCache<CookieVersion, std::shared_ptr<HomeSourceWrite>>
+      cookie_writes_{256};
   raw_ptr<DaoHomeProjectService> service_;
   base::ScopedObservation<content::StoragePartition, DataRemovalObserver>
       observation_{this};
@@ -387,29 +512,57 @@ void DaoHomeProjectService::CheckSourceCookieExpiry() {
   }
 }
 
+void DaoHomeProjectService::ReportCollectorStorageSource(
+    const url::Origin& origin,
+    base::Token id) {
+  if (source_data_observer_ && !id.is_zero()) {
+    source_data_observer_->ReportCollectorStorageSource(origin, id);
+  }
+}
+
+void DaoHomeProjectService::ReportCollectorCookieWrite(
+    const net::CanonicalCookie& cookie) {
+  if (source_data_observer_) {
+    source_data_observer_->ReportCollectorCookieWrite(cookie);
+  }
+}
+
+void DaoHomeProjectService::WhenSourceWatchesInitialized(
+    const HomeSourceWatches& watches,
+    base::OnceClosure done) {
+  auto barrier = base::BarrierClosure(watches.size(), std::move(done));
+  for (const auto& watch : watches) {
+    watch->WhenInitialized(barrier);
+  }
+}
+
 bool DaoHomeProjectService::SourceWatchesReady(
     const HomeSourceWatches& watches) {
   return std::ranges::all_of(watches, &DaoHomeSourceWatch::ready);
 }
 
 void DaoHomeProjectService::InvalidateSourceSession(
-    const HomeCollectionKey& source) {
-  InvalidateCollections([&](const HomeCollectionKey& key) {
-    return std::ranges::any_of(source.origins, [&](const url::Origin& origin) {
-      return std::ranges::contains(key.origins, origin);
-    });
-  });
+    const std::vector<url::Origin>& origins) {
+  InvalidateCollections(
+      [&](const HomeCollectionKey& key) {
+        return std::ranges::any_of(origins, [&](const url::Origin& origin) {
+          return std::ranges::contains(key.origins, origin);
+        });
+      },
+      "auth_required");
 }
 
-void DaoHomeProjectService::InvalidateCollections(CollectionMatcher matches) {
+void DaoHomeProjectService::InvalidateCollections(CollectionMatcher matches,
+                                                  const char* reason,
+                                                  CollectorWrite write) {
   std::erase_if(collections_,
                 [&](const auto& entry) { return matches(entry.key); });
-  collection_invalidation_observers_.Notify(matches);
+  collection_invalidation_observers_.Notify(matches, reason, std::move(write));
 }
 
 base::CallbackListSubscription
 DaoHomeProjectService::AddCollectionInvalidationObserver(
-    base::RepeatingCallback<void(CollectionMatcher)> callback) {
+    InvalidationCallback callback) {
   return collection_invalidation_observers_.Add(std::move(callback));
 }
 
@@ -590,7 +743,8 @@ DaoHomeProjectService::CollectionAge DaoHomeProjectService::GetCollectionAge(
 
 std::optional<base::Value> DaoHomeProjectService::GetCachedCollection(
     const HomeCollectionKey& key,
-    bool* stale) {
+    bool* stale,
+    HomeSourceDependencies* dependencies) {
   CheckSourceCookieExpiry();
   auto it = std::ranges::find(collections_, key, &CachedCollection::key);
   if (it == collections_.end()) {
@@ -604,13 +758,17 @@ std::optional<base::Value> DaoHomeProjectService::GetCachedCollection(
   if (stale) {
     *stale = age == CollectionAge::kStale;
   }
+  if (dependencies) {
+    *dependencies = it->dependencies;
+  }
   collections_.splice(collections_.begin(), collections_, it);
   return base::JSONReader::Read(it->json, base::JSON_PARSE_RFC);
 }
 
 void DaoHomeProjectService::CacheCollection(const HomeCollectionKey& key,
                                             const base::Value& value,
-                                            HomeSourceWatches watches) {
+                                            HomeSourceWatches watches,
+                                            HomeStorageReads storage_reads) {
   constexpr size_t kMaxEntries = 64;
   constexpr size_t kMaxBytes = 8 * 1024 * 1024;
   auto json = base::WriteJson(value);
@@ -620,8 +778,10 @@ void DaoHomeProjectService::CacheCollection(const HomeCollectionKey& key,
   if (!json || json->size() > kMaxBytes || json->contains("dao-media:")) {
     return;
   }
-  collections_.push_front(
-      {key, std::move(*json), base::Time::Now(), std::move(watches)});
+  collections_.push_front({key,
+                           std::move(*json),
+                           base::Time::Now(),
+                           {std::move(watches), std::move(storage_reads)}});
   size_t bytes = 0;
   size_t count = 0;
   for (auto it = collections_.begin(); it != collections_.end(); ++it) {

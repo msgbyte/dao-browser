@@ -790,15 +790,30 @@ void DaoHomeExternalService::Dispatch(uint64_t connection,
     return;
   }
   if (method == "project.diagnostics") {
-    base::ListValue list;
-    for (const auto& diagnostic : session->project->GetDiagnostics(
-             session->draft ? session->draft->id : "")) {
-      list.Append(base::DictValue()
-                      .Set("stage", diagnostic.stage)
-                      .Set("code", diagnostic.code)
-                      .Set("connector_id", diagnostic.connector_id));
-    }
-    std::move(reply).Run(Ok().Set("diagnostics", std::move(list)));
+    session->project->GetSnapshot(base::BindOnce(
+        [](base::WeakPtr<DaoHomeExternalService> self, std::string token,
+           Reply reply, HomeSnapshot snapshot) {
+          auto* session = self ? self->FindSession(token) : nullptr;
+          if (!session) {
+            std::move(reply).Run(Error(self ? self->SessionErrorCode(token)
+                                            : "SESSION_EXPIRED"));
+            return;
+          }
+          base::ListValue list;
+          for (const auto& diagnostic : session->project->GetDiagnostics(
+                   session->draft ? session->draft->id : snapshot.revision)) {
+            auto item = base::DictValue()
+                            .Set("stage", diagnostic.stage)
+                            .Set("code", diagnostic.code)
+                            .Set("connector_id", diagnostic.connector_id);
+            if (!diagnostic.reason.empty()) {
+              item.Set("reason", diagnostic.reason);
+            }
+            list.Append(std::move(item));
+          }
+          std::move(reply).Run(Ok().Set("diagnostics", std::move(list)));
+        },
+        weak_factory_.GetWeakPtr(), *token, std::move(reply)));
     return;
   }
   if (method == "draft.sources") {

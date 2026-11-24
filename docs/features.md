@@ -1285,13 +1285,26 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
   Reads check their authorized cache before queueing live work, even during a refresh.
   Extending a cookie's expiry with the same value and access scope preserves the cache.
   Reads check cookie expiry against wall-clock time even when the site is closed.
-  A first-party local storage mutation, session change, or site-data clear invalidates matching structured and media
-  results across Home documents, including reads still loading the source page.
-  An ordinary read without cached data retries once if the source establishes a new session.
+  First-party storage changes evict cached structured and media results across
+  Home documents. A live read may finish after a single-key local storage write
+  or a cookie insertion or rotation attributed to a detached Home source.
+  This includes parent-domain cookies shared by simultaneous sources.
+  Clearing site data or nonempty local storage, cookie deletion or expiry, and
+  losing a watcher invalidate pending results. Home waits for the initial cookie
+  snapshot before delivering a result. An ordinary cache miss can retry once.
+  Frame-attributed writes include the Cookie Store API. Worker notifications
+  shared by an origin cannot authenticate the writer. Native delivery checks
+  the pinned source document for a sign-in form and combines local storage key
+  fingerprints from its authorized frames. An unrelated key can change throughout
+  a refresh and the card still receives new data. Enumeration, storage event
+  listeners, an unavailable document, or more than 256 keys require conservative
+  revalidation. Home keeps watches for displayed sources and reloads the affected
+  document when an outside write may have changed its account, including when two
+  accounts show identical card data. Issued media handles survive unrelated key
+  changes and verified source writes. CLI diagnostics use fixed cause names.
   A sign-in failure evicts results for the affected origins across drafts and
   published cards. Each document accepts replies only to its own requests.
-  A document that rendered stale data reloads if the refresh detects a session
-  change or requires sign-in.
+  A document that rendered stale data also reloads if the refresh requires sign-in.
   At hard expiry a read waits for a new result. The connector sandbox is also
   present on an empty active Home so the
   first approved connector draft can be tested before its initial publication.

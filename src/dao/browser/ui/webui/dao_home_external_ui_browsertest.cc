@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "dao/browser/ui/webui/dao_home_ui.h"
-
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -46,6 +44,7 @@
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/prefs/pref_service.h"
+#include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_contents.h"
@@ -62,6 +61,7 @@
 #include "dao/browser/home/dao_home_project_service_factory.h"
 #include "dao/browser/strings/grit/dao_strings.h"
 #include "dao/browser/ui/views/dao_agent_sidebar_view.h"
+#include "dao/browser/ui/webui/dao_home_ui.h"
 #include "net/http/http_status_code.h"
 #include "net/test/embedded_test_server/controllable_http_response.h"
 #include "net/test/embedded_test_server/http_request.h"
@@ -1448,9 +1448,14 @@ IN_PROC_BROWSER_TEST_F(DaoHomeExternalUIBrowserTest,
         if (request.relative_url == "/first") {
           ++(*visits)[0];
           response->set_content_type("text/html");
-          response->set_content("<!doctype html><img src='/pixel.svg'>");
+          response->set_content(
+              "<!doctype html><img src='/pixel.svg'><script>"
+              "document.images[0].alt = localStorage.getItem('account') || '';"
+              "</script>");
         } else if (request.relative_url == "/second") {
-          ++(*visits)[1];
+          if (++(*visits)[1] > 1) {
+            response->AddCustomHeader("Set-Cookie", "heartbeat=second; Path=/");
+          }
           response->set_content_type("text/html");
           response->set_content("<!doctype html><main>Second fixture</main>");
         } else if (request.relative_url == "/pixel.svg") {
@@ -1555,34 +1560,52 @@ IN_PROC_BROWSER_TEST_F(DaoHomeExternalUIBrowserTest,
                                     "document.querySelector('img').src)",
                                     handle))
           .ExtractBool());
-  base::test::TestFuture<void> cleared;
-  browser()->GetProfile()->GetDefaultStoragePartition()->ClearDataForOrigin(
-      content::StoragePartition::REMOVE_DATA_MASK_LOCAL_STORAGE,
-      embedded_test_server()->GetURL("/"), cleared.GetCallback());
-  ASSERT_TRUE(cleared.Wait());
-  EXPECT_EQ("not_found",
+  EXPECT_EQ("Second fixture",
+            content::EvalJs(frame,
+                            "dao.sources.collect('second', {}, {fresh:true})"));
+  EXPECT_EQ("resolved",
             content::EvalJs(
                 frame,
                 content::JsReplace(
                     "dao.media.resolve($1).then(() => 'resolved', e => e.code)",
                     handle)));
+  base::test::TestFuture<void> cleared;
+  browser()->GetProfile()->GetDefaultStoragePartition()->ClearDataForOrigin(
+      content::StoragePartition::REMOVE_DATA_MASK_LOCAL_STORAGE,
+      embedded_test_server()->GetURL("/"), cleared.GetCallback());
+  ASSERT_TRUE(cleared.Wait());
+  auto resolve = [&](const std::string& media) {
+    return content::EvalJs(preview, content::JsReplace(R"(
+      import('./home_bridge.js').then(async bridge => {
+        const result = await bridge.resolveHomeMedia($1, $2, true);
+        return result === true ? 'resolved' : result.code;
+      })
+    )",
+                                                       media, draft_id_));
+  };
+  EXPECT_EQ("not_found", resolve(handle));
+  const auto result_after_clear =
+      Call("draft.preview", base::DictValue().Set("draft_id", draft_id_));
+  ASSERT_EQ(true, result_after_clear.FindBool("publishable"))
+      << result_after_clear.DebugString();
   const auto new_handle =
-      content::EvalJs(frame,
-                      "dao.sources.collect('first').then(v => v[0].image)")
+      content::EvalJs(preview, content::JsReplace(R"(
+    document.querySelector('dao-home-app').connectorHost_
+        .collectDraft($1, 'first', {}).then(items => items[0].image)
+  )",
+                                                  draft_id_))
           .ExtractString();
   auto* ordinary = browser()->tab_strip_model()->GetActiveWebContents();
-  const auto resolve = content::JsReplace(
-      "dao.media.resolve($1).then(() => 'resolved', e => e.code)", new_handle);
   ASSERT_TRUE(content::NavigateToURL(
       ordinary, embedded_test_server()->GetURL("localhost", "/second")));
   ASSERT_TRUE(
       content::ExecJs(ordinary, "localStorage.setItem('account', 'other')"));
-  EXPECT_EQ("resolved", content::EvalJs(frame, resolve));
+  EXPECT_EQ("resolved", resolve(new_handle));
   ASSERT_TRUE(content::NavigateToURL(
       ordinary, embedded_test_server()->GetURL("/second")));
   ASSERT_TRUE(
       content::ExecJs(ordinary, "localStorage.setItem('account', 'new')"));
-  EXPECT_EQ("not_found", content::EvalJs(frame, resolve));
+  EXPECT_EQ("not_found", resolve(new_handle));
 }
 
 IN_PROC_BROWSER_TEST_F(DaoHomeExternalUIBrowserTest,
@@ -1862,6 +1885,28 @@ IN_PROC_BROWSER_TEST_F(DaoHomeExternalUIBrowserTest,
          std::shared_ptr<std::atomic<net::HttpStatusCode>> status,
          const net::test_server::HttpRequest& request)
           -> std::unique_ptr<net::test_server::HttpResponse> {
+        if (request.relative_url == "/home-worker.js" ||
+            request.relative_url == "/worker-session" ||
+            request.relative_url == "/private-feed/expired") {
+          auto response =
+              std::make_unique<net::test_server::BasicHttpResponse>();
+          if (request.relative_url == "/home-worker.js") {
+            response->set_content_type("text/javascript");
+            response->set_content(R"(
+              onmessage = e => e.waitUntil(fetch('/worker-session')
+                  .then(r => e.ports[0].postMessage(r.ok)));
+            )");
+          } else if (request.relative_url == "/worker-session") {
+            response->AddCustomHeader("Set-Cookie",
+                                      "worker_account=new; Path=/");
+            response->set_content("ok");
+          } else {
+            response->set_code(net::HTTP_UNAUTHORIZED);
+            response->set_content_type("text/html");
+            response->set_content("Sign in");
+          }
+          return response;
+        }
         if (request.relative_url != "/private-feed") {
           return nullptr;
         }
@@ -1897,11 +1942,32 @@ IN_PROC_BROWSER_TEST_F(DaoHomeExternalUIBrowserTest,
         } else {
           response->set_content("<main>Source unavailable</main>");
         }
+        if (cookies.contains("background_writes=1")) {
+          response->AddCustomHeader(
+              "Set-Cookie", "heartbeat=" + base::NumberToString(hits->load()) +
+                                "; Path=/; HttpOnly");
+          response->set_content(
+              "<main data-signed-in>Active account</main><script>"
+              "document.cookie = 'client_heartbeat=' + Math.random() + '; "
+              "Path=/';"
+              "localStorage.setItem('heartbeat', String(Math.random()));"
+              "localStorage.setItem('transient', '1');"
+              "localStorage.removeItem('transient');</script>");
+        }
+        if (cookies.contains("use_cookie_store=1")) {
+          response->set_content(R"(
+            <main data-signed-in>Cookie Store page</main><script type=module>
+            await cookieStore.set('store_heartbeat', crypto.randomUUID());
+            </script>)");
+        }
+        if (cookies.contains("worker_account=new")) {
+          response->set_content("<main data-signed-in>Worker account</main>");
+        }
         return response;
       },
       hits, hold_next, status));
-  net::test_server::ControllableHttpResponse slow(embedded_test_server(),
-                                                  "/private-feed");
+  net::test_server::ControllableHttpResponseManager held(embedded_test_server(),
+                                                         "/private-feed");
   ASSERT_TRUE(embedded_test_server()->Start());
   const GURL fixture = embedded_test_server()->GetURL("/private-feed");
   ASSERT_TRUE(
@@ -1916,12 +1982,7 @@ IN_PROC_BROWSER_TEST_F(DaoHomeExternalUIBrowserTest,
                                      fixture.DeprecatedGetOriginAsURL().spec());
   HomeFileSnapshot files = {
       {"manifest.json", std::move(manifest)},
-      {"index.html",
-       "<!doctype html><html><body><main id='feed'>Loading</main><script "
-       "src='app.js' defer></script></body></html>"},
-      {"app.js",
-       "dao.sources.collect('feed').then(items => { "
-       "document.getElementById('feed').textContent = items[0].title; });"},
+      {"index.html", "<!doctype html><main>Signed-in source fixture</main>"},
       {"connectors/feed.js",
        "export default {async collect(page) { if (!await "
        "page.exists('[data-signed-in]')) throw new Error('Fixture is not "
@@ -1992,39 +2053,41 @@ IN_PROC_BROWSER_TEST_F(DaoHomeExternalUIBrowserTest,
   ASSERT_TRUE(base::JSONWriter::Write(result, &serialized));
   EXPECT_EQ(std::string::npos, serialized.find("private-cookie-value"));
   EXPECT_EQ(std::string::npos, serialized.find("Signed-in fixture content"));
-  content::RenderFrameHost* frame = nullptr;
-  preview->ForEachRenderFrameHost([&](content::RenderFrameHost* candidate) {
-    if (candidate->GetLastCommittedURL().path().find(draft_id_) !=
-        std::string::npos) {
-      frame = candidate;
-    }
-  });
-  ASSERT_TRUE(frame);
-  EXPECT_EQ(
-      "Signed-in fixture content",
-      content::EvalJs(frame, "document.querySelector('main').textContent"));
+  // Exercise the connector without tying these reads to a rendered document.
+  ASSERT_TRUE(content::ExecJs(preview, content::JsReplace(R"(
+    window.readFeed = fresh => document.querySelector('dao-home-app')
+        .connectorHost_.collectDraft($1, 'feed', {}, fresh)
+        .then(items => items[0].title, e => e.code);
+  )",
+                                                          draft_id_)));
+  const char read[] = "readFeed(false)";
+  const char refresh[] = "readFeed(true)";
+  EXPECT_EQ("Signed-in fixture content", content::EvalJs(preview, read));
   EXPECT_EQ(1, hits->load());
-  const char read[] =
-      "dao.sources.collect('feed').then(v => v[0].title, e => e.code)";
-  const char refresh[] =
-      "dao.sources.collect('feed', {}, {fresh:true}).then(v => v[0].title, e "
-      "=> e.code)";
   ASSERT_TRUE(
       content::SetCookie(browser()->GetProfile(), fixture,
                          "home_fixture=private-cookie-value; Max-Age=3600; "
                          "Path=/; HttpOnly; SameSite=Lax"));
-  EXPECT_EQ("Signed-in fixture content", content::EvalJs(frame, read));
+  EXPECT_EQ("Signed-in fixture content", content::EvalJs(preview, read));
   EXPECT_EQ(1, hits->load());
   status->store(net::HTTP_SERVICE_UNAVAILABLE);
-  EXPECT_EQ("temporarily_unavailable", content::EvalJs(frame, refresh));
-  EXPECT_EQ("Signed-in fixture content", content::EvalJs(frame, read));
+  const GURL preview_url("chrome-untrusted://dao-home-app/preview/" +
+                         draft_id_ + "/index.html");
+  auto* rendered = content::FrameMatchingPredicate(
+      preview->GetPrimaryPage(),
+      base::BindRepeating(&content::FrameHasSourceUrl, preview_url));
+  ASSERT_TRUE(rendered);
+  EXPECT_EQ("temporarily_unavailable", content::EvalJs(rendered, R"(
+    dao.sources.collect('feed', {}, {fresh:true}).then(() => 'accepted', e => e.code)
+  )"));
+  EXPECT_EQ("Signed-in fixture content", content::EvalJs(preview, read));
   EXPECT_EQ(2, hits->load());
 
   status->store(net::HTTP_OK);
   ASSERT_TRUE(content::SetCookie(browser()->GetProfile(),
                                  GURL("https://elsewhere.test/"),
                                  "unrelated=value; Path=/"));
-  EXPECT_EQ("Signed-in fixture content", content::EvalJs(frame, read));
+  EXPECT_EQ("Signed-in fixture content", content::EvalJs(preview, read));
   EXPECT_EQ(2, hits->load());
   const std::string pending =
       content::EvalJs(preview, content::JsReplace(R"(
@@ -2054,7 +2117,7 @@ IN_PROC_BROWSER_TEST_F(DaoHomeExternalUIBrowserTest,
     })()
   )",
                                                         pending)));
-  EXPECT_EQ("Second account", content::EvalJs(frame, read));
+  EXPECT_EQ("Second account", content::EvalJs(preview, read));
   EXPECT_EQ(4, hits->load());
 
   base::test::TestFuture<void> cleared;
@@ -2062,16 +2125,16 @@ IN_PROC_BROWSER_TEST_F(DaoHomeExternalUIBrowserTest,
       content::StoragePartition::REMOVE_DATA_MASK_LOCAL_STORAGE,
       fixture.DeprecatedGetOriginAsURL(), cleared.GetCallback());
   ASSERT_TRUE(cleared.Wait());
-  EXPECT_EQ("Second account", content::EvalJs(frame, read));
+  EXPECT_EQ("Second account", content::EvalJs(preview, read));
   EXPECT_EQ(5, hits->load());
 
   hold_next->store(true);
   ASSERT_TRUE(content::ExecJs(
-      frame, std::string("window.pendingRead = ") + refresh + "; true;"));
-  slow.WaitForRequest();
-  ASSERT_TRUE(slow.http_request()->headers.at("Cookie").contains(
+      preview, std::string("window.pendingRead = ") + refresh + "; true;"));
+  auto slow = held.WaitForRequest();
+  ASSERT_TRUE(slow->http_request()->headers.at("Cookie").contains(
       "home_fixture=second-account"));
-  slow.Send(
+  slow->Send(
       "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nCache-Control: "
       "no-store\r\n\r\n"
       "<main data-signed-in>Second account</main>");
@@ -2079,50 +2142,50 @@ IN_PROC_BROWSER_TEST_F(DaoHomeExternalUIBrowserTest,
       content::SetCookie(browser()->GetProfile(), fixture,
                          "home_fixture=private-cookie-value; Max-Age=600; "
                          "Path=/; HttpOnly; SameSite=Lax"));
-  slow.Done();
-  EXPECT_EQ("session_changed", content::EvalJs(frame, "window.pendingRead"));
-  EXPECT_EQ("Signed-in fixture content", content::EvalJs(frame, read));
+  slow->Done();
+  EXPECT_EQ("session_changed", content::EvalJs(preview, "window.pendingRead"));
+  EXPECT_EQ("Signed-in fixture content", content::EvalJs(preview, read));
   EXPECT_EQ(7, hits->load());
 
   ASSERT_TRUE(content::SetCookie(
       browser()->GetProfile(), fixture,
       "home_fixture=private-cookie-value; Max-Age=3600; Path=/; SameSite=Lax"));
-  EXPECT_EQ("Signed-in fixture content", content::EvalJs(frame, read));
+  EXPECT_EQ("Signed-in fixture content", content::EvalJs(preview, read));
   EXPECT_EQ(8, hits->load());
 
   status->store(net::HTTP_UNAUTHORIZED);
-  EXPECT_EQ("auth_required", content::EvalJs(frame, refresh));
-  EXPECT_EQ("auth_required", content::EvalJs(frame, read));
+  EXPECT_EQ("auth_required", content::EvalJs(preview, refresh));
+  EXPECT_EQ("auth_required", content::EvalJs(preview, read));
   EXPECT_EQ(10, hits->load());
   status->store(net::HTTP_OK);
   ASSERT_TRUE(content::SetCookie(browser()->GetProfile(), fixture,
                                  "bootstrap=1; Path=/"));
-  EXPECT_EQ("Signed-in fixture content", content::EvalJs(frame, read));
-  EXPECT_EQ(12, hits->load());
-  EXPECT_EQ("Signed-in fixture content", content::EvalJs(frame, read));
-  EXPECT_EQ(12, hits->load());
+  EXPECT_EQ("Signed-in fixture content", content::EvalJs(preview, read));
+  EXPECT_EQ(11, hits->load());
+  EXPECT_EQ("Signed-in fixture content", content::EvalJs(preview, read));
+  EXPECT_EQ(11, hits->load());
   ASSERT_TRUE(
       content::SetCookie(browser()->GetProfile(), fixture,
                          "home_fixture=; Max-Age=0; Path=/; SameSite=Lax"));
   ASSERT_TRUE(content::SetCookie(browser()->GetProfile(), fixture,
                                  "home_fixture=second-account; Max-Age=2; "
                                  "Path=/private-feed; HttpOnly; SameSite=Lax"));
-  EXPECT_EQ("Second account", content::EvalJs(frame, read));
-  EXPECT_EQ("Second account", content::EvalJs(frame, read));
-  EXPECT_EQ(13, hits->load());
+  EXPECT_EQ("Second account", content::EvalJs(preview, read));
+  EXPECT_EQ("Second account", content::EvalJs(preview, read));
+  EXPECT_EQ(12, hits->load());
   ASSERT_TRUE(content::ExecJs(
-      frame, "new Promise(resolve => setTimeout(resolve, 2200))"));
-  EXPECT_EQ("Guest", content::EvalJs(frame, read));
-  EXPECT_EQ(14, hits->load());
+      preview, "new Promise(resolve => setTimeout(resolve, 2200))"));
+  EXPECT_EQ("Guest", content::EvalJs(preview, read));
+  EXPECT_EQ(13, hits->load());
 
   ASSERT_TRUE(content::NavigateToURL(ordinary, fixture));
   ASSERT_TRUE(
       content::ExecJs(ordinary, "localStorage.setItem('account', 'Local A')"));
-  EXPECT_EQ("Local A", content::EvalJs(frame, read));
+  EXPECT_EQ("Local A", content::EvalJs(preview, read));
   const auto account_a_visits = hits->load();
   ASSERT_TRUE(
       content::ExecJs(ordinary, "localStorage.setItem('account', 'Local A')"));
-  EXPECT_EQ("Local A", content::EvalJs(frame, read));
+  EXPECT_EQ("Local A", content::EvalJs(preview, read));
   EXPECT_EQ(account_a_visits, hits->load());
 
   const auto pending_local =
@@ -2140,14 +2203,131 @@ IN_PROC_BROWSER_TEST_F(DaoHomeExternalUIBrowserTest,
       (await bridge.finishHomeConnector($1, [{title: 'Local A'}])).code)
   )",
                                                         pending_local)));
-  EXPECT_EQ("Local B", content::EvalJs(frame, read));
+  EXPECT_EQ("Local B", content::EvalJs(preview, read));
   ASSERT_TRUE(content::ExecJs(ordinary, "localStorage.removeItem('account')"));
-  EXPECT_EQ("Guest", content::EvalJs(frame, read));
+  EXPECT_EQ("Guest", content::EvalJs(preview, read));
   ASSERT_TRUE(
       content::ExecJs(ordinary, "localStorage.setItem('account', 'Local C')"));
-  EXPECT_EQ("Local C", content::EvalJs(frame, read));
+  EXPECT_EQ("Local C", content::EvalJs(preview, read));
   ASSERT_TRUE(content::ExecJs(ordinary, "localStorage.clear()"));
-  EXPECT_EQ("Guest", content::EvalJs(frame, read));
+  EXPECT_EQ("Guest", content::EvalJs(preview, read));
+  ASSERT_TRUE(content::SetCookie(browser()->GetProfile(), fixture,
+                                 "background_writes=1; Path=/"));
+  EXPECT_EQ("Active account", content::EvalJs(preview, read));
+  EXPECT_EQ("Active account", content::EvalJs(preview, refresh));
+  const int after_refresh = hits->load();
+  EXPECT_EQ("Active account", content::EvalJs(preview, read));
+  EXPECT_EQ(after_refresh, hits->load());
+  const auto pending_cookie =
+      content::EvalJs(preview, content::JsReplace(R"(
+    import('./home_bridge.js').then(async bridge =>
+      (await bridge.startHomeDraftConnector($1, 'feed', {}, true)).execution_id)
+  )",
+                                                  draft_id_))
+          .ExtractString();
+  ASSERT_TRUE(content::ExecJs(
+      ordinary, "document.cookie = 'client_heartbeat=other-account; Path=/'"));
+  EXPECT_EQ("session_changed",
+            content::EvalJs(preview, content::JsReplace(R"(
+    import('./home_bridge.js').then(async bridge =>
+      (await bridge.finishHomeConnector($1, [{title:'Previous account'}])).code)
+  )",
+                                                        pending_cookie)));
+  const auto diagnostics = Call("project.diagnostics");
+  const auto* entries = diagnostics.FindList("diagnostics");
+  ASSERT_TRUE(entries);
+  for (const auto* reason : {"cookie_changed", "local_storage_changed"}) {
+    EXPECT_TRUE(std::ranges::any_of(*entries, [&](const base::Value& entry) {
+      const auto* cause = entry.GetDict().FindString("reason");
+      return cause && *cause == reason &&
+             *entry.GetDict().FindString("code") == "session_changed";
+    })) << diagnostics.DebugString();
+  }
+  ASSERT_TRUE(content::SetCookie(browser()->GetProfile(), fixture,
+                                 "use_cookie_store=1; Path=/"));
+  EXPECT_EQ("Cookie Store page", content::EvalJs(preview, read));
+  EXPECT_EQ("Cookie Store page", content::EvalJs(preview, refresh));
+  EXPECT_TRUE(content::GetCookies(browser()->GetProfile(), fixture)
+                  .contains("store_heartbeat="));
+  auto start_read = [&] {
+    return content::EvalJs(preview, content::JsReplace(R"(
+      import('./home_bridge.js').then(async bridge =>
+        (await bridge.startHomeDraftConnector($1, 'feed', {}, true)).execution_id)
+    )",
+                                                       draft_id_))
+        .ExtractString();
+  };
+  ASSERT_TRUE(content::ExecJs(ordinary, R"(
+    (async () => {
+      await navigator.serviceWorker.register('/home-worker.js');
+      window.sourceWorker = (await navigator.serviceWorker.ready).active;
+    })()
+  )"));
+  const auto worker_read = start_read();
+  const auto previous_title =
+      content::EvalJs(preview, content::JsReplace(R"(
+    import('./home_bridge.js').then(bridge =>
+      bridge.callHomeConnectorPage($1, 'getText', ['main']))
+  )",
+                                                  worker_read))
+          .ExtractString();
+  ASSERT_EQ("Cookie Store page", previous_title);
+  ASSERT_TRUE(content::EvalJs(ordinary, R"(
+    new Promise(resolve => {
+      const channel = new MessageChannel();
+      channel.port1.onmessage = e => resolve(e.data);
+      sourceWorker.postMessage('switch', [channel.port2]);
+    })
+  )")
+                  .ExtractBool());
+  EXPECT_TRUE(content::GetCookies(browser()->GetProfile(), fixture)
+                  .contains("worker_account=new"));
+  EXPECT_EQ("session_changed",
+            content::EvalJs(preview,
+                            content::JsReplace(R"(
+    import('./home_bridge.js').then(async bridge => {
+      const reply = await bridge.finishHomeConnector($1, [{title: $2}]);
+      return reply.code || 'accepted';
+    })
+  )",
+                                               worker_read, previous_title)));
+
+  EXPECT_EQ("Worker account", content::EvalJs(preview, read));
+
+  for (bool same_document : {true, false}) {
+    SCOPED_TRACE(same_document);
+    content::WebContentsAddedObserver source_created;
+    const auto late_login = start_read();
+    ASSERT_FALSE(late_login.empty());
+    auto* source = source_created.GetWebContents();
+    ASSERT_TRUE(content::ExecJs(
+        ordinary, content::JsReplace(
+                      "document.cookie = 'delivery_marker=' + $1 + '; Path=/'",
+                      same_document ? "form" : "http")));
+    ASSERT_TRUE(content::ExecJs(preview, content::JsReplace(R"(
+    window.delayedResult = import('./home_bridge.js').then(bridge =>
+      bridge.finishHomeConnector($1, [{title: 'old'}]));
+    true
+  )",
+                                                            late_login)));
+    auto* ui = preview->GetWebUI()->GetController()->GetAs<DaoHomeUI>();
+    ASSERT_TRUE(base::test::RunUntil([&] {
+      return ui->IsAwaitingCollectionDeliveryForTesting(late_login);
+    }));
+    if (same_document) {
+      ASSERT_TRUE(content::ExecJs(source, R"(
+        document.body.innerHTML = '<form><input type="password"></form>';
+      )"));
+    } else {
+      source->GetController().LoadURLWithParams(
+          content::NavigationController::LoadURLParams(
+              fixture.Resolve("/private-feed/expired")));
+    }
+    EXPECT_EQ(
+        "auth_required",
+        content::EvalJs(
+            preview, "delayedResult.then(reply => reply.code || 'accepted')"));
+  }
   const int before_retest = hits->load();
   const auto retest = Call(
       "draft.test_source",
