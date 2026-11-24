@@ -160,6 +160,30 @@ describe('ConnectorHost', () => {
     expect(bridge.startHomeConnector).toHaveBeenCalledTimes(3);
   });
 
+  it('revokes a stale document on a native session change even when both accounts show the same count', async () => {
+    bridge.startHomeConnector.mockResolvedValueOnce({cached: 0, stale: true});
+    bridge.finishHomeConnector.mockResolvedValueOnce({
+      error: 'Changed', code: 'session_changed', retry_live: true,
+    });
+    const read = expect(host.collect('feed', {}, false, vi.fn())).rejects.toMatchObject({code: 'session_changed'});
+    await vi.waitFor(() => expect(frames).toHaveLength(1));
+    await message(frames[0]!, 'feed', {type: 'complete', result: 0});
+    expect(bridge.startHomeConnector).toHaveBeenCalledTimes(2);
+    await read;
+  });
+
+  it('reopens a manual read once after a possible credential change', async () => {
+    bridge.finishHomeConnector.mockResolvedValueOnce({
+      error: 'Changed', code: 'session_changed', retry_live: true,
+    });
+    const read = host.collect('feed', {}, true);
+    await vi.waitFor(() => expect(frames).toHaveLength(1));
+    await message(frames[0]!, 'feed', {type: 'complete', result: 'before'});
+    await vi.waitFor(() => expect(frames).toHaveLength(2));
+    await message(frames[1]!, 'feed', {type: 'complete', result: 'after'});
+    await expect(read).resolves.toBe('after');
+  });
+
   it('starts a new read when the in-flight read belongs to a previous session', async () => {
     const probe = Promise.withResolvers<unknown>();
     bridge.startHomeConnector.mockImplementation(async (_revision, id, input, mode) =>

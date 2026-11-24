@@ -4,15 +4,42 @@
 
 #include "dao/browser/home/dao_home_project_service.h"
 
+#include <array>
+
 #include "base/files/scoped_temp_dir.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
 #include "base/time/time_override.h"
+#include "dao/common/home_local_storage.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace dao {
 namespace {
+
+TEST(DaoHomeProjectServiceTest,
+     StorageReadsMatchAcrossEncodingsAndFailClosedAtLimit) {
+  constexpr std::array<uint8_t, 3> latin = {1, 'A', 0xe9};
+  constexpr std::array<uint8_t, 5> utf16 = {0, 'A', 0, 0xe9, 0};
+  const auto key = HomeLocalStorageKeyHash(latin);
+  ASSERT_TRUE(key);
+  EXPECT_EQ(key, HomeLocalStorageKeyHash(utf16));
+  EXPECT_FALSE(HomeLocalStorageKeyHash(std::array<uint8_t, 2>{0, 1}));
+  HomeStorageReads reads(std::in_place);
+  for (uint32_t i = 0; i < kMaxHomeStorageReadKeys; ++i) {
+    AddHomeStorageRead(reads, i);
+  }
+  MergeHomeStorageReads(reads, HomeStorageReads(std::vector<uint32_t>{0, 1}));
+  ASSERT_TRUE(reads);
+  EXPECT_EQ(kMaxHomeStorageReadKeys, reads->size());
+  AddHomeStorageRead(reads, kMaxHomeStorageReadKeys);
+  EXPECT_FALSE(reads);
+  auto external_writer = std::make_shared<bool>(false);
+  const HomeSourceWrite write{"local_storage_changed", external_writer, key};
+  EXPECT_TRUE(write.MayAffect(reads));
+  EXPECT_FALSE(write.MayAffect(HomeStorageReads(std::in_place)));
+  EXPECT_TRUE(write.MayAffect(HomeStorageReads(std::vector<uint32_t>{*key})));
+}
 
 TEST(DaoHomeProjectServiceTest, CollectionCacheBoundsExpiryAndScope) {
   base::test::TaskEnvironment time(

@@ -40,6 +40,7 @@
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/common/chrome_paths.h"
+#include "chrome/common/chrome_render_frame.mojom.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
@@ -62,10 +63,13 @@
 #include "dao/browser/strings/grit/dao_strings.h"
 #include "dao/browser/ui/views/dao_agent_sidebar_view.h"
 #include "dao/browser/ui/webui/dao_home_ui.h"
+#include "net/dns/mock_host_resolver.h"
 #include "net/http/http_status_code.h"
+#include "mojo/public/cpp/bindings/associated_remote.h"
 #include "net/test/embedded_test_server/controllable_http_response.h"
 #include "net/test/embedded_test_server/http_request.h"
 #include "net/test/embedded_test_server/http_response.h"
+#include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
 #include "ui/base/base_window.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/views/controls/webview/webview.h"
@@ -99,6 +103,7 @@ class DaoHomeExternalUIBrowserTest : public InProcessBrowserTest {
   }
 
   void SetUpOnMainThread() override {
+    host_resolver()->AddRule("*.a.test", "127.0.0.1");
     InProcessBrowserTest::SetUpOnMainThread();
     DaoHomeExternalService::Get()->SetApprovalForTesting(
         base::BindRepeating([](Profile*) { return true; }));
@@ -1869,6 +1874,293 @@ IN_PROC_BROWSER_TEST_F(DaoHomeExternalUIBrowserTest,
       return (await bridge.startHomeConnector((await bridge.getHomeSnapshot()).revision, 'first', {})).code;
     })()
   )"));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoHomeExternalUIBrowserTest,
+                       WaitsForInitialCookiesForAllSourceOrigins) {
+  auto* profile = browser()->GetProfile();
+  auto* service = DaoHomeProjectServiceFactory::GetForProfile(profile);
+  HomeCollectionKey key{"",
+                        "revision",
+                        "feed",
+                        "",
+                        "",
+                        {url::Origin::Create(GURL("https://mail.a.test")),
+                         url::Origin::Create(GURL("https://play.a.test"))}};
+  auto watches =
+      service->WatchSourceData(profile->GetDefaultStoragePartition(), key);
+  EXPECT_FALSE(service->SourceWatchesReady(watches));
+  base::test::TestFuture<void> initialized;
+  service->WhenSourceWatchesInitialized(watches, initialized.GetCallback());
+  EXPECT_TRUE(initialized.Wait());
+  EXPECT_TRUE(service->SourceWatchesReady(watches));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoHomeExternalUIBrowserTest,
+                       ConcurrentSourcesCanRotateParentDomainCookies) {
+  net::EmbeddedTestServer server(net::EmbeddedTestServer::TYPE_HTTPS);
+  server.SetSSLConfig(net::EmbeddedTestServer::CERT_TEST_NAMES);
+  server.RegisterRequestHandler(base::BindRepeating(
+      [](const net::test_server::HttpRequest& request)
+          -> std::unique_ptr<net::test_server::HttpResponse> {
+        if (request.relative_url != "/feed") {
+          return nullptr;
+        }
+        auto response = std::make_unique<net::test_server::BasicHttpResponse>();
+        response->set_content_type("text/html");
+        response->set_content("<main>Current</main>");
+        return response;
+      }));
+  net::test_server::ControllableHttpResponse mail(&server, "/feed/mail");
+  net::test_server::ControllableHttpResponse play(&server, "/feed/play");
+  ASSERT_TRUE(server.Start());
+  ASSERT_TRUE(
+      content::SetCookie(browser()->GetProfile(), server.GetURL("a.test", "/"),
+                         "heartbeat=initial; Domain=a.test; Path=/; Secure"));
+  auto files = BasicProject();
+  std::string manifest =
+      R"({"format_version":1,"entry":"index.html","routes":["/"],"connectors":[{"id":"mail","module":"source.js","schema":"schema.json","permissions":{"origins":["MAIL"],"paths":["/feed"],"capabilities":["read_dom"],"mode":"read"}},{"id":"play","module":"source.js","schema":"schema.json","permissions":{"origins":["PLAY"],"paths":["/feed"],"capabilities":["read_dom"],"mode":"read"}}],"limits":{"max_result_bytes":1048576,"max_items_per_connector":100}})";
+  base::ReplaceSubstringsAfterOffset(&manifest, 0, "MAIL",
+                                     server.GetURL("mail.a.test", "/").spec());
+  base::ReplaceSubstringsAfterOffset(&manifest, 0, "PLAY",
+                                     server.GetURL("play.a.test", "/").spec());
+  files["manifest.json"] = std::move(manifest);
+  files["source.js"] =
+      "export default {async collect(page) { return await "
+      "page.getText('main'); }};";
+  files["schema.json"] = R"({"type":"string"})";
+  ASSERT_NO_FATAL_FAILURE(OpenAndStage(std::move(files)));
+  base::test::TestFuture<base::DictValue> opened;
+  DaoHomeExternalService::Get()->ExecuteForTesting(
+      "draft.preview",
+      base::DictValue().Set("token", token_).Set("draft_id", draft_id_),
+      opened.GetCallback());
+  auto* service =
+      DaoHomeProjectServiceFactory::GetForProfile(browser()->GetProfile());
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return service->GetPendingPermission() || opened.IsReady(); }));
+  ASSERT_TRUE(service->GetPendingPermission())
+      << (opened.IsReady() ? opened.Get().DebugString() : "");
+  ASSERT_TRUE(service
+                  ->ApprovePermission(service->GetPendingPermission()->id,
+                                      {"mail", "play"})
+                  .has_value());
+  const auto result = opened.Take();
+  ASSERT_EQ(true, result.FindBool("publishable")) << result.DebugString();
+  auto* home = PreviewContents();
+  ASSERT_TRUE(home);
+  ASSERT_TRUE(content::ExecJs(
+      home,
+      content::JsReplace(R"(
+    window.results = import('./home_bridge.js').then(bridge =>
+      Promise.all(['mail', 'play'].map(async (id, i) => {
+        const run = await bridge.startHomeDraftConnector($1, id, {}, true);
+        if (run.error) return run.code;
+        const nav = await bridge.callHomeConnectorPage(run.execution_id, 'navigate', [[$2,$3][i]]);
+        if (nav.error) return nav.code;
+        const value = await bridge.callHomeConnectorPage(run.execution_id, 'getText', ['main']);
+        const finish = await bridge.finishHomeConnector(run.execution_id, value);
+        return finish.code || finish.result;
+      })));
+    true;
+  )",
+                         draft_id_, server.GetURL("mail.a.test", "/feed/mail"),
+                         server.GetURL("play.a.test", "/feed/play"))));
+  mail.WaitForRequest();
+  play.WaitForRequest();
+  for (auto [endpoint, value] :
+       {std::pair{&mail, "mail"}, std::pair{&play, "play"}}) {
+    endpoint->Send(std::string("HTTP/1.1 200 OK\r\nContent-Type: "
+                               "text/html\r\nSet-Cookie: heartbeat=") +
+                   value + "; Domain=a.test; Path=/; Secure\r\n\r\n<main>" +
+                   value + "</main>");
+    endpoint->Done();
+  }
+  EXPECT_EQ(
+      "mail,play",
+      content::EvalJs(home, "window.results.then(values => values.join(','))"));
+  const std::string cookies = content::GetCookies(browser()->GetProfile(),
+                                                  server.GetURL("a.test", "/"));
+  EXPECT_TRUE(cookies.contains("heartbeat=mail") ||
+              cookies.contains("heartbeat=play"));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoHomeExternalUIBrowserTest,
+                       FeedUpdatesWhileScrollingAndClearsPreviousAccountCards) {
+  g_browser_process->local_state()->SetBoolean(prefs::kDaoMcpServerEnabled,
+                                               false);
+  auto edition = std::make_shared<std::atomic_int>(0);
+  net::test_server::ControllableHttpResponse account_read(
+      embedded_test_server(), "/account-read");
+  embedded_test_server()->RegisterRequestHandler(base::BindRepeating(
+      [](std::shared_ptr<std::atomic_int> edition,
+         const net::test_server::HttpRequest& request)
+          -> std::unique_ptr<net::test_server::HttpResponse> {
+        if (request.relative_url != "/writer" &&
+            request.relative_url != "/feed" &&
+            request.relative_url != "/widget") {
+          return nullptr;
+        }
+        auto response = std::make_unique<net::test_server::BasicHttpResponse>();
+        response->set_content_type("text/html");
+        response->AddCustomHeader("Cache-Control", "no-store");
+        if (request.relative_url == "/widget") {
+          response->set_content("<main>Embedded widget</main>");
+        } else if (request.relative_url == "/writer") {
+          response->set_content(R"(
+            <script>
+              localStorage.setItem('account', 'A');
+              const channel = new BroadcastChannel('feed');
+              window.writes = 0;
+              channel.onmessage = e => {
+                if (e.data !== 'scroll') return;
+                localStorage.setItem('scroll', String(++writes));
+                channel.postMessage('written');
+              };
+            </script>
+          )");
+        } else {
+          response->set_content(content::JsReplace(
+              R"html(
+            <main></main><aside></aside><script>
+              for (let i = 0; i < 48; ++i) localStorage.getItem('feed.preference.' + i);
+              const account = localStorage.getItem('account');
+              document.querySelector('aside').textContent = 'Private ' + account;
+              const feed = document.querySelector('main');
+              feed.textContent = ['Initial', 'Updated', 'Manual', 'Manual', 'Manual'][$1];
+              const children = new Promise(resolve => addEventListener('load', resolve, {once:true}));
+              const ready = () => children.then(() => feed.id = 'ready');
+              if ($1 === 1 || $1 === 2) {
+                const channel = new BroadcastChannel('feed');
+                let seen = 0;
+                channel.onmessage = e => {
+                  if (e.data !== 'written') return;
+                  if (++seen === 3) ready();
+                  else channel.postMessage('scroll');
+                };
+                channel.postMessage('scroll');
+              } else if ($1 === 3) {
+                fetch('/account-read').then(ready);
+              } else ready();
+            </script>
+            <iframe src="about:blank"></iframe>
+            <iframe src="http://localhost:$2/widget"></iframe>
+            <iframe srcdoc="<script>
+              parent.document.querySelector('aside').append(localStorage.getItem('suffix') || '');
+            </script>"></iframe>
+          )html",
+              edition->load(), request.GetURL().EffectiveIntPort()));
+        }
+        return response;
+      },
+      edition));
+  ASSERT_TRUE(embedded_test_server()->Start());
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), embedded_test_server()->GetURL("/writer")));
+  auto* ordinary = browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_EQ("A", content::EvalJs(ordinary, "localStorage.getItem('account')"));
+  mojo::AssociatedRemote<chrome::mojom::DaoHomeStorageSource> ordinary_storage;
+  ordinary->GetPrimaryMainFrame()->GetRemoteAssociatedInterfaces()->GetInterface(
+      &ordinary_storage);
+  base::test::TestFuture<const HomeStorageReads&> ordinary_reads;
+  ordinary_storage->GetReadKeys(ordinary_reads.GetCallback());
+  EXPECT_FALSE(ordinary_reads.Get().has_value());
+  auto files = BasicProject();
+  files["manifest.json"] =
+      content::JsReplace(R"(
+    {"format_version":1,"entry":"index.html","routes":["/"],
+     "connectors":[{"id":"feed","module":"source.js","schema":"schema.json",
+     "permissions":{"origins":[$1],"paths":["/feed"],"capabilities":["read_dom"],"mode":"read"}}]}
+  )",
+                         embedded_test_server()->GetURL("/").spec());
+  files["source.js"] = R"(
+    export default {async collect(page, input) {
+      await page.waitFor('#ready');
+      return page.getText(input.personal ? 'aside' : 'main');
+    }};
+  )";
+  files["schema.json"] = R"({"type":"string"})";
+  files["index.html"] =
+      "<!doctype html><main></main><aside></aside><script src='app.js' "
+      "defer></script>";
+  files["app.js"] = R"(
+    window.cardsReady = Promise.all([
+      dao.sources.collect('feed').then(value => document.querySelector('main').textContent = value),
+      dao.sources.collect('feed', {personal:true}).then(value => document.querySelector('aside').textContent = value)
+    ]);
+  )";
+  auto* service =
+      DaoHomeProjectServiceFactory::GetForProfile(browser()->GetProfile());
+  base::test::TestFuture<base::expected<HomeDraft, HomeError>> staged;
+  service->StageSnapshot("", std::move(files), "Account cards",
+                         staged.GetCallback());
+  ASSERT_TRUE(staged.Get().has_value());
+  base::test::TestFuture<base::expected<HomeVersion, HomeError>> published;
+  service->Publish(staged.Get()->id, HomeRevisionKind::kInitial,
+                   published.GetCallback(), nullptr);
+  ASSERT_TRUE(published.Get().has_value());
+  base::test::TestFuture<base::expected<void, HomeError>> granted;
+  service->GrantConnector("feed", granted.GetCallback());
+  ASSERT_TRUE(granted.Get().has_value());
+  const GURL app("chrome-untrusted://dao-home-app/" + published.Get()->id +
+                 "/index.html?route=%2F");
+  content::TestNavigationObserver loaded(app);
+  loaded.StartWatchingNewWebContents();
+  ASSERT_TRUE(
+      AddTabAtIndex(-1, GURL("dao://home/"), ui::PAGE_TRANSITION_TYPED));
+  loaded.Wait();
+  auto* home = browser()->tab_strip_model()->GetActiveWebContents();
+  auto project_frame = [&] {
+    content::RenderFrameHost* project = nullptr;
+    home->ForEachRenderFrameHost([&](content::RenderFrameHost* frame) {
+      if (frame->GetLastCommittedURL() == app) {
+        project = frame;
+      }
+    });
+    return project;
+  };
+  auto* frame = project_frame();
+  ASSERT_TRUE(frame);
+  ASSERT_EQ(
+      "Initial,Private A",
+      content::EvalJs(frame, "cardsReady.then(values => values.join(','))"));
+
+  edition->store(1);
+  service->AgeCachedCollectionsForTesting(base::Minutes(31));
+  ASSERT_EQ("Initial", content::EvalJs(frame, R"(
+    window.update = Promise.withResolvers();
+    dao.sources.collect('feed', {}, {onUpdate: update.resolve})
+  )"));
+  ASSERT_EQ("Updated", content::EvalJs(frame, "update.promise"));
+  edition->store(2);
+  ASSERT_EQ(
+      "Manual",
+      content::EvalJs(frame, "dao.sources.collect('feed', {}, {fresh:true})"));
+  ASSERT_GE(content::EvalJs(ordinary, "writes").ExtractInt(), 6);
+
+  // The feed looks identical across accounts. The one-shot private card
+  // differs.
+  edition->store(3);
+  service->AgeCachedCollectionsForTesting(base::Minutes(31));
+  ASSERT_EQ("Manual", content::EvalJs(frame, "dao.sources.collect('feed')"));
+  account_read.WaitForRequest();
+  edition->store(4);
+  ASSERT_TRUE(
+      content::ExecJs(ordinary, "localStorage.setItem('account', 'B')"));
+  account_read.Send(net::HTTP_OK, "text/plain", "ok");
+  account_read.Done();
+  auto shows_private_card = [&](std::string_view expected) {
+    return base::test::RunUntil([&] {
+      auto* current = project_frame();
+      return current &&
+             content::EvalJs(current,
+                             "document.querySelector('aside')?.textContent") ==
+                 expected;
+    });
+  };
+  ASSERT_TRUE(shows_private_card("Private B"));
+  ASSERT_TRUE(content::ExecJs(ordinary, "localStorage.setItem('suffix', '!')"));
+  EXPECT_TRUE(shows_private_card("Private B!"));
 }
 
 IN_PROC_BROWSER_TEST_F(DaoHomeExternalUIBrowserTest,
