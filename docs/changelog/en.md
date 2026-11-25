@@ -4,6 +4,8 @@
 
 ### [Unreleased] Unreleased
 
+- When a Dao Lite task uses several tabs, its live preview now follows the tab the AI is working on and keeps updating when that tab opens another website.
+
 ### [1.0.144] - 2026-11-25
 
 - Dao Home cards can now load and refresh when a signed-in site updates its cookies or local storage. Cards keep their images when another card refreshes. Updated content can appear while you browse the site in another tab, and Home clears previously displayed account data when it detects a session change.

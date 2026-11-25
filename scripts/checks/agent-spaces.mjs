@@ -20,7 +20,9 @@ let child, stderr = '';
 
 const server = createServer((req, res) => {
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  const color = {'/second': 'blue', '/landing': 'purple'}[req.url] ?? 'red';
   res.end(`<!doctype html><title>Space check</title>
+    <style>html { background: ${color} }</style>
     <button onclick="document.body.dataset.clicked = 'yes'">Press me</button>`);
 });
 await new Promise(resolveListen => server.listen(0, '127.0.0.1', resolveListen));
@@ -164,8 +166,11 @@ try {
   // Let startup work settle before measuring the idle baseline.
   await delay(15000);
   const idle = await sampleUsage(10000);
-  const pagesBefore = (await (await fetch(`http://127.0.0.1:${port}/json/list`)).json())
-      .filter(target => target.type === 'page' && target.url.startsWith('http')).length;
+  const targets = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
+  const pagesBefore = targets.filter(target => target.type === 'page' && target.url.startsWith('http')).length;
+  const sidebar = targets.find(target => target.url === 'dao://sidebar/');
+  assert.ok(sidebar, 'sidebar WebUI target');
+  const sidebarSend = await connect(sidebar.webSocketDebuggerUrl);
   const created = runCli(['call', 'create_space',
     JSON.stringify({name: 'Spaces check', url: `${origin}/`})]);
   let createdEarly = null;
@@ -212,12 +217,31 @@ try {
   assert.ok(Array.isArray(JSON.parse(skills.out)));
   console.log('PASS the CLI saves script files locally and lists site skills');
 
-  const sidebar = (await (await fetch(`http://127.0.0.1:${port}/json/list`)).json())
-      .find(target => target.url === 'dao://sidebar/');
-  assert.ok(sidebar, 'sidebar WebUI target');
-  const sidebarSend = await connect(sidebar.webSocketDebuggerUrl);
   const action = name => evaluate(sidebarSend,
       `chrome.send('agentSpaceAction', ${JSON.stringify([name, spaceId])})`);
+  const tasks = "document.querySelector('dao-sidebar-app').shadowRoot.querySelector('dao-agent-spaces').shadowRoot";
+  async function expectPageColor(red, blue) {
+    await until(() => evaluate(sidebarSend, `(() => {
+      const image = ${tasks}.querySelector('.frame img');
+      if (!image?.naturalWidth) return false;
+      const ctx = document.createElement('canvas').getContext('2d');
+      ctx.drawImage(image, image.naturalWidth / 2, image.naturalHeight / 2, 1, 1, 0, 0, 1, 1);
+      const pixel = ctx.getImageData(0, 0, 1, 1).data;
+      return Math.abs(pixel[0] - ${red}) < 10 && Math.abs(pixel[2] - ${blue}) < 10;
+    })()`), `preview pixel with red=${red} and blue=${blue}`);
+  }
+  await evaluate(sidebarSend, `${tasks}.querySelector('.row').click()`);
+  await expectPageColor(255, 0);
+  const moved = await runCli(['call', 'move_cursor',
+    JSON.stringify({space_id: spaceId, x: 120, y: 80})]);
+  assert.equal(moved.code, 0, moved.err);
+  const hasPointer = () => evaluate(sidebarSend, `!!${tasks}.querySelector('.pointer')`);
+  await until(hasPointer, 'agent pointer on the first page');
+  const secondTab = await runCli(['call', 'open_tab',
+    JSON.stringify({space_id: spaceId, url: `${origin}/second`})]);
+  assert.equal(secondTab.code, 0, secondTab.err);
+  await expectPageColor(0, 255);
+  assert.equal(await hasPointer(), false, 'previous page pointer on the second page');
   async function waitForSpace(predicate, label) {
     await until(async () => {
       const result = await runCli(['call', 'list_spaces']);
@@ -238,6 +262,7 @@ try {
   await waitForSpace(s => s.status === 'Waiting for takeover', 'script started');
   await action('take_over');
   await waitForSpace(s => s.state === 'user_in_control', 'user has control');
+  await expectPageColor(255, 0);
   await action('hand_back');
   const resumed = await interrupted;
   assert.equal(resumed.code, 0, resumed.err);
@@ -249,6 +274,21 @@ try {
   assert.doesNotMatch(resumed.out, /partial output|unexpected result/);
   await assert.rejects(readFile(partialPath), {code: 'ENOENT'});
   console.log('PASS hand-back returns the interruption to the original CLI without partial output');
+
+  await expectPageColor(0, 255);
+  console.log('PASS live preview follows the agent tab and the selected tab during takeover');
+
+  const pages = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
+  const watched = pages.find(target => target.url === `${origin}/second`);
+  assert.ok(watched, 'second task tab');
+  const watchedSend = await connect(watched.webSocketDebuggerUrl);
+  const navigation = await watchedSend('Page.navigate', {
+    url: `http://localhost:${server.address().port}/landing`,
+  });
+  assert.equal(navigation.errorText, undefined);
+  await expectPageColor(128, 128);
+  console.log('PASS live preview follows a cross-site navigation without reopening the panel');
+  await evaluate(sidebarSend, `${tasks}.querySelector('.row').click()`);
 
   const help = runCli(['run', '--space', spaceId, '--timeout', '3'], `
     await space.help('Choose the delivery address');

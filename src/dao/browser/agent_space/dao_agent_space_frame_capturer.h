@@ -9,9 +9,9 @@
 
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
-#include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
 #include "components/viz/host/client_frame_sink_video_capturer.h"
+#include "content/public/browser/web_contents_observer.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/gfx/geometry/size.h"
 
@@ -24,7 +24,8 @@ namespace dao {
 // Streams downscaled frames of one page while the user watches an Agent
 // Space. Capture only runs while an instance exists, so a space nobody is
 // looking at costs no frame copies.
-class DaoAgentSpaceFrameCapturer : public viz::mojom::FrameSinkVideoConsumer {
+class DaoAgentSpaceFrameCapturer : public content::WebContentsObserver,
+                                   public viz::mojom::FrameSinkVideoConsumer {
  public:
   // The bitmap only stays valid during the callback.
   using FrameCallback = base::RepeatingCallback<void(const SkBitmap&)>;
@@ -39,12 +40,14 @@ class DaoAgentSpaceFrameCapturer : public viz::mojom::FrameSinkVideoConsumer {
   DaoAgentSpaceFrameCapturer& operator=(const DaoAgentSpaceFrameCapturer&) =
       delete;
 
-  // Returns false when the page has no view to capture yet.
-  bool Start();
   void Stop();
-  content::WebContents* contents() const { return contents_.get(); }
 
  private:
+  void UpdateCaptureTarget();
+
+  // content::WebContentsObserver:
+  void PrimaryPageChanged(content::Page& page) override;
+
   // viz::mojom::FrameSinkVideoConsumer:
   void OnFrameCaptured(
       ::media::mojom::VideoBufferHandlePtr data,
@@ -58,7 +61,6 @@ class DaoAgentSpaceFrameCapturer : public viz::mojom::FrameSinkVideoConsumer {
   void OnStopped() override {}
   void OnLog(const std::string& message) override {}
 
-  base::WeakPtr<content::WebContents> contents_;
   const gfx::Size target_size_;
   const int max_frames_per_second_;
   FrameCallback callback_;

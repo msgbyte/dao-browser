@@ -343,6 +343,27 @@ content::WebContents* DaoAgentSpace::GetActiveContents() const {
   return tab ? tab->GetContents() : nullptr;
 }
 
+content::WebContents* DaoAgentSpace::GetPreviewContents() const {
+  if (is_closed()) {
+    return nullptr;
+  }
+  if (state_ == DaoAgentSpaceState::kRunning) {
+    if (auto* target = GetCurrentContents()) {
+      return target;
+    }
+  }
+  return GetActiveContents();
+}
+
+std::optional<gfx::PointF> DaoAgentSpace::GetCursorFor(
+    content::WebContents* contents) const {
+  if (state_ == DaoAgentSpaceState::kRunning && contents &&
+      cursor_contents_.get() == contents) {
+    return cursor_;
+  }
+  return std::nullopt;
+}
+
 int DaoAgentSpace::GetTabCount() const {
   TabListInterface* tab_list =
       browser_ ? TabListInterface::From(browser_.get()) : nullptr;
@@ -417,15 +438,16 @@ base::DictValue DaoAgentSpace::ToDict(bool include_events) const {
   if (stopped_for_inactivity_) {
     dict.Set("stop_reason", "inactive");
   }
-  if (content::WebContents* contents = GetCurrentContents()) {
+  content::WebContents* contents = GetCurrentContents();
+  if (contents) {
     dict.Set("tab_id", GetOrCreateSidebarTabId(contents));
     dict.Set("url", contents->GetVisibleURL().spec());
     dict.Set("title", base::UTF16ToUTF8(contents->GetTitle()));
   }
   if (include_events) {
-    if (cursor_) {
+    if (auto cursor = GetCursorFor(contents)) {
       dict.Set("cursor",
-               base::DictValue().Set("x", cursor_->x()).Set("y", cursor_->y()));
+               base::DictValue().Set("x", cursor->x()).Set("y", cursor->y()));
     }
     base::ListValue events;
     const size_t start = events_.size() > kMaxSerializedEvents
@@ -802,7 +824,7 @@ void DaoAgentSpace::MarkClosed(DaoAgentSpaceState state, std::string summary) {
   summary_ = std::move(summary);
   handoff_reason_ = DaoAgentSpaceHandoffReason::kNone;
   handoff_message_.clear();
-  cursor_.reset();
+  cursor_contents_.reset();
   for (DaoAgentSpaceEvent& event : events_) {
     event.pending = false;
   }
@@ -1008,6 +1030,7 @@ void DaoAgentSpace::MoveCursor(content::WebContents* target,
     if (viewport.IsEmpty()) {
       viewport = kSpaceViewportSize;
     }
+    cursor_contents_ = target->GetWeakPtr();
     cursor_ = gfx::PointF(std::clamp(x / viewport.width(), 0.0, 1.0),
                           std::clamp(y / viewport.height(), 0.0, 1.0));
     NotifyChanged();
@@ -1115,6 +1138,7 @@ void DaoAgentSpace::OnWebContentsReplaced(TabListInterface& tab_list,
   modal_dialog_watchers_.erase(tab->GetHandle());
   const std::string tab_id = GetOrCreateSidebarTabId(new_contents);
   TrackTab(tab, opened_by_.contains(tab_id) ? opened_by_[tab_id] : "agent");
+  NotifyChanged();
 }
 
 void DaoAgentSpace::OnTabListDestroyed(TabListInterface& tab_list) {

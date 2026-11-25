@@ -8,6 +8,9 @@
 #include <utility>
 
 #include "base/memory/read_only_shared_memory_region.h"
+#include "components/viz/common/surfaces/video_capture_target.h"
+#include "content/public/browser/render_frame_host.h"
+#include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
 #include "media/base/video_frame.h"
@@ -24,28 +27,36 @@ DaoAgentSpaceFrameCapturer::DaoAgentSpaceFrameCapturer(
     gfx::Size target_size,
     int max_frames_per_second,
     FrameCallback callback)
-    : contents_(contents ? contents->GetWeakPtr() : nullptr),
+    : content::WebContentsObserver(contents),
       target_size_(target_size),
       max_frames_per_second_(std::max(1, max_frames_per_second)),
-      callback_(std::move(callback)) {}
+      callback_(std::move(callback)) {
+  visible_capture_ = contents->IncrementCapturerCount(
+      target_size_, /*stay_hidden=*/false, /*stay_awake=*/false,
+      /*is_activity=*/false);
+  UpdateCaptureTarget();
+}
 
 DaoAgentSpaceFrameCapturer::~DaoAgentSpaceFrameCapturer() {
   Stop();
 }
 
-bool DaoAgentSpaceFrameCapturer::Start() {
+void DaoAgentSpaceFrameCapturer::PrimaryPageChanged(content::Page& page) {
+  UpdateCaptureTarget();
+}
+
+void DaoAgentSpaceFrameCapturer::UpdateCaptureTarget() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  auto* widget = web_contents()->GetPrimaryMainFrame()->GetRenderWidgetHost();
   if (video_capturer_) {
-    return true;
+    video_capturer_->ChangeTarget(
+        viz::VideoCaptureTarget(widget->GetFrameSinkId()));
+    return;
   }
-  content::RenderWidgetHostView* view =
-      contents_ ? contents_->GetRenderWidgetHostView() : nullptr;
+  content::RenderWidgetHostView* view = widget->GetView();
   if (!view) {
-    return false;
+    return;
   }
-  visible_capture_ = contents_->IncrementCapturerCount(
-      target_size_, /*stay_hidden=*/false, /*stay_awake=*/false,
-      /*is_activity=*/false);
   video_capturer_ = view->CreateVideoCapturer();
   video_capturer_->SetResolutionConstraints(target_size_, target_size_,
                                             /*use_fixed_aspect_ratio=*/false);
@@ -55,11 +66,11 @@ bool DaoAgentSpaceFrameCapturer::Start() {
   video_capturer_->SetMinCapturePeriod(base::Seconds(1) /
                                        max_frames_per_second_);
   video_capturer_->Start(this, viz::mojom::BufferFormatPreference::kDefault);
-  return true;
 }
 
 void DaoAgentSpaceFrameCapturer::Stop() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  Observe(nullptr);
   if (video_capturer_) {
     video_capturer_->Stop();
     video_capturer_.reset();

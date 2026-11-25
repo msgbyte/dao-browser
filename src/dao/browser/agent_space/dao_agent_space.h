@@ -134,7 +134,6 @@ class DaoAgentSpace : public DaoPageTools::UiDelegate,
   base::Time created_at() const { return created_at_; }
   base::TimeTicks last_activity() const { return last_activity_; }
   const std::deque<DaoAgentSpaceEvent>& events() const { return events_; }
-  const std::optional<gfx::PointF>& cursor() const { return cursor_; }
   const std::optional<DaoAgentSpaceDialog>& pending_dialog() const {
     return pending_dialog_;
   }
@@ -145,6 +144,8 @@ class DaoAgentSpace : public DaoPageTools::UiDelegate,
   bool IsWindowVisible() const;
   content::WebContents* GetCurrentContents() const;
   content::WebContents* GetActiveContents() const;
+  content::WebContents* GetPreviewContents() const;
+  std::optional<gfx::PointF> GetCursorFor(content::WebContents* contents) const;
   int GetTabCount() const;
 
   // Opens the first page and binds the automation session to it.
@@ -273,7 +274,8 @@ class DaoAgentSpace : public DaoPageTools::UiDelegate,
   base::TimeTicks last_activity_;
   std::deque<DaoAgentSpaceEvent> events_;
   size_t first_event_serial_ = 0;
-  std::optional<gfx::PointF> cursor_;
+  base::WeakPtr<content::WebContents> cursor_contents_;
+  gfx::PointF cursor_;
   std::optional<DaoAgentSpaceDialog> pending_dialog_;
   base::ListValue dialog_reports_;
   base::CancelableOnceClosure hide_window_callback_;

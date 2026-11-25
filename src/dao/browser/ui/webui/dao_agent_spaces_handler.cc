@@ -187,8 +187,7 @@ void DaoAgentSpacesHandler::RestartCapturersIfNeeded() {
   DaoAgentSpaceService* service = GetService();
   DaoAgentSpace* preview_space =
       service ? service->FindSpace(preview_space_id_) : nullptr;
-  if (!preview_space || preview_space->is_closed() ||
-      !preview_space->GetActiveContents()) {
+  if (!preview_space || !preview_space->GetPreviewContents()) {
     StopPreview();
   }
   auto restart = [&](const std::string& space_id,
@@ -200,19 +199,16 @@ void DaoAgentSpacesHandler::RestartCapturersIfNeeded() {
     }
     DaoAgentSpace* space = service ? service->FindSpace(space_id) : nullptr;
     content::WebContents* contents =
-        space && !space->is_closed() ? space->GetActiveContents() : nullptr;
+        space ? space->GetPreviewContents() : nullptr;
     if (!contents) {
       capturer.reset();
       return;
     }
-    if (capturer && capturer->contents() == contents) {
+    if (capturer && capturer->web_contents() == contents) {
       return;
     }
     capturer = std::make_unique<DaoAgentSpaceFrameCapturer>(
         contents, size, fps, std::move(callback));
-    if (!capturer->Start()) {
-      capturer.reset();
-    }
   };
   restart(preview_space_id_, preview_capturer_, kPreviewSize,
           kPreviewFramesPerSecond,
@@ -234,7 +230,8 @@ void DaoAgentSpacesHandler::OnPreviewFrame(const SkBitmap& frame) {
     StopPreview();
     return;
   }
-  SkBitmap copy = CopyWithCursor(frame, space->cursor());
+  SkBitmap copy = CopyWithCursor(
+      frame, space->GetCursorFor(preview_capturer_->web_contents()));
   if (copy.drawsNothing()) {
     return;
   }
