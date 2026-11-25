@@ -287,12 +287,10 @@ void DaoAgentSpacesHandler::HandleAgentSpaceAction(
       args.size() > 2 && args[2].is_string() ? args[2].GetString() : "";
   if (action == "show") {
     service->ShowWindow(space_id, tab_id);
-  } else if (action == "hide") {
+  } else if (action == "hide" || action == "hand_back") {
     service->HideWindow(space_id);
   } else if (action == "take_over") {
     service->TakeOver(space_id);
-  } else if (action == "hand_back") {
-    service->HandBack(space_id);
   } else if (action == "stop") {
     service->Stop(space_id);
   } else if (action == "dismiss") {

@@ -261,11 +261,14 @@ try {
     return 'unexpected result';`);
   await waitForSpace(s => s.status === 'Waiting for takeover', 'script started');
   await action('take_over');
-  await waitForSpace(s => s.state === 'user_in_control', 'user has control');
+  await waitForSpace(s => s.state === 'user_in_control' && s.window_visible,
+      'user has control of the visible task window');
   await expectPageColor(255, 0);
-  await action('hand_back');
+  await evaluate(sidebarSend, `${tasks}.querySelector('.card-buttons .btn').click()`);
   const resumed = await interrupted;
   assert.equal(resumed.code, 0, resumed.err);
+  await waitForSpace(s => s.state === 'running' && s.window_visible === false,
+      'hand-back hides the task window and returns control to the AI');
   const handoff = JSON.parse(resumed.out);
   assert.equal(handoff.interrupted, true);
   assert.equal(handoff.success, false);
