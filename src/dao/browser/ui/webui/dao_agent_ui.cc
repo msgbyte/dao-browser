@@ -13,11 +13,15 @@
 #include <utility>
 
 #include "base/barrier_closure.h"
+#include "base/base64.h"
 #include "base/files/file_util.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/logging.h"
+#include "base/memory/raw_ref.h"
+#include "base/notreached.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
@@ -81,12 +85,15 @@
 #include "dao/browser/ui/views/dao_mcp_approval_dialog.h"
 #include "dao/browser/ui/webui/dao_home_ui.h"
 #include "net/base/load_flags.h"
+#include "net/base/net_errors.h"
 #include "net/cookies/site_for_cookies.h"
 #include "net/http/http_response_headers.h"
+#include "net/http/http_util.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "pdf/mojom/pdf.mojom.h"
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/cpp/simple_url_loader.h"
+#include "services/network/public/cpp/simple_url_loader_stream_consumer.h"
 #include "services/network/public/mojom/content_security_policy.mojom.h"
 #include "services/network/public/mojom/fetch_api.mojom.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
@@ -439,6 +446,65 @@ base::DictValue SerializeMemoryContextForAgentUi(const MemoryContext& context) {
 
 // ---- DaoAgentUIHandler ----
 
+// One unacknowledged chunk per stream keeps a slow SDK reader from buffering
+// an entire response across the WebUI boundary.
+struct DaoAgentUIHandler::LocalModelStream
+    : public network::SimpleURLLoaderStreamConsumer {
+  LocalModelStream(DaoAgentUIHandler& handler,
+                   std::string stream_id,
+                   std::string start_callback,
+                   std::unique_ptr<network::SimpleURLLoader> request)
+      : owner(handler),
+        id(std::move(stream_id)),
+        callback_id(std::move(start_callback)),
+        loader(std::move(request)) {}
+
+  void OnHeaders(const GURL&, const network::mojom::URLResponseHead& head) {
+    if (!head.headers) {
+      return;
+    }
+    base::DictValue headers;
+    for (const char* name : {"content-type", "retry-after", "retry-after-ms",
+                             "request-id", "x-request-id", "x-should-retry"}) {
+      if (auto value = head.headers->EnumerateHeader(nullptr, name);
+          value && base::IsStringASCII(*value)) {
+        headers.Set(name, *value);
+      }
+    }
+    base::DictValue result;
+    result.Set("status", head.headers->response_code());
+    result.Set("headers", std::move(headers));
+    owner->ResolveJavascriptCallback(base::Value(callback_id), result);
+    callback_id.clear();
+  }
+
+  void OnDataReceived(std::string_view bytes, base::OnceClosure next) override {
+    resume = std::move(next);
+    owner->FireWebUIListener("dao-model-stream-" + id,
+                             base::Base64Encode(bytes), base::Value());
+  }
+
+  void OnComplete(bool success) override {
+    const auto error = net::ErrorToString(loader->NetError());
+    if (!callback_id.empty()) {
+      owner->RejectJavascriptCallback(base::Value(callback_id),
+                                      base::Value(error));
+    } else {
+      owner->FireWebUIListener("dao-model-stream-" + id, base::Value(),
+                               success ? std::string() : error);
+    }
+    owner->local_model_streams_.erase(id);
+  }
+
+  void OnRetry(base::OnceClosure) override { NOTREACHED(); }
+
+  const raw_ref<DaoAgentUIHandler> owner;
+  const std::string id;
+  std::string callback_id;
+  base::OnceClosure resume;
+  std::unique_ptr<network::SimpleURLLoader> loader;
+};
+
 DaoAgentUIHandler::DaoAgentUIHandler()
     : devtools_client_(std::make_unique<DaoDevToolsClient>()),
       browser_tool_executor_(
@@ -459,6 +525,7 @@ void DaoAgentUIHandler::OnJavascriptDisallowed() {
   AbortAgentTurn(MakeDaoToolError(DaoToolErrorCode::kToolCancelled,
                                 "Dao Agent UI was unloaded."));
   native_fetch_inflight_.clear();
+  local_model_streams_.clear();
 }
 
 void DaoAgentUIHandler::RegisterMessages() {
@@ -640,6 +707,10 @@ void DaoAgentUIHandler::RegisterMessages() {
   web_ui()->RegisterMessageCallback(
       "nativeFetch", base::BindRepeating(&DaoAgentUIHandler::HandleNativeFetch,
                                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "controlLocalModelStream",
+      base::BindRepeating(&DaoAgentUIHandler::HandleControlLocalModelStream,
+                          base::Unretained(this)));
   web_ui()->RegisterMessageCallback(
       "workspaceDownload",
       base::BindRepeating(&DaoAgentUIHandler::HandleWorkspaceDownload,
@@ -4973,6 +5044,22 @@ DaoAgentUIHandler::WorkspaceDownloadRequest::operator=(
 DaoAgentUIHandler::WorkspaceDownloadRequest::~WorkspaceDownloadRequest() =
     default;
 
+void DaoAgentUIHandler::HandleControlLocalModelStream(
+    const base::ListValue& args) {
+  if (args.size() != 2 || !args[0].is_string() || !args[1].is_string()) {
+    return;
+  }
+  auto it = local_model_streams_.find(args[0].GetString());
+  if (it == local_model_streams_.end()) {
+    return;
+  }
+  if (args[1].GetString() == "cancel") {
+    local_model_streams_.erase(it);
+  } else if (args[1].GetString() == "resume" && it->second->resume) {
+    std::move(it->second->resume).Run();
+  }
+}
+
 void DaoAgentUIHandler::HandleNativeFetch(const base::ListValue& args) {
   AllowJavascript();
 
@@ -5008,6 +5095,15 @@ void DaoAgentUIHandler::HandleNativeFetch(const base::ListValue& args) {
   const std::string* method_p = params.FindString("method");
   std::string method = method_p ? *method_p : "GET";
 
+  const std::string* stream_id = params.FindString("streamId");
+  if (stream_id &&
+      (method != "POST" || !base::Uuid::ParseLowercase(*stream_id).is_valid() ||
+       local_model_streams_.contains(*stream_id) ||
+       !DaoAgentSettingsHandler::AllowsLocalModelRequest(web_ui(), gurl))) {
+    reply_error(net::ErrorToString(net::ERR_ACCESS_DENIED));
+    return;
+  }
+
   // Decide credentials mode. Default: kOmit (existing behavior — used by
   // DDG search and Jina Reader, both third-party endpoints that must
   // never see the user's cookies). Opt-in: when JS passes
@@ -5041,6 +5137,10 @@ void DaoAgentUIHandler::HandleNativeFetch(const base::ListValue& args) {
   request->method = method;
   request->credentials_mode = credentials_mode;
   request->load_flags = net::LOAD_BYPASS_CACHE;
+  if (stream_id) {
+    request->redirect_mode = network::mojom::RedirectMode::kError;
+    request->load_flags = net::LOAD_DISABLE_CACHE;
+  }
   if (credentials_mode == network::mojom::CredentialsMode::kInclude) {
     // Pretend the request is initiated from the active tab so SameSite
     // cookie rules treat it as a same-site fetch and the user's session
@@ -5059,6 +5159,11 @@ void DaoAgentUIHandler::HandleNativeFetch(const base::ListValue& args) {
       }
       const std::string& name = kv.first;
       const std::string& value = kv.second.GetString();
+      if (stream_id && (!net::HttpUtil::IsValidHeaderName(name) ||
+                        !net::HttpUtil::IsValidHeaderValue(value) ||
+                        !net::HttpUtil::IsSafeHeader(name, value))) {
+        continue;
+      }
       // Content-Type goes through SimpleURLLoader::AttachStringForUpload
       // for POST bodies; setting it via headers can confuse the loader.
       if (base::EqualsCaseInsensitiveASCII(name, "Content-Type")) {
@@ -5076,35 +5181,41 @@ void DaoAgentUIHandler::HandleNativeFetch(const base::ListValue& args) {
           description:
             "Fetches search results from DuckDuckGo HTML and article "
             "content from Jina Reader on behalf of the agent's "
-            "web_search and fetch_url tools. Also used by fetch_url "
+            "web_search and fetch_url tools, and streams local model replies. "
+            "Also used by fetch_url "
             "to fetch a URL same-origin with the active tab so the "
             "agent can read authenticated content the user is "
             "currently logged into."
           trigger:
-            "User asks the agent to search the web or read a URL."
+            "User requests a web tool, a local model reply, or a connection test."
           data:
             "The user's search query (sent to DuckDuckGo), the URL "
             "the agent wants to read (sent to Jina Reader), or — only "
             "when the target URL is same-origin with the active tab — "
             "the user's cookies for that origin so the request can "
-            "see authenticated content."
+            "see authenticated content. Model requests carry chat context "
+            "and the configured API key to the local endpoint."
           destination: WEBSITE
         }
         policy {
           cookies_allowed: YES
           cookies_store: "user"
-          setting: "Disable the Web tools group in agent settings."
+          setting:
+            "Users control web tools and choose the model endpoint in Agent Settings."
           policy_exception_justification:
             "User-initiated agent action, like a user typing the URL "
             "into the address bar themselves. Cookies are attached "
             "only when the target URL is same-origin with the active "
             "tab; cross-origin and third-party endpoints (DuckDuckGo, "
-            "Jina Reader) are always sent with credentials omitted."
+            "Jina Reader) are always sent with credentials omitted. Local "
+            "model requests omit cookies."
         })");
 
   std::unique_ptr<network::SimpleURLLoader> loader =
       network::SimpleURLLoader::Create(std::move(request), annotation);
-  loader->SetTimeoutDuration(base::Seconds(30));
+  if (!stream_id) {
+    loader->SetTimeoutDuration(base::Seconds(30));
+  }
 
   if (method != "GET" && method != "HEAD") {
     const std::string* body_p = params.FindString("body");
@@ -5120,6 +5231,18 @@ void DaoAgentUIHandler::HandleNativeFetch(const base::ListValue& args) {
           ->GetDefaultStoragePartition()
           ->GetURLLoaderFactoryForBrowserProcess()
           .get();
+
+  if (stream_id) {
+    auto stream = std::make_unique<LocalModelStream>(
+        *this, *stream_id, callback_id, std::move(loader));
+    auto* consumer = stream.get();
+    local_model_streams_.emplace(*stream_id, std::move(stream));
+    loader_ptr->SetAllowHttpErrorResults(true);
+    loader_ptr->SetOnResponseStartedCallback(base::BindOnce(
+        &LocalModelStream::OnHeaders, base::Unretained(consumer)));
+    loader_ptr->DownloadAsStream(factory, consumer);
+    return;
+  }
 
   NativeFetchRequest entry;
   entry.loader = std::move(loader);

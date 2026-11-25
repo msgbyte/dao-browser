@@ -232,11 +232,12 @@ class DaoAgentUIHandler : public content::WebUIMessageHandler,
   void HandleCloseSidebar(const base::ListValue& args);
   void HandleFocusAgentSidebar(const base::ListValue& args);
 
-  // CORS-bypass fetch for the agent's web_search tool. The handler
-  // runs SimpleURLLoader in the browser process so requests to e.g.
-  // html.duckduckgo.com / r.jina.ai are not subject to the cross-
-  // origin checks that block fetch() from `dao://agent`.
+  // Browser-process fetch for web tools and streaming local model requests.
   void HandleNativeFetch(const base::ListValue& args);
+  void HandleControlLocalModelStream(const base::ListValue& args);
+
+  struct LocalModelStream;
+  std::map<std::string, std::unique_ptr<LocalModelStream>> local_model_streams_;
 
   // Zero-copy `download` tool: writes content straight into the agent
   // workspace without round-tripping the body through LLM output.

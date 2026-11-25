@@ -16,6 +16,7 @@
 #include "base/values.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "content/public/browser/web_ui_message_handler.h"
+#include "url/gurl.h"
 
 class PrefService;
 class Profile;
@@ -63,6 +64,9 @@ public:
   void OnJavascriptAllowed() override;
   void OnJavascriptDisallowed() override;
 
+  // Matches the active endpoint or a pending test on this Agent page.
+  static bool AllowsLocalModelRequest(content::WebUI* agent, const GURL& url);
+
   // Reuse the resident Agent's configured model without opening a chat.
   static void ClassifyTabs(Profile* profile, base::DictValue request,
                            base::OnceCallback<void(base::DictValue)> callback);
@@ -98,8 +102,11 @@ private:
   PrefService* GetPrefs();
 
   PrefChangeRegistrar pref_change_registrar_;
-  base::flat_map<std::string, ConnectionTestCallback>
-      pending_connection_tests_;
+  struct PendingConnectionTest {
+    GURL local_endpoint;
+    ConnectionTestCallback callback;
+  };
+  base::flat_map<std::string, PendingConnectionTest> pending_connection_tests_;
   base::flat_map<std::string, ConnectionTestCallback>
       pending_tab_classifications_;
   int next_connection_test_id_ = 0;

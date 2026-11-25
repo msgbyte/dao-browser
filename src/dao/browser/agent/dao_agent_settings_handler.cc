@@ -26,15 +26,16 @@
 #include "components/prefs/scoped_user_pref_update.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui.h"
-#include "dao/browser/agent/dao_agent_plugins.h"
 #include "dao/browser/agent/dao_agent_memory_service.h"
 #include "dao/browser/agent/dao_agent_memory_service_factory.h"
+#include "dao/browser/agent/dao_agent_plugins.h"
 #include "dao/browser/agent/dao_agent_workspace_service.h"
 #include "dao/browser/agent/dao_agent_workspace_service_factory.h"
 #include "dao/browser/agent/dao_dream_domain_utils.h"
 #include "dao/browser/agent/dao_dream_service.h"
 #include "dao/browser/agent/dao_dream_service_factory.h"
 #include "dao/browser/dao_pref_names.h"
+#include "net/base/url_util.h"
 
 namespace dao {
 namespace {
@@ -72,6 +73,28 @@ std::vector<raw_ptr<DaoAgentSettingsHandler>>& ConnectionTesters() {
   static base::NoDestructor<std::vector<raw_ptr<DaoAgentSettingsHandler>>>
       testers;
   return *testers;
+}
+
+GURL LocalModelEndpoint(std::string_view provider,
+                        const std::string* base_url) {
+  if (!base_url ||
+      (provider != "openai-compatible" && provider != "anthropic-compatible")) {
+    return GURL();
+  }
+  const GURL url(*base_url);
+  if (!url.is_valid() || !url.SchemeIsHTTPOrHTTPS() || !net::IsLocalhost(url) ||
+      url.has_username() || url.has_password() || url.has_query() ||
+      url.has_ref()) {
+    return GURL();
+  }
+  std::string path(base::TrimString(url.path(), "/", base::TRIM_TRAILING));
+  if (!path.ends_with("/v1")) {
+    path += "/v1";
+  }
+  path += provider == "openai-compatible" ? "/chat/completions" : "/messages";
+  GURL::Replacements replace;
+  replace.SetPathStr(path);
+  return url.ReplaceComponents(replace);
 }
 
 base::DictValue ConnectionTestUnavailable() {
@@ -985,12 +1008,54 @@ void DaoAgentSettingsHandler::HandleTestConnection(
   std::move(callback).Run(ConnectionTestUnavailable());
 }
 
+// static
+bool DaoAgentSettingsHandler::AllowsLocalModelRequest(content::WebUI* agent,
+                                                      const GURL& url) {
+  if (!url.is_valid() || !url.SchemeIsHTTPOrHTTPS() || !net::IsLocalhost(url) ||
+      url.has_username() || url.has_password()) {
+    return false;
+  }
+  GURL::Replacements replace;
+  replace.ClearQuery();
+  replace.ClearRef();
+  const GURL endpoint = url.ReplaceComponents(replace);
+  for (const auto& tester : ConnectionTesters()) {
+    if (tester->web_ui() == agent &&
+        std::ranges::any_of(tester->pending_connection_tests_,
+                            [&](const auto& test) {
+                              return test.second.local_endpoint == endpoint;
+                            })) {
+      return true;
+    }
+  }
+  const auto& settings =
+      Profile::FromWebUI(agent)->GetPrefs()->GetDict(prefs::kDaoAgentSettings);
+  const auto* active = settings.FindString("dao_agent_active_provider");
+  const std::string_view provider =
+      active ? std::string_view(*active) : "openai-compatible";
+  const auto* json = settings.FindString("dao_agent_providers");
+  if (!json) {
+    return provider == "openai-compatible" &&
+           LocalModelEndpoint(
+               provider, settings.FindString("dao_agent_base_url")) == endpoint;
+  }
+  const auto providers =
+      base::JSONReader::ReadDict(*json, base::JSON_PARSE_RFC);
+  const auto* config = providers ? providers->FindDict(provider) : nullptr;
+  return config && LocalModelEndpoint(
+                       provider, config->FindString("baseUrl")) == endpoint;
+}
+
 void DaoAgentSettingsHandler::StartConnectionTest(
     base::DictValue config,
     ConnectionTestCallback callback) {
   const std::string request_id =
       base::NumberToString(++next_connection_test_id_);
-  pending_connection_tests_.emplace(request_id, std::move(callback));
+  pending_connection_tests_.emplace(
+      request_id,
+      PendingConnectionTest{LocalModelEndpoint(*config.FindString("provider"),
+                                               config.FindString("baseUrl")),
+                            std::move(callback)});
   config.Set("requestId", request_id);
   FireWebUIListener(kConnectionTestEvent, config);
 }
@@ -1004,7 +1069,7 @@ void DaoAgentSettingsHandler::HandleConnectionTestResult(
   if (it == pending_connection_tests_.end()) {
     return;
   }
-  ConnectionTestCallback callback = std::move(it->second);
+  ConnectionTestCallback callback = std::move(it->second.callback);
   pending_connection_tests_.erase(it);
 
   const base::DictValue& reported = args[1].GetDict();
@@ -1028,8 +1093,8 @@ void DaoAgentSettingsHandler::UnregisterConnectionTester() {
   // Tests this page accepted can no longer be answered.
   auto pending = std::move(pending_connection_tests_);
   pending_connection_tests_.clear();
-  for (auto& [request_id, callback] : pending) {
-    std::move(callback).Run(ConnectionTestUnavailable());
+  for (auto& [request_id, test] : pending) {
+    std::move(test.callback).Run(ConnectionTestUnavailable());
   }
 }
 
