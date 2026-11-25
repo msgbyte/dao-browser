@@ -143,7 +143,7 @@ describe('ConnectorHost', () => {
     await expect(Promise.all([read, later])).resolves.toEqual([['new'], ['new']]);
   });
 
-  it.each([false, true])('retries a cold read once when the source sets a session (changes again: %s)', async changesAgain => {
+  it.each([false, true])('retries a cold read once when its site data is cleared (cleared again: %s)', async changesAgain => {
     const changed = {error: 'Session changed', code: 'session_changed'};
     bridge.startHomeConnector.mockResolvedValueOnce({cache_miss: true})
         .mockResolvedValueOnce(changed)
@@ -160,10 +160,10 @@ describe('ConnectorHost', () => {
     expect(bridge.startHomeConnector).toHaveBeenCalledTimes(3);
   });
 
-  it('revokes a stale document on a native session change even when both accounts show the same count', async () => {
+  it('reports an ended session after a stale result even when both sessions show the same count', async () => {
     bridge.startHomeConnector.mockResolvedValueOnce({cached: 0, stale: true});
     bridge.finishHomeConnector.mockResolvedValueOnce({
-      error: 'Changed', code: 'session_changed', retry_live: true,
+      error: 'Changed', code: 'session_changed',
     });
     const read = expect(host.collect('feed', {}, false, vi.fn())).rejects.toMatchObject({code: 'session_changed'});
     await vi.waitFor(() => expect(frames).toHaveLength(1));
@@ -172,16 +172,15 @@ describe('ConnectorHost', () => {
     await read;
   });
 
-  it('reopens a manual read once after a possible credential change', async () => {
+  it('does not reopen a manual read after its session ended', async () => {
     bridge.finishHomeConnector.mockResolvedValueOnce({
-      error: 'Changed', code: 'session_changed', retry_live: true,
+      error: 'Changed', code: 'session_changed',
     });
-    const read = host.collect('feed', {}, true);
+    const read = expect(host.collect('feed', {}, true)).rejects.toMatchObject({code: 'session_changed'});
     await vi.waitFor(() => expect(frames).toHaveLength(1));
     await message(frames[0]!, 'feed', {type: 'complete', result: 'before'});
-    await vi.waitFor(() => expect(frames).toHaveLength(2));
-    await message(frames[1]!, 'feed', {type: 'complete', result: 'after'});
-    await expect(read).resolves.toBe('after');
+    await read;
+    expect(bridge.startHomeConnector).toHaveBeenCalledTimes(1);
   });
 
   it('starts a new read when the in-flight read belongs to a previous session', async () => {

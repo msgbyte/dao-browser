@@ -21,7 +21,6 @@
 #include "base/memory/weak_ptr.h"
 #include "base/threading/sequence_bound.h"
 #include "base/time/time.h"
-#include "base/token.h"
 #include "base/types/expected.h"
 #include "base/values.h"
 #include "components/keyed_service/core/keyed_service.h"
@@ -30,10 +29,6 @@
 namespace content {
 class StoragePartition;
 class WebContents;
-}
-
-namespace net {
-class CanonicalCookie;
 }
 
 namespace dao {
@@ -95,34 +90,37 @@ class DaoHomeProjectService : public KeyedService {
   static constexpr auto kCollectionHardTtl = base::Hours(6);
   enum class CollectionAge { kFresh, kStale, kExpired };
   static CollectionAge GetCollectionAge(base::Time collected_at);
-  std::optional<base::Value> GetCachedCollection(
-      const HomeCollectionKey& key,
-      bool* stale = nullptr,
-      HomeSourceDependencies* dependencies = nullptr);
+  std::optional<base::Value> GetCachedCollection(const HomeCollectionKey& key,
+                                                 bool* stale = nullptr);
   void CacheCollection(const HomeCollectionKey& key,
                        const base::Value& value,
-                       HomeSourceWatches watches = {},
-                       HomeStorageReads storage_reads = std::nullopt);
+                       HomeSourceWatches watches = {});
   void AgeCachedCollectionsForTesting(base::TimeDelta age) {
     for (auto& entry : collections_) {
       entry.collected_at -= age;
     }
   }
   using CollectionMatcher = base::FunctionRef<bool(const HomeCollectionKey&)>;
+  // Ordinary cookie and local storage changes on watched origins only evict
+  // cached results. They never end an in-progress read or a shown document.
   HomeSourceWatches WatchSourceData(content::StoragePartition* partition,
                                     const HomeCollectionKey& key);
-  // An unresolved write may be reported on the Profile pipe before its
-  // originating collector receives the corresponding frame notification.
-  using CollectorWrite = std::shared_ptr<const HomeSourceWrite>;
-  using InvalidationCallback = base::RepeatingCallback<
-      void(CollectionMatcher, const char* reason, CollectorWrite)>;
-  void ReportCollectorCookieWrite(const net::CanonicalCookie& cookie);
-  void ReportCollectorStorageSource(const url::Origin& origin, base::Token id);
+  // A detached source page writes its own site data while it is read. Cookie
+  // writes it reports through the returned hook, and its local storage writes
+  // until shortly after the read ends, keep the read reusable unless another
+  // page of the site could have made them. Any other change evicts.
+  HomeSourceRead BeginSourceRead(const HomeSourceWatches& watches);
+  // Whether the watches can keep a result current: they are connected, hold
+  // the initial cookie snapshot, and saw no evicting change since `since`.
+  static bool SourceUnchangedSince(const HomeSourceWatches& watches,
+                                   base::TimeTicks since);
   void CheckSourceCookieExpiry();
-  static void WhenSourceWatchesInitialized(const HomeSourceWatches& watches,
-                                           base::OnceClosure done);
-  static bool SourceWatchesReady(const HomeSourceWatches& watches);
+  // Ends Home sessions for these origins after a read found the site signed
+  // out. Clearing site data has the same effect.
   void InvalidateSourceSession(const std::vector<url::Origin>& origins);
+  // Notified only when a source session ended. `reason` is a static string.
+  using InvalidationCallback =
+      base::RepeatingCallback<void(CollectionMatcher, const char* reason)>;
   base::CallbackListSubscription AddCollectionInvalidationObserver(
       InvalidationCallback callback);
 
@@ -283,12 +281,12 @@ class DaoHomeProjectService : public KeyedService {
 
  private:
   class SourceDataObserver;
-  void InvalidateCollections(CollectionMatcher matches,
-                             const char* reason,
-                             CollectorWrite write = {});
+  // Drops cached results only. Shown documents and live reads are unaffected.
+  void EvictCachedCollections(CollectionMatcher matches);
+  // Also ends live reads and retracts shown results of the ended sessions.
+  void InvalidateSessions(CollectionMatcher matches, const char* reason);
   std::unique_ptr<SourceDataObserver> source_data_observer_;
-  base::RepeatingCallbackList<
-      void(CollectionMatcher, const char*, CollectorWrite)>
+  base::RepeatingCallbackList<void(CollectionMatcher, const char*)>
       collection_invalidation_observers_;
   void NotifyProjectChanged(std::string_view changed_connector = {});
   void NotifyPermissionChanged();
@@ -348,7 +346,7 @@ class DaoHomeProjectService : public KeyedService {
     HomeCollectionKey key;
     std::string json;
     base::Time collected_at;
-    HomeSourceDependencies dependencies;
+    HomeSourceWatches watches;
   };
   std::list<CachedCollection> collections_;
   std::vector<HomeDiagnostic> diagnostics_;

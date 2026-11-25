@@ -8,33 +8,33 @@
 #include <array>
 #include <map>
 #include <string_view>
-#include <tuple>
 #include <utility>
 
-#include "base/barrier_closure.h"
-#include "base/containers/lru_cache.h"
 #include "base/functional/bind.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/logging.h"
-#include "base/one_shot_event.h"
 #include "base/scoped_observation.h"
 #include "base/strings/string_util.h"
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
+#include "base/timer/timer.h"
 #include "base/uuid.h"
 #include "components/services/storage/public/mojom/local_storage_control.mojom.h"
+#include "content/public/browser/render_frame_host.h"
+#include "content/public/browser/render_process_host.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_contents.h"
-#include "crypto/hash.h"
 #include "dao/browser/home/dao_home_bootstrap_transaction.h"
-#include "dao/common/home_local_storage.h"
+#include "dao/browser/home/dao_home_connector_executor.h"
 #include "mojo/public/cpp/bindings/callback_helpers.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
 #include "net/base/schemeful_site.h"
+#include "net/cookies/canonical_cookie.h"
 #include "net/cookies/cookie_change_dispatcher.h"
+#include "net/cookies/cookie_constants.h"
 #include "net/cookies/cookie_options.h"
 #include "net/cookies/cookie_partition_key_collection.h"
 #include "net/cookies/unique_cookie_key.h"
@@ -64,6 +64,28 @@ DaoHomeProjectService::HistoryBootstrapState::operator=(
 namespace {
 
 constexpr size_t kMaxDiagnostics = 32;
+// Local storage writes made just before a source page closes are observed
+// after it is gone.
+constexpr base::TimeDelta kSourceReadTrailingWrites = base::Seconds(2);
+// Cookie writes reach the Profile listener and the writing page on separate
+// pipes. Renderer writes are reported to the page in 100 ms batches.
+constexpr base::TimeDelta kSourceCookieReportDelay = base::Milliseconds(500);
+
+// Whether a source page could have made the change itself. Browser and
+// extension writes, explicit deletions, expiry, and eviction never can.
+bool MayBePageWrite(const net::CookieChangeInfo& change) {
+  switch (change.cause) {
+    case net::CookieChangeCause::INSERTED:
+    case net::CookieChangeCause::INSERTED_NO_VALUE_CHANGE_OVERWRITE:
+      return change.cookie.SourceType() == net::CookieSourceType::kHTTP ||
+             change.cookie.SourceType() == net::CookieSourceType::kScript;
+    case net::CookieChangeCause::EXPIRED_OVERWRITE:
+      // Pages delete cookies by setting them again with a past expiry.
+      return true;
+    default:
+      return false;
+  }
+}
 
 bool IsSameSite(const GURL& left, const GURL& right) {
   if (left.host() == right.host()) {
@@ -103,12 +125,11 @@ void Truncate(std::string& value, size_t max_size) {
 // Shared by in-flight reads and cached results for one first-party origin.
 class DaoHomeSourceWatch : public blink::mojom::StorageAreaObserver {
  public:
-  DaoHomeSourceWatch(
-      content::StoragePartition* partition,
-      const url::Origin& origin,
-      base::RepeatingCallback<
-          void(const char*, DaoHomeProjectService::CollectorWrite)> invalidate)
-      : invalidate_(std::move(invalidate)) {
+  // `changed` receives whether a source page could have made the change.
+  DaoHomeSourceWatch(content::StoragePartition* partition,
+                     const url::Origin& origin,
+                     base::RepeatingCallback<void(bool page_write)> changed)
+      : changed_(std::move(changed)) {
     partition->GetLocalStorageControl()->BindStorageArea(
         blink::StorageKey::CreateFirstParty(origin),
         area_.BindNewPipeAndPassReceiver());
@@ -130,16 +151,29 @@ class DaoHomeSourceWatch : public blink::mojom::StorageAreaObserver {
                            weak_factory_.GetWeakPtr())));
   }
 
-  void ReportCollectorStorageSource(base::Token id) {
-    *StorageWriter(id) = true;
-  }
-
-  void WhenInitialized(base::OnceClosure done) {
-    initialized_event_.Post(FROM_HERE, std::move(done));
-  }
-
   bool disconnected() const { return disconnected_; }
   bool ready() const { return initialized_ && !disconnected_; }
+  // The Profile listener stopped, so cookie changes are no longer observed.
+  void Disconnect() { disconnected_ = true; }
+
+  void MarkChanged(base::TimeTicks at) {
+    changed_at_ = std::max(changed_at_, at);
+  }
+  bool ChangedSince(base::TimeTicks since) const {
+    return !changed_at_.is_null() && changed_at_ >= since;
+  }
+
+  void BeginRead() { ++reads_; }
+  void EndRead() {
+    --reads_;
+    read_ended_at_ = base::TimeTicks::Now();
+  }
+  bool ReadInProgress() const { return reads_ > 0; }
+  bool Reading() const {
+    return reads_ > 0 || (!read_ended_at_.is_null() &&
+                          base::TimeTicks::Now() - read_ended_at_ <=
+                              kSourceReadTrailingWrites);
+  }
 
   bool UpdateCookie(const net::CookieChangeInfo& change) {
     auto key = change.cookie.StrictlyUniqueKey();
@@ -186,9 +220,6 @@ class DaoHomeSourceWatch : public blink::mojom::StorageAreaObserver {
     std::erase_if(expiries_,
                   [](const auto& item) { return item.second.is_null(); });
     initialized_ = true;
-    if (!initialized_event_.is_signaled()) {
-      initialized_event_.Signal();
-    }
   }
 
   void OnDisconnect() {
@@ -196,64 +227,42 @@ class DaoHomeSourceWatch : public blink::mojom::StorageAreaObserver {
       return;
     }
     disconnected_ = true;
-    if (!initialized_event_.is_signaled()) {
-      initialized_event_.Signal();
-    }
-    invalidate_.Run("watcher_disconnected", nullptr);
+    changed_.Run(false);
   }
 
-  std::shared_ptr<bool> StorageWriter(base::Token id) {
-    auto found = storage_sources_.Get(id);
-    if (found == storage_sources_.end()) {
-      found = storage_sources_.Put(id, std::make_shared<bool>(false));
-    }
-    return found->second;
-  }
-
-  void StorageChanged(const std::vector<uint8_t>& key,
-                      const blink::mojom::StorageAreaSourcePtr& source) {
-    auto writer = source ? StorageWriter(source->storage_area_id)
-                         : std::make_shared<bool>(false);
-    invalidate_.Run("local_storage_changed",
-                    std::make_shared<HomeSourceWrite>(
-                        "local_storage_changed", std::move(writer),
-                        HomeLocalStorageKeyHash(key)));
-  }
-
-  void KeyChanged(const std::vector<uint8_t>& key,
+  void KeyChanged(const std::vector<uint8_t>&,
                   const std::vector<uint8_t>& value,
                   const std::optional<std::vector<uint8_t>>& previous,
                   blink::mojom::StorageAreaSourcePtr source) override {
     if (!previous || *previous != value) {
-      StorageChanged(key, source);
+      changed_.Run(!source.is_null());
     }
   }
-  void KeyDeleted(const std::vector<uint8_t>& key,
+  void KeyDeleted(const std::vector<uint8_t>&,
                   const std::optional<std::vector<uint8_t>>& previous,
                   blink::mojom::StorageAreaSourcePtr source) override {
     if (previous) {
-      StorageChanged(key, source);
+      changed_.Run(!source.is_null());
     }
   }
   void AllDeleted(bool was_nonempty,
-                  blink::mojom::StorageAreaSourcePtr) override {
+                  blink::mojom::StorageAreaSourcePtr source) override {
     if (was_nonempty) {
-      invalidate_.Run("local_storage_cleared", nullptr);
+      changed_.Run(!source.is_null());
     }
   }
   void KeyChangeFailed(const std::vector<uint8_t>&,
                        blink::mojom::StorageAreaSourcePtr) override {}
   void ShouldSendOldValueOnMutations(bool) override {}
 
-  base::RepeatingCallback<void(const char*,
-                               DaoHomeProjectService::CollectorWrite)>
-      invalidate_;
-  base::LRUCache<base::Token, std::shared_ptr<bool>> storage_sources_{128};
-  base::OneShotEvent initialized_event_;
+  base::RepeatingCallback<void(bool)> changed_;
   mojo::Remote<blink::mojom::StorageArea> area_;
   mojo::Receiver<blink::mojom::StorageAreaObserver> receiver_{this};
   std::map<net::UniqueCookieKey, base::Time> expiries_;
   const base::Time started_at_ = base::Time::Now();
+  base::TimeTicks changed_at_;
+  base::TimeTicks read_ended_at_;
+  int reads_ = 0;
   bool initialized_ = false;
   bool disconnected_ = false;
   base::WeakPtrFactory<DaoHomeSourceWatch> weak_factory_{this};
@@ -280,9 +289,8 @@ class DaoHomeProjectService::SourceDataObserver
       if (!watch || watch->disconnected()) {
         watch = std::make_shared<DaoHomeSourceWatch>(
             observation_.GetSource(), origin,
-            base::BindRepeating(&SourceDataObserver::InvalidateOrigins,
-                                weak_factory_.GetWeakPtr(),
-                                std::set<url::Origin>{origin}));
+            base::BindRepeating(&SourceDataObserver::OnStorageChanged,
+                                weak_factory_.GetWeakPtr(), origin));
         weak = watch;
       }
       result.push_back(std::move(watch));
@@ -298,69 +306,45 @@ class DaoHomeProjectService::SourceDataObserver
         expired.insert(origin);
       }
     }
-    InvalidateOrigins(expired, "cookie_expired", nullptr);
+    Evict(expired);
   }
 
-  void ReportCollectorStorageSource(const url::Origin& origin, base::Token id) {
-    auto it = watches_.find(origin);
-    if (it != watches_.end()) {
-      if (auto watch = it->second.lock()) {
-        watch->ReportCollectorStorageSource(id);
-      }
+  // A detached source page reported setting or deleting `cookie`. Each report
+  // accounts for one change, since several sources can write the same cookie.
+  void OnSourceCookieWrite(const net::CanonicalCookie& cookie) {
+    auto key = cookie.StrictlyUniqueKey();
+    auto pending = std::ranges::find(pending_writes_, key, &PendingWrite::key);
+    if (pending != pending_writes_.end()) {
+      pending_writes_.erase(pending);
+      return;
     }
+    PruneSourceWrites();
+    if (source_writes_.size() >= kMaxTrackedCookies) {
+      source_writes_.erase(source_writes_.begin());
+    }
+    source_writes_.emplace_back(std::move(key), base::TimeTicks::Now());
   }
 
-  void ReportCollectorCookieWrite(const net::CanonicalCookie& cookie) {
-    if (std::ranges::any_of(watches_, [&](const auto& item) {
-          return !item.second.expired() &&
-                 cookie.IsDomainMatch(item.first.host());
-        })) {
-      CookieWrite(cookie, true);
-    }
+  base::WeakPtr<SourceDataObserver> GetWeakPtr() {
+    return weak_factory_.GetWeakPtr();
   }
 
  private:
-  // Match both IPC orders once, without retaining the cookie value.
-  using CookieVersion =
-      std::tuple<net::UniqueCookieKey, base::Time, std::array<uint8_t, 32>>;
-  std::shared_ptr<HomeSourceWrite> CookieWrite(
-      const net::CanonicalCookie& cookie,
-      bool from_collector) {
-    CookieVersion version(
-        cookie.StrictlyUniqueKey(), cookie.LastUpdateDate(),
-        crypto::hash::Sha256(
-            net::CanonicalCookie::BuildCookieAttributesLine(cookie)));
-    auto found = cookie_writes_.Get(version);
-    if (found == cookie_writes_.end()) {
-      auto write = std::make_shared<HomeSourceWrite>(
-          "cookie_changed", std::make_shared<bool>(from_collector));
-      cookie_writes_.Put(std::move(version), write);
-      return write;
-    }
-    auto write = found->second;
-    if (*write->from_collector != from_collector) {
-      *write->from_collector = true;
-      cookie_writes_.Erase(found);
-    }
-    return write;
-  }
+  // A page write that no source page has reported yet.
+  struct PendingWrite {
+    net::UniqueCookieKey key;
+    std::set<url::Origin> origins;
+    base::TimeTicks observed_at;
+  };
 
   struct ReplacedCookie {
-    net::UniqueCookieKey key;
     bool secure;
     bool http_only;
     net::CookieSameSite same_site;
-    base::Time expiry;
 
     bool SameScope(const net::CanonicalCookie& cookie) const {
-      return key == cookie.StrictlyUniqueKey() &&
-             secure == cookie.SecureAttribute() &&
+      return secure == cookie.SecureAttribute() &&
              http_only == cookie.IsHttpOnly() && same_site == cookie.SameSite();
-    }
-
-    bool IsRenewedBy(const net::CanonicalCookie& cookie) const {
-      return !expiry.is_null() && cookie.ExpiryDate() > expiry &&
-             SameScope(cookie);
     }
   };
 
@@ -374,29 +358,46 @@ class DaoHomeProjectService::SourceDataObserver
 
   void OnDisconnect() {
     receiver_.reset();
+    for (const auto& [origin, weak] : watches_) {
+      if (auto watch = weak.lock()) {
+        watch->Disconnect();
+      }
+    }
     watches_.clear();
-    replaced_cookie_.reset();
-    cookie_writes_.Clear();
-    service_->InvalidateCollections(
-        [](const HomeCollectionKey&) { return true; }, "watcher_disconnected");
+    replaced_cookies_.clear();
+    source_writes_.clear();
+    pending_writes_.clear();
+    pending_timer_.Stop();
+    service_->EvictCachedCollections(
+        [](const HomeCollectionKey&) { return true; });
     Listen();
   }
 
   void OnCookieChange(const net::CookieChangeInfo& change) override {
+    using Cause = net::CookieChangeCause;
     const auto& cookie = change.cookie;
-    if (change.cause == net::CookieChangeCause::OVERWRITE) {
-      // The next insertion reports whether the value changed.
-      replaced_cookie_ = ReplacedCookie{
-          cookie.StrictlyUniqueKey(), cookie.SecureAttribute(),
-          cookie.IsHttpOnly(), cookie.SameSite(), cookie.ExpiryDate()};
+    auto key = cookie.StrictlyUniqueKey();
+    if (change.cause == Cause::OVERWRITE) {
+      // The insertion that follows reports whether the value changed.
+      if (replaced_cookies_.size() >= kMaxTrackedCookies) {
+        replaced_cookies_.clear();
+      }
+      replaced_cookies_.insert_or_assign(
+          std::move(key), ReplacedCookie{cookie.SecureAttribute(),
+                                         cookie.IsHttpOnly(), cookie.SameSite()});
       return;
     }
-    auto previous = std::exchange(replaced_cookie_, std::nullopt);
+    std::optional<ReplacedCookie> previous;
+    if (auto it = replaced_cookies_.find(key); it != replaced_cookies_.end()) {
+      previous = it->second;
+      replaced_cookies_.erase(it);
+    }
+    // Sites rewrite unchanged values to extend or keep sessions, including
+    // session cookies. Expiry moves are tracked by the watches below.
     const bool renewal =
-        change.cause == net::CookieChangeCause::INSERTED_NO_CHANGE_OVERWRITE ||
-        (change.cause ==
-             net::CookieChangeCause::INSERTED_NO_VALUE_CHANGE_OVERWRITE &&
-         previous && previous->IsRenewedBy(cookie));
+        change.cause == Cause::INSERTED_NO_CHANGE_OVERWRITE ||
+        (change.cause == Cause::INSERTED_NO_VALUE_CHANGE_OVERWRITE &&
+         previous && previous->SameScope(cookie));
     std::set<url::Origin> changed;
     for (const auto& [origin, weak] : watches_) {
       if (cookie.IsDomainMatch(origin.host())) {
@@ -409,35 +410,133 @@ class DaoHomeProjectService::SourceDataObserver
     if (changed.empty()) {
       return;
     }
-    using Cause = net::CookieChangeCause;
-    if (change.cause == Cause::INSERTED && !cookie.LastUpdateDate().is_null() &&
-        cookie.SourceType() != net::CookieSourceType::kOther &&
-        (!previous || previous->SameScope(cookie))) {
-      InvalidateOrigins(changed, "cookie_changed", CookieWrite(cookie, false));
-    } else {
-      const bool expired = change.cause == Cause::EXPIRED ||
-                           change.cause == Cause::EXPIRED_OVERWRITE;
-      const char* reason = expired ? "cookie_expired"
-                           : net::CookieChangeCauseIsDeletion(change.cause)
-                               ? "cookie_deleted"
-                               : "cookie_changed";
-      InvalidateOrigins(changed, reason, nullptr);
+    // Only cookie writes a source page reports for itself belong to a read.
+    // Other tabs can write before their navigation commits, and browser or
+    // cross-site requests have no page of the site at all.
+    if (MayBePageWrite(change)) {
+      const bool reported = TakeSourceWrite(key);
+      if ((reported || ReadInProgress(changed)) &&
+          !OtherPageCouldWrite([&](const url::Origin& writer) {
+            return cookie.IsDomainMatch(writer.host());
+          })) {
+        if (!reported) {
+          pending_writes_.push_back(
+              {std::move(key), std::move(changed), base::TimeTicks::Now()});
+          if (!pending_timer_.IsRunning()) {
+            pending_timer_.Start(FROM_HERE, kSourceCookieReportDelay, this,
+                                 &SourceDataObserver::EvictUnreportedWrites);
+          }
+        }
+        return;
+      }
     }
+    Evict(changed);
   }
 
-  void InvalidateOrigins(const std::set<url::Origin>& origins,
-                         const char* reason,
-                         CollectorWrite write) {
-    if (!origins.empty()) {
-      service_->InvalidateCollections(
-          [&](const HomeCollectionKey& key) {
-            return std::ranges::any_of(key.origins,
-                                       [&](const url::Origin& origin) {
-                                         return origins.contains(origin);
-                                       });
-          },
-          reason, std::move(write));
+  void PruneSourceWrites() {
+    const auto due = base::TimeTicks::Now() - kSourceCookieReportDelay;
+    std::erase_if(source_writes_,
+                  [&](const auto& write) { return write.second < due; });
+  }
+
+  bool TakeSourceWrite(const net::UniqueCookieKey& key) {
+    PruneSourceWrites();
+    auto it = std::ranges::find(source_writes_, key,
+                                &std::pair<net::UniqueCookieKey,
+                                           base::TimeTicks>::first);
+    if (it == source_writes_.end()) {
+      return false;
     }
+    source_writes_.erase(it);
+    return true;
+  }
+
+  void EvictUnreportedWrites() {
+    const auto due = base::TimeTicks::Now() - kSourceCookieReportDelay;
+    std::set<url::Origin> origins;
+    auto observed_at = base::TimeTicks::Max();
+    std::erase_if(pending_writes_, [&](const PendingWrite& write) {
+      if (write.observed_at > due) {
+        return false;
+      }
+      origins.insert(write.origins.begin(), write.origins.end());
+      observed_at = std::min(observed_at, write.observed_at);
+      return true;
+    });
+    if (!pending_writes_.empty()) {
+      pending_timer_.Start(FROM_HERE, pending_writes_.front().observed_at - due,
+                           this, &SourceDataObserver::EvictUnreportedWrites);
+    }
+    // Reads that started after the write saw it and stay reusable.
+    Evict(origins, observed_at);
+  }
+
+  bool ReadInProgress(const std::set<url::Origin>& origins) {
+    return std::ranges::any_of(origins, [&](const url::Origin& origin) {
+      auto it = watches_.find(origin);
+      auto watch = it == watches_.end() ? nullptr : it->second.lock();
+      return watch && watch->ReadInProgress();
+    });
+  }
+
+  // Only committed documents of the origin can write its local storage, so
+  // a write belongs to a read when no such document exists outside Home
+  // source pages.
+  void OnStorageChanged(const url::Origin& origin, bool page_write) {
+    auto it = watches_.find(origin);
+    auto watch = it == watches_.end() ? nullptr : it->second.lock();
+    if (page_write && watch && watch->Reading() &&
+        !OtherPageCouldWrite(
+            [&](const url::Origin& writer) { return writer == origin; })) {
+      return;
+    }
+    Evict({origin});
+  }
+
+  bool OtherPageCouldWrite(
+      base::FunctionRef<bool(const url::Origin&)> could_write) {
+    for (auto it = content::RenderProcessHost::AllHostsIterator();
+         !it.IsAtEnd(); it.Advance()) {
+      content::RenderProcessHost* host = it.GetCurrentValue();
+      if (host->GetStoragePartition() != observation_.GetSource()) {
+        continue;
+      }
+      bool found = false;
+      host->ForEachRenderFrameHost([&](content::RenderFrameHost* frame) {
+        // Pages in the back/forward cache are frozen and cannot write.
+        if (found ||
+            frame->IsInLifecycleState(content::RenderFrameHost::LifecycleState::
+                                          kInBackForwardCache)) {
+          return;
+        }
+        auto* contents = content::WebContents::FromRenderFrameHost(frame);
+        found = !DaoHomeConnectorExecutor::IsSourceContents(contents) &&
+                could_write(frame->GetLastCommittedOrigin());
+      });
+      if (found) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  void Evict(const std::set<url::Origin>& origins,
+             base::TimeTicks changed_at = base::TimeTicks::Now()) {
+    if (origins.empty()) {
+      return;
+    }
+    for (const auto& origin : origins) {
+      if (auto it = watches_.find(origin); it != watches_.end()) {
+        if (auto watch = it->second.lock()) {
+          watch->MarkChanged(changed_at);
+        }
+      }
+    }
+    service_->EvictCachedCollections([&](const HomeCollectionKey& key) {
+      return std::ranges::any_of(key.origins, [&](const url::Origin& origin) {
+        return origins.contains(origin);
+      });
+    });
   }
 
   void OnStorageKeyDataCleared(
@@ -452,7 +551,7 @@ class DaoHomeProjectService::SourceDataObserver
                   Partition::REMOVE_DATA_MASK_DEVICE_BOUND_SESSIONS))) {
       return;
     }
-    service_->InvalidateCollections(
+    service_->InvalidateSessions(
         [&](const HomeCollectionKey& key) {
           return std::ranges::any_of(
               key.origins, [&](const url::Origin& origin) {
@@ -463,13 +562,16 @@ class DaoHomeProjectService::SourceDataObserver
         "browsing_data_removed");
   }
 
-  base::LRUCache<CookieVersion, std::shared_ptr<HomeSourceWrite>>
-      cookie_writes_{256};
+  static constexpr size_t kMaxTrackedCookies = 256;
   raw_ptr<DaoHomeProjectService> service_;
   base::ScopedObservation<content::StoragePartition, DataRemovalObserver>
       observation_{this};
   mojo::Receiver<network::mojom::CookieChangeListener> receiver_{this};
-  std::optional<ReplacedCookie> replaced_cookie_;
+  std::map<net::UniqueCookieKey, ReplacedCookie> replaced_cookies_;
+  // Recent writes reported by source pages before the Profile listener.
+  std::vector<std::pair<net::UniqueCookieKey, base::TimeTicks>> source_writes_;
+  std::vector<PendingWrite> pending_writes_;
+  base::OneShotTimer pending_timer_;
   std::map<url::Origin, std::weak_ptr<DaoHomeSourceWatch>> watches_;
   base::WeakPtrFactory<SourceDataObserver> weak_factory_{this};
 };
@@ -512,38 +614,39 @@ void DaoHomeProjectService::CheckSourceCookieExpiry() {
   }
 }
 
-void DaoHomeProjectService::ReportCollectorStorageSource(
-    const url::Origin& origin,
-    base::Token id) {
-  if (source_data_observer_ && !id.is_zero()) {
-    source_data_observer_->ReportCollectorStorageSource(origin, id);
-  }
-}
-
-void DaoHomeProjectService::ReportCollectorCookieWrite(
-    const net::CanonicalCookie& cookie) {
-  if (source_data_observer_) {
-    source_data_observer_->ReportCollectorCookieWrite(cookie);
-  }
-}
-
-void DaoHomeProjectService::WhenSourceWatchesInitialized(
-    const HomeSourceWatches& watches,
-    base::OnceClosure done) {
-  auto barrier = base::BarrierClosure(watches.size(), std::move(done));
-  for (const auto& watch : watches) {
-    watch->WhenInitialized(barrier);
-  }
-}
-
-bool DaoHomeProjectService::SourceWatchesReady(
+HomeSourceRead DaoHomeProjectService::BeginSourceRead(
     const HomeSourceWatches& watches) {
-  return std::ranges::all_of(watches, &DaoHomeSourceWatch::ready);
+  for (const auto& watch : watches) {
+    watch->BeginRead();
+  }
+  HomeSourceRead read;
+  read.end = base::ScopedClosureRunner(base::BindOnce(
+      [](const HomeSourceWatches& watches) {
+        for (const auto& watch : watches) {
+          watch->EndRead();
+        }
+      },
+      watches));
+  if (source_data_observer_) {
+    read.cookie_written =
+        base::BindRepeating(&SourceDataObserver::OnSourceCookieWrite,
+                            source_data_observer_->GetWeakPtr());
+  }
+  return read;
+}
+
+// static
+bool DaoHomeProjectService::SourceUnchangedSince(
+    const HomeSourceWatches& watches,
+    base::TimeTicks since) {
+  return std::ranges::all_of(watches, [&](const auto& watch) {
+    return watch->ready() && !watch->ChangedSince(since);
+  });
 }
 
 void DaoHomeProjectService::InvalidateSourceSession(
     const std::vector<url::Origin>& origins) {
-  InvalidateCollections(
+  InvalidateSessions(
       [&](const HomeCollectionKey& key) {
         return std::ranges::any_of(origins, [&](const url::Origin& origin) {
           return std::ranges::contains(key.origins, origin);
@@ -552,12 +655,15 @@ void DaoHomeProjectService::InvalidateSourceSession(
       "auth_required");
 }
 
-void DaoHomeProjectService::InvalidateCollections(CollectionMatcher matches,
-                                                  const char* reason,
-                                                  CollectorWrite write) {
+void DaoHomeProjectService::EvictCachedCollections(CollectionMatcher matches) {
   std::erase_if(collections_,
                 [&](const auto& entry) { return matches(entry.key); });
-  collection_invalidation_observers_.Notify(matches, reason, std::move(write));
+}
+
+void DaoHomeProjectService::InvalidateSessions(CollectionMatcher matches,
+                                               const char* reason) {
+  EvictCachedCollections(matches);
+  collection_invalidation_observers_.Notify(matches, reason);
 }
 
 base::CallbackListSubscription
@@ -565,7 +671,6 @@ DaoHomeProjectService::AddCollectionInvalidationObserver(
     InvalidationCallback callback) {
   return collection_invalidation_observers_.Add(std::move(callback));
 }
-
 void DaoHomeProjectService::RecordDiagnostic(HomeDiagnostic diagnostic) {
   Truncate(diagnostic.revision, 64);
   Truncate(diagnostic.connector_id, 128);
@@ -743,23 +848,20 @@ DaoHomeProjectService::CollectionAge DaoHomeProjectService::GetCollectionAge(
 
 std::optional<base::Value> DaoHomeProjectService::GetCachedCollection(
     const HomeCollectionKey& key,
-    bool* stale,
-    HomeSourceDependencies* dependencies) {
+    bool* stale) {
   CheckSourceCookieExpiry();
   auto it = std::ranges::find(collections_, key, &CachedCollection::key);
   if (it == collections_.end()) {
     return std::nullopt;
   }
   const auto age = GetCollectionAge(it->collected_at);
-  if (age == CollectionAge::kExpired) {
+  if (age == CollectionAge::kExpired ||
+      !std::ranges::all_of(it->watches, &DaoHomeSourceWatch::ready)) {
     collections_.erase(it);
     return std::nullopt;
   }
   if (stale) {
     *stale = age == CollectionAge::kStale;
-  }
-  if (dependencies) {
-    *dependencies = it->dependencies;
   }
   collections_.splice(collections_.begin(), collections_, it);
   return base::JSONReader::Read(it->json, base::JSON_PARSE_RFC);
@@ -767,8 +869,7 @@ std::optional<base::Value> DaoHomeProjectService::GetCachedCollection(
 
 void DaoHomeProjectService::CacheCollection(const HomeCollectionKey& key,
                                             const base::Value& value,
-                                            HomeSourceWatches watches,
-                                            HomeStorageReads storage_reads) {
+                                            HomeSourceWatches watches) {
   constexpr size_t kMaxEntries = 64;
   constexpr size_t kMaxBytes = 8 * 1024 * 1024;
   auto json = base::WriteJson(value);
@@ -778,10 +879,8 @@ void DaoHomeProjectService::CacheCollection(const HomeCollectionKey& key,
   if (!json || json->size() > kMaxBytes || json->contains("dao-media:")) {
     return;
   }
-  collections_.push_front({key,
-                           std::move(*json),
-                           base::Time::Now(),
-                           {std::move(watches), std::move(storage_reads)}});
+  collections_.push_front(
+      {key, std::move(*json), base::Time::Now(), std::move(watches)});
   size_t bytes = 0;
   size_t count = 0;
   for (auto it = collections_.begin(); it != collections_.end(); ++it) {

@@ -25,18 +25,17 @@ with a render function for that card. A read can reuse a successful result for
 30 minutes. From 30 minutes until 6 hours it returns the cached value and
 starts a refresh. A successful refresh calls `onUpdate` and replaces the cached
 value. Temporary failures and routine cookie renewals keep the previous result.
-A source page can update local storage keys or rotate cookies as it loads.
-Matching cached results are discarded. Live reads can finish when Home can
-attribute those writes to a source page, including a sibling source sharing
-a parent-domain cookie. Cookie expiry, clearing site data, and a native sign-in
-requirement invalidate pending results, even if the connector catches the error.
-Changes to local storage keys that the source did not read can evict the cache
-while a live or background read still delivers updated data. Home checks the
-source document for a sign-in form immediately before delivery. When an outside
-write may change credentials or storage used by a displayed card, Home reloads
-the affected Home document, even if two accounts show the same count. A cold or
-explicit read that has yet to show data can reopen an uncertain source once.
-Issued media handles remain usable after a verified source write.
+Cookie, cookie expiry, and local storage changes on a source's site, including
+writes from other tabs, discard matching cached results but never interrupt a
+read or reload the page. A read that saw such a change still returns its data,
+and the next read visits the site again. Writes the source page makes itself
+while Home reads it keep the result reusable unless another page of the site is
+open. Clearing site data or a native sign-in requirement ends the source
+session, even if the connector catches the error: pending reads fail with
+`session_changed`, and Home reloads documents that showed the affected data.
+A cold read that has yet to show data can retry once after `session_changed`.
+Home checks the source document for a sign-in form before delivery.
+Issued media handles remain usable after ordinary site data changes.
 At 6 hours, including time spent asleep, the read waits for new data.
 Structured results can be shared across Home tabs in the same Profile.
 Media handles belong to the current Home document.

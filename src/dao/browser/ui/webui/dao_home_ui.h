@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "base/callback_list.h"
+#include "base/functional/function_ref.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/task/cancelable_task_tracker.h"
@@ -106,7 +107,6 @@ class DaoHomeUIHandler : public content::WebUIMessageHandler,
   void StartRuntimeConnectorForTesting(HomeConnector connector,
                                        ConnectorCallback callback);
   bool HasActiveRuntimeConnectorForTesting() const;
-  bool IsAwaitingCollectionDeliveryForTesting(const std::string& id);
 
  private:
   void HandleGetSnapshot(const base::ListValue& args);
@@ -192,34 +192,21 @@ class DaoHomeUIHandler : public content::WebUIMessageHandler,
                        HomeConnectorBundle bundle,
                        base::Value input,
                        CollectionMode mode);
-  enum class SourceWait {
-    kNone,
-    kInitialCookies,
-    kValidated,
-    kAttribution,
-    kRevalidated
-  };
   void OnCollectionFinished(std::string callback_event,
                             HomeCollectionKey key,
                             std::string execution_id,
-                            SourceWait waited,
                             base::Value response);
-  struct SourceWrites {
-    bool Track(std::shared_ptr<const HomeSourceWrite> write);
-    const char* Reason(const HomeStorageReads& reads,
-                       base::TimeTicks through = base::TimeTicks::Max()) const;
-    std::vector<std::shared_ptr<const HomeSourceWrite>> pending;
-  };
+  // A source result delivered to the current Home document.
   struct DisplayedSource {
     HomeCollectionKey key;
-    HomeSourceWatches watches;
-    HomeStorageReads storage_reads;
-    SourceWrites writes{};
+    // A site that keeps asking one source to sign in while another source
+    // succeeds must not reload the document again.
+    bool revoked_for_sign_in = false;
   };
-  void RememberDisplayedSource(const HomeCollectionKey& key,
-                               HomeSourceWatches watches,
-                               HomeStorageReads storage_reads);
-  void CheckDisplayedSourceWrites();
+  void RememberDisplayedSource(const HomeCollectionKey& key);
+  void OnSourceSessionsEnded(
+      base::FunctionRef<bool(const HomeCollectionKey&)> matches,
+      const char* reason);
   void RevokeDisplayedSource(const HomeCollectionKey& key);
   struct Collection {
     HomeCollectionKey key;
@@ -227,30 +214,23 @@ class DaoHomeUIHandler : public content::WebUIMessageHandler,
     std::optional<base::Value> media_result;
     base::Time collected_at;
     HomeSourceWatches watches;
+    base::TimeTicks started_at;
     const char* session_end_reason = nullptr;
-    HomeStorageReads storage_reads = std::nullopt;
-    SourceWrites writes{};
-    const char* UnattributedWriteReason() const;
-    void Invalidate(const char* reason,
-                    std::shared_ptr<const HomeSourceWrite> write);
   };
   Collection* FindCollection(const std::string& execution_id);
   DaoHomeConnectorExecutor* FindConnectorExecutor(
       const std::string& execution_id);
   const Collection* FindMediaCollection(const std::string& handle,
                                         const std::string& draft_id);
-  void ResolveMedia(std::string callback_event,
-                    std::string handle,
-                    std::string draft_id,
-                    bool check_only,
-                    bool allow_wait);
   void CancelDraftCollections(const std::string& draft_id);
 
   raw_ptr<DaoHomeProjectService> service_;
   std::vector<Collection> active_collections_;
   std::vector<Collection> retained_collections_;
   std::vector<DisplayedSource> displayed_sources_;
-  base::OneShotTimer displayed_write_timer_;
+  // Sources whose last read required sign-in. Their next success lets a
+  // later sign-out reset documents of the same site again.
+  std::vector<HomeCollectionKey> sign_in_required_;
   int collection_generation_ = 0;
   int draft_collection_generation_ = 0;
   base::CallbackListSubscription project_changed_subscription_;
@@ -316,7 +296,6 @@ class DaoHomeUI : public content::WebUIController {
   void StartRuntimeConnectorForTesting(HomeConnector connector,
                                        ConnectorCallback callback);
   bool HasActiveRuntimeConnectorForTesting() const;
-  bool IsAwaitingCollectionDeliveryForTesting(const std::string& id);
 
  private:
   raw_ptr<DaoHomeUIHandler> handler_ = nullptr;

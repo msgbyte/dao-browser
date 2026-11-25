@@ -7,6 +7,7 @@
 - Agent chat and Test connection now work with local Anthropic- and OpenAI-compatible model servers that do not enable browser cross-origin requests.
 - When a Dao Lite task uses several tabs, its live preview now follows the tab the AI is working on and keeps updating when that tab opens another website.
 - Clicking **Hand back to AI** in Dao Lite automatically hides the task window so the AI can continue in the background.
+- Dao Home cards no longer fail with “The Home source session changed.” or make the page reload over and over while a signed-in site is open in another tab. Cards finish loading when a site updates its cookies or local storage, and Home clears shown cards only after you clear site data or the site asks you to sign in again.
 
 ### [1.0.144] - 2026-11-25
 

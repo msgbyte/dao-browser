@@ -51,19 +51,18 @@ interface PendingCollection {
 const MAX_CONCURRENT_COLLECTIONS = 8;
 
 export class HomeConnectorError extends Error {
-  constructor(message: string, readonly code: string, readonly retryLive = false) {
+  constructor(message: string, readonly code: string) {
     super(message);
     this.name = 'HomeConnectorError';
   }
 }
 
 function connectorError(
-    value: {error?: unknown; code?: unknown; retry_live?: boolean}, fallback: string):
+    value: {error?: unknown; code?: unknown}, fallback: string):
     HomeConnectorError {
   return new HomeConnectorError(
       typeof value.error === 'string' ? value.error : fallback,
-      typeof value.code === 'string' ? value.code : 'temporarily_unavailable',
-      value.retry_live === true);
+      typeof value.code === 'string' ? value.code : 'temporarily_unavailable');
 }
 
 export class ConnectorHost {
@@ -96,7 +95,6 @@ export class ConnectorHost {
       fresh: boolean, onStale?: (value: unknown) => void): Promise<unknown> {
     const source = JSON.stringify([draftId, connectorId]);
     let coldRead = false;
-    let servedStale = false;
     if (!fresh || this.lastBySource_.has(source)) {
       const cached = await this.request_(draftId, connectorId, input, false);
       coldRead = !fresh && !('value' in cached);
@@ -105,7 +103,6 @@ export class ConnectorHost {
       }
       if (!fresh && 'value' in cached) {
         if (!cached.stale) return cached.value;
-        servedStale = !!onStale;
         onStale?.(cached.value);
       }
     }
@@ -113,11 +110,10 @@ export class ConnectorHost {
     try {
       return (await readLive()).value;
     } catch (error) {
-      if (!(error instanceof HomeConnectorError) || error.code !== 'session_changed' ||
-          servedStale || !(coldRead || error.retryLive)) {
+      if (!coldRead || !(error instanceof HomeConnectorError) || error.code !== 'session_changed') {
         throw error;
       }
-      // Reopen the source under the current session before returning any result.
+      // A cold read can start just before the browser clears the site's data.
       return (await readLive()).value;
     }
   }

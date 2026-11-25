@@ -19,6 +19,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/supports_user_data.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/uuid.h"
 #include "chrome/browser/profiles/profile.h"
@@ -27,24 +28,17 @@
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/common/chrome_isolated_world_ids.h"
-#include "chrome/common/chrome_render_frame.mojom.h"
 #include "content/public/browser/cookie_access_details.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/render_frame_host.h"
-#include "content/public/browser/site_instance.h"
 #include "content/public/browser/visibility.h"
 #include "content/public/browser/weak_document_ptr.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/isolated_world_ids.h"
 #include "content/public/common/url_constants.h"
-#include "dao/browser/home/dao_home_project_service.h"
 #include "dao/browser/performance/dao_high_performance_mode.h"
-#include "mojo/public/cpp/bindings/associated_remote.h"
-#include "mojo/public/cpp/bindings/callback_helpers.h"
-#include "net/base/net_errors.h"
 #include "net/http/http_response_headers.h"
-#include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
@@ -57,24 +51,11 @@ constexpr int kMaxScrolls = 10;
 constexpr size_t kMaxMediaHandles = 100;
 constexpr size_t kMaxMediaBytes = 5 * 1024 * 1024;
 
+// Marks detached source pages so their writes are not taken as another page's.
+constexpr char kSourceContentsKey[] = "dao_home_source_contents";
+
 constexpr std::string_view kLoginFormPresent =
     R"js(!!document.querySelector('input[type="password"], input[autocomplete="current-password"], form[action*="login" i], form[action*="signin" i]'))js";
-
-bool SharesStorageReadsWithParent(content::RenderFrameHost* frame) {
-  auto* parent = frame->GetParent();
-  return parent &&
-         parent->GetLastCommittedOrigin() == frame->GetLastCommittedOrigin() &&
-         parent->GetSiteInstance()->GetSiteInstanceGroupId() ==
-             frame->GetSiteInstance()->GetSiteInstanceGroupId();
-}
-
-void EnableStorageReadTracking(content::RenderFrameHost* frame) {
-  if (frame && frame->IsRenderFrameLive()) {
-    mojo::AssociatedRemote<chrome::mojom::DaoHomeStorageSource> source;
-    frame->GetRemoteAssociatedInterfaces()->GetInterface(&source);
-    source->EnableReadTracking();
-  }
-}
 
 base::Value Error(std::string code, std::string message) {
   return base::Value(base::DictValue()
@@ -222,19 +203,16 @@ class DaoHomeConnectorExecutor::OwnerObserver
   base::WeakPtr<DaoHomeConnectorExecutor> executor_;
 };
 
-DaoHomeConnectorExecutor::DaoHomeConnectorExecutor(
-    DaoHomeProjectService* service)
-    : service_(service) {}
+DaoHomeConnectorExecutor::DaoHomeConnectorExecutor() = default;
 
 DaoHomeConnectorExecutor::~DaoHomeConnectorExecutor() {
   Reset();
 }
 
-const base::Value* DaoHomeConnectorExecutor::TerminalErrorFor(
-    const std::string& execution_id) const {
-  return !failed_execution_id_.empty() && execution_id == failed_execution_id_
-             ? &terminal_error_
-             : nullptr;
+// static
+bool DaoHomeConnectorExecutor::IsSourceContents(
+    const content::WebContents* contents) {
+  return contents && contents->GetUserData(kSourceContentsKey);
 }
 
 bool DaoHomeConnectorExecutor::running() const {
@@ -249,7 +227,8 @@ void DaoHomeConnectorExecutor::Start(content::WebContents* owner,
                                      std::string module_source,
                                      std::string schema_source,
                                      base::Value input,
-                                     Callback callback) {
+                                     Callback callback,
+                                     HomeSourceRead source_read) {
   Cancel();
   failed_execution_id_.clear();
   if (!owner || !profile || profile->IsOffTheRecord() ||
@@ -294,6 +273,9 @@ void DaoHomeConnectorExecutor::Start(content::WebContents* owner,
   content::WebContents::CreateParams source_params(profile);
   source_params.initially_hidden = true;
   source_ = content::WebContents::Create(source_params);
+  source_->SetUserData(kSourceContentsKey,
+                       std::make_unique<base::SupportsUserData::Data>());
+  source_read_ = std::move(source_read);
   source_->Resize(gfx::Rect(1280, 800));
   DaoHighPerformanceMode::SetEnabled(source_.get(), true);
   Observe(source_.get());
@@ -368,8 +350,8 @@ void DaoHomeConnectorExecutor::CallPage(const std::string& execution_id,
                                         const std::string& operation,
                                         base::ListValue arguments,
                                         Callback callback) {
-  if (const auto* error = TerminalErrorFor(execution_id)) {
-    std::move(callback).Run(error->Clone());
+  if (!failed_execution_id_.empty() && execution_id == failed_execution_id_) {
+    std::move(callback).Run(terminal_error_.Clone());
     return;
   }
   if (execution_id != execution_id_ || !source_ ||
@@ -708,8 +690,8 @@ void DaoHomeConnectorExecutor::ReplaceMediaReferences(base::Value& value,
 void DaoHomeConnectorExecutor::Finish(const std::string& execution_id,
                                       base::Value result,
                                       Callback callback) {
-  if (const auto* error = TerminalErrorFor(execution_id)) {
-    std::move(callback).Run(error->Clone());
+  if (!failed_execution_id_.empty() && execution_id == failed_execution_id_) {
+    std::move(callback).Run(terminal_error_.Clone());
     return;
   }
   if (execution_id != execution_id_ || !OwnerIsActive() || page_callback_ ||
@@ -908,9 +890,7 @@ void DaoHomeConnectorExecutor::CompleteFinish() {
   base::Value result = std::move(finish_result_);
   collection_finished_ = true;
   timeout_.Stop();
-  if (!service_) {
-    ReleaseSource();
-  }
+  ReleaseSource();
   pending_media_urls_.clear();
   module_source_.clear();
   schema_ = base::Value();
@@ -918,77 +898,6 @@ void DaoHomeConnectorExecutor::CompleteFinish() {
   std::move(callback).Run(base::Value(base::DictValue()
                                           .Set("execution_id", execution_id_)
                                           .Set("result", std::move(result))));
-}
-
-void DaoHomeConnectorExecutor::ValidateDelivery(
-    base::OnceCallback<void(HomeStorageReads)> callback) {
-  if (!collection_finished_ || !source_ || delivery_callback_) {
-    if (running() && !TerminalErrorFor(execution_id_)) {
-      FailStart("cancelled", "The active Dao Home connector session ended.");
-    }
-    std::move(callback).Run(std::nullopt);
-    return;
-  }
-  delivery_storage_sources_.clear();
-  delivery_storage_reads_.reset();
-  delivery_callback_ = std::move(callback);
-  timeout_.Start(FROM_HERE, kExecutionTimeout,
-                 base::BindOnce(&DaoHomeConnectorExecutor::FailStart,
-                                weak_factory_.GetWeakPtr(), "timed_out",
-                                "The Home connector timed out."));
-  auto* main = finished_document_.AsRenderFrameHostIfValid();
-  if (!main || main != source_->GetPrimaryMainFrame() ||
-      !main->IsRenderFrameLive() || !StorageOriginIsGranted(main) ||
-      storage_reads_incomplete_) {
-    CheckAuthState();
-    return;
-  }
-  std::vector<content::RenderFrameHost*> frames;
-  size_t committed_frames_seen = 0;
-  main->ForEachRenderFrameHost([&](content::RenderFrameHost* frame) {
-    if (StorageOriginIsGranted(frame)) {
-      frames.push_back(frame);
-      if (committed_storage_frames_.contains(frame->GetFrameTreeNodeId())) {
-        ++committed_frames_seen;
-      }
-    }
-  });
-  if (frames.empty() ||
-      committed_frames_seen != committed_storage_frames_.size() ||
-      std::ranges::any_of(frames, [](auto* frame) {
-        return !frame->IsRenderFrameLive() || !frame->IsActive();
-      })) {
-    CheckAuthState();
-    return;
-  }
-  delivery_storage_reads_.emplace();
-  pending_storage_reads_ = frames.size();
-  delivery_storage_sources_.reserve(frames.size());
-  for (auto* frame : frames) {
-    auto& remote = delivery_storage_sources_.emplace_back();
-    frame->GetRemoteAssociatedInterfaces()->GetInterface(&remote);
-    remote->GetReadKeys(mojo::WrapCallbackWithDefaultInvokeIfNotRun(
-        base::BindOnce(&DaoHomeConnectorExecutor::OnFrameStorageReads,
-                       weak_factory_.GetWeakPtr(), frame->GetWeakDocumentPtr()),
-        HomeStorageReads()));
-  }
-}
-
-void DaoHomeConnectorExecutor::OnFrameStorageReads(
-    content::WeakDocumentPtr document,
-    const HomeStorageReads& reads) {
-  if (!delivery_callback_) {
-    return;
-  }
-  auto* frame = document.AsRenderFrameHostIfValid();
-  if (frame && frame->IsActive()) {
-    MergeHomeStorageReads(delivery_storage_reads_, reads);
-  } else {
-    storage_reads_incomplete_ = true;
-  }
-  if (--pending_storage_reads_ == 0) {
-    CheckAuthState();
-  }
 }
 
 void DaoHomeConnectorExecutor::OnCookiesAccessed(
@@ -1005,105 +914,25 @@ void DaoHomeConnectorExecutor::OnCookiesAccessed(
 
 void DaoHomeConnectorExecutor::ReportCookieWrites(
     const content::CookieAccessDetails& details) {
-  if (!service_ || details.blocked_by_policy ||
-      details.source == content::CookieAccessDetails::Source::kWorker ||
+  if (!source_read_.cookie_written || details.blocked_by_policy ||
       details.type != content::CookieAccessDetails::Type::kChange) {
     return;
   }
+  // Workers report to every page of their origin. Home only credits them to
+  // this read when no other page of the site is open.
   for (const auto& item : details.cookie_access_result_list) {
-    if (item.access_result.status.IsInclude() &&
-        std::ranges::any_of(connector_.permissions.origins,
-                            [&](const url::Origin& origin) {
-                              return item.cookie.IsDomainMatch(origin.host());
-                            })) {
-      service_->ReportCollectorCookieWrite(item.cookie);
+    if (item.access_result.status.IsInclude()) {
+      source_read_.cookie_written.Run(item.cookie);
     }
-  }
-}
-
-bool DaoHomeConnectorExecutor::StorageOriginIsGranted(
-    content::RenderFrameHost* frame) const {
-  return std::ranges::contains(connector_.permissions.origins,
-                               frame->GetLastCommittedOrigin());
-}
-
-void DaoHomeConnectorExecutor::ObserveStorageSource(
-    content::NavigationHandle* handle) {
-  const auto id = handle->GetFrameTreeNodeId();
-  if (committed_storage_frames_.erase(id)) {
-    storage_reads_incomplete_ = true;
-  }
-  auto* frame = handle->GetRenderFrameHost();
-  if (!service_ || handle->IsErrorPage() || !StorageOriginIsGranted(frame)) {
-    return;
-  }
-  if (delivery_callback_) {
-    storage_reads_incomplete_ = true;
-  }
-  // Blink retains an initial blank child's reads in its local same-origin
-  // parent even if the child subsequently navigates to a different site.
-  if (!handle->IsNavigatingFromInitialEmptyDocument() ||
-      !handle->GetURL().IsAboutBlank() ||
-      !SharesStorageReadsWithParent(frame)) {
-    committed_storage_frames_.insert(id);
-  }
-  mojo::AssociatedRemote<chrome::mojom::DaoHomeStorageSource> source;
-  frame->GetRemoteAssociatedInterfaces()->GetInterface(&source);
-  auto* storage_source = source.get();
-  storage_source->GetSourceId(base::BindOnce(
-      [](base::WeakPtr<DaoHomeProjectService> service,
-         content::WeakDocumentPtr document,
-         mojo::AssociatedRemote<chrome::mojom::DaoHomeStorageSource>,
-         const base::Token& id) {
-        auto* frame = document.AsRenderFrameHostIfValid();
-        if (service && frame) {
-          service->ReportCollectorStorageSource(frame->GetLastCommittedOrigin(),
-                                                id);
-        }
-      },
-      service_->GetWeakPtr(), frame->GetWeakDocumentPtr(), std::move(source)));
-}
-
-void DaoHomeConnectorExecutor::RenderFrameCreated(
-    content::RenderFrameHost* frame) {
-  if (service_ && frame->GetParent() && StorageOriginIsGranted(frame)) {
-    EnableStorageReadTracking(frame);
-    if (!SharesStorageReadsWithParent(frame)) {
-      committed_storage_frames_.insert(frame->GetFrameTreeNodeId());
-    }
-    if (delivery_callback_) {
-      storage_reads_incomplete_ = true;
-    }
-  }
-}
-
-void DaoHomeConnectorExecutor::FrameDeleted(content::FrameTreeNodeId id) {
-  if (committed_storage_frames_.erase(id)) {
-    storage_reads_incomplete_ = true;
-  }
-}
-
-void DaoHomeConnectorExecutor::ReadyToCommitNavigation(
-    content::NavigationHandle* handle) {
-  if (!service_ || handle->IsSameDocument() ||
-      handle->GetNetErrorCode() != net::OK) {
-    return;
-  }
-  const auto origin = handle->GetOriginToCommit();
-  if (origin && std::ranges::contains(connector_.permissions.origins, *origin)) {
-    EnableStorageReadTracking(handle->GetRenderFrameHost());
   }
 }
 
 void DaoHomeConnectorExecutor::DidFinishNavigation(
     content::NavigationHandle* handle) {
-  if (handle->HasCommitted() && !handle->IsSameDocument()) {
-    ObserveStorageSource(handle);
-  }
   if (!handle->IsInPrimaryMainFrame() || !handle->HasCommitted()) {
     return;
   }
-  if (!collection_finished_ && !UrlIsAllowed(handle->GetURL())) {
+  if (!UrlIsAllowed(handle->GetURL())) {
     FailStart("site_changed", "The connector page left its granted scope.");
     return;
   }
@@ -1111,11 +940,6 @@ void DaoHomeConnectorExecutor::DidFinishNavigation(
   if (headers &&
       (headers->response_code() == 401 || headers->response_code() == 403)) {
     FailStart("auth_required", "Sign in to reconnect this Home source.");
-    return;
-  }
-  if (collection_finished_ &&
-      (!handle->IsSameDocument() || !UrlIsAllowed(handle->GetURL()))) {
-    FailStart("session_changed", "The Home source session changed.");
     return;
   }
   if (handle->IsErrorPage()) {
@@ -1144,39 +968,23 @@ void DaoHomeConnectorExecutor::MaybeCheckDocumentReady() {
 }
 
 void DaoHomeConnectorExecutor::CheckAuthState() {
-  if (collection_finished_ && !delivery_callback_) {
-    return;
-  }
   content::RenderFrameHost* frame =
       source_ ? source_->GetPrimaryMainFrame() : nullptr;
   if (!frame || !frame->IsRenderFrameLive()) {
     FailStart("temporarily_unavailable", "The connector page is unavailable.");
     return;
   }
-  if (delivery_callback_ &&
-      frame != finished_document_.AsRenderFrameHostIfValid()) {
-    FailStart("session_changed", "The Home source session changed.");
-    return;
-  }
   auth_check_pending_ = true;
-  auto reply =
+  frame->ExecuteJavaScriptInIsolatedWorld(
+      base::UTF8ToUTF16(kLoginFormPresent),
       base::BindOnce(&DaoHomeConnectorExecutor::OnAuthState,
-                     weak_factory_.GetWeakPtr(), frame->GetWeakDocumentPtr());
-  if (delivery_callback_) {
-    reply = mojo::WrapCallbackWithDefaultInvokeIfNotRun(std::move(reply),
-                                                        base::Value());
-  }
-  frame->ExecuteJavaScriptInIsolatedWorld(base::UTF8ToUTF16(kLoginFormPresent),
-                                          std::move(reply),
-                                          ISOLATED_WORLD_ID_CHROME_INTERNAL);
+                     weak_factory_.GetWeakPtr(), frame->GetWeakDocumentPtr()),
+      ISOLATED_WORLD_ID_CHROME_INTERNAL);
 }
 
 void DaoHomeConnectorExecutor::OnAuthState(content::WeakDocumentPtr document,
                                            base::Value result) {
   auth_check_pending_ = false;
-  if (collection_finished_ && !delivery_callback_) {
-    return;
-  }
   if (!source_ ||
       document.AsRenderFrameHostIfValid() != source_->GetPrimaryMainFrame()) {
     FailStart("site_changed", "The connector source document changed.");
@@ -1190,16 +998,7 @@ void DaoHomeConnectorExecutor::OnAuthState(content::WeakDocumentPtr document,
     FailStart("auth_required", "Sign in to reconnect this Home source.");
     return;
   }
-  if (delivery_callback_) {
-    timeout_.Stop();
-    if (storage_reads_incomplete_) {
-      delivery_storage_reads_.reset();
-    }
-    std::move(delivery_callback_).Run(std::move(delivery_storage_reads_));
-    return;
-  }
   if (finish_callback_) {
-    finished_document_ = document;
     CompleteFinish();
     return;
   }
@@ -1219,8 +1018,7 @@ void DaoHomeConnectorExecutor::WebContentsDestroyed() {
   // The observed contents is already being destroyed by its caller.
   source_.release();
   Observe(nullptr);
-  if (start_callback_ || page_callback_ || finish_callback_ ||
-      collection_finished_) {
+  if (start_callback_ || page_callback_ || finish_callback_) {
     FailStart("temporarily_unavailable", "The connector page was destroyed.");
   } else {
     Reset();
@@ -1252,17 +1050,6 @@ void DaoHomeConnectorExecutor::Fail(std::string code,
 
 void DaoHomeConnectorExecutor::FailStart(std::string code,
                                          std::string message) {
-  if (collection_finished_) {
-    // Finish has returned to the handler, which still owns the pending
-    // delivery.
-    failed_execution_id_ = execution_id_;
-    terminal_error_ = Error(code, std::move(message));
-    ReleaseSource();
-    if (service_ && code == "auth_required") {
-      service_->InvalidateSourceSession(connector_.permissions.origins);
-    }
-    return;
-  }
   if (!start_callback_ && !page_callback_ && !finish_callback_) {
     // Navigation and timeouts can terminate a session between sandbox calls.
     auto id = execution_id_;
@@ -1301,24 +1088,13 @@ void DaoHomeConnectorExecutor::Cancel() {
 
 void DaoHomeConnectorExecutor::ReleaseSource() {
   Observe(nullptr);
-  if (delivery_callback_) {
-    if (!TerminalErrorFor(execution_id_)) {
-      failed_execution_id_ = execution_id_;
-      terminal_error_ =
-          Error("cancelled", "The active Dao Home connector session ended.");
-    }
-    // The owner may be iterating or erasing its collection during cancellation.
-    timeout_.Stop();
-    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce(std::move(delivery_callback_), std::nullopt));
-  }
-  delivery_storage_sources_.clear();
-  delivery_storage_reads_.reset();
   if (source_) {
     // Navigation failures can reset us inside a source observer notification.
     base::SequencedTaskRunner::GetCurrentDefault()->DeleteSoon(
         FROM_HERE, std::move(source_));
   }
+  source_read_.cookie_written.Reset();
+  source_read_.end.RunAndReset();
 }
 
 void DaoHomeConnectorExecutor::Reset() {
@@ -1350,9 +1126,6 @@ void DaoHomeConnectorExecutor::Reset() {
   navigation_pending_ = false;
   auth_check_pending_ = false;
   collection_finished_ = false;
-  finished_document_ = {};
-  committed_storage_frames_.clear();
-  storage_reads_incomplete_ = false;
   wait_for_selector_.clear();
   wait_for_deadline_ = base::TimeTicks();
 }
