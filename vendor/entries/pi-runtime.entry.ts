@@ -18,6 +18,8 @@
 // xlsx, docx-preview, jszip, @lmstudio/sdk, ollama) are marked external
 // in vendor.config.ts so they are never pulled into the output.
 
+export {setProviderFetch} from "./pi-fetch";
+
 // ---------- pi-ai: models, streaming, provider registry ----------
 // @ts-expect-error — resolved from vendor/node_modules at bundle time.
 export {

@@ -4,6 +4,7 @@
 
 ### [Unreleased] Unreleased
 
+- Agent chat and Test connection now work with local Anthropic- and OpenAI-compatible model servers that do not enable browser cross-origin requests.
 - When a Dao Lite task uses several tabs, its live preview now follows the tab the AI is working on and keeps updating when that tab opens another website.
 - Clicking **Hand back to AI** in Dao Lite automatically hides the task window so the AI can continue in the background.
 

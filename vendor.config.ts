@@ -29,6 +29,7 @@ export interface VendorEntry {
   target?: string;
   minify?: boolean;
   sourcemap?: boolean;
+  inject?: string[];
 
   // ESM only: modules to mark as external (not bundled). Used for node-only
   // optional deps that browser-target vendored packages guard with runtime
@@ -88,6 +89,7 @@ const config: VendorConfig = {
       // build_webui pipeline via `non_web_component_files`. The pipeline
       // prepends `@ts-nocheck` to skip type-checking the minified bundle.
       name: "pi-runtime",
+      inject: ["entries/pi-fetch.ts"],
       npm: [
         "@earendil-works/pi-ai",
         "@earendil-works/pi-agent-core",

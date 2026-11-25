@@ -808,10 +808,15 @@ The stack includes: **LLM tool calling**, **long-term memory** (SQLite + FTS5), 
   catalog endpoint, and model ids outside the catalog (new releases, gateway
   aliases) reuse the provider's native API via `pi_model.ts`
 - **Test connection** sends a one-line prompt with the current form values
-  through the preloaded `chrome://agent` page (`llm_connection_test.ts`), so it
+  through the preloaded `dao://agent` page (`llm_connection_test.ts`), so it
   exercises the same pi-ai path as chat. `DaoAgentSettingsHandler` relays the
   request between the two pages; the card shows the latency on success, or the
   provider's raw error, a timeout, or that the agent panel is not ready yet
+- For loopback OpenAI- and Anthropic-compatible endpoints, the Agent streams the
+  SDK's POST through the browser process. The saved active endpoint and any
+  endpoint currently being tested on that Agent page can receive a request.
+  Streaming, cancellation, and provider errors work without CORS response headers.
+  The request omits cookies and rejects redirects.
 - The persona card can restore the runtime default, while the Dream card can
   generate a report immediately when Memory and Dream analysis are enabled and
   keeps the existing Dream report history link available

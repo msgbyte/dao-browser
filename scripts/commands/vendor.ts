@@ -215,6 +215,7 @@ async function buildEsm(
     legalComments: "none",
     logLevel: "warning",
     plugins: shimPlugin ? [shimPlugin] : [],
+    inject: entry.inject,
   });
 
   // Prepend the auto-generated header to the committed output.

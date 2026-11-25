@@ -16,6 +16,7 @@ import './dao_chat_view.js';
 import './dao_dream_dispatcher.js';
 import './dao_tab_classification.js';
 import './llm_connection_test.js';
+import './local_model_fetch.js';
 import type {DaoChatView, HomePromptOptions} from './dao_chat_view.js';
 import {initI18n, t} from './i18n/i18n.js';
 import {refreshSkillRegistryIfStale} from './skill_registry.js';

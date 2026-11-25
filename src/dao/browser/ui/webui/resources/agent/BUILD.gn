@@ -55,6 +55,7 @@ build_webui("build") {
     "llm_cost.ts",
     "llm_config.ts",
     "llm_connection_test.ts",
+    "local_model_fetch.ts",
     "memory.ts",
     "index.ts",
     "model_capabilities.ts",
