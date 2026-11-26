@@ -812,6 +812,9 @@
       <message name="IDS_DAO_AGENT_SPACE_DISMISS" desc="Button that removes a finished or stopped AI task from the sidebar list.">
         Remove from list
       </message>
+      <message name="IDS_DAO_AGENT_SPACE_DISMISS_COMPLETED" desc="Tooltip and accessible label for a sidebar button that removes all successfully finished AI tasks from the list.">
+        Close all completed tasks
+      </message>
       <message name="IDS_DAO_AGENT_SPACE_FINAL_PAGES" desc="Heading for the pages open when an AI task finished or stopped.">
         Pages at task end
       </message>

@@ -222,6 +222,53 @@ describe('dao-agent-spaces', () => {
         .toBe('2');
   });
 
+  it.each([false, true])(
+      'closes only completed tasks from the header when collapsed=%s',
+      async collapsed => {
+        const remaining = [
+          space(),
+          space({space_id: 'controlled', state: 'user_in_control'}),
+          space({space_id: 'stopped', state: 'stopped'}),
+        ];
+        const {el, send} = await createElement({
+          spaces: [
+            space({space_id: 'done1', state: 'finished'}),
+            ...remaining,
+            space({space_id: 'done2', state: 'finished'}),
+          ],
+          currentSpaceId: '',
+        });
+        const root = el.shadowRoot!;
+        if (collapsed) {
+          click(root.querySelector('.section-header')!);
+        } else {
+          click(root.querySelector('.row')!);
+        }
+        await el.updateComplete;
+
+        const button = root.querySelector<HTMLButtonElement>(
+            '.dismiss-completed')!;
+        expect(button.getAttribute('aria-label'))
+            .toBe('[daoAgentSpaceDismissCompleted]');
+        expect(button.title).toBe(button.getAttribute('aria-label'));
+        send.mockClear();
+        button.click();
+
+        expect(send.mock.calls).toEqual([
+          ['agentSpaceAction', ['dismiss', 'done1']],
+          ['agentSpaceAction', ['dismiss', 'done2']],
+        ]);
+
+        push('agentSpacesChanged', {spaces: remaining, currentSpaceId: ''});
+        await el.updateComplete;
+        expect(root.querySelector('.dismiss-completed')).toBeNull();
+        expect(root.querySelector('.section-header')!
+                   .getAttribute('aria-expanded')).toBe(String(!collapsed));
+        expect(root.querySelectorAll('.row'))
+            .toHaveLength(collapsed ? 0 : remaining.length);
+        expect(root.querySelector('.panel')).toBeNull();
+      });
+
   it('updates each task tab badge only when it has multiple tabs', async () => {
     const {el} = await createElement({
       spaces: [space(), space({space_id: 's2-ef01', tab_count: 3})],

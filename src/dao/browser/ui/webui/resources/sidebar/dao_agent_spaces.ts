@@ -141,13 +141,20 @@ export class DaoAgentSpacesElement extends CrLitElement {
         }
       }
 
+      .section-heading {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        margin: 0 8px;
+      }
+
       .section-header {
+        flex: 1;
+        min-width: 0;
         display: flex;
         align-items: center;
         gap: 6px;
-        width: calc(100% - 16px);
         min-height: 28px;
-        margin: 0 8px;
         padding: 4px 6px;
         border: none;
         border-radius: var(--radius-tab, 12px);
@@ -169,6 +176,11 @@ export class DaoAgentSpacesElement extends CrLitElement {
 
       .section-header[aria-expanded='false'] svg {
         transform: rotate(-90deg);
+      }
+
+      .dismiss-completed {
+        flex: none;
+        margin-inline-end: 8px;
       }
 
       .count {
@@ -343,7 +355,8 @@ export class DaoAgentSpacesElement extends CrLitElement {
         color: var(--text-secondary);
       }
 
-      .icon-btn:hover {
+      .icon-btn:hover,
+      .dismiss-completed:focus-visible {
         background: var(--ink-drop-strong);
         color: var(--text-primary);
       }
@@ -759,6 +772,14 @@ export class DaoAgentSpacesElement extends CrLitElement {
     e?.stopPropagation();
     this.hidePreview_();
     sendNative('agentSpaceAction', action, space.space_id);
+  }
+
+  private dismissCompleted_() {
+    for (const space of this.spaces_) {
+      if (space.state === 'finished') {
+        this.action_('dismiss', space);
+      }
+    }
   }
 
   private toggle_(space: AgentSpaceData) {
@@ -1238,14 +1259,25 @@ export class DaoAgentSpacesElement extends CrLitElement {
       return html``;
     }
     const active = this.spaces_.filter(s => !this.isClosed_(s)).length;
+    const hasCompleted = this.spaces_.some(s => s.state === 'finished');
     return html`
-      <button class="section-header" type="button"
-              aria-expanded=${String(!this.collapsed_)}
-              @click=${this.toggleSection_}>
-        ${this.renderIcon_('chevron-down', 12)}
-        ${str('daoAgentSpacesTitle')}
-        ${active ? html`<span class="count">${active}</span>` : nothing}
-      </button>
+      <div class="section-heading">
+        <button class="section-header" type="button"
+                aria-expanded=${String(!this.collapsed_)}
+                @click=${this.toggleSection_}>
+          ${this.renderIcon_('chevron-down', 12)}
+          ${str('daoAgentSpacesTitle')}
+          ${active ? html`<span class="count">${active}</span>` : nothing}
+        </button>
+        ${hasCompleted ? html`
+          <button class="icon-btn dismiss-completed" type="button"
+                  title=${str('daoAgentSpaceDismissCompleted')}
+                  aria-label=${str('daoAgentSpaceDismissCompleted')}
+                  @click=${this.dismissCompleted_}>
+            ${this.renderIcon_('x')}
+          </button>
+        ` : nothing}
+      </div>
       ${this.collapsed_ ? nothing :
                           this.spaces_.map(space => this.renderSpace_(space))}
     `;

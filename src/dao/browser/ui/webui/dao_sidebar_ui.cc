@@ -4767,6 +4767,7 @@ DaoSidebarUI::DaoSidebarUI(content::WebUI* web_ui) : WebUIController(web_ui) {
       {"daoAgentSpaceHandBack", IDS_DAO_AGENT_SPACE_HAND_BACK},
       {"daoAgentSpaceStop", IDS_DAO_AGENT_SPACE_STOP},
       {"daoAgentSpaceDismiss", IDS_DAO_AGENT_SPACE_DISMISS},
+      {"daoAgentSpaceDismissCompleted", IDS_DAO_AGENT_SPACE_DISMISS_COMPLETED},
       {"daoAgentSpaceFinalPages", IDS_DAO_AGENT_SPACE_FINAL_PAGES},
       {"daoAgentSpaceReopenHint", IDS_DAO_AGENT_SPACE_REOPEN_HINT},
       {"daoAgentSpaceNoSavedPages", IDS_DAO_AGENT_SPACE_NO_SAVED_PAGES},
