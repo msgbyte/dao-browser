@@ -1597,6 +1597,10 @@ Lightweight window form factor for popups / mini-tools.
 ## 9. Preferences and Centralized Pref Names
 
 - **DaoPrefNames** (`browser/dao_pref_names.{h,cc}`) — Single source of truth for Dao-owned pref keys (welcome shown, sidebar width, folder file path, etc.)
+- **JSON preview** — The built-in formatter remembers the Pretty print checkbox
+  for top-level JSON pages across tabs, sites, and restarts. Incognito and Guest
+  changes use temporary profile preferences. Formatting waits for the response
+  to finish loading, and turning it off restores the original text.
 - Patches: `prefs/browser_prefs.cc.patch`, `prefs/session_startup_pref.cc.patch`
 
 ## 10. Web JavaScript Dialogs

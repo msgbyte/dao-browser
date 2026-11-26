@@ -764,6 +764,7 @@ Not in `src/patches/`. Import mechanically rewrites `chrome://`→`dao://` in:
 | ☐ | Startup tab top-insertion order + no stray NTP | `startup_browser_creator_impl.cc.patch` | 🔴 | Multiple `--` URLs preserve order at top; no stray empty tab |
 | ☐ | Suppress crash bubble / API-key infobar / default-browser prompt | `ui/startup/infobar_utils.cc.patch` (`#if 0` block) | 🟡 | None of the 3 prompts appear on startup |
 | ☐ | Dao profile prefs registered | `prefs/browser_prefs.cc.patch` | 🟢 | No "unregistered pref" crash on fresh profile |
+| ☐ | Remember the JSON preview's Pretty print choice | `json_document.cc.patch`, `persistent_renderer_prefs*.patch` | 🟡 | Toggle Pretty print on a JSON page, then reload, open JSON on another site, and restart the browser. Turn it off and verify new previews show the original text. Incognito changes should stay in the private session. |
 | ☐ | Sign-in disabled by default | `signin/account_consistency_mode_manager.cc.patch` | 🟢 | Fresh profile sign-in off |
 | ☐ | macOS updater + telemetry init on first profile | `chrome_browser_main_mac.mm.patch` | 🟡 | Updater inits; telemetry "browser opened" fires once |
 | ☐ | Suppress upstream IPH / tutorial promos | `views/user_education/browser_user_education_service.cc.patch` (`#if 0` blocks) | 🔴 | No upstream promo bubbles; builds clean under `-Werror` |

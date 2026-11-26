@@ -1,0 +1,123 @@
+diff --git a/third_party/blink/renderer/core/html/json_document.cc b/third_party/blink/renderer/core/html/json_document.cc
+--- a/third_party/blink/renderer/core/html/json_document.cc
++++ b/third_party/blink/renderer/core/html/json_document.cc
+@@ -4,11 +4,15 @@
+ 
+ #include "third_party/blink/renderer/core/html/json_document.h"
+ 
++#include "build/build_config.h"
++#include "third_party/blink/public/mojom/persistent_renderer_prefs.mojom-blink.h"
+ #include "third_party/blink/public/strings/grit/blink_strings.h"
+ #include "third_party/blink/renderer/core/dom/events/event.h"
+ #include "third_party/blink/renderer/core/dom/events/native_event_listener.h"
+ #include "third_party/blink/renderer/core/dom/shadow_root.h"
+ #include "third_party/blink/renderer/core/dom/text.h"
++#include "third_party/blink/renderer/core/execution_context/execution_context.h"
++#include "third_party/blink/renderer/core/frame/local_frame.h"
+ #include "third_party/blink/renderer/core/html/forms/html_form_element.h"
+ #include "third_party/blink/renderer/core/html/forms/html_input_element.h"
+ #include "third_party/blink/renderer/core/html/forms/html_label_element.h"
+@@ -23,17 +27,65 @@
+ #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+ #include "third_party/blink/renderer/platform/json/json_parser.h"
+ #include "third_party/blink/renderer/platform/json/json_values.h"
++#include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
+ #include "third_party/blink/renderer/platform/text/platform_locale.h"
++#include "third_party/blink/renderer/platform/wtf/functional.h"
+ 
+ namespace blink {
+ 
+ class PrettyPrintJSONListener : public NativeEventListener {
+  public:
+   PrettyPrintJSONListener(HTMLPreElement* pre, HTMLInputElement* checkbox)
+-      : checkbox_(checkbox), pre_(pre) {}
+-
+-  void Invoke(ExecutionContext*, Event* event) override {
++      : checkbox_(checkbox),
++        pre_(pre),
++        prefs_(pre->GetExecutionContext()) {}
++
++  void Invoke(ExecutionContext* context, Event* event) override {
++    if (event->type() == event_type_names::kDOMContentLoaded) {
++      if (event->isTrusted() && checkbox_->IsDisabledFormControl()) {
++        checkbox_->SetBooleanAttribute(html_names::kDisabledAttr, false);
++#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_FUCHSIA)
++        LocalFrame* frame = checkbox_->GetDocument().GetFrame();
++        if (frame && frame->IsOutermostMainFrame()) {
++          context->GetBrowserInterfaceBroker().GetInterface(
++              prefs_.BindNewPipeAndPassReceiver(
++                  context->GetTaskRunner(TaskType::kInternalDefault)));
++          prefs_->GetJsonPreviewPrettyPrint(blink::BindOnce(
++              &PrettyPrintJSONListener::ApplySavedPreference,
++              WrapWeakPersistent(this)));
++        }
++#endif
++      }
++      return;
++    }
++
+     DCHECK_EQ(event->type(), event_type_names::kChange);
++    if (checkbox_->IsDisabledFormControl()) {
++      return;
++    }
++    UpdateFormatting();
++    if (prefs_ && event->isTrusted()) {
++      prefs_->SetJsonPreviewPrettyPrint(checkbox_->Checked());
++    }
++  }
++
++  void Trace(Visitor* visitor) const override {
++    visitor->Trace(checkbox_);
++    visitor->Trace(pre_);
++    visitor->Trace(prefs_);
++    NativeEventListener::Trace(visitor);
++  }
++
++ private:
++  void ApplySavedPreference(bool enabled) {
++    // A toggle made while the browser was replying takes precedence.
++    if (enabled && original_content_.IsNull()) {
++      checkbox_->SetChecked(true);
++      UpdateFormatting();
++    }
++  }
++
++  void UpdateFormatting() {
+     if (original_content_.IsNull()) {
+       original_content_ = pre_->textContent();
+       std::unique_ptr<JSONValue> parsed = ParseJSON(original_content_);
+@@ -48,15 +100,9 @@
+     }
+   }
+ 
+-  void Trace(Visitor* visitor) const override {
+-    visitor->Trace(checkbox_);
+-    visitor->Trace(pre_);
+-    NativeEventListener::Trace(visitor);
+-  }
+-
+- private:
+   Member<HTMLInputElement> checkbox_;
+   Member<HTMLPreElement> pre_;
++  HeapMojoRemote<mojom::blink::PersistentRendererPrefsService> prefs_;
+   // The original and pretty-printed JSON. If `original_content_` is null, we
+   // have not yet attempted to parse `pre_`. If it is non-null, but
+   // `pretty_printed_` is null, the JSON could not be parsed.
+@@ -113,10 +159,13 @@
+     label->SetShadowPseudoId(AtomicString("-internal-json-formatter-control"));
+     auto* checkbox = MakeGarbageCollected<HTMLInputElement>(*GetDocument());
+     checkbox->setAttribute(html_names::kTypeAttr, input_type_names::kCheckbox);
+-    checkbox->addEventListener(
+-        event_type_names::kChange,
+-        MakeGarbageCollected<PrettyPrintJSONListener>(pre_, checkbox),
+-        /*use_capture=*/false);
++    // Formatting needs the complete response, including any trailing chunks.
++    checkbox->SetBooleanAttribute(html_names::kDisabledAttr, true);
++    auto* listener =
++        MakeGarbageCollected<PrettyPrintJSONListener>(pre_, checkbox);
++    checkbox->addEventListener(event_type_names::kChange, listener, false);
++    GetDocument()->addEventListener(event_type_names::kDOMContentLoaded,
++                                    listener, false);
+     checkbox->setAttribute(html_names::kAriaLabelAttr,
+                            AtomicString(Locale::DefaultLocale().QueryString(
+                                IDS_PRETTY_PRINT_JSON)));

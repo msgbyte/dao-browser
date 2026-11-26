@@ -4,6 +4,8 @@
 
 ### [Unreleased] Unreleased
 
+- JSON previews remember your Pretty print choice across pages and browser restarts.
+
 ### [1.0.145] - 2026-11-26
 
 - Agent chat and Test connection now work with local Anthropic- and OpenAI-compatible model servers that do not enable browser cross-origin requests.
