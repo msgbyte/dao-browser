@@ -70,6 +70,10 @@ export class DaoNewTabButton extends CrLitElement {
     `;
   }
 
+  override focus(options?: FocusOptions) {
+    this.shadowRoot?.querySelector('button')?.focus(options);
+  }
+
   override render() {
     return html`
       <button class="new-tab-btn" @click=${this.onClick_}>

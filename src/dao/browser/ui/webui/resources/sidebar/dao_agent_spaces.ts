@@ -743,6 +743,17 @@ export class DaoAgentSpacesElement extends CrLitElement {
         s => s.space_id === this.expandedId_ && !this.isClosed_(s));
     this.spaces_ = state?.spaces || [];
     this.currentSpaceId_ = state?.currentSpaceId || '';
+    const root = this.shadowRoot;
+    if (!this.currentSpaceId_ &&
+        root?.activeElement?.matches('.dismiss-completed') &&
+        this.ownerDocument.hasFocus() &&
+        !this.spaces_.some(s => s.state === 'finished')) {
+      if (this.spaces_.length > 0) {
+        root.querySelector<HTMLButtonElement>('.section-header')?.focus();
+      } else {
+        this.dispatchEvent(new Event('focus-new-tab'));
+      }
+    }
     const preview = this.spaces_.find(s => s.space_id === this.previewId_);
     if (this.previewId_ &&
         (!preview || this.isClosed_(preview) || this.currentSpaceId_)) {

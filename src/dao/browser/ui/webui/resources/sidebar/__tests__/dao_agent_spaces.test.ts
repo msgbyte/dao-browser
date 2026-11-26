@@ -252,6 +252,7 @@ describe('dao-agent-spaces', () => {
             .toBe('[daoAgentSpaceDismissCompleted]');
         expect(button.title).toBe(button.getAttribute('aria-label'));
         send.mockClear();
+        button.focus();
         button.click();
 
         expect(send.mock.calls).toEqual([
@@ -260,6 +261,8 @@ describe('dao-agent-spaces', () => {
         ]);
 
         push('agentSpacesChanged', {spaces: remaining, currentSpaceId: ''});
+        // The Lit shim replaces the heading on render, unlike real Lit.
+        expect(root.activeElement).toBe(root.querySelector('.section-header'));
         await el.updateComplete;
         expect(root.querySelector('.dismiss-completed')).toBeNull();
         expect(root.querySelector('.section-header')!

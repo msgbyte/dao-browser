@@ -1099,6 +1099,11 @@ export class DaoSidebarApp extends CrLitElement {
     }
   }
 
+  private focusNewTab_() {
+    this.shadowRoot?.querySelector<HTMLElement>('dao-new-tab-button')
+        ?.focus({preventScroll: true});
+  }
+
   override render() {
     return html`
       <div class="sidebar-content">
@@ -1113,7 +1118,7 @@ export class DaoSidebarApp extends CrLitElement {
           </dao-favorites-view>
         ` : ''}
 
-        <dao-agent-spaces></dao-agent-spaces>
+        <dao-agent-spaces @focus-new-tab=${this.focusNewTab_}></dao-agent-spaces>
 
         <dao-new-tab-button ?highlighted=${this.newTabHighlighted_}></dao-new-tab-button>
 

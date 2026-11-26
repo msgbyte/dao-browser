@@ -6,6 +6,7 @@ import {readFileSync} from 'node:fs';
 
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
+import type {AgentSpaceData, AgentSpacesState} from '../dao_agent_spaces.js';
 import {
   SIDEBAR_POINTER_EXITED_EVENT,
 } from '../sidebar_bridge.js';
@@ -214,6 +215,43 @@ describe('dao-sidebar-app', () => {
         expect(model.findTabFolder(first)).toBeNull();
         expect(model.findTabFolder(second)).toBe('folder-a');
       });
+
+  it('focuses New Tab when bulk close removes the focused task section',
+     async () => {
+       const {el} = await loadApp();
+       await el.updateComplete;
+       const tasks = el.shadowRoot!.querySelector('dao-agent-spaces')!;
+       const newTab = el.shadowRoot!.querySelector('dao-new-tab-button')!;
+       const pushSpaces = (spaces: AgentSpaceData[]) => {
+         (window as unknown as {
+           cr: {
+             webUIListenerCallback: (event: string, state: AgentSpacesState) =>
+                 void,
+           },
+         }).cr.webUIListenerCallback(
+             'agentSpacesChanged', {spaces, currentSpaceId: ''});
+       };
+       pushSpaces([{
+         space_id: 'done',
+         name: 'Finished task',
+         state: 'finished',
+         owner: '',
+         status: '',
+         created_at: 0,
+         tab_count: 0,
+         window_visible: false,
+       }]);
+       await tasks.updateComplete;
+       const button = tasks.shadowRoot!.querySelector<HTMLButtonElement>(
+           '.dismiss-completed')!;
+       button.focus();
+       button.click();
+
+       pushSpaces([]);
+       await tasks.updateComplete;
+       expect(newTab.shadowRoot!.activeElement)
+           .toBe(newTab.shadowRoot!.querySelector('button'));
+     });
 
   it('renders pinned tabs above the new tab button', async () => {
     const {el} = await loadApp();
