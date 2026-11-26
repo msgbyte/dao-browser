@@ -1,0 +1,64 @@
+diff --git a/chrome/browser/prefs/persistent_renderer_prefs_manager.cc b/chrome/browser/prefs/persistent_renderer_prefs_manager.cc
+--- a/chrome/browser/prefs/persistent_renderer_prefs_manager.cc
++++ b/chrome/browser/prefs/persistent_renderer_prefs_manager.cc
+@@ -4,12 +4,17 @@
+ 
+ #include "chrome/browser/prefs/persistent_renderer_prefs_manager.h"
+ 
++#include <utility>
++
+ #include "chrome/browser/prefs/persistent_renderer_prefs_manager_factory.h"
+ #include "chrome/browser/profiles/profile.h"
+ #include "chrome/common/pref_names.h"
+ #include "components/prefs/pref_service.h"
+ #include "content/public/browser/browser_thread.h"
++#include "content/public/browser/page.h"
+ #include "content/public/browser/render_frame_host.h"
++#include "dao/browser/dao_pref_names.h"
++#include "third_party/blink/public/common/mime_util/mime_util.h"
+ 
+ PersistentRendererPrefsManager::PersistentRendererPrefsManager(
+     PrefService& pref_service)
+@@ -19,6 +24,34 @@
+ 
+ void PersistentRendererPrefsManager::SetViewSourceLineWrapping(bool value) {
+   pref_service_->SetBoolean(prefs::kViewSourceLineWrappingEnabled, value);
++}
++
++content::RenderFrameHost* PersistentRendererPrefsManager::GetJsonPreviewFrame() {
++  content::RenderFrameHost* frame =
++      receivers_.current_context().AsRenderFrameHostIfValid();
++  if (!frame || !frame->IsActive() || !frame->IsInPrimaryMainFrame() ||
++      !blink::IsJSONMimeType(frame->GetPage().GetContentsMimeType())) {
++    return nullptr;
++  }
++  return frame;
++}
++
++void PersistentRendererPrefsManager::GetJsonPreviewPrettyPrint(
++    GetJsonPreviewPrettyPrintCallback callback) {
++  content::RenderFrameHost* frame = GetJsonPreviewFrame();
++  std::move(callback).Run(
++      frame && Profile::FromBrowserContext(frame->GetBrowserContext())
++                   ->GetPrefs()
++                   ->GetBoolean(dao::prefs::kDaoJsonPreviewPrettyPrint));
++}
++
++void PersistentRendererPrefsManager::SetJsonPreviewPrettyPrint(bool value) {
++  content::RenderFrameHost* frame = GetJsonPreviewFrame();
++  if (frame && frame->HasTransientUserActivation()) {
++    Profile::FromBrowserContext(frame->GetBrowserContext())
++        ->GetPrefs()
++        ->SetBoolean(dao::prefs::kDaoJsonPreviewPrettyPrint, value);
++  }
+ }
+ 
+ void PersistentRendererPrefsManager::BindFrameReceiver(
+@@ -37,5 +70,6 @@
+   }
+ 
+   persistent_renderer_prefs_manager->receivers_.Add(
+-      persistent_renderer_prefs_manager, std::move(receiver));
++      persistent_renderer_prefs_manager, std::move(receiver),
++      frame->GetWeakDocumentPtr());
+ }

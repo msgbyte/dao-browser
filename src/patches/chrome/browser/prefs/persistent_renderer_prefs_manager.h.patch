@@ -1,0 +1,28 @@
+diff --git a/chrome/browser/prefs/persistent_renderer_prefs_manager.h b/chrome/browser/prefs/persistent_renderer_prefs_manager.h
+--- a/chrome/browser/prefs/persistent_renderer_prefs_manager.h
++++ b/chrome/browser/prefs/persistent_renderer_prefs_manager.h
+@@ -7,6 +7,7 @@
+ 
+ #include "base/memory/raw_ref.h"
+ #include "components/keyed_service/core/keyed_service.h"
++#include "content/public/browser/weak_document_ptr.h"
+ #include "mojo/public/cpp/bindings/receiver_set.h"
+ #include "third_party/blink/public/mojom/persistent_renderer_prefs.mojom.h"
+ 
+@@ -42,9 +43,15 @@
+   friend class TestPersistentRendererPrefsManager;
+ 
+   void SetViewSourceLineWrapping(bool value) override;
++  void GetJsonPreviewPrettyPrint(
++      GetJsonPreviewPrettyPrintCallback callback) override;
++  void SetJsonPreviewPrettyPrint(bool value) override;
++
++  content::RenderFrameHost* GetJsonPreviewFrame();
+ 
+   const raw_ref<PrefService> pref_service_;
+-  mojo::ReceiverSet<blink::mojom::PersistentRendererPrefsService> receivers_;
++  mojo::ReceiverSet<blink::mojom::PersistentRendererPrefsService,
++                    content::WeakDocumentPtr> receivers_;
+ };
+ 
+ #endif  // CHROME_BROWSER_PREFS_PERSISTENT_RENDERER_PREFS_MANAGER_H_

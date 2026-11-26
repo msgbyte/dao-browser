@@ -84,6 +84,9 @@ inline constexpr char kDaoParallelDownloadingEnabled[] =
 inline constexpr char kDaoTabHoverPreviewEnabled[] =
     "dao.tab_hover_preview_enabled";
 
+inline constexpr char kDaoJsonPreviewPrettyPrint[] =
+    "dao.json_preview_pretty_print";
+
 // HTTP(S) hosts that automatically enable high performance mode.
 inline constexpr char kDaoHighPerformanceHosts[] = "dao.high_performance_hosts";
 

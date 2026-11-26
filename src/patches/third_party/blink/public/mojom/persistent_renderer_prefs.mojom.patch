@@ -1,0 +1,12 @@
+diff --git a/third_party/blink/public/mojom/persistent_renderer_prefs.mojom b/third_party/blink/public/mojom/persistent_renderer_prefs.mojom
+--- a/third_party/blink/public/mojom/persistent_renderer_prefs.mojom
++++ b/third_party/blink/public/mojom/persistent_renderer_prefs.mojom
+@@ -12,4 +12,8 @@
+   // Asks the browser process to remember the current line wrapping
+   // preference.
+   SetViewSourceLineWrapping(bool value);
++
++  // Reads and updates the Pretty print choice for top-level JSON documents.
++  GetJsonPreviewPrettyPrint() => (bool value);
++  SetJsonPreviewPrettyPrint(bool value);
+ };

@@ -1,0 +1,20 @@
+diff --git a/content/browser/browser_interface_binders.cc b/content/browser/browser_interface_binders.cc
+--- a/content/browser/browser_interface_binders.cc
++++ b/content/browser/browser_interface_binders.cc
+@@ -183,6 +183,7 @@
+ #include "third_party/blink/public/mojom/payments/secure_payment_confirmation_service.mojom.h"
+ #include "third_party/blink/public/mojom/peerconnection/peer_connection_tracker.mojom.h"
+ #include "third_party/blink/public/mojom/permissions/permission.mojom.h"
++#include "third_party/blink/public/mojom/persistent_renderer_prefs.mojom.h"
+ #include "third_party/blink/public/mojom/picture_in_picture/picture_in_picture.mojom.h"
+ #include "third_party/blink/public/mojom/preloading/anchor_element_interaction_host.mojom.h"
+ #include "third_party/blink/public/mojom/prerender/prerender.mojom.h"
+@@ -900,6 +901,8 @@
+       &EmptyBinderForFrame<blink::mojom::ScriptToolHost>);
+   map->Add<blink::mojom::WebInstallService>(
+       &EmptyBinderForFrame<blink::mojom::WebInstallService>);
++  map->Add<blink::mojom::PersistentRendererPrefsService>(
++      &EmptyBinderForFrame<blink::mojom::PersistentRendererPrefsService>);
+ 
+   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+           switches::kExposeInternalsForTesting)) {
