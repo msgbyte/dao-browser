@@ -846,6 +846,7 @@
 
 ### [Unreleased] Unreleased
 
+- Opening pages with a long browsing history no longer reloads all past visits. History and bookmarks now load in the background at startup.
 - The download progress ring and its arrow are now smaller in the top-right corner of the address bar.
 
 ### [1.3.2] - 2026-11-23

@@ -375,6 +375,7 @@ fun BrowserScreen(
     var amoTransientInstallGuid by rememberSaveable { mutableStateOf<String?>(null) }
     val installedExtensions by extensions.extensions.collectAsStateWithLifecycle()
     val extensionInstallState by extensions.installState.collectAsStateWithLifecycle()
+    LaunchedEffect(library) { library.load() }
     val history by library.history.collectAsStateWithLifecycle()
     val bookmarks by library.bookmarks.collectAsStateWithLifecycle()
     val folders by library.folders.collectAsStateWithLifecycle()

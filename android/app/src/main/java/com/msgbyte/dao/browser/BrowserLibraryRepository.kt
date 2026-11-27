@@ -15,34 +15,56 @@ import kotlinx.coroutines.withContext
 class BrowserLibraryRepository(
     context: Context,
     databaseName: String = DEFAULT_DATABASE_NAME,
-    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val clock: () -> Long = System::currentTimeMillis,
 ) : AutoCloseable {
     private val database = BrowserDatabase(context, databaseName)
-    private val mutableHistory = MutableStateFlow(readHistory())
-    private val mutableBookmarks = MutableStateFlow(readBookmarks())
-    private val mutableFolders = MutableStateFlow(readFolders())
+    private val serialIo = ioDispatcher.limitedParallelism(1)
+    private var loaded = false
+    private val mutableHistory = MutableStateFlow(emptyList<HistoryVisit>())
+    private val mutableBookmarks = MutableStateFlow(emptyList<BookmarkEntry>())
+    private val mutableFolders = MutableStateFlow(emptyList<BookmarkFolder>())
 
     val history: StateFlow<List<HistoryVisit>> = mutableHistory.asStateFlow()
     val bookmarks: StateFlow<List<BookmarkEntry>> = mutableBookmarks.asStateFlow()
     val folders: StateFlow<List<BookmarkFolder>> = mutableFolders.asStateFlow()
 
+    suspend fun load() = withLibrary { Unit }
+
+    private suspend fun <T> withLibrary(block: () -> T): T = withContext(serialIo) {
+        if (!loaded) {
+            mutableHistory.value = readHistory()
+            mutableBookmarks.value = readBookmarks()
+            mutableFolders.value = readFolders()
+            loaded = true
+        }
+        block()
+    }
+
     suspend fun recordVisit(url: String, title: String, visitedAt: Long = clock()) {
         if (!isStorableUrl(url)) return
-        withContext(ioDispatcher) {
+        withLibrary {
+            val visitTitle = displayTitle(url, title)
             val values = ContentValues().apply {
                 put("url", url)
-                put("title", displayTitle(url, title))
+                put("title", visitTitle)
                 put("visited_at", visitedAt)
             }
-            database.writableDatabase.insertOrThrow("history_visits", null, values)
-            mutableHistory.value = readHistory()
+            val id = database.writableDatabase.insertOrThrow("history_visits", null, values)
+            val visit = HistoryVisit(id, url, visitTitle, visitedAt)
+            val previous = mutableHistory.value
+            // The newest row id comes first when two visits have the same timestamp.
+            val index = previous.indexOfFirst { it.visitedAt <= visitedAt }
+            mutableHistory.value = buildList(previous.size + 1) {
+                addAll(previous)
+                add(if (index < 0) size else index, visit)
+            }
         }
     }
 
     suspend fun toggleBookmark(url: String, title: String): BookmarkToggleResult {
         require(isStorableUrl(url)) { "Only HTTP and HTTPS pages can be bookmarked" }
-        return withContext(ioDispatcher) {
+        return withLibrary {
             val existingId = findBookmarkId(url, BookmarkKind.FAVORITE)
             if (existingId != null) {
                 database.writableDatabase.delete("bookmarks", "id = ?", arrayOf(existingId.toString()))
@@ -72,7 +94,7 @@ class BrowserLibraryRepository(
         kind: BookmarkKind = BookmarkKind.FAVORITE,
     ): BookmarkEntry {
         require(isStorableUrl(url)) { "Only HTTP and HTTPS pages can be bookmarked" }
-        return withContext(ioDispatcher) {
+        return withLibrary {
             val now = clock()
             val values = ContentValues().apply {
                 put("url", url)
@@ -91,7 +113,7 @@ class BrowserLibraryRepository(
     suspend fun createFolder(title: String): BookmarkFolder {
         val normalizedTitle = title.trim()
         require(normalizedTitle.isNotEmpty()) { "Folder title cannot be empty" }
-        return withContext(ioDispatcher) {
+        return withLibrary {
             val createdAt = clock()
             val values = ContentValues().apply {
                 put("title", normalizedTitle)
@@ -111,7 +133,7 @@ class BrowserLibraryRepository(
     ) {
         val normalizedTitle = title.trim()
         require(normalizedTitle.isNotEmpty()) { "Bookmark title cannot be empty" }
-        withContext(ioDispatcher) {
+        withLibrary {
             val values = ContentValues().apply {
                 put("title", normalizedTitle)
                 if (folderId == null) putNull("folder_id") else put("folder_id", folderId)
@@ -129,14 +151,14 @@ class BrowserLibraryRepository(
     }
 
     suspend fun deleteBookmark(id: Long) {
-        withContext(ioDispatcher) {
+        withLibrary {
             database.writableDatabase.delete("bookmarks", "id = ?", arrayOf(id.toString()))
             mutableBookmarks.value = readBookmarks()
         }
     }
 
     suspend fun deleteFolder(id: Long) {
-        withContext(ioDispatcher) {
+        withLibrary {
             database.writableDatabase.delete("bookmark_folders", "id = ?", arrayOf(id.toString()))
             mutableFolders.value = readFolders()
             mutableBookmarks.value = readBookmarks()
@@ -144,14 +166,14 @@ class BrowserLibraryRepository(
     }
 
     suspend fun deleteHistoryVisit(id: Long) {
-        withContext(ioDispatcher) {
+        withLibrary {
             database.writableDatabase.delete("history_visits", "id = ?", arrayOf(id.toString()))
-            mutableHistory.value = readHistory()
+            mutableHistory.value = mutableHistory.value.filterNot { it.id == id }
         }
     }
 
     suspend fun clearHistory() {
-        withContext(ioDispatcher) {
+        withLibrary {
             database.writableDatabase.delete("history_visits", null, null)
             mutableHistory.value = emptyList()
         }

@@ -3,9 +3,12 @@ package com.msgbyte.dao.browser
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import java.util.UUID
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -42,6 +45,23 @@ class BrowserLibraryRepositoryTest {
     }
 
     @Test
+    fun incrementalVisitsKeepDatabaseOrderAndReuseUnchangedRows() = runBlocking {
+        repository.recordVisit("https://example.com/first", "First", 10)
+        val first = repository.history.value.single()
+        (1..20).map { index ->
+            launch { repository.recordVisit("https://example.com/$index", "Visit $index", (index % 3) * 10L) }
+        }.joinAll()
+
+        val visits = repository.history.value
+        assertEquals(21, visits.size)
+        assertSame(first, visits.single { it.id == first.id })
+        repository.close()
+        repository = BrowserLibraryRepository(context, databaseName)
+        repository.load()
+        assertEquals(visits, repository.history.value)
+    }
+
+    @Test
     fun movingABookmarkIntoAListThatHoldsItsUrlKeepsTheExistingEntry() = runBlocking {
         val folder = repository.createFolder("Work")
         val existing = repository.addBookmark("https://example.com", "Team docs", folder.id)
@@ -73,6 +93,7 @@ class BrowserLibraryRepositoryTest {
         repository.close()
 
         repository = BrowserLibraryRepository(context, databaseName)
+        repository.load()
 
         assertEquals(listOf("https://example.com"), repository.history.value.map { it.url })
         assertEquals(listOf("https://example.com"), repository.bookmarks.value.map { it.url })
