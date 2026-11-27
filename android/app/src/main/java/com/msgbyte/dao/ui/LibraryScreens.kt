@@ -874,12 +874,7 @@ fun DownloadsScreen(
     }
     val active = downloads.filter { it.status != DownloadStatus.SUCCESSFUL }
     val complete = downloads.filter { it.status == DownloadStatus.SUCCESSFUL }
-    LaunchedEffect(repository) {
-        while (true) {
-            runCatching { repository.refresh() }
-            delay(1_000)
-        }
-    }
+    rememberDownloadRefreshFailed(repository)
     Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).background(colors.background)) {
         ScreenHeader(stringResource(R.string.downloads), onBack) {
             Text(

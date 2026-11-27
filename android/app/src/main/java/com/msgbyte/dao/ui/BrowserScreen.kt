@@ -194,17 +194,12 @@ import com.msgbyte.dao.ui.theme.PrivateSpaceTheme
 import com.msgbyte.dao.ui.theme.daoBrandLogoPainter
 import java.time.LocalDateTime
 import kotlinx.coroutines.CoroutineStart
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import mozilla.components.concept.engine.Engine
 import mozilla.components.browser.icons.BrowserIcons
 import mozilla.components.concept.engine.EngineSession
 import mozilla.components.browser.state.state.TabSessionState
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.repeatOnLifecycle
 import androidx.core.content.ContextCompat
 
 const val BROWSER_SURFACE_TEST_TAG = "browser-surface"
@@ -1432,20 +1427,7 @@ private fun ScannerOverlay(
 @Composable
 private fun rememberActiveDownloads(downloads: SystemDownloadRepository): ActiveDownloadSummary {
     val downloadItems by downloads.downloads.collectAsStateWithLifecycle()
-    val lifecycle = LocalLifecycleOwner.current.lifecycle
-
-    LaunchedEffect(downloads, lifecycle) {
-        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
-            while (true) {
-                try {
-                    downloads.refresh()
-                } catch (error: Exception) {
-                    if (error is CancellationException) throw error
-                }
-                delay(1_000)
-            }
-        }
-    }
+    rememberDownloadRefreshFailed(downloads)
 
     return remember(downloadItems) { downloadItems.activeDownloadSummary() }
 }

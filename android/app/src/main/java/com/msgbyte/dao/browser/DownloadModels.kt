@@ -44,6 +44,9 @@ data class BrowserDownload(
     val lastModified: Long,
     val bytesPerSecond: Long? = null,
 ) {
+    internal val isActive: Boolean
+        get() = status == DownloadStatus.PENDING || status == DownloadStatus.RUNNING || status == DownloadStatus.PAUSED
+
     val progress: Float?
         get() = totalBytes?.takeIf { it > 0 }?.let { total ->
             (bytesDownloaded.toDouble() / total.toDouble()).toFloat().coerceIn(0f, 1f)
@@ -53,10 +56,7 @@ data class BrowserDownload(
 internal data class ActiveDownloadSummary(val count: Int = 0, val progress: Float? = null)
 
 internal fun List<BrowserDownload>.activeDownloadSummary(): ActiveDownloadSummary {
-    val active = filter {
-        it.status == DownloadStatus.PENDING || it.status == DownloadStatus.RUNNING ||
-            it.status == DownloadStatus.PAUSED
-    }
+    val active = filter(BrowserDownload::isActive)
     if (active.isEmpty() || active.any { (it.totalBytes ?: 0) <= 0 }) {
         return ActiveDownloadSummary(count = active.size)
     }

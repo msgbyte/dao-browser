@@ -51,7 +51,6 @@ import com.msgbyte.dao.ui.theme.LocalNovaColors
 import java.text.DateFormat
 import java.util.Date
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 internal data class DownloadOpenAction(
@@ -59,6 +58,18 @@ internal data class DownloadOpenAction(
     val error: Int?,
     val open: (BrowserDownload) -> Unit,
 )
+
+@Composable
+internal fun rememberDownloadRefreshFailed(repository: SystemDownloadRepository): Boolean {
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    var failed by remember(repository) { mutableStateOf(false) }
+    LaunchedEffect(repository, lifecycle) {
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            repository.pollWhileVisible { failed = it }
+        }
+    }
+    return failed
+}
 
 /** Both About and Downloads use this path for update APKs, including after process recreation. */
 @Composable
@@ -136,28 +147,13 @@ internal fun AppUpdateCard(
     val downloads by manager.downloads.downloads.collectAsStateWithLifecycle()
     val colors = LocalNovaColors.current
     val context = LocalContext.current
-    val lifecycle = LocalLifecycleOwner.current.lifecycle
     val automaticLabel = stringResource(R.string.update_automatic)
     val release = state.release
     val download = downloads.firstOrNull {
         release != null && it.request.url == release.url && it.request.updateSha256 == release.sha256 &&
             it.request.updateVersion == release.version
     }
-    var refreshFailed by remember { mutableStateOf(false) }
-    LaunchedEffect(manager, lifecycle) {
-        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
-            while (true) {
-                try {
-                    manager.downloads.refresh()
-                    refreshFailed = false
-                } catch (error: Exception) {
-                    if (error is CancellationException) throw error
-                    refreshFailed = true
-                }
-                delay(1_000)
-            }
-        }
-    }
+    val refreshFailed = rememberDownloadRefreshFailed(manager.downloads)
 
     NovaCard(Modifier.fillMaxWidth().testTag("app-update-card")) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {

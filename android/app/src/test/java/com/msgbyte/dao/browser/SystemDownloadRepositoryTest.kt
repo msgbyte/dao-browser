@@ -1,7 +1,14 @@
 package com.msgbyte.dao.browser
 
 import java.io.ByteArrayInputStream
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 import mozilla.components.concept.fetch.MutableHeaders
 import mozilla.components.concept.fetch.Response
 import org.junit.Assert.assertEquals
@@ -15,6 +22,44 @@ class SystemDownloadRepositoryTest {
     private val store = InMemoryDownloadMetadataStore()
     private var now = 1_000L
     private val repository = SystemDownloadRepository(gateway, NoStreamedDownloads, store, elapsedRealtime = { now })
+
+    @Test
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun visiblePollingSleepsAfterCompletionAndRestartsForNewDownloads() = runTest {
+        val downloads = SystemDownloadRepository(gateway, NoStreamedDownloads, store,
+            ioDispatcher = StandardTestDispatcher(testScheduler), elapsedRealtime = { testScheduler.currentTime })
+        val id = downloads.enqueue(DownloadRequestData("https://example.com/a", "a"))
+        gateway.records[id] = runningRecord(id, 100).copy(status = DownloadGatewayStatus.SUCCESSFUL)
+        val failures = mutableListOf<Boolean>()
+        val job = backgroundScope.launch { downloads.pollWhileVisible(failures::add) }
+        runCurrent()
+        assertEquals(1, gateway.queryCount)
+        advanceTimeBy(60_000)
+        assertEquals(1, gateway.queryCount)
+
+        val next = downloads.enqueue(DownloadRequestData("https://example.com/b", "b"))
+        gateway.queryFailure = IllegalStateException("Temporary failure")
+        advanceTimeBy(1_000)
+        runCurrent()
+        assertTrue(failures.last())
+        gateway.queryFailure = null
+        gateway.records[next] = runningRecord(next, 50).copy(status = DownloadGatewayStatus.PAUSED)
+        advanceTimeBy(1_000)
+        runCurrent()
+        assertEquals(DownloadStatus.PAUSED, downloads.find(next)?.status)
+        gateway.records[next] = runningRecord(next, 80).copy(status = DownloadGatewayStatus.FAILED)
+        advanceTimeBy(1_000)
+        runCurrent()
+        assertEquals(DownloadStatus.FAILED, downloads.find(next)?.status)
+        assertEquals(listOf(false, true, false, false), failures)
+        advanceTimeBy(60_000)
+        assertEquals(4, gateway.queryCount)
+        job.cancelAndJoin()
+        val resumed = backgroundScope.launch { downloads.pollWhileVisible {} }
+        runCurrent()
+        assertEquals(5, gateway.queryCount)
+        resumed.cancelAndJoin()
+    }
 
     @Test
     fun speedUsesEachDownloadsByteDeltaAndActualElapsedTime() = runBlocking {
@@ -306,6 +351,7 @@ private class FakeDownloadGateway(private var nextId: Long = 1L, private val ste
     val responses = mutableListOf<Response?>()
     val records = mutableMapOf<Long, DownloadGatewayRecord>()
     val removed = mutableListOf<Long>()
+    var queryCount = 0
     var queryFailure: Exception? = null
 
     override fun enqueue(request: DownloadRequestData, response: Response?): Long {
@@ -315,6 +361,7 @@ private class FakeDownloadGateway(private var nextId: Long = 1L, private val ste
     }
 
     override fun query(ids: Set<Long>): List<DownloadGatewayRecord> {
+        queryCount++
         queryFailure?.let { throw it }
         return ids.mapNotNull(records::get)
     }

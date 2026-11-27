@@ -847,6 +847,7 @@
 ### [Unreleased] Unreleased
 
 - Opening pages with a long browsing history no longer reloads all past visits. History and bookmarks now load in the background at startup.
+- Dao stops checking download progress once all downloads finish and checks again when a new download starts or you return to the screen.
 - The download progress ring and its arrow are now smaller in the top-right corner of the address bar.
 
 ### [1.3.2] - 2026-11-23

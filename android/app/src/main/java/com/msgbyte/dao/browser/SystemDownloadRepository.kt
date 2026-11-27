@@ -8,11 +8,14 @@ import android.os.Build
 import android.os.Environment
 import android.os.SystemClock
 import java.net.URI
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -64,6 +67,20 @@ class SystemDownloadRepository internal constructor(
         persistMetadata()
         mutableDownloads.value = listOf(request.toPendingDownload(id)) + mutableDownloads.value
         return id
+    }
+
+    internal suspend fun pollWhileVisible(onRefreshFailed: (Boolean) -> Unit) {
+        while (true) {
+            try {
+                refresh()
+                onRefreshFailed(false)
+                downloads.first { items -> items.any(BrowserDownload::isActive) }
+            } catch (error: Exception) {
+                if (error is CancellationException) throw error
+                onRefreshFailed(true)
+            }
+            delay(1_000)
+        }
     }
 
     suspend fun refresh() = mutex.withLock {
