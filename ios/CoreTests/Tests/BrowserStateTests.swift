@@ -117,3 +117,36 @@ import Testing
     #expect(!PageImageSource.canOpenInTab(URL(string: "blob:https://example.com/0f2c")!))
     #expect(!PageImageSource.canOpenInTab(URL(string: "data:image/png;base64,iVBORw0KGgo=")!))
 }
+
+@Test @MainActor func sessionWriterCoalescesPendingSavesAndFlushesTheLatest() throws {
+    let directory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let archive = directory.appending(path: "session.json")
+    let started = DispatchSemaphore(value: 0)
+    let release = DispatchSemaphore(value: 0)
+    let first = TabRecord(title: "first")
+    let stale = TabRecord(title: "stale")
+    let latest = TabRecord(title: "latest")
+    let writer = SessionWriter { snapshot in
+        #expect(!Thread.isMainThread)
+        if snapshot.selectedID == first.id {
+            started.signal()
+            _ = release.wait(timeout: .now() + 5)
+        }
+        #expect(snapshot.selectedID != stale.id)
+        try JSONEncoder().encode(snapshot).write(to: archive, options: .atomic)
+    }
+    let onError: @MainActor @Sendable () -> Void = { Issue.record("Session write failed") }
+    func save(_ tab: TabRecord, synchronously: Bool = false) {
+        writer.save(SessionSnapshot(tabs: [tab], selectedID: tab.id), synchronously: synchronously, onError: onError)
+    }
+    save(first)
+    #expect(started.wait(timeout: .now() + 5) == .success)
+    save(stale)
+    save(latest)
+    release.signal()
+    save(latest, synchronously: true)
+    let restored = try JSONDecoder().decode(SessionSnapshot.self, from: Data(contentsOf: archive))
+    #expect(restored.tabs == [latest])
+}

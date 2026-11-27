@@ -62,6 +62,9 @@ struct ImagePreview: Identifiable {
     let container: ModelContainer
     @ObservationIgnored private var sessions: [UUID: BrowserSession] = [:]
     @ObservationIgnored private var privateData = WKWebsiteDataStore.nonPersistent()
+    @ObservationIgnored private let sessionWriter = SessionWriter {
+        try BrowserFiles.save($0, name: "session.json")
+    }
     @ObservationIgnored private var saveTask: Task<Void, Never>?
     @ObservationIgnored private var canSaveSession = true
     @ObservationIgnored private var toastTask: Task<Void, Never>?
@@ -214,25 +217,29 @@ struct ImagePreview: Identifiable {
             guard let self, let tab, let session, let image,
                   self.sessions[tab.id] === session, tab.record.url == url else { return }
             tab.thumbnail = image
-            if !tab.record.isPrivate, let data = image.jpegData(compressionQuality: 0.65) {
+            if !tab.record.isPrivate, let data = image.jpegData(compressionQuality: 0.65), tab.record.thumbnailData != data {
                 tab.record.thumbnailData = data
-                self.saveNow()
+                if UIApplication.shared.applicationState == .active { self.scheduleSave() }
+                else { self.saveNow() }
             }
         }
     }
 
     func saveNow() {
         saveTask?.cancel()
+        persistSession(synchronously: true)
+    }
+
+    private func persistSession(synchronously: Bool) {
         guard canSaveSession else { return }
-        do {
-            for tab in tabs where !tab.record.isPrivate {
-                if let session = sessions[tab.id] {
-                    // WebKit currently returns NSData; fall back to the URL if that representation changes.
-                    tab.record.interactionState = session.webView.interactionState as? Data
-                }
+        for tab in tabs where !tab.record.isPrivate {
+            if let session = sessions[tab.id] {
+                // WebKit currently returns NSData; fall back to the URL if that representation changes.
+                tab.record.interactionState = session.webView.interactionState as? Data
             }
-            try BrowserFiles.save(SessionSnapshot(tabs: tabs.map(\.record), selectedID: selectedID), name: "session.json")
-        } catch { notify(L("save_failed")) }
+        }
+        let snapshot = SessionSnapshot(tabs: tabs.map(\.record), selectedID: selectedID)
+        sessionWriter.save(snapshot, synchronously: synchronously) { [weak self] in self?.notify(L("save_failed")) }
     }
 
     func scheduleSave() {
@@ -240,7 +247,7 @@ struct ImagePreview: Identifiable {
         saveTask = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(500))
             guard !Task.isCancelled else { return }
-            self?.saveNow()
+            self?.persistSession(synchronously: false)
         }
     }
 

@@ -964,6 +964,7 @@
 
 ### [Unreleased] Unreleased
 
+- Dao saves updated tab previews in the background so switching tabs stays responsive when many tabs are open.
 - The scan, copy and share buttons below the address field are more compact, with each icon and label on one line.
 - Closing a tab now gently shrinks and fades its card while the remaining cards smoothly move into place, respecting Reduce Motion.
 - When editing a page address, scan a QR code, copy the current URL, or share the link from three buttons below the search field; copying shows a brief confirmation that disappears automatically.
