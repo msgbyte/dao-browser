@@ -4593,7 +4593,7 @@ void DaoAgentWorkspaceHandler::HandleWorkspaceRead(
               return;
             }
             base::DictValue body;
-            body.Set("content", result->content);
+            body.Set("content", std::move(result->content));
             body.Set("total_lines", result->total_lines);
             body.Set("returned_lines", result->returned_lines);
             body.Set("truncated", result->truncated);

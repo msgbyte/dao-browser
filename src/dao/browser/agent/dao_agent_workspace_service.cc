@@ -5,6 +5,7 @@
 #include "dao/browser/agent/dao_agent_workspace_service.h"
 
 #include <algorithm>
+#include <limits>
 #include <optional>
 #include <string_view>
 #include <utility>
@@ -15,7 +16,7 @@
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/i18n/time_formatting.h"
-#include "base/strings/string_split.h"
+#include "base/strings/string_view_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
@@ -159,36 +160,47 @@ DaoAgentWorkspaceService::IOState::ReadOnIO(const std::string& rel_path,
                                 : WorkspaceError::kIoError);
   }
 
-  base::ScopedFILE stream(base::FileToFILE(std::move(file), "rb"));
-  std::string raw;
-  if (!stream || !base::ReadStreamToString(stream.get(), &raw)) {
+  ReadResult out;
+  const int64_t end = static_cast<int64_t>(offset) + limit;
+  int64_t first_line = 0;
+  bool unterminated = false;
+  std::vector<uint8_t> buffer(64 * 1024);
+  for (;;) {
+    const auto size = file.ReadAtCurrentPos(buffer);
+    if (!size) {
+      return base::unexpected(WorkspaceError::kIoError);
+    }
+    if (*size == 0) {
+      break;
+    }
+    auto chunk = base::as_string_view(base::span(buffer).first(*size));
+    const int64_t next_line = first_line + std::ranges::count(chunk, '\n');
+    unterminated = chunk.back() != '\n';
+    // Count the whole file for pagination, but only copy the requested lines.
+    if (next_line >= offset && first_line < end) {
+      for (int64_t line = first_line; !chunk.empty() && line < end; ++line) {
+        const size_t newline = chunk.find('\n');
+        const size_t bytes =
+            newline == std::string_view::npos ? chunk.size() : newline + 1;
+        if (line >= offset) {
+          out.content.append(chunk.substr(0, bytes));
+        }
+        chunk.remove_prefix(bytes);
+      }
+    }
+    first_line = next_line;
+  }
+
+  if (unterminated && first_line >= offset && first_line < end) {
+    out.content.push_back('\n');
+  }
+  const int64_t total = first_line + unterminated;
+  if (total > std::numeric_limits<int>::max()) {
     return base::unexpected(WorkspaceError::kIoError);
   }
-  std::vector<std::string_view> lines = base::SplitStringPiece(
-      raw, "\n", base::KEEP_WHITESPACE, base::SPLIT_WANT_ALL);
-  // SplitStringPiece on "a\nb\n" gives ["a","b",""]; treat trailing empty
-  // as terminator, not a line.
-  if (!lines.empty() && lines.back().empty()) {
-    lines.pop_back();
-  }
-  const int total = static_cast<int>(lines.size());
-
-  ReadResult out;
-  out.total_lines = total;
-  if (offset >= total) {
-    out.returned_lines = 0;
-    out.truncated = false;
-    return out;
-  }
-  const int end = offset + std::min(total - offset, limit);
-  std::string content;
-  for (int i = offset; i < end; ++i) {
-    content.append(lines[i]);
-    content.push_back('\n');
-  }
-  out.content = std::move(content);
-  out.returned_lines = end - offset;
-  out.truncated = (end < total);
+  out.total_lines = static_cast<int>(total);
+  out.returned_lines = std::clamp(out.total_lines - offset, 0, limit);
+  out.truncated = end < total;
   return out;
 }
 

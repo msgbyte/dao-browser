@@ -4,6 +4,7 @@
 
 ### [Unreleased] Unreleased
 
+- The AI Agent uses less memory when reading a few lines from a large workspace file.
 - The AI Agent checks linked folders when reading and saving workspace files. Updating the workspace index and activity log also protects files they link to.
 - The Agent skips linked files and folders when listing, indexing and calculating storage usage, so links no longer duplicate entries.
 - The AI Agent checks the file names and storage limits of an entire workspace patch before applying it. Adding or moving a file preserves any file already at its destination.

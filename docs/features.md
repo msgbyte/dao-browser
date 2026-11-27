@@ -68,6 +68,8 @@ Download cards use Windows file type icons when an image thumbnail is unavailabl
 Windows file icons retain separate 1x/2x images from the highest-resolution
 Shell icon available, with smaller-icon fallback for file types without a large
 asset. Recent-file scans run on a COM-initialized background sequence.
+Agent workspace reads stream through the file to count lines and retain only
+the requested page, including complete lines that span multiple chunks.
 Agent workspace paths accept UTF-8 input. Dao resolves existing parent
 directories, including macOS symbolic links and Windows junctions, before
 creating a file. A link can point to another directory within the workspace.

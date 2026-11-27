@@ -294,6 +294,26 @@ TEST_F(DaoAgentWorkspaceServiceTest, ReadPaginatesLargeFile) {
   EXPECT_EQ("line 10\nline 11\nline 12\nline 13\nline 14\n", read->content);
 }
 
+TEST_F(DaoAgentWorkspaceServiceTest, ReadPreservesLinesAcrossChunksAndAtEof) {
+  const std::string long_line(150000, 'x');
+  ASSERT_TRUE(Sync<WriteResult>([&](auto cb) {
+                service_->Write("lines.txt", "\n" + long_line + "\r\n\nlast",
+                                std::move(cb));
+              }).has_value());
+  auto middle = Sync<ReadResult>(
+      [&](auto cb) { service_->Read("lines.txt", 1, 1, std::move(cb)); });
+  ASSERT_TRUE(middle.has_value());
+  EXPECT_EQ(long_line + "\r\n", middle->content);
+  EXPECT_EQ(4, middle->total_lines);
+  EXPECT_TRUE(middle->truncated);
+  auto tail = Sync<ReadResult>(
+      [&](auto cb) { service_->Read("lines.txt", 2, 5, std::move(cb)); });
+  ASSERT_TRUE(tail.has_value());
+  EXPECT_EQ("\nlast\n", tail->content);
+  EXPECT_EQ(2, tail->returned_lines);
+  EXPECT_FALSE(tail->truncated);
+}
+
 TEST_F(DaoAgentWorkspaceServiceTest, ReadNotFound) {
   auto result = Sync<ReadResult>(
       [&](auto cb) { service_->Read("missing.md", 0, 100, std::move(cb)); });
