@@ -4,6 +4,8 @@
 
 ### [Unreleased] Unreleased
 
+### [1.0.146] - 2026-11-27
+
 - Close all completed AI tasks at once with the button next to the AI Tasks heading in the sidebar.
 - JSON previews remember your Pretty print choice across pages and browser restarts.
 
