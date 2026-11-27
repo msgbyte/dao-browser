@@ -68,9 +68,19 @@ Download cards use Windows file type icons when an image thumbnail is unavailabl
 Windows file icons retain separate 1x/2x images from the highest-resolution
 Shell icon available, with smaller-icon fallback for file types without a large
 asset. Recent-file scans run on a COM-initialized background sequence.
-Agent workspace paths accept UTF-8 input. On Windows, existing path components
-are resolved through directory junctions before checking workspace containment,
-including ancestors of files that do not yet exist.
+Agent workspace paths accept UTF-8 input. Dao resolves existing parent
+directories, including macOS symbolic links and Windows junctions, before
+creating a file. A link can point to another directory within the workspace.
+Paths that lead outside the workspace or contain a broken link are rejected.
+Directory listings, the index and storage usage skip symbolic links and
+directory junctions. File operations pin the destination directory before
+opening, replacing or deleting files. Index updates replace the index entry
+atomically. The audit log only appends to a regular, singly linked file.
+URL downloads stream to a browser-managed temporary file before publication.
+Before applying a patch, Dao checks for conflicting names using the destination
+filesystem's naming rules and checks the final file count and byte usage of
+the whole patch. Adds and moves require the destination to remain available
+at publication. On startup the Agent recovers its interrupted writes.
 Dao Home project scans use portable forward-slash file names and reject Windows
 directory junctions as well as file symlinks.
 Chromium tab search uses `dao://tab-search.top-chrome/` to match its registered

@@ -34,7 +34,7 @@ class WorkspaceAudit {
   std::vector<AuditEntry> Snapshot() const;
 
  private:
-  base::FilePath log_path_;
+  base::FilePath workspace_root_;
   base::circular_deque<AuditEntry> recent_;
   size_t ring_size_;
 };

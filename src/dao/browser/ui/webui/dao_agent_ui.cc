@@ -14,7 +14,6 @@
 
 #include "base/barrier_closure.h"
 #include "base/base64.h"
-#include "base/files/file_util.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/logging.h"
@@ -97,6 +96,7 @@
 #include "services/network/public/mojom/content_security_policy.mojom.h"
 #include "services/network/public/mojom/fetch_api.mojom.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
+#include "storage/browser/blob/scoped_file.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/page_transition_types.h"
 #include "ui/base/resource/resource_bundle.h"
@@ -525,6 +525,7 @@ void DaoAgentUIHandler::OnJavascriptDisallowed() {
   AbortAgentTurn(MakeDaoToolError(DaoToolErrorCode::kToolCancelled,
                                 "Dao Agent UI was unloaded."));
   native_fetch_inflight_.clear();
+  workspace_download_inflight_.clear();
   local_model_streams_.clear();
 }
 
@@ -5551,52 +5552,24 @@ void DaoAgentUIHandler::HandleWorkspaceDownload(const base::ListValue& args) {
   entry.source_url = gurl.spec();
   workspace_download_inflight_[loader_ptr] = std::move(entry);
 
-  // Reserve a staging path on the workspace's own filesystem, then kick
-  // off DownloadToFile so bytes stream directly to disk (the whole
-  // response never sits in the browser-process heap). The completion
-  // callback hands the staged file to IngestStagedFile which validates
-  // & atomically renames it into the workspace.
-  service->AllocateStagingPath(
-      base::BindOnce(&DaoAgentUIHandler::OnDownloadStagingAllocated,
-                     weak_factory_.GetWeakPtr(), loader_ptr));
-}
-
-void DaoAgentUIHandler::OnDownloadStagingAllocated(
-    network::SimpleURLLoader* loader_ptr,
-    base::FilePath staging_path) {
-  auto it = workspace_download_inflight_.find(loader_ptr);
-  if (it == workspace_download_inflight_.end()) {
-    return;
-  }
-  if (staging_path.empty()) {
-    const std::string cb = it->second.callback_id;
-    workspace_download_inflight_.erase(it);
-    ResolveJavascriptCallback(base::Value(cb), DownloadErrorDict("io_error"));
-    return;
-  }
-  it->second.staging_path = staging_path;
-
-  network::mojom::URLLoaderFactory* factory =
-      Profile::FromWebUI(web_ui())
-          ->GetDefaultStoragePartition()
+  // The loader deletes its temporary file when cancelled. Completion transfers
+  // ownership to the handler on this sequence.
+  loader_ptr->DownloadToTempFile(
+      profile->GetDefaultStoragePartition()
           ->GetURLLoaderFactoryForBrowserProcess()
-          .get();
-
-  // max_body_size matches the workspace per-file cap so the loader
-  // aborts mid-stream once it would exceed the quota — saves filling
-  // up disk on a runaway response.
-  loader_ptr->DownloadToFile(
-      factory,
+          .get(),
       base::BindOnce(&DaoAgentUIHandler::OnWorkspaceDownloadFileComplete,
-                     weak_factory_.GetWeakPtr(), loader_ptr),
-      staging_path,
-      /*max_body_size=*/
-      static_cast<int64_t>(WorkspaceQuota::kPerFileMaxBytes));
+                     base::Unretained(this), loader_ptr),
+      WorkspaceQuota::kPerFileMaxBytes);
 }
 
 void DaoAgentUIHandler::OnWorkspaceDownloadFileComplete(
     network::SimpleURLLoader* loader_ptr,
     base::FilePath returned_path) {
+  storage::ScopedFile download(
+      returned_path, storage::ScopedFile::DELETE_ON_SCOPE_OUT,
+      base::ThreadPool::CreateSequencedTaskRunner(
+          {base::MayBlock(), base::TaskShutdownBehavior::BLOCK_SHUTDOWN}));
   auto it = workspace_download_inflight_.find(loader_ptr);
   if (it == workspace_download_inflight_.end()) {
     return;
@@ -5604,7 +5577,6 @@ void DaoAgentUIHandler::OnWorkspaceDownloadFileComplete(
   const std::string callback_id = it->second.callback_id;
   const std::string workspace_path = it->second.workspace_path;
   std::string source_url = it->second.source_url;
-  const base::FilePath staging_path = it->second.staging_path;
 
   network::SimpleURLLoader* loader = it->second.loader.get();
   int status_code = 0;
@@ -5621,27 +5593,10 @@ void DaoAgentUIHandler::OnWorkspaceDownloadFileComplete(
   // freed promptly even if the ingest callback is delayed.
   workspace_download_inflight_.erase(it);
 
-  // DownloadToFile signals failure with an empty path. On HTTP error
-  // the loader still wrote whatever body it received (e.g. a 404 page),
-  // which we don't want in the workspace either.
-  if (returned_path.empty() || !http_ok) {
-    if (!staging_path.empty()) {
-      base::ThreadPool::PostTask(
-          FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
-          base::BindOnce(base::IgnoreResult(&base::DeleteFile), staging_path));
-    }
-    ResolveJavascriptCallback(base::Value(callback_id),
-                              DownloadErrorDict("io_error"));
-    return;
-  }
-
   Profile* profile = Profile::FromWebUI(web_ui());
   DaoAgentWorkspaceService* service =
       DaoAgentWorkspaceServiceFactory::GetForProfile(profile);
-  if (!service) {
-    base::ThreadPool::PostTask(
-        FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
-        base::BindOnce(base::IgnoreResult(&base::DeleteFile), staging_path));
+  if (returned_path.empty() || !http_ok || !service) {
     ResolveJavascriptCallback(base::Value(callback_id),
                               DownloadErrorDict("io_error"));
     return;
@@ -5649,8 +5604,8 @@ void DaoAgentUIHandler::OnWorkspaceDownloadFileComplete(
 
   const std::string audit_detail =
       "\"source\":\"url\",\"url\":\"" + source_url + "\"";
-  service->IngestStagedFile(
-      workspace_path, returned_path, audit_detail,
+  service->IngestDownloadedFile(
+      workspace_path, std::move(download), audit_detail,
       base::BindOnce(
           [](base::WeakPtr<DaoAgentUIHandler> self, std::string cb_id,
              std::string path, std::string source_url,

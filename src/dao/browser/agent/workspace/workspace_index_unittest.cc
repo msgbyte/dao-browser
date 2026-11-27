@@ -6,6 +6,7 @@
 
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
+#include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace dao {
@@ -67,6 +68,41 @@ TEST_F(WorkspaceIndexTest, HeaderWarnsNotToEdit) {
   EXPECT_NE(std::string::npos, content.find("Auto-generated"));
   EXPECT_NE(std::string::npos, content.find("DO NOT EDIT"));
 }
+
+TEST_F(WorkspaceIndexTest, IndexesOnlyVisibleRegularFiles) {
+  const auto& root = dir_.GetPath();
+  const auto visible = root.AppendASCII("files");
+  const auto hidden = visible.AppendASCII(".private");
+  ASSERT_TRUE(base::CreateDirectory(hidden));
+  ASSERT_TRUE(base::WriteFile(hidden.AppendASCII("hidden.md"), "hidden\n"));
+  const auto notes = visible.AppendASCII("notes.md");
+  ASSERT_TRUE(base::WriteFile(notes, std::string(20000, 'x') + "\nend\n"));
+  ASSERT_TRUE(base::WriteFile(visible.AppendASCII("WORKSPACE.md"), "nested"));
+#if BUILDFLAG(IS_POSIX)
+  ASSERT_TRUE(base::CreateSymbolicLink(notes, root.AppendASCII("alias.md")));
+  ASSERT_TRUE(base::CreateSymbolicLink(visible, root.AppendASCII("alias")));
+#endif
+  WorkspaceIndex(root).Rewrite();
+  std::string index;
+  ASSERT_TRUE(base::ReadFileToString(root.AppendASCII("WORKSPACE.md"), &index));
+  EXPECT_NE(std::string::npos, index.find("notes.md` (19.5 KB, 2 lines)"));
+  EXPECT_NE(std::string::npos, index.find("WORKSPACE.md` (6 B, 0 lines)"));
+  EXPECT_EQ(std::string::npos, index.find("alias"));
+  EXPECT_EQ(std::string::npos, index.find("hidden.md"));
+}
+
+#if BUILDFLAG(IS_POSIX)
+TEST_F(WorkspaceIndexTest, DoesNotOverwriteTargetOfIndexLink) {
+  const auto& root = dir_.GetPath();
+  const auto notes = root.AppendASCII("notes.md");
+  ASSERT_TRUE(base::WriteFile(notes, "notes"));
+  ASSERT_TRUE(base::CreateSymbolicLink(notes, root.AppendASCII("WORKSPACE.md")));
+  WorkspaceIndex(root).Rewrite();
+  std::string content;
+  ASSERT_TRUE(base::ReadFileToString(notes, &content));
+  EXPECT_EQ("notes", content);
+}
+#endif
 
 }  // namespace
 }  // namespace dao

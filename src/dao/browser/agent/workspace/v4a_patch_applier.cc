@@ -3,17 +3,32 @@
 #include "dao/browser/agent/workspace/v4a_patch_applier.h"
 
 #include <optional>
+#include <map>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
-#include "base/files/file_enumerator.h"
+#include "base/files/file.h"
 #include "base/files/file_util.h"
-#include "base/strings/strcat.h"
+#include "base/files/scoped_file.h"
+#include "base/files/scoped_temp_dir.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
+#include "build/build_config.h"
 #include "dao/browser/agent/workspace/path_normalizer.h"
 #include "dao/browser/agent/workspace/text_only_filter.h"
+#include "dao/browser/agent/workspace/workspace_file.h"
 #include "dao/browser/agent/workspace/workspace_quota.h"
+
+#if BUILDFLAG(IS_MAC)
+#include <sys/mount.h>
+#include <unistd.h>
+
+#include "base/strings/sys_string_conversions.h"
+#elif BUILDFLAG(IS_WIN)
+#include <windows.h>
+#endif
 
 namespace dao {
 
@@ -22,9 +37,10 @@ namespace {
 // Read file as a vector of lines (no trailing empty entry from terminating
 // newline).
 base::expected<std::vector<std::string>, WorkspaceError> ReadLines(
-    const base::FilePath& abs) {
+    base::File file) {
+  base::ScopedFILE stream(base::FileToFILE(std::move(file), "rb"));
   std::string raw;
-  if (!base::ReadFileToString(abs, &raw)) {
+  if (!stream || !base::ReadStreamToString(stream.get(), &raw)) {
     return base::unexpected(WorkspaceError::kIoError);
   }
   std::vector<std::string> lines = base::SplitString(
@@ -104,160 +120,292 @@ base::expected<std::vector<std::string>, WorkspaceError> ApplyHunkToBody(
 struct StagedWrite {
   base::FilePath staged;
   base::FilePath final_dest;
+  WorkspacePublishMode mode;
+};
+
+struct DirectoryNameRules {
+  bool case_sensitive = true;
+#if BUILDFLAG(IS_MAC)
+  bool apfs = false;
+  bool hfs = false;
+#endif
+};
+
+// Missing directories inherit their parent's rules. Existing directories may
+// be mount points or NTFS folders with case sensitivity explicitly enabled.
+base::expected<DirectoryNameRules, WorkspaceError> ReadNameRules(
+    const base::FilePath& root,
+    const base::FilePath& parent,
+    DirectoryNameRules inherited) {
+#if BUILDFLAG(IS_MAC)
+  auto dir = OpenWorkspaceDirectory(root, parent);
+  if (!dir.is_valid()) {
+    if (!parent.empty() && errno == ENOENT) {
+      return inherited;
+    }
+    return base::unexpected(WorkspaceError::kIoError);
+  }
+  const long sensitive = fpathconf(dir.get(), _PC_CASE_SENSITIVE);
+  struct statfs volume{};
+  if (sensitive < 0 || fstatfs(dir.get(), &volume) != 0) {
+    return base::unexpected(WorkspaceError::kIoError);
+  }
+  const std::string_view type(volume.f_fstypename);
+  return DirectoryNameRules{sensitive != 0, type == "apfs", type == "hfs"};
+#elif BUILDFLAG(IS_WIN)
+  auto dir = OpenWorkspaceDirectory(root, parent);
+  if (dir.empty()) {
+    const DWORD error = ::GetLastError();
+    if (!parent.empty() &&
+        (error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND)) {
+      return inherited;
+    }
+    return base::unexpected(WorkspaceError::kIoError);
+  }
+  FILE_CASE_SENSITIVE_INFO info{};
+  if (::GetFileInformationByHandleEx(dir.back().GetPlatformFile(),
+                                     FileCaseSensitiveInfo, &info,
+                                     sizeof(info))) {
+    return DirectoryNameRules{(info.Flags & FILE_CS_FLAG_CASE_SENSITIVE_DIR) !=
+                              0};
+  }
+  const DWORD error = ::GetLastError();
+  if (error == ERROR_INVALID_PARAMETER || error == ERROR_NOT_SUPPORTED ||
+      error == ERROR_INVALID_FUNCTION) {
+    return DirectoryNameRules{false};
+  }
+  return base::unexpected(WorkspaceError::kIoError);
+#else
+  return inherited;
+#endif
+}
+
+class PatchPaths {
+ public:
+  base::expected<void, WorkspaceError> Reserve(const base::FilePath& root,
+                                               const base::FilePath& path) {
+    base::FilePath parent;
+    base::FilePath key;
+    DirectoryNameRules rules;
+    for (auto name : path.GetComponents()) {
+      if (!key.empty()) {
+        if (files_.contains(key)) {
+          return base::unexpected(WorkspaceError::kPatchParseError);
+        }
+        directories_.insert(key);
+      }
+      auto entry = rules_.find(parent);
+      if (entry == rules_.end()) {
+        auto read = ReadNameRules(root, parent, rules);
+        if (!read.has_value()) {
+          return base::unexpected(read.error());
+        }
+        entry = rules_.emplace(parent, *read).first;
+      }
+      rules = entry->second;
+      parent = parent.Append(name);
+#if BUILDFLAG(IS_MAC)
+      if (rules.hfs) {
+        name = base::FilePath::GetHFSDecomposedForm(name);
+        if (!rules.case_sensitive) {
+          name = *insensitive_names_.insert(name).first;
+        }
+      } else if (rules.apfs || !rules.case_sensitive) {
+        auto string = base::SysUTF8ToCFStringRef(name);
+        if (!string) {
+          return base::unexpected(WorkspaceError::kInvalidPath);
+        }
+        base::apple::ScopedCFTypeRef<CFMutableStringRef> folded(
+            CFStringCreateMutableCopy(nullptr, 0, string.get()));
+        if (!rules.case_sensitive) {
+          CFStringFold(folded.get(), kCFCompareCaseInsensitive, nullptr);
+        }
+        if (rules.apfs) {
+          CFStringNormalize(folded.get(), kCFStringNormalizationFormD);
+        }
+        name = base::SysCFStringRefToUTF8(folded.get());
+      }
+#elif BUILDFLAG(IS_WIN)
+      if (!rules.case_sensitive) {
+        name = *insensitive_names_.insert(name).first;
+      }
+#endif
+      key = key.Append(name);
+    }
+    if (directories_.contains(key) || !files_.insert(key).second) {
+      return base::unexpected(WorkspaceError::kPatchParseError);
+    }
+    return {};
+  }
+
+ private:
+  std::map<base::FilePath, DirectoryNameRules> rules_;
+  std::set<base::FilePath> directories_;
+  std::set<base::FilePath> files_;
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+  static bool LessIgnoreCase(const base::FilePath::StringType& left,
+                             const base::FilePath::StringType& right) {
+#if BUILDFLAG(IS_WIN)
+    return ::CompareStringOrdinal(left.c_str(), -1, right.c_str(), -1, TRUE) ==
+           CSTR_LESS_THAN;
+#else
+    return base::FilePath::CompareLessIgnoreCase(left, right);
+#endif
+  }
+  std::set<base::FilePath::StringType, decltype(&LessIgnoreCase)>
+      insensitive_names_{&LessIgnoreCase};
+#endif
 };
 
 }  // namespace
 
 base::expected<PatchResult, WorkspaceError> ApplyV4APatch(
     const base::FilePath& workspace_root,
-    const base::FilePath& staging_dir,
-    const std::string& request_id,
     WorkspaceQuota* quota,
     const V4APatch& patch) {
-  base::FilePath stage = staging_dir.AppendASCII(request_id);
-
-  // Ensure cleanup runs no matter what.
-  struct Cleanup {
-    base::FilePath path;
-    ~Cleanup() { base::DeletePathRecursively(path); }
-  } cleanup{stage};
-
-  if (!base::CreateDirectory(stage)) {
+  base::ScopedTempDir stage;
+  if (!stage.CreateUniqueTempDir()) {
     return base::unexpected(WorkspaceError::kIoError);
   }
 
   PatchResult result;
-  std::set<std::string> touched_destinations;
-
+  PatchPaths touched_paths;
   std::vector<StagedWrite> writes;
   std::vector<base::FilePath> deletes;
+  std::vector<WorkspaceQuota::FileChange> changes;
 
   for (const V4AFileOp& op : patch.ops) {
-    auto abs = NormalizePath(workspace_root, op.path);
-    if (!abs.has_value()) {
-      return base::unexpected(abs.error());
+    auto path = ResolveWorkspacePath(workspace_root, op.path);
+    if (!path.has_value()) {
+      return base::unexpected(path.error());
     }
-    const std::string& key = op.path;
-    if (!touched_destinations.insert(key).second) {
-      return base::unexpected(WorkspaceError::kPatchParseError);
+    auto reserved = touched_paths.Reserve(workspace_root, *path);
+    if (!reserved.has_value()) {
+      return base::unexpected(reserved.error());
     }
 
+    base::File file = OpenWorkspaceFile(workspace_root, *path);
+    if (!file.IsValid()) {
+      if (file.error_details() != base::File::FILE_ERROR_NOT_FOUND) {
+        return base::unexpected(WorkspaceError::kIoError);
+      }
+      if (op.kind != V4AFileOp::Kind::kAdd) {
+        return base::unexpected(WorkspaceError::kNotFound);
+      }
+    }
+
+    base::FilePath destination = *path;
+    auto mode = WorkspacePublishMode::kReplace;
+    std::optional<uint64_t> existing_size;
+    if (file.IsValid()) {
+      const int64_t length = file.GetLength();
+      if (length < 0) {
+        return base::unexpected(WorkspaceError::kIoError);
+      }
+      existing_size = static_cast<uint64_t>(length);
+    }
+    std::string new_text;
     switch (op.kind) {
-      case V4AFileOp::Kind::kAdd: {
-        if (base::PathExists(*abs)) {
+      case V4AFileOp::Kind::kAdd:
+        if (file.IsValid()) {
           return base::unexpected(WorkspaceError::kAlreadyExists);
         }
-        if (!IsTextExtensionAllowed(*abs)) {
+        if (!IsTextExtensionAllowed(*path)) {
           return base::unexpected(WorkspaceError::kBinaryRejected);
         }
-        std::string body;
-        for (const auto& l : op.add_lines) {
-          body += l;
-          body.push_back('\n');
-        }
-        if (ContainsNulByte(body)) {
-          return base::unexpected(WorkspaceError::kBinaryRejected);
-        }
-        if (!quota->CanAcceptWrite(op.path, body.size(),
-                                   /*replacing_existing_bytes=*/0)) {
-          return base::unexpected(WorkspaceError::kQuotaExceeded);
-        }
-        base::FilePath staged = stage.AppendASCII(op.path);
-        if (!base::CreateDirectory(staged.DirName())) {
-          return base::unexpected(WorkspaceError::kIoError);
-        }
-        if (!base::WriteFile(staged, body)) {
-          return base::unexpected(WorkspaceError::kIoError);
-        }
-        writes.push_back({staged, *abs});
+        new_text = JoinLines(op.add_lines);
+        mode = WorkspacePublishMode::kCreate;
         result.added.push_back(op.path);
         break;
-      }
-
       case V4AFileOp::Kind::kUpdate: {
-        if (!base::PathExists(*abs)) {
-          return base::unexpected(WorkspaceError::kNotFound);
+        auto body = ReadLines(std::move(file));
+        if (!body.has_value()) {
+          return base::unexpected(body.error());
         }
-        auto lines = ReadLines(*abs);
-        if (!lines.has_value()) {
-          return base::unexpected(lines.error());
-        }
-        std::vector<std::string> body = *lines;
         for (const V4AHunk& h : op.hunks) {
-          auto next = ApplyHunkToBody(body, h);
-          if (!next.has_value()) {
-            return base::unexpected(next.error());
+          body = ApplyHunkToBody(std::move(*body), h);
+          if (!body.has_value()) {
+            return base::unexpected(body.error());
           }
-          body = *next;
         }
-        std::string new_text = JoinLines(body);
-        if (ContainsNulByte(new_text)) {
-          return base::unexpected(WorkspaceError::kBinaryRejected);
-        }
-        uint64_t existing_size = 0;
-        if (auto sz = base::GetFileSize(*abs); sz.has_value()) {
-          existing_size = static_cast<uint64_t>(*sz);
-        }
-        if (!quota->CanAcceptWrite(op.path, new_text.size(), existing_size)) {
-          return base::unexpected(WorkspaceError::kQuotaExceeded);
-        }
-
-        base::FilePath dest = *abs;
+        new_text = JoinLines(*body);
         if (op.move_to.has_value()) {
-          auto dest_abs = NormalizePath(workspace_root, *op.move_to);
-          if (!dest_abs.has_value()) {
-            return base::unexpected(dest_abs.error());
+          auto dest = ResolveWorkspacePath(workspace_root, *op.move_to);
+          if (!dest.has_value()) {
+            return base::unexpected(dest.error());
           }
-          if (!IsTextExtensionAllowed(*dest_abs)) {
+          if (!IsTextExtensionAllowed(*dest)) {
             return base::unexpected(WorkspaceError::kBinaryRejected);
           }
-          if (base::PathExists(*dest_abs) && *dest_abs != *abs) {
-            return base::unexpected(WorkspaceError::kAlreadyExists);
+          if (*dest != *path) {
+            reserved = touched_paths.Reserve(workspace_root, *dest);
+            if (!reserved.has_value()) {
+              return base::unexpected(reserved.error());
+            }
+            base::File target = OpenWorkspaceFile(workspace_root, *dest);
+            if (target.IsValid()) {
+              return base::unexpected(WorkspaceError::kAlreadyExists);
+            }
+            if (target.error_details() != base::File::FILE_ERROR_NOT_FOUND) {
+              return base::unexpected(WorkspaceError::kIoError);
+            }
+            deletes.push_back(*path);
+            changes.push_back({*path, existing_size, std::nullopt});
+            existing_size.reset();
+            destination = *dest;
+            mode = WorkspacePublishMode::kCreate;
           }
-          dest = *dest_abs;
-          deletes.push_back(*abs);
           result.moved.emplace_back(op.path, *op.move_to);
         } else {
           result.updated.push_back(op.path);
         }
-        base::FilePath staged =
-            stage.AppendASCII(op.move_to.value_or(op.path));
-        if (!base::CreateDirectory(staged.DirName())) {
-          return base::unexpected(WorkspaceError::kIoError);
-        }
-        if (!base::WriteFile(staged, new_text)) {
-          return base::unexpected(WorkspaceError::kIoError);
-        }
-        writes.push_back({staged, dest});
         break;
       }
-
-      case V4AFileOp::Kind::kDelete: {
-        if (!base::PathExists(*abs)) {
-          return base::unexpected(WorkspaceError::kNotFound);
-        }
-        deletes.push_back(*abs);
+      case V4AFileOp::Kind::kDelete:
+        changes.push_back({*path, existing_size, std::nullopt});
+        deletes.push_back(*path);
         result.deleted.push_back(op.path);
-        break;
-      }
+        continue;
     }
-  }
 
-  // Phase 3: commit. Renames first, then deletes (so a Move that races a
-  // Delete still leaves the renamed file in place).
-  for (const auto& w : writes) {
-    if (!base::CreateDirectory(w.final_dest.DirName())) {
+    if (ContainsNulByte(new_text)) {
+      return base::unexpected(WorkspaceError::kBinaryRejected);
+    }
+    if (new_text.size() > WorkspaceQuota::kPerFileMaxBytes) {
+      return base::unexpected(WorkspaceError::kQuotaExceeded);
+    }
+    changes.push_back({destination, existing_size, new_text.size()});
+    base::FilePath staged =
+        stage.GetPath().AppendASCII(base::NumberToString(writes.size()));
+    if (!base::WriteFile(staged, new_text)) {
       return base::unexpected(WorkspaceError::kIoError);
     }
-    if (!base::ReplaceFile(w.staged, w.final_dest, /*error=*/nullptr)) {
-      return base::unexpected(WorkspaceError::kIoError);
-    }
-  }
-  for (const auto& d : deletes) {
-    base::DeleteFile(d);
+    writes.push_back({staged, destination, mode});
   }
 
+  if (!quota->CanApplyChanges(changes)) {
+    return base::unexpected(WorkspaceError::kQuotaExceeded);
+  }
+
+  // A later I/O error can leave earlier commits visible.
   quota->InvalidateCache();
+  for (const auto& write : writes) {
+    base::File staged(write.staged,
+                      base::File::FLAG_OPEN | base::File::FLAG_READ);
+    if (!staged.IsValid()) {
+      return base::unexpected(WorkspaceError::kIoError);
+    }
+    auto published = CopyToWorkspaceFile(workspace_root, write.final_dest,
+                                         staged, write.mode);
+    if (!published.has_value()) {
+      return base::unexpected(published.error());
+    }
+  }
+  for (const auto& path : deletes) {
+    if (!DeleteWorkspaceFile(workspace_root, path)) {
+      return base::unexpected(WorkspaceError::kIoError);
+    }
+  }
   return result;
 }
 

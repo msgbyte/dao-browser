@@ -4,23 +4,27 @@
 
 #include "dao/browser/agent/workspace/path_normalizer.h"
 
-#include <string_view>
 #include <vector>
 
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
-#include "base/strings/string_split.h"
-#include "base/strings/string_util.h"
 #include "build/build_config.h"
 
 namespace dao {
 
 namespace {
 
-constexpr std::string_view kAllowedHidden = ".audit.log";
-
-bool IsHiddenComponent(const base::FilePath::StringType& component) {
-  return !component.empty() && component[0] == FILE_PATH_LITERAL('.');
+bool HasPrivateComponent(const base::FilePath& path) {
+  const auto parts = path.GetComponents();
+  if (parts.size() == 1 && parts.front() == FILE_PATH_LITERAL(".audit.log")) {
+    return false;
+  }
+  for (const auto& part : parts) {
+    if (!part.empty() && part.front() == FILE_PATH_LITERAL('.')) {
+      return true;
+    }
+  }
+  return false;
 }
 
 bool LooksAbsolute(const std::string& rel_path) {
@@ -41,10 +45,10 @@ bool LooksAbsolute(const std::string& rel_path) {
 
 }  // namespace
 
-base::expected<base::FilePath, WorkspaceError> NormalizePath(
+base::expected<base::FilePath, WorkspaceError> ResolveWorkspacePath(
     const base::FilePath& workspace_root,
     const std::string& rel_path) {
-  if (rel_path.empty()) {
+  if (rel_path.empty() || rel_path.find('\0') != std::string::npos) {
     return base::unexpected(WorkspaceError::kInvalidPath);
   }
   if (LooksAbsolute(rel_path)) {
@@ -53,38 +57,29 @@ base::expected<base::FilePath, WorkspaceError> NormalizePath(
 
   base::FilePath candidate = base::FilePath::FromUTF8Unsafe(rel_path);
   if (candidate.empty() || candidate.IsAbsolute() ||
+      candidate.ReferencesParent() ||
       base::FilePath::IsSeparator(candidate.value().front())) {
     return base::unexpected(WorkspaceError::kInvalidPath);
   }
 
-  std::vector<base::FilePath::StringType> components =
-      candidate.GetComponents();
-  for (size_t i = 0; i < components.size(); ++i) {
-    const auto& c = components[i];
-    if (c == FILE_PATH_LITERAL("..") || c == FILE_PATH_LITERAL(".")) {
-      return base::unexpected(WorkspaceError::kInvalidPath);
-    }
-    if (IsHiddenComponent(c)) {
-      const bool is_top_level = (i == 0 && components.size() == 1);
-      const bool is_allowlisted_audit =
-          is_top_level &&
-          c == base::FilePath::StringType(kAllowedHidden.begin(),
-                                          kAllowedHidden.end());
-      if (!is_allowlisted_audit) {
-        return base::unexpected(WorkspaceError::kInvalidPath);
-      }
-    }
+  if (HasPrivateComponent(candidate)) {
+    return base::unexpected(WorkspaceError::kInvalidPath);
   }
-
-#if BUILDFLAG(IS_WIN)
-  // MakeAbsoluteFilePath does not resolve Windows reparse points. Resolve
-  // each existing component, including ancestors of a not-yet-created file.
+  const auto components = candidate.GetComponents();
+  // A new file has no canonical path yet, but its parents may be links.
   base::FilePath resolved_root;
   if (!base::NormalizeFilePath(workspace_root, &resolved_root)) {
     return base::unexpected(WorkspaceError::kInvalidPath);
   }
   base::FilePath resolved = resolved_root;
   for (const auto& component : components) {
+#if BUILDFLAG(IS_WIN)
+    if (component.ends_with(L'.') || component.ends_with(L' ') ||
+        component.find(L':') != std::wstring::npos ||
+        base::IsReservedNameOnWindows(component)) {
+      return base::unexpected(WorkspaceError::kInvalidPath);
+    }
+#endif
     resolved = resolved.Append(component);
     base::FilePath canonical;
     if (base::NormalizeFilePath(resolved, &canonical)) {
@@ -96,28 +91,16 @@ base::expected<base::FilePath, WorkspaceError> NormalizePath(
       return base::unexpected(WorkspaceError::kInvalidPath);
     }
   }
-#else
-  // Resolve symlinks on both sides so prefix checks work consistently on
-  // platforms where the temp dir / profile dir contains symlinks (e.g. on
-  // macOS where /var/folders is a symlink to /private/var/folders).
-  base::FilePath resolved_root = base::MakeAbsoluteFilePath(workspace_root);
-  if (resolved_root.empty()) {
-    resolved_root = workspace_root;
-  }
-
-  base::FilePath joined = resolved_root.Append(candidate);
-
-  base::FilePath resolved = base::MakeAbsoluteFilePath(joined);
-  if (resolved.empty()) {
-    resolved = joined;
-  }
-#endif
-
-  if (resolved != resolved_root && !resolved_root.IsParent(resolved)) {
+  base::FilePath relative;
+  if (resolved != resolved_root &&
+      !resolved_root.AppendRelativePath(resolved, &relative)) {
     return base::unexpected(WorkspaceError::kInvalidPath);
   }
-
-  return resolved;
+  // A visible alias must not grant access to private workspace components.
+  if (HasPrivateComponent(relative)) {
+    return base::unexpected(WorkspaceError::kInvalidPath);
+  }
+  return relative;
 }
 
 }  // namespace dao

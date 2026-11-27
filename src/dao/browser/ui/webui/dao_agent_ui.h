@@ -267,11 +267,7 @@ class DaoAgentUIHandler : public content::WebUIMessageHandler,
   void OnNativeFetchComplete(network::SimpleURLLoader* loader_ptr,
                              std::optional<std::string> body);
 
-  // Per-request state for in-flight workspace_download URL fetches.
-  // Keyed by raw pointer so OnWorkspaceDownloadFileComplete can erase
-  // the matching entry. The URL path streams bytes directly to
-  // `staging_path` via SimpleURLLoader::DownloadToFile so multi-hundred-MB
-  // downloads never sit in the browser process's heap.
+  // Each loader owns its temporary file until completion or cancellation.
   struct WorkspaceDownloadRequest {
     WorkspaceDownloadRequest();
     WorkspaceDownloadRequest(WorkspaceDownloadRequest&&) noexcept;
@@ -282,13 +278,10 @@ class DaoAgentUIHandler : public content::WebUIMessageHandler,
     std::string callback_id;
     std::string workspace_path;
     std::string source_url;
-    base::FilePath staging_path;
   };
   std::map<network::SimpleURLLoader*, WorkspaceDownloadRequest>
       workspace_download_inflight_;
 
-  void OnDownloadStagingAllocated(network::SimpleURLLoader* loader_ptr,
-                                  base::FilePath staging_path);
   void OnWorkspaceDownloadFileComplete(network::SimpleURLLoader* loader_ptr,
                                        base::FilePath returned_path);
 

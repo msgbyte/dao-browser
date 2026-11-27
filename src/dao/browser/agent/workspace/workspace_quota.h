@@ -8,8 +8,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
-#include <string>
 
+#include "base/containers/span.h"
 #include "base/files/file_path.h"
 
 namespace dao {
@@ -27,6 +27,12 @@ class WorkspaceQuota {
     uint32_t entry_count = 0;
   };
 
+  struct FileChange {
+    base::FilePath path;  // Resolved workspace-relative path.
+    std::optional<uint64_t> before_bytes;
+    std::optional<uint64_t> after_bytes;
+  };
+
   explicit WorkspaceQuota(const base::FilePath& workspace_root);
   ~WorkspaceQuota();
 
@@ -36,17 +42,16 @@ class WorkspaceQuota {
   // Cached; recomputes on first call after construction or InvalidateCache().
   Usage GetUsage();
 
-  // Returns true if writing `rel_path` of `new_bytes` is within all three
-  // limits. `replacing_existing_bytes` is the on-disk size of the file
-  // being overwritten (0 for new files).
-  bool CanAcceptWrite(const std::string& rel_path,
+  // Missing sizes mean that the file does not exist in that state.
+  bool CanAcceptWrite(const base::FilePath& relative,
                       uint64_t new_bytes,
-                      uint64_t replacing_existing_bytes);
+                      std::optional<uint64_t> existing_bytes);
+  bool CanApplyChanges(base::span<const FileChange> changes);
 
   void InvalidateCache();
 
  private:
-  Usage ComputeUsage() const;
+  std::optional<Usage> ComputeUsage() const;
 
   base::FilePath workspace_root_;
   std::optional<Usage> cached_usage_;

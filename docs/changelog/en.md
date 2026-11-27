@@ -4,6 +4,11 @@
 
 ### [Unreleased] Unreleased
 
+- The AI Agent checks linked folders when reading and saving workspace files. Updating the workspace index and activity log also protects files they link to.
+- The Agent skips linked files and folders when listing, indexing and calculating storage usage, so links no longer duplicate entries.
+- The AI Agent checks the file names and storage limits of an entire workspace patch before applying it. Adding or moving a file preserves any file already at its destination.
+- The Agent reclaims temporary workspace files left by interrupted saves when the workspace next opens.
+
 ### [1.0.146] - 2026-11-27
 
 - Close all completed AI tasks at once with the button next to the AI Tasks heading in the sidebar.

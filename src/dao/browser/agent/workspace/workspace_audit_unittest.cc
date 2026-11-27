@@ -9,6 +9,7 @@
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/strings/stringprintf.h"
+#include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace dao {
@@ -55,6 +56,21 @@ TEST_F(WorkspaceAuditTest, RingBufferKeepsRecent) {
   EXPECT_EQ("f2.md", recent[0].path);
   EXPECT_EQ("f4.md", recent[2].path);
 }
+
+#if BUILDFLAG(IS_POSIX)
+TEST_F(WorkspaceAuditTest, DoesNotAppendToTargetOfAuditLink) {
+  const auto& root = dir_.GetPath();
+  const auto notes = root.AppendASCII("notes.md");
+  ASSERT_TRUE(base::WriteFile(notes, "notes"));
+  ASSERT_TRUE(base::CreateSymbolicLink(notes, root.AppendASCII(".audit.log")));
+  WorkspaceAudit audit(root, 10);
+  audit.Append(MakeEntry("t1", "write", "a.md", ""));
+  std::string content;
+  ASSERT_TRUE(base::ReadFileToString(notes, &content));
+  EXPECT_EQ("notes", content);
+  EXPECT_EQ(1u, audit.Snapshot().size());
+}
+#endif
 
 TEST_F(WorkspaceAuditTest, AppendOnlyAcrossInstances) {
   {

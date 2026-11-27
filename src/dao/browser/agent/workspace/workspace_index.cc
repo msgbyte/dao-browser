@@ -5,16 +5,19 @@
 #include "dao/browser/agent/workspace/workspace_index.h"
 
 #include <algorithm>
+#include <array>
+#include <optional>
 #include <string>
 #include <vector>
 
-#include "base/files/file_enumerator.h"
-#include "base/files/file_util.h"
+#include "base/containers/span.h"
 #include "base/i18n/time_formatting.h"
-#include "base/strings/strcat.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
+#include "dao/browser/agent/workspace/workspace_file.h"
+#include "dao/browser/agent/workspace/workspace_scan.h"
 
 namespace dao {
 
@@ -25,12 +28,27 @@ constexpr char kIndexFileName[] = "WORKSPACE.md";
 struct FileRow {
   std::string rel_path;
   int64_t bytes = 0;
-  int line_count = -1;  // -1 if not counted (non-md)
+  std::optional<int64_t> line_count;
 };
 
-bool IsBookkeeping(const base::FilePath::StringType& name) {
-  return name == FILE_PATH_LITERAL(".audit.log") ||
-         name == FILE_PATH_LITERAL("WORKSPACE.md");
+std::optional<int64_t> CountNewlines(base::File file, int64_t size) {
+  if (!file.IsValid()) {
+    return std::nullopt;
+  }
+  std::array<uint8_t, 16384> buffer;
+  int64_t count = 0;
+  while (size > 0) {
+    const size_t length =
+        static_cast<size_t>(std::min<int64_t>(size, buffer.size()));
+    auto chunk = base::span(buffer).first(length);
+    const auto read = file.ReadAtCurrentPos(chunk);
+    if (!read || *read == 0) {
+      return std::nullopt;
+    }
+    count += std::ranges::count(chunk.first(*read), '\n');
+    size -= static_cast<int64_t>(*read);
+  }
+  return count;
 }
 
 std::string FormatSize(int64_t bytes) {
@@ -54,39 +72,24 @@ void WorkspaceIndex::Rewrite() {
   std::vector<FileRow> rows;
   int64_t total = 0;
 
-  base::FileEnumerator enumerator(
-      workspace_root_, /*recursive=*/true, base::FileEnumerator::FILES);
-  for (base::FilePath path = enumerator.Next(); !path.empty();
-       path = enumerator.Next()) {
-    base::FilePath relative;
-    if (!workspace_root_.AppendRelativePath(path, &relative)) {
-      continue;
-    }
-    auto comps = relative.GetComponents();
-    if (comps.empty()) {
-      continue;
-    }
-    if (IsBookkeeping(comps[0])) {
-      continue;
-    }
-    if (comps[0] == FILE_PATH_LITERAL(".workspace_tmp")) {
-      continue;
-    }
-
-    FileRow row;
-    row.rel_path = relative.AsUTF8Unsafe();
-    row.bytes = enumerator.GetInfo().GetSize();
-    row.line_count = -1;
-    // Count lines for .md files only — cheap heuristic.
-    if (relative.MatchesExtension(FILE_PATH_LITERAL(".md"))) {
-      std::string body;
-      if (base::ReadFileToString(path, &body)) {
-        row.line_count = static_cast<int>(
-            std::count(body.begin(), body.end(), '\n'));
-      }
-    }
-    total += row.bytes;
-    rows.push_back(std::move(row));
+  const auto status = ScanWorkspace(
+      workspace_root_, {}, /*recursive=*/true, WorkspaceScanScope::kVisible,
+      [&](const base::FilePath& path, const base::File::Info& info) {
+        if (info.is_directory) {
+          return;
+        }
+        FileRow row;
+        row.rel_path = path.AsUTF8Unsafe();
+        row.bytes = info.size;
+        if (path.MatchesExtension(FILE_PATH_LITERAL(".md"))) {
+          row.line_count =
+              CountNewlines(OpenWorkspaceFile(workspace_root_, path), row.bytes);
+        }
+        total += row.bytes;
+        rows.push_back(std::move(row));
+      });
+  if (status != WorkspaceError::kOk) {
+    return;
   }
 
   std::sort(rows.begin(), rows.end(),
@@ -110,8 +113,8 @@ void WorkspaceIndex::Rewrite() {
       out += r.rel_path;
       out += "` (";
       out += FormatSize(r.bytes);
-      if (r.line_count >= 0) {
-        out += base::StringPrintf(", %d lines", r.line_count);
+      if (r.line_count) {
+        out += ", " + base::NumberToString(*r.line_count) + " lines";
       }
       out += ")\n";
     }
@@ -122,7 +125,8 @@ void WorkspaceIndex::Rewrite() {
   out += base::StringPrintf("- Quota: %s / 100 MB used\n",
                             FormatSize(total).c_str());
 
-  base::WriteFile(workspace_root_.AppendASCII(kIndexFileName), out);
+  WriteWorkspaceFile(workspace_root_, base::FilePath::FromASCII(kIndexFileName),
+                     out);
 }
 
 }  // namespace dao

@@ -1317,9 +1317,7 @@ base::expected<HomeDraft, HomeError> DaoHomeProjectStore::ApplyPatch(
     return base::unexpected(HomeError::kIoError);
   }
   WorkspaceQuota quota(draft_path);
-  auto applied =
-      ApplyV4APatch(draft_path, temporary_root_.AppendASCII("patches"),
-                    draft_id, &quota, patch.value());
+  auto applied = ApplyV4APatch(draft_path, &quota, patch.value());
   if (!applied.has_value()) {
     base::DeletePathRecursively(draft_path);
     return base::unexpected(WorkspaceErrorToHomeError(applied.error()));
@@ -1374,8 +1372,8 @@ base::expected<HomeDraft, HomeError> DaoHomeProjectStore::ReplaceFiles(
       base::DeletePathRecursively(draft_path);
       return base::unexpected(HomeError::kIoError);
     }
-    if (!quota.CanAcceptWrite(relative_path, contents.size(),
-                              static_cast<uint64_t>(*existing_size))) {
+    if (!quota.CanAcceptWrite(base::FilePath::FromUTF8Unsafe(relative_path),
+                              contents.size(), existing_size)) {
       base::DeletePathRecursively(draft_path);
       return base::unexpected(HomeError::kQuotaExceeded);
     }

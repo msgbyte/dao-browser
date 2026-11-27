@@ -4,24 +4,9 @@
 
 #include "dao/browser/agent/workspace/workspace_quota.h"
 
-#include <vector>
-
-#include "base/files/file_enumerator.h"
+#include "dao/browser/agent/workspace/workspace_scan.h"
 
 namespace dao {
-
-namespace {
-
-bool IsBookkeepingFile(const base::FilePath::StringType& name) {
-  return name == FILE_PATH_LITERAL(".audit.log") ||
-         name == FILE_PATH_LITERAL("WORKSPACE.md");
-}
-
-bool IsStagingDir(const base::FilePath::StringType& name) {
-  return name == FILE_PATH_LITERAL(".workspace_tmp");
-}
-
-}  // namespace
 
 WorkspaceQuota::WorkspaceQuota(const base::FilePath& workspace_root)
     : workspace_root_(workspace_root) {}
@@ -32,55 +17,69 @@ WorkspaceQuota::Usage WorkspaceQuota::GetUsage() {
   if (!cached_usage_.has_value()) {
     cached_usage_ = ComputeUsage();
   }
-  return *cached_usage_;
+  return cached_usage_.value_or(Usage());
 }
 
 void WorkspaceQuota::InvalidateCache() {
   cached_usage_.reset();
 }
 
-bool WorkspaceQuota::CanAcceptWrite(
-    [[maybe_unused]] const std::string& rel_path,
-    uint64_t new_bytes,
-    uint64_t replacing_existing_bytes) {
-  if (new_bytes > kPerFileMaxBytes) {
-    return false;
-  }
-  Usage u = GetUsage();
-  const int64_t delta = static_cast<int64_t>(new_bytes) -
-                        static_cast<int64_t>(replacing_existing_bytes);
-  if (static_cast<int64_t>(u.total_bytes) + delta >
-      static_cast<int64_t>(kTotalMaxBytes)) {
-    return false;
-  }
-  // Entry count only grows for new files.
-  if (replacing_existing_bytes == 0 && u.entry_count >= kMaxEntries) {
-    return false;
-  }
-  return true;
+bool WorkspaceQuota::CanAcceptWrite(const base::FilePath& relative,
+                                    uint64_t new_bytes,
+                                    std::optional<uint64_t> existing_bytes) {
+  const FileChange change{relative, existing_bytes, new_bytes};
+  return CanApplyChanges(base::span_from_ref(change));
 }
 
-WorkspaceQuota::Usage WorkspaceQuota::ComputeUsage() const {
-  Usage u;
-  base::FileEnumerator enumerator(workspace_root_, /*recursive=*/true,
-                                  base::FileEnumerator::FILES);
-  for (base::FilePath path = enumerator.Next(); !path.empty();
-       path = enumerator.Next()) {
-    base::FilePath::StringType name = path.BaseName().value();
-    if (IsBookkeepingFile(name)) {
+bool WorkspaceQuota::CanApplyChanges(base::span<const FileChange> changes) {
+  // The user can add files outside Dao after a usage snapshot was displayed.
+  cached_usage_ = ComputeUsage();
+  if (!cached_usage_) {
+    return false;
+  }
+  Usage kept = *cached_usage_;
+  Usage written;
+  for (const auto& change : changes) {
+    if (change.after_bytes && *change.after_bytes > kPerFileMaxBytes) {
+      return false;
+    }
+    if (IsWorkspaceQuotaExemptFile(change.path)) {
       continue;
     }
-    // Skip anything under .workspace_tmp.
-    base::FilePath relative;
-    if (workspace_root_.AppendRelativePath(path, &relative)) {
-      std::vector<base::FilePath::StringType> comps = relative.GetComponents();
-      if (!comps.empty() && IsStagingDir(comps[0])) {
-        continue;
+    if (change.before_bytes) {
+      if (*change.before_bytes > kept.total_bytes || kept.entry_count == 0) {
+        return false;
       }
+      kept.total_bytes -= *change.before_bytes;
+      --kept.entry_count;
     }
-    base::FileEnumerator::FileInfo info = enumerator.GetInfo();
-    u.total_bytes += static_cast<uint64_t>(info.GetSize());
-    u.entry_count += 1;
+    if (change.after_bytes) {
+      if (*change.after_bytes > kTotalMaxBytes - written.total_bytes ||
+          written.entry_count >= kMaxEntries) {
+        return false;
+      }
+      written.total_bytes += *change.after_bytes;
+      ++written.entry_count;
+    }
+  }
+  // Allow deletion to recover a workspace that is already over quota.
+  return written.entry_count == 0 ||
+         (kept.total_bytes <= kTotalMaxBytes - written.total_bytes &&
+          kept.entry_count <= kMaxEntries - written.entry_count);
+}
+
+std::optional<WorkspaceQuota::Usage> WorkspaceQuota::ComputeUsage() const {
+  Usage u;
+  auto status = ScanWorkspace(
+      workspace_root_, {}, /*recursive=*/true, WorkspaceScanScope::kQuota,
+      [&](const base::FilePath&, const base::File::Info& info) {
+        if (!info.is_directory) {
+          u.total_bytes += static_cast<uint64_t>(info.size);
+          ++u.entry_count;
+        }
+      });
+  if (status != WorkspaceError::kOk) {
+    return std::nullopt;
   }
   return u;
 }
