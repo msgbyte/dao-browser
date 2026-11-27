@@ -93,16 +93,18 @@ export const buildCommand = new Command("build")
   });
 
 async function buildApplication(opts: BuildOptions, signal?: AbortSignal): Promise<void> {
-  if (opts.target.includes("dao_installer_ui")) {
+  const installerTarget = opts.target.find(target =>
+    target === "dao_installer_ui" || target === "dao_update_window_test_host");
+  if (installerTarget) {
     const requestedPlatform = opts.platform ?? process.env.DAO_BUILD_PLATFORM;
     if (requestedPlatform !== undefined && requestedPlatform !== 'windows') {
-      throw new Error('dao_installer_ui requires --platform windows.');
+      throw new Error(`${installerTarget} requires --platform windows.`);
     }
     if (opts.target.length !== 1 || opts.genOnly) {
-      throw new Error("Build dao_installer_ui separately without --gen-only.");
+      throw new Error(`Build ${installerTarget} separately without --gen-only.`);
     }
     const {buildWindowsInstallerHost} = await import("./build-windows-installer.js");
-    await buildWindowsInstallerHost(signal);
+    await buildWindowsInstallerHost(signal, installerTarget);
     return;
   }
   opts = {...opts, debug: !!opts.debug && !opts.release};

@@ -594,14 +594,20 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
     const fs::path config = fs::path(module.data()).parent_path() / L"session.ini";
     const std::wstring token = argc == 3 ? argv[2] : L"";
     LocalFree(argv);
-    const int result = dao::RunUpdate(token, ReadIni(config, L"Executable"));
-    if (result != 0) {
-      Log(("Update handoff or installation failed; exit code " +
-           std::to_string(result)).c_str(), E_FAIL);
-      MessageBoxW(nullptr, dao::NativeString(L"updateFailed", ReadIni(config, L"Language") == L"2052"),
-                  dao::NativeString(L"windowTitle", false), MB_OK | MB_ICONERROR);
+    const bool chinese = ReadIni(config, L"Language") == L"2052";
+    auto log_failure = [](const char* stage, DWORD code) {
+      Log((std::string(stage) + "; exit code " + std::to_string(code)).c_str(),
+          static_cast<HRESULT>(code));
+    };
+    const auto result = dao::RunUpdate(token, ReadIni(config, L"Executable"),
+                                       chinese, log_failure);
+    if (result.code != ERROR_SUCCESS) {
+      log_failure("Update handoff ended", result.code);
+      if (result.show_fallback)
+        MessageBoxW(nullptr, dao::NativeString(L"updateFailed", chinese),
+                    dao::NativeString(L"windowTitle", chinese), MB_OK | MB_ICONERROR);
     }
-    return result;
+    return static_cast<int>(result.code);
   }
   if (argv) LocalFree(argv);
   if (FAILED(CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED)))

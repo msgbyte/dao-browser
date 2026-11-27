@@ -184,12 +184,19 @@ opens Settings About to display progress and results. It remains available durin
 an update and on unsupported installations so users can see the current status.
 
 Applying an update starts an authenticated, current-user-only named-pipe handoff
-to the existing NSIS installer host without WebView2. The helper waits for an
+to the existing NSIS installer host without WebView2. Before the browser exits,
+the host shows a native progress window with the Dao mark and an indeterminate
+blue ring. Localized text follows preparation, installation and reopening.
+The window can be minimized while the update runs. The helper waits for an
 explicit graceful-exit commit and the original browser process to exit. Cancelling
 an unload/download prompt cancels the handoff, including a later unrelated quit.
 The helper rechecks registration and other processes, silently installs into the
 existing directory, and relaunches with session restoration. It never force-kills
-browsers. Installer errors show localized retry guidance and log locations.
+browsers. The restore request also reaches Dao when it is already running in
+the background. The progress window waits for a visible browser window and
+continues watching the launch after the slow-start message appears. If startup
+fails, it shows the exit code and lets the user open Dao again. Installation
+failures offer an installation retry. Both include log locations.
 The browser launches the update wrapper from its cache directory, and the NSIS
 wrapper switches to its temporary directory before starting helpers, including
 when launched by an older Dao version. Waiting updater processes therefore do

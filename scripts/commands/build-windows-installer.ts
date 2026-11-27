@@ -8,15 +8,29 @@ import type {WindowsCrossToolchain} from "../windows-toolchain.js";
 const SDK_VERSION = "1.0.4258.31";
 const SDK_SHA256 = "56f7f4b8bf9aee4b8efefbbdd4f67d5f74ebd1b100ed0806da71bf76af481aa9";
 const REBUILD_COMMAND = "npm run rebuild -- -- --release --target dao_installer_ui --platform windows";
-const NATIVE_KEYS = ["windowTitle", "installingClose", "hostFailed", "hostCompleted", "launchFailed", "updateFailed"];
+const HOST_LIBRARIES = [
+  "kernel32.lib", "user32.lib", "shell32.lib", "shlwapi.lib", "ole32.lib", "oleaut32.lib", "uuid.lib",
+  "advapi32.lib", "version.lib", "comctl32.lib", "userenv.lib", "dwmapi.lib", "gdi32.lib", "gdiplus.lib",
+];
+const NATIVE_KEYS = [
+  "windowTitle", "installingClose", "hostFailed", "hostCompleted", "launchFailed", "updateFailed",
+  "updateWindowTitle", "updatePreparingTitle", "updatePreparingDescription",
+  "updateInstallingTitle", "updateInstallingDescription", "updateReopeningTitle", "updateReopeningDescription",
+  "updateInstallErrorTitle", "updateInstallErrorDescription", "updateLaunchErrorTitle", "updateLaunchErrorDescription",
+  "updateLaunchSlowTitle", "updateLaunchSlowDescription",
+  "updateRetryInstall", "updateOpenDao", "updateLogDetails", "updateLogTitle", "updateHandoffLogLabel",
+  "minimize", "close", "errorCode", "logLabel",
+];
 const HOST_INPUTS = [
   "scripts/commands/build-windows-installer.ts",
   "scripts/windows-toolchain.ts",
   "scripts/windows-installer/native/host.cc",
   "scripts/windows-installer/native/update.h",
+  "scripts/windows-installer/native/update_window.h",
   "src/dao/browser/updater/dao_update_win_util.h",
   "scripts/windows-installer/native/host.manifest",
   "branding/win/dao.ico",
+  "scripts/windows-installer/web/assets/dao-logo.png",
   "scripts/windows-installer/web/locales/en.json",
   "scripts/windows-installer/web/locales/zh-CN.json",
 ];
@@ -166,14 +180,16 @@ export function createCrossInstallerBuildCommands(toolchain: WindowsCrossToolcha
       "--", path.join(ROOT_DIR, "scripts/windows-installer/native/host.cc")]},
     {command: toolchain.lldLink, args: ["/SUBSYSTEM:WINDOWS", "/MACHINE:X64", "/MANIFEST:NO", "/INCREMENTAL:NO",
       `/OUT:${path.join(staging, "dao-installer-ui.exe")}`, ...toolchain.libDirs.map(directory => `/LIBPATH:${directory}`),
-      object, res, path.join(sdk, "build/native/x64/WebView2LoaderStatic.lib"), "kernel32.lib", "user32.lib", "shell32.lib",
-      "shlwapi.lib", "ole32.lib", "oleaut32.lib", "uuid.lib", "advapi32.lib", "version.lib", "comctl32.lib", "userenv.lib", "dwmapi.lib"]},
+      object, res, path.join(sdk, "build/native/x64/WebView2LoaderStatic.lib"), ...HOST_LIBRARIES]},
   ];
 }
 
-/** Invoked exclusively by the standalone dao_installer_ui rebuild target. */
-export async function buildWindowsInstallerHost(signal?: AbortSignal): Promise<void> {
+/** Compile the production host or its isolated Windows integration-test entry point. */
+export async function buildWindowsInstallerHost(signal: AbortSignal | undefined,
+    target: "dao_installer_ui" | "dao_update_window_test_host"): Promise<void> {
   signal?.throwIfAborted();
+  const testHost = target === "dao_update_window_test_host";
+  if (testHost && process.platform !== "win32") throw new Error("The update window integration fixture runs on Windows.");
   const crossCompile = process.platform === "darwin" && ["arm64", "x64"].includes(process.arch);
   if (!crossCompile && (process.platform !== "win32" || process.arch !== "x64")) {
     throw new Error("The Windows installer host requires Windows x64 or macOS arm64/x64.");
@@ -183,7 +199,7 @@ export async function buildWindowsInstallerHost(signal?: AbortSignal): Promise<v
   const nativeToolchain = crossCompile ? undefined : discoverToolchain();
   const inputs = inputHashes();
   const sdk = await webViewSdk(signal);
-  const output = path.join(ROOT_DIR, ".dao/installer");
+  const output = path.join(ROOT_DIR, testHost ? ".dao/installer-tests" : ".dao/installer");
   mkdirSync(output, {recursive: true});
   const staging = mkdtempSync(path.join(output, ".build-"));
   try {
@@ -192,9 +208,15 @@ export async function buildWindowsInstallerHost(signal?: AbortSignal): Promise<v
     writeFileSync(path.join(include, "native_strings.h"), nativeStrings());
     const resource = path.join(staging, "host.rc");
     const resourcePath = (file: string) => JSON.stringify(path.join(ROOT_DIR, file).replace(/\\/g, "/"));
-    writeFileSync(resource, `\uFEFF101 ICON ${resourcePath("branding/win/dao.ico")}\n1 24 ${resourcePath("scripts/windows-installer/native/host.manifest")}\n`, "utf16le");
+    writeFileSync(resource, [
+      `\uFEFF101 ICON ${resourcePath("branding/win/dao.ico")}`,
+      `102 RCDATA ${resourcePath("scripts/windows-installer/web/assets/dao-logo.png")}`,
+      `1 24 ${resourcePath("scripts/windows-installer/native/host.manifest")}`,
+      "",
+    ].join("\n"), "utf16le");
     const res = path.join(staging, "host.res");
-    const executable = path.join(staging, "dao-installer-ui.exe");
+    const executableName = testHost ? "dao-update-window-test-host.exe" : "dao-installer-ui.exe";
+    const executable = path.join(staging, executableName);
     if (crossToolchain) {
       for (const step of createCrossInstallerBuildCommands(crossToolchain, sdk, staging)) {
         const code = await runStreaming(step.command, step.args, {cwd: staging, env: crossToolchain.env, signal});
@@ -205,16 +227,21 @@ export async function buildWindowsInstallerHost(signal?: AbortSignal): Promise<v
         {cwd: staging, env: nativeToolchain.env, signal}) !== 0) throw new Error("Installer resource compilation failed.");
       const code = await runStreaming(nativeToolchain.compiler, ["/nologo", "/MT", "/std:c++17", "/EHsc", "/utf-8", "/O2", "/W4",
         "/DUNICODE", "/D_UNICODE", "/DWIN32_LEAN_AND_MEAN", "/DNOMINMAX", "/I", include, "/I", path.join(sdk, "build/native/include"),
-        path.join(ROOT_DIR, "scripts/windows-installer/native/host.cc"), `/Fo${path.join(staging, "host.obj")}`, `/Fe${executable}`,
+        path.join(ROOT_DIR, testHost ? "scripts/tests/windows-update-window/test_host.cc" : "scripts/windows-installer/native/host.cc"),
+        `/Fo${path.join(staging, "host.obj")}`, `/Fe${executable}`,
         "/link", "/SUBSYSTEM:WINDOWS", "/MACHINE:X64", "/MANIFEST:NO", "/INCREMENTAL:NO", res,
-        path.join(sdk, "build/native/x64/WebView2LoaderStatic.lib"), "user32.lib", "shell32.lib", "shlwapi.lib", "ole32.lib",
-        "oleaut32.lib", "uuid.lib", "advapi32.lib", "version.lib", "comctl32.lib", "userenv.lib", "dwmapi.lib"],
+        path.join(sdk, "build/native/x64/WebView2LoaderStatic.lib"), ...HOST_LIBRARIES],
       {cwd: staging, env: nativeToolchain.env, signal});
       if (code !== 0) throw new Error(`Installer host compilation failed (exit ${code}).`);
     }
-    if (!existsSync(executable)) throw new Error("Installer compiler did not produce dao-installer-ui.exe.");
+    if (!existsSync(executable)) throw new Error(`Installer compiler did not produce ${executableName}.`);
     signal?.throwIfAborted();
     if (JSON.stringify(inputs) !== JSON.stringify(inputHashes())) throw new Error("Installer sources changed during compilation; rebuild again.");
+    if (testHost) {
+      renameSync(executable, path.join(output, executableName));
+      log(`Built isolated update test host: ${path.join(output, executableName)}`);
+      return;
+    }
     const license = path.join(staging, "WebView2-LICENSE.txt");
     writeFileSync(license, `${readFileSync(path.join(sdk, "LICENSE.txt"), "utf8")}\n${readFileSync(path.join(sdk, "NOTICE.txt"), "utf8")}`);
     writeFileSync(path.join(staging, "build.json"), JSON.stringify({version: 1, sdkVersion: SDK_VERSION, inputs,

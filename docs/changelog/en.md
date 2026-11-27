@@ -4,6 +4,7 @@
 
 ### [Unreleased] Unreleased
 
+- On Windows, a small window shows update progress until Dao reopens, even if it is already running in the background. If installation or reopening fails, the window shows the error and lets you retry.
 - The AI Agent uses less memory when reading a few lines from a large workspace file.
 - Switching tabs takes less processing time when many open tabs have site icons.
 - The AI Agent checks linked folders when reading and saving workspace files. Updating the workspace index and activity log also protects files they link to.

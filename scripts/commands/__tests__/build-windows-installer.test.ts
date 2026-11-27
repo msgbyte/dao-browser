@@ -21,9 +21,11 @@ const inputs = [
   'scripts/windows-toolchain.ts',
   'scripts/windows-installer/native/host.cc',
   'scripts/windows-installer/native/update.h',
+  'scripts/windows-installer/native/update_window.h',
   'src/dao/browser/updater/dao_update_win_util.h',
   'scripts/windows-installer/native/host.manifest',
   'branding/win/dao.ico',
+  'scripts/windows-installer/web/assets/dao-logo.png',
   'scripts/windows-installer/web/locales/en.json',
   'scripts/windows-installer/web/locales/zh-CN.json',
 ];
@@ -73,7 +75,7 @@ describe('Windows installer host assets', () => {
     expect(compile.args.slice(-2)).toEqual(['--', path.join(root, 'scripts/windows-installer/native/host.cc')]);
     expect(compile.args.indexOf(`/Fo${path.join(staging, 'host.obj')}`)).toBeLessThan(compile.args.indexOf('--'));
     expect(link.command).toBe(toolchain.lldLink);
-    expect(link.args).toEqual(expect.arrayContaining(['/MACHINE:X64', '/SUBSYSTEM:WINDOWS', 'kernel32.lib']));
+    expect(link.args).toEqual(expect.arrayContaining(['/MACHINE:X64', '/SUBSYSTEM:WINDOWS', 'kernel32.lib', 'gdi32.lib', 'gdiplus.lib']));
     expect(link.args).toContain(`/LIBPATH:${libDirs[1]}`);
     expect(link.args).toContain(path.join(sdk, 'build/native/x64/WebView2LoaderStatic.lib'));
     expect(link.args).toContain(path.join(staging, 'host.obj'));
@@ -85,6 +87,13 @@ describe('Windows installer host assets', () => {
     write('scripts/windows-installer/native/host.cc', 'changed native source');
     expect(() => getWindowsInstallerHost()).toThrow(/npm run rebuild -- -- --release --target dao_installer_ui/);
   });
+
+  it.each(['scripts/windows-installer/native/update_window.h', 'scripts/windows-installer/web/assets/dao-logo.png'])(
+    'requires rebuilding the native progress window after changing %s', file => {
+      expect(getWindowsInstallerHost()).toBe(path.join(root, '.dao/installer/dao-installer-ui.exe'));
+      write(file, 'changed update window resource');
+      expect(() => getWindowsInstallerHost()).toThrow(/rebuild/);
+    });
 
   it.each(['.dao/installer/dao-installer-ui.exe', '.dao/installer/build.json',
     '.dao/installer/WebView2-LICENSE.txt'])('rejects a missing or corrupted %s', file => {

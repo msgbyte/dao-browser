@@ -26,10 +26,10 @@ const originalExitCode = process.exitCode;
 afterEach(() => { process.exitCode = originalExitCode; });
 
 describe.runIf(process.platform === 'win32')('build cancellation', () => {
-  it('builds the standalone installer host without touching Chromium build tools', async () => {
+  it.each(['dao_installer_ui', 'dao_update_window_test_host'])('builds %s without touching Chromium build tools', async target => {
     vi.mocked(runStreaming).mockReset();
-    await buildCommand.parseAsync(['node', 'cli', '--debug', '--release', '--target', 'dao_installer_ui']);
-    expect(buildWindowsInstallerHost).toHaveBeenCalledWith(expect.any(AbortSignal));
+    await buildCommand.parseAsync(['node', 'cli', '--debug', '--release', '--target', target]);
+    expect(buildWindowsInstallerHost).toHaveBeenCalledWith(expect.any(AbortSignal), target);
     expect(runStreaming).not.toHaveBeenCalled();
   });
   it('can verify the release installer using the existing release cache', async () => {
