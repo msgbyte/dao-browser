@@ -128,8 +128,11 @@
 #include "components/strings/grit/components_strings.h"
 #include "content/public/browser/document_picture_in_picture_window_controller.h"
 #include "content/public/browser/download_manager.h"
+#include "content/public/browser/favicon_status.h"
 #include "content/public/browser/host_zoom_map.h"
 #include "content/public/browser/media_player_id.h"
+#include "content/public/browser/navigation_controller.h"
+#include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/page_navigator.h"
 #include "content/public/browser/picture_in_picture_window_controller.h"
@@ -2397,6 +2400,33 @@ IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,
            GetDoubleField(*updated_first_tab, "lastActiveTimeMs") >
                initial_last_active_time_ms;
   }));
+}
+
+IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest, TabFaviconTracksImageChanges) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), embedded_test_server()->GetURL("/title1.html")));
+  DaoSidebarUIHandler handler;
+  AttachSidebarHandlerForTesting(browser(), &handler);
+  auto* model = browser()->tab_strip_model();
+  auto& image = model->GetActiveWebContents()
+                    ->GetController()
+                    .GetLastCommittedEntry()
+                    ->GetFavicon()
+                    .image;
+  image = CreateSolidExtensionIcon(SK_ColorWHITE);
+  auto light = handler.GetTabUpdateForTesting(model->active_index());
+  EXPECT_TRUE(GetBoolField(light, "isFaviconLight"));
+  EXPECT_FALSE(GetStringField(light, "faviconUrl").empty());
+  image = CreateSolidExtensionIcon(SK_ColorBLACK);
+  auto dark = handler.GetTabUpdateForTesting(model->active_index());
+  EXPECT_FALSE(GetBoolField(dark, "isFaviconLight"));
+  EXPECT_NE(GetStringField(light, "faviconUrl"),
+            GetStringField(dark, "faviconUrl"));
+  image = gfx::Image();
+  auto empty = handler.GetTabUpdateForTesting(model->active_index());
+  EXPECT_TRUE(GetStringField(empty, "faviconUrl").empty());
+  EXPECT_FALSE(GetBoolField(empty, "isFaviconLight"));
 }
 
 IN_PROC_BROWSER_TEST_F(DaoSidebarBrowserTest,

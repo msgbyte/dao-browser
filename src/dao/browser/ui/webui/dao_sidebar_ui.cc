@@ -494,27 +494,8 @@ std::string ImageSkiaToDataUrl(const gfx::ImageSkia& image) {
   return "data:image/png;base64," + base::Base64Encode(png_data.value());
 }
 
-std::string FaviconToDataUrl(content::WebContents* contents) {
-  if (!contents) {
-    return std::string();
-  }
-  gfx::Image favicon = favicon::GetTabFaviconMaybeDesaturatedOnError(contents);
-  if (favicon.IsEmpty()) {
-    return std::string();
-  }
-  return ImageSkiaToDataUrl(favicon.AsImageSkia());
-}
-
-// Returns true if the favicon is predominantly light-colored and would be
-// invisible on a dark sidebar background.
-bool IsFaviconLight(content::WebContents* contents) {
-  if (!contents) {
-    return false;
-  }
-  gfx::Image favicon = favicon::GetTabFaviconMaybeDesaturatedOnError(contents);
-  if (favicon.IsEmpty()) {
-    return false;
-  }
+// Light favicons need a contrasting background in the sidebar.
+bool IsFaviconLight(const gfx::Image& favicon) {
   const SkBitmap* bitmap = favicon.ToSkBitmap();
   if (!bitmap || bitmap->drawsNothing()) {
     return false;
@@ -543,6 +524,31 @@ bool IsFaviconLight(content::WebContents* contents) {
     return false;
   }
   return (luminance_sum / opaque_pixels) > 0.85;
+}
+
+struct SidebarFavicon : base::SupportsUserData::Data {
+  gfx::Image image;
+  std::string url;
+  bool is_light = false;
+};
+
+const SidebarFavicon& GetSidebarFavicon(content::WebContents* contents) {
+  static const char kKey = 0;
+  gfx::Image image = favicon::GetTabFaviconMaybeDesaturatedOnError(contents);
+  auto* cached = static_cast<SidebarFavicon*>(contents->GetUserData(&kKey));
+  // gfx::Image copies share storage until Chromium replaces the favicon.
+  if (cached && cached->image == image) {
+    return *cached;
+  }
+  auto next = std::make_unique<SidebarFavicon>();
+  if (!image.IsEmpty()) {
+    next->url = ImageSkiaToDataUrl(image.AsImageSkia());
+    next->is_light = IsFaviconLight(image);
+    next->image = std::move(image);
+  }
+  cached = next.get();
+  contents->SetUserData(&kKey, std::move(next));
+  return *cached;
 }
 
 constexpr int kMaxRecentFiles = 4;
@@ -1515,8 +1521,9 @@ base::DictValue DaoSidebarUIHandler::BuildSidebarState() {
     tab.Set("title", base::UTF16ToUTF8(contents->GetTitle()));
     tab.Set("url", contents->GetVisibleURL().spec());
     tab.Set("lastActiveTimeMs", GetLastActiveTimeMs(contents));
-    tab.Set("faviconUrl", FaviconToDataUrl(contents));
-    tab.Set("isFaviconLight", IsFaviconLight(contents));
+    const auto& favicon = GetSidebarFavicon(contents);
+    tab.Set("faviconUrl", favicon.url);
+    tab.Set("isFaviconLight", favicon.is_light);
     tab.Set("isActive", i == model->active_index());
     tab.Set("isPinned", model->IsTabPinned(i));
     tab.Set("isAudible", IsTabAudible(contents));
@@ -1577,7 +1584,7 @@ base::ListValue DaoSidebarUIHandler::BuildPinnedItems() {
     dict.Set("openTabId", contents ? GetSidebarTabId(contents) : std::string());
     dict.Set("isActive",
              open_model && open_tab_index == open_model->active_index());
-    dict.Set("isFaviconLight", contents ? IsFaviconLight(contents) : false);
+    dict.Set("isFaviconLight", contents && GetSidebarFavicon(contents).is_light);
     dict.Set("resourceAlert", ResourceAlertName(contents));
     pinned_items.Append(std::move(dict));
   }
@@ -1690,7 +1697,7 @@ bool DaoSidebarUIHandler::ReconcilePinnedItems(bool restore_complete) {
       const std::string title =
           base::UTF16ToUTF8(match->contents->GetTitle());
       const std::string url = match->contents->GetVisibleURL().spec();
-      const std::string favicon_url = FaviconToDataUrl(match->contents);
+      const std::string& favicon_url = GetSidebarFavicon(match->contents).url;
       if (item->title != title || item->url != url ||
           item->favicon_url != favicon_url ||
           item->state != DaoPinnedTabState::kOpen) {
@@ -1724,7 +1731,7 @@ bool DaoSidebarUIHandler::ReconcilePinnedItems(bool restore_complete) {
     }
     pinned_tab_model_.AddOrUpdate(
         base::UTF16ToUTF8(tab.contents->GetTitle()),
-        tab.contents->GetVisibleURL().spec(), FaviconToDataUrl(tab.contents),
+        tab.contents->GetVisibleURL().spec(), GetSidebarFavicon(tab.contents).url,
         tab.identity);
     claimed_identities.insert(tab.identity);
     PersistBackingIdentity(tab.contents);
@@ -2043,7 +2050,7 @@ void DaoSidebarUIHandler::PinTabAtIndex(int index, int pinned_target_index) {
   DaoPinnedTabItem& pinned_item =
       pinned_tab_model_.AddOrUpdate(base::UTF16ToUTF8(contents->GetTitle()),
                                     contents->GetVisibleURL().spec(),
-                                    FaviconToDataUrl(contents),
+                                    GetSidebarFavicon(contents).url,
                                     GetSidebarTabId(contents));
   if (pinned_target_index >= 0) {
     pinned_tab_model_.Move(pinned_item.id,
@@ -2290,8 +2297,9 @@ base::DictValue DaoSidebarUIHandler::BuildTabUpdate(int index) {
   tab.Set("title", base::UTF16ToUTF8(contents->GetTitle()));
   tab.Set("url", contents->GetVisibleURL().spec());
   tab.Set("lastActiveTimeMs", GetLastActiveTimeMs(contents));
-  tab.Set("faviconUrl", FaviconToDataUrl(contents));
-  tab.Set("isFaviconLight", IsFaviconLight(contents));
+  const auto& favicon = GetSidebarFavicon(contents);
+  tab.Set("faviconUrl", favicon.url);
+  tab.Set("isFaviconLight", favicon.is_light);
   tab.Set("isActive", index == model->active_index());
   tab.Set("isPinned", model->IsTabPinned(index));
   tab.Set("isAudible", IsTabAudible(contents));
@@ -3875,7 +3883,7 @@ void DaoSidebarUIHandler::PushMediaPlaybackState() {
   state.Set("tabIndex", media_widget_tab_index_);
   state.Set("title", base::UTF16ToUTF8(contents->GetTitle()));
   state.Set("sourceTitle", source_title);
-  state.Set("faviconUrl", FaviconToDataUrl(contents));
+  state.Set("faviconUrl", GetSidebarFavicon(contents).url);
   state.Set("isMuted", contents->IsAudioMuted());
   state.Set("hasPrev", has_prev_action_);
   state.Set("hasNext", has_next_action_);

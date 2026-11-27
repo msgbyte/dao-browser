@@ -324,6 +324,8 @@ for measured overhead and the unvalidated 5 MiB memory target.
 - **sidebar_bridge.ts** — Mojo client wrapper
 - **dao_sidebar_section.ts** — Reusable collapsible section container
 - **dao_tab_list.ts** / **dao_tab_item.ts** — Vertical tab list, dual-line layout for the active tab (title + URL)
+  Sidebar refreshes reuse each tab's encoded favicon and its contrast setting
+  while Chromium supplies the same image.
 - **Tab close-button focus** — Close buttons stay out of sequential Tab
   navigation, and mouse clicks do not leave them focused for accidental
   Space/Enter activation. Close-tab shortcuts and context-menu actions remain
